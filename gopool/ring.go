@@ -7,7 +7,6 @@ import (
 	"time"
 
 	queuepkg "github.com/Workiva/go-datastructures/queue"
-	"github.com/jxskiss/timingwheel"
 )
 
 type Ring struct {
@@ -15,6 +14,7 @@ type Ring struct {
 	size    int32
 	workers *queuepkg.RingBuffer
 	queued  chan func()
+	sleepf  func()
 
 	wait      sync.WaitGroup
 	stop      chan struct{}
@@ -35,7 +35,7 @@ func (w *worker) submit(task func()) {
 	w.tasks <- task
 }
 
-func NewRing(size, queue, spawn int) *Ring {
+func NewRing(size, queue, spawn int, sleepFunc func()) *Ring {
 	if spawn <= 0 {
 		panic("dead queue configuration detected")
 	}
@@ -45,12 +45,15 @@ func NewRing(size, queue, spawn int) *Ring {
 	if queue > 1 {
 		queue -= 1
 	}
+	if sleepFunc == nil {
+		sleepFunc = func() { runtime.Gosched() }
+	}
 	p := &Ring{
 		size:    int32(size),
 		queued:  make(chan func(), queue),
 		workers: queuepkg.NewRingBuffer(uint64(size)),
 		stop:    make(chan struct{}),
-
+		sleepf:  sleepFunc,
 	}
 	for i := 0; i < spawn; i++ {
 		atomic.AddInt32(&p.sem, 1)
@@ -175,16 +178,14 @@ func (p *Ring) scheduleQueue(task func(), timeout time.Duration) error {
 
 func (p *Ring) runQueued() {
 	// TODO: check pool stopped?
-	var timer = wheel.NewTimer(0)
-	<-timer.C
-
 	for task := range p.queued {
 		// Create new worker if available when all workers are busy.
 		if atomic.LoadInt32(&p.sem) < p.size {
 			if atomic.LoadInt32(&p.busy) >= atomic.LoadInt32(&p.active) {
 				atomic.AddInt32(&p.sem, 1)
-				w := p.newWorker()
 				atomic.AddInt32(&p.busy, 1)
+				p.wait.Add(1)
+				w := p.newWorker()
 				w.submit(task)
 				atomic.AddInt32(&p.pending, -1)
 				continue
@@ -193,8 +194,7 @@ func (p *Ring) runQueued() {
 
 		for {
 			if atomic.LoadInt32(&p.busy) >= p.size {
-				timer.Reset(time.Millisecond)
-				<-timer.C
+				p.sleepf()
 				continue
 			}
 			busy := atomic.AddInt32(&p.busy, 1)

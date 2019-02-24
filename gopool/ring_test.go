@@ -2,6 +2,7 @@ package gopool
 
 import (
 	"log"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -9,11 +10,15 @@ import (
 
 type Tester struct {
 	pool *Ring
+
+	stopped int32
+	wg      sync.WaitGroup
 }
 
 func (t *Tester) schedule() {
+	defer t.wg.Done()
 	var count int64
-	for {
+	for atomic.LoadInt32(&t.stopped) == 0 {
 		t.pool.Schedule(func() {
 			//sleep := rand.Int63n(int64(time.Second))
 			//time.Sleep(200*time.Millisecond + time.Duration(sleep))
@@ -26,8 +31,9 @@ func (t *Tester) schedule() {
 }
 
 func (t *Tester) scheduleTimeout() {
+	defer t.wg.Done()
 	var count int64
-	for {
+	for atomic.LoadInt32(&t.stopped) == 0 {
 		t.pool.ScheduleTimeout(func() {
 			//sleep := rand.Int63n(int64(time.Second))
 			//time.Sleep(200*time.Millisecond + time.Duration(sleep))
@@ -40,8 +46,12 @@ func (t *Tester) scheduleTimeout() {
 }
 
 func (t *Tester) report() {
+	defer t.wg.Done()
 	var totalTimeout int
 	for range time.NewTicker(time.Second).C {
+		if atomic.LoadInt32(&t.stopped) == 1 {
+			return
+		}
 		sem := atomic.LoadInt32(&t.pool.sem)
 		active, busy, pending, timeout := t.pool.Stats()
 		totalTimeout += timeout
@@ -52,14 +62,20 @@ func (t *Tester) report() {
 
 func TestRingPool(t *testing.T) {
 	tester := &Tester{
-		pool: NewRing(1000, 100, 10),
+		pool: NewRing(1000, 100, 10, func() { time.Sleep(time.Microsecond) }),
 	}
 
 	for i := 0; i < 10; i++ {
+		tester.wg.Add(2)
 		go tester.schedule()
 		go tester.scheduleTimeout()
 	}
+
+	tester.wg.Add(1)
 	go tester.report()
 
-	<-tester.pool.stop
+	time.Sleep(5 * time.Second)
+	atomic.StoreInt32(&tester.stopped, 1)
+	tester.pool.Stop()
+	tester.wg.Wait()
 }
