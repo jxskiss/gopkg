@@ -2,14 +2,15 @@ package retry
 
 import (
 	"fmt"
-	"github.com/jxskiss/errors"
-	"github.com/matryer/is"
 	"testing"
 	"time"
+
+	"github.com/jxskiss/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_Retry(t *testing.T) {
-	is := is.New(t)
+	is := assert.New(t)
 	target := fakeErrors(3)
 
 	begin := time.Now()
@@ -47,7 +48,7 @@ func Test_Retry(t *testing.T) {
 }
 
 func Test_Hook(t *testing.T) {
-	is := is.New(t)
+	is := assert.New(t)
 	target := fakeErrors(3)
 	hook := &fakeHook{}
 
