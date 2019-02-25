@@ -73,7 +73,7 @@ func (p *Ring) newWorker() *worker {
 
 func (p *Ring) runWorker(w *worker) {
 	defer p.doneWorker()
-LOOP:
+L1:
 	for {
 		select {
 		case task := <-w.tasks:
@@ -81,14 +81,18 @@ LOOP:
 			p.putWorker(w)
 			atomic.AddInt32(&p.busy, -1)
 		case <-p.stop:
-			// After pool stopped, there will be at most one task left.
-			select {
-			case task := <-w.tasks:
-				task()
-				atomic.AddInt32(&p.busy, -1)
-			default:
-			}
-			break LOOP
+			break L1
+		}
+	}
+	select {
+	case task := <-w.tasks:
+		// After pool stopped, there will be at most one task left.
+		task()
+		atomic.AddInt32(&p.busy, -1)
+	default:
+		// done the queued tasks
+		for task := range p.queued {
+			task()
 		}
 	}
 }
@@ -100,7 +104,6 @@ func (p *Ring) doneWorker() {
 }
 
 func (p *Ring) putWorker(w *worker) {
-	// TODO: check pool stopped?
 	p.workers.Put(w)
 }
 
@@ -152,61 +155,78 @@ func (p *Ring) scheduleRing(task func(), timeout time.Duration) error {
 }
 
 func (p *Ring) scheduleQueue(task func(), timeout time.Duration) error {
-	// TODO: should we check pool stopped?
-	if timeout == 0 {
-		p.queued <- task
-	} else {
-		select {
-		case <-time.After(timeout):
-			atomic.AddUint64(&p.timeout, 1)
-			return ErrTimeout
-		case p.queued <- task:
-		}
+	var deadline <-chan time.Time
+	if timeout > 0 {
+		deadline = time.After(timeout)
+	}
+	select {
+	case <-deadline:
+		atomic.AddUint64(&p.timeout, 1)
+		return ErrTimeout
+	case <-p.stop:
+		return ErrStopped
+	case p.queued <- task:
 	}
 	atomic.AddInt32(&p.pending, 1)
 	return nil
 }
 
 func (p *Ring) runQueued() {
-	// TODO: check pool stopped?
-	for task := range p.queued {
-		// Create new worker if available when all workers are busy.
-		if atomic.LoadInt32(&p.sem) < p.size {
-			if atomic.LoadInt32(&p.busy) >= atomic.LoadInt32(&p.active) {
-				atomic.AddInt32(&p.sem, 1)
-				atomic.AddInt32(&p.busy, 1)
-				w := p.newWorker()
-				w.submit(task)
-				atomic.AddInt32(&p.pending, -1)
-				continue
-			}
+	var task func()
+L1:
+	for {
+		select {
+		case task = <-p.queued:
+			p.doQueuedTask(task)
+		case <-p.stop:
+			break L1
 		}
-
-		for {
-			if atomic.LoadInt32(&p.busy) >= p.size {
-				p.sleepf()
-				continue
-			}
-			busy := atomic.AddInt32(&p.busy, 1)
-			if busy > p.size {
-				atomic.AddInt32(&p.busy, -1)
-				runtime.Gosched()
-				continue
-			}
-			// got free worker, submit the task
-			err := p.scheduleRing(task, 0)
-			if err != nil {
-				// poll has been stopped
-				atomic.AddInt32(&p.busy, -1)
-				return
-			}
-			atomic.AddInt32(&p.pending, -1)
-			break
+	}
+L2:
+	// done the buffered tasks
+	for {
+		select {
+		case task = <-p.queued:
+			task()
+		default:
+			time.Sleep(100 * time.Millisecond)
+			close(p.queued)
+			break L2
 		}
 	}
 }
 
-// TODO: wait queued tasks.
+func (p *Ring) doQueuedTask(task func()) {
+	// Create new worker if available when all workers are busy.
+	if atomic.LoadInt32(&p.sem) < p.size {
+		if atomic.LoadInt32(&p.busy) >= atomic.LoadInt32(&p.active) {
+			atomic.AddInt32(&p.sem, 1)
+			atomic.AddInt32(&p.busy, 1)
+			w := p.newWorker()
+			w.submit(task)
+			atomic.AddInt32(&p.pending, -1)
+			return
+		}
+	}
+
+	for {
+		if atomic.LoadInt32(&p.busy) >= p.size {
+			p.sleepf()
+			continue
+		}
+		busy := atomic.AddInt32(&p.busy, 1)
+		if busy > p.size {
+			atomic.AddInt32(&p.busy, -1)
+			runtime.Gosched()
+			continue
+		}
+		// got free worker, submit the task
+		p.scheduleRing(task, 0)
+		atomic.AddInt32(&p.pending, -1)
+		break
+	}
+}
+
 func (p *Ring) Stop() {
 	if !atomic.CompareAndSwapInt32(&p.isStopped, 0, 1) {
 		return

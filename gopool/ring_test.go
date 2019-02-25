@@ -62,7 +62,7 @@ func (t *Tester) report() {
 
 func TestRingPool(t *testing.T) {
 	tester := &Tester{
-		pool: NewRing(1000, 100, 10, func() { time.Sleep(time.Microsecond) }),
+		pool: NewRing(1000, 100, 10, func() { time.Sleep(time.Millisecond) }),
 	}
 
 	for i := 0; i < 10; i++ {
