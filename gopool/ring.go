@@ -5,14 +5,12 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	queuepkg "github.com/Workiva/go-datastructures/queue"
 )
 
 type Ring struct {
 	sem     int32
 	size    int32
-	workers *queuepkg.RingBuffer
+	workers *RingBuffer
 	queued  chan func()
 	sleepf  func()
 
@@ -51,13 +49,12 @@ func NewRing(size, queue, spawn int, sleepFunc func()) *Ring {
 	p := &Ring{
 		size:    int32(size),
 		queued:  make(chan func(), queue),
-		workers: queuepkg.NewRingBuffer(uint64(size)),
+		workers: NewRingBuffer(uint64(size)),
 		stop:    make(chan struct{}),
 		sleepf:  sleepFunc,
 	}
 	for i := 0; i < spawn; i++ {
 		atomic.AddInt32(&p.sem, 1)
-		p.wait.Add(1)
 		p.workers.Put(p.newWorker())
 	}
 	go p.runQueued()
@@ -66,6 +63,7 @@ func NewRing(size, queue, spawn int, sleepFunc func()) *Ring {
 
 func (p *Ring) newWorker() *worker {
 	atomic.AddInt32(&p.active, 1)
+	p.wait.Add(1)
 	w := &worker{
 		tasks: make(chan func(), 1),
 	}
@@ -80,11 +78,8 @@ LOOP:
 		select {
 		case task := <-w.tasks:
 			task()
-			err := p.putWorker(w)
+			p.putWorker(w)
 			atomic.AddInt32(&p.busy, -1)
-			if err != nil {
-				break LOOP
-			}
 		case <-p.stop:
 			// After pool stopped, there will be at most one task left.
 			select {
@@ -104,9 +99,9 @@ func (p *Ring) doneWorker() {
 	p.wait.Done()
 }
 
-func (p *Ring) putWorker(w *worker) (err error) {
-	err = p.workers.Put(w)
-	return err
+func (p *Ring) putWorker(w *worker) {
+	// TODO: check pool stopped?
+	p.workers.Put(w)
 }
 
 func (p *Ring) Schedule(task func()) error {
@@ -119,7 +114,7 @@ func (p *Ring) ScheduleTimeout(task func(), timeout time.Duration) error {
 
 func (p *Ring) schedule(task func(), timeout time.Duration) (err error) {
 	if atomic.LoadInt32(&p.isStopped) > 0 {
-		return ErrPoolStopped
+		return ErrStopped
 	}
 
 	// tasks are queued
@@ -147,12 +142,8 @@ func (p *Ring) schedule(task func(), timeout time.Duration) (err error) {
 func (p *Ring) scheduleRing(task func(), timeout time.Duration) error {
 	w, err := p.workers.Poll(timeout)
 	if err != nil {
-		if err == queuepkg.ErrTimeout {
+		if err == ErrTimeout {
 			atomic.AddUint64(&p.timeout, 1)
-			return ErrScheduleTimeout
-		}
-		if err == queuepkg.ErrDisposed {
-			return ErrPoolStopped
 		}
 		return err
 	}
@@ -168,7 +159,7 @@ func (p *Ring) scheduleQueue(task func(), timeout time.Duration) error {
 		select {
 		case <-time.After(timeout):
 			atomic.AddUint64(&p.timeout, 1)
-			return ErrScheduleTimeout
+			return ErrTimeout
 		case p.queued <- task:
 		}
 	}
@@ -184,7 +175,6 @@ func (p *Ring) runQueued() {
 			if atomic.LoadInt32(&p.busy) >= atomic.LoadInt32(&p.active) {
 				atomic.AddInt32(&p.sem, 1)
 				atomic.AddInt32(&p.busy, 1)
-				p.wait.Add(1)
 				w := p.newWorker()
 				w.submit(task)
 				atomic.AddInt32(&p.pending, -1)

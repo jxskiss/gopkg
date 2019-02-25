@@ -9,10 +9,10 @@ import (
 )
 
 var (
-	// ErrScheduleTimeout returned by Pool to indicate that there no free
+	// ErrTimeout returned by Pool to indicate that there are no free
 	// goroutines during some period of time.
-	ErrScheduleTimeout = errors.New("gopool: schedule timed out")
-	ErrPoolStopped     = errors.New("gopool: pool stopped")
+	ErrTimeout = errors.New("gopool: schedule timeout")
+	ErrStopped = errors.New("gopool: pool stopped")
 )
 
 // Pool contains logic of goroutine reuse.
@@ -61,20 +61,20 @@ func (p *Pool) Schedule(task func()) error {
 }
 
 // ScheduleTimeout schedules task to be executed over pool's workers.
-// It returns ErrScheduleTimeout when no free workers met during given timeout.
+// It returns ErrTimeout when no free workers met during given timeout.
 func (p *Pool) ScheduleTimeout(task func(), timeout time.Duration) error {
 	return p.schedule(task, time.After(timeout))
 }
 
 func (p *Pool) schedule(task func(), timeout <-chan time.Time) (err error) {
 	if atomic.LoadInt32(&p.isStopped) == 1 {
-		return ErrPoolStopped
+		return ErrStopped
 	}
 	// TODO: should we check pool stopped?
 	select {
 	case <-timeout:
 		atomic.AddUint64(&p.timeout, 1)
-		return ErrScheduleTimeout
+		return ErrTimeout
 	case p.work <- task:
 		atomic.AddInt32(&p.pending, 1)
 	case p.sem <- struct{}{}:
