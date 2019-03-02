@@ -1,12 +1,24 @@
-// +build darwin netbsd freebsd openbsd dragonfly linux
-
-// See: https://github.com/golang/go/issues/27707
+// +build darwin netbsd freebsd openbsd dragonfly no_cgo_utime
 
 package wheel
 
-// #include <unistd.h>
-import "C"
+import "syscall"
 
 func Usleep(usec uint) {
-	C.usleep(C.useconds_t(usec))
+	spec := syscall.Timespec{
+		Nsec: int64(usec * 1000),
+	}
+	syscall.Nanosleep(&spec, &spec)
+}
+
+func Utick(usec uint, f func() bool) {
+	spec := syscall.Timespec{
+		Nsec: int64(usec * 1000),
+	}
+	for {
+		syscall.Nanosleep(&spec, &spec)
+		if done := f(); done {
+			break
+		}
+	}
 }

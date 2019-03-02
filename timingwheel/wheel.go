@@ -144,7 +144,6 @@ func (w *Wheel) onTick(now time.Time) {
 		(w.cascade(w.tv3, w.getIndex(1))) == 0 &&
 		(w.cascade(w.tv4, w.getIndex(2))) == 0 &&
 		(w.cascade(w.tv5, w.getIndex(3))) == 0 {
-		// TODO: ???
 	}
 
 	w.jiffies++
@@ -219,11 +218,14 @@ func (w *Wheel) run() {
 		}
 	}()
 
-	if w.tick >= time.Minute {
+	// TODO: is it unnecessary to lock OS thread?
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	if w.tick >= time.Second {
 		// time.Ticker based loop
 		t := time.NewTicker(w.tick)
 		defer t.Stop()
-
 		for {
 			select {
 			case now := <-t.C:
@@ -233,19 +235,17 @@ func (w *Wheel) run() {
 			}
 		}
 	} else {
-		// usleep based loop
-		runtime.GOMAXPROCS(runtime.GOMAXPROCS(0) + 1)
-		runtime.LockOSThread()
-		tickUs := w.tick / time.Microsecond
-		sleepUs := tickUs
-		for atomic.LoadUint32(&w.stopped) == 0 {
-			if sleepUs > 0 {
-				Usleep(uint(sleepUs))
+		// syscall or timerfd based busy loop on unix/linux for lower CPU usage
+		//
+		// See: https://github.com/golang/go/issues/27707
+		var tickUs = w.tick / time.Microsecond
+		Utick(uint(tickUs), func() bool {
+			if atomic.LoadUint32(&w.stopped) > 0 {
+				return true
 			}
-			now := time.Now()
-			w.onTick(now)
-			sleepUs = (w.tick - time.Since(now)) / time.Microsecond
-		}
+			w.onTick(time.Now())
+			return false
+		})
 	}
 }
 
