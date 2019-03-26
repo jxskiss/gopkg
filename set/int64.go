@@ -31,6 +31,7 @@ func (s *Int64) Del(vals ...int64) {
 	}
 }
 
+// Pop pop an element from the set, in no particular order.
 func (s *Int64) Pop() int64 {
 	for val := range s.m {
 		delete(s.m, val)
@@ -39,6 +40,8 @@ func (s *Int64) Pop() int64 {
 	return 0
 }
 
+// Each iterate the set in no particular order and call the given function
+// for each set element.
 func (s *Int64) Each(fn func(int64)) {
 	for val := range s.m {
 		fn(val)
@@ -63,6 +66,7 @@ func (s *Int64) Diff(other *Int64) *Int64 {
 	return res
 }
 
+// Intersect return new Int64 about values which other set also contains.
 func (s *Int64) Intersect(other *Int64) *Int64 {
 	res := NewInt64()
 
@@ -83,6 +87,7 @@ func (s *Int64) Intersect(other *Int64) *Int64 {
 	return res
 }
 
+// Union return new Int64 about values either in the set or the other set.
 func (s *Int64) Union(other *Int64) *Int64 {
 	res := NewInt64()
 
@@ -110,6 +115,7 @@ func (s *Int64) Slice() []int64 {
 	return res
 }
 
+// Map converts set into map[int64]bool.
 func (s *Int64) Map() map[int64]bool {
 	res := make(map[int64]bool, len(s.m))
 
@@ -119,11 +125,15 @@ func (s *Int64) Map() map[int64]bool {
 	return res
 }
 
+// MarshalJSON implements json.Marshaler interface, the set will be
+// marshaled as an int64 array.
 func (s *Int64) MarshalJSON() ([]byte, error) {
 	res := s.Slice()
 	return json.Marshal(res)
 }
 
+// UnmarshalJSON implements json.Unmarshaler interface, it will unmarshal
+// an int64 array to the set.
 func (s *Int64) UnmarshalJSON(b []byte) error {
 	vals := make([]int64, 0)
 	err := json.Unmarshal(b, &vals)

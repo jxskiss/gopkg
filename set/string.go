@@ -31,6 +31,7 @@ func (s *String) Del(vals ...string) {
 	}
 }
 
+// Pop pop an element from the set, in no particular order.
 func (s *String) Pop() string {
 	for val := range s.m {
 		delete(s.m, val)
@@ -39,6 +40,8 @@ func (s *String) Pop() string {
 	return ""
 }
 
+// Each iterate the set in no particular order and call the given function
+// for each set element.
 func (s *String) Each(fn func(string)) {
 	for val := range s.m {
 		fn(val)
@@ -63,6 +66,7 @@ func (s *String) Diff(other *String) *String {
 	return res
 }
 
+// Intersect return new String about values which other set also contains.
 func (s *String) Intersect(other *String) *String {
 	res := NewString()
 
@@ -83,6 +87,7 @@ func (s *String) Intersect(other *String) *String {
 	return res
 }
 
+// Union return new String about values either in the set or the other set.
 func (s *String) Union(other *String) *String {
 	res := NewString()
 
@@ -110,6 +115,7 @@ func (s *String) Slice() []string {
 	return res
 }
 
+// Map converts the set into map[string]bool.
 func (s *String) Map() map[string]bool {
 	res := make(map[string]bool, len(s.m))
 
@@ -119,11 +125,15 @@ func (s *String) Map() map[string]bool {
 	return res
 }
 
+// MarshalJSON implements json.Marshaler interface, the set will be
+// marshaled as an string array.
 func (s *String) MarshalJSON() ([]byte, error) {
 	res := s.Slice()
 	return json.Marshal(res)
 }
 
+// UnmarshalJSON implements json.Unmarshaler interface, it will unmarshal
+// an string array to the set.
 func (s *String) UnmarshalJSON(b []byte) error {
 	vals := make([]string, 0)
 	err := json.Unmarshal(b, &vals)
