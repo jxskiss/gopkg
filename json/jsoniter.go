@@ -1,4 +1,4 @@
-// +build !no_jsoniter
+// +build jsoniter
 
 package json
 
@@ -25,6 +25,10 @@ func Marshal(v interface{}) ([]byte, error) {
 	b := pbytes.GetLen(len(result))
 	copy(b, result)
 	return b, nil
+}
+
+func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
+	return cfg.MarshalIndent(v, prefix, indent)
 }
 
 func Unmarshal(data []byte, v interface{}) error {
