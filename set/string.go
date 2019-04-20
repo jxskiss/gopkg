@@ -40,9 +40,9 @@ func (s *String) Pop() string {
 	return ""
 }
 
-// Each iterate the set in no particular order and call the given function
+// Iterate iterate the set in no particular order and call the given function
 // for each set element.
-func (s *String) Each(fn func(string)) {
+func (s *String) Iterate(fn func(string)) {
 	for val := range s.m {
 		fn(val)
 	}

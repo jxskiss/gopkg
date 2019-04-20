@@ -59,9 +59,9 @@ func (s *Set) Pop() interface{} {
 	return nil
 }
 
-// Each iterate the set in no particular order and call the given function
+// Iterate iterate the set in no particular order and call the given function
 // for each set element.
-func (s *Set) Each(fn func(interface{})) {
+func (s *Set) Iterate(fn func(interface{})) {
 	for val := range s.m {
 		fn(val)
 	}

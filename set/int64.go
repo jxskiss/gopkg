@@ -40,9 +40,9 @@ func (s *Int64) Pop() int64 {
 	return 0
 }
 
-// Each iterate the set in no particular order and call the given function
+// Iterate iterate the set in no particular order and call the given function
 // for each set element.
-func (s *Int64) Each(fn func(int64)) {
+func (s *Int64) Iterate(fn func(int64)) {
 	for val := range s.m {
 		fn(val)
 	}

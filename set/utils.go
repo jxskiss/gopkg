@@ -70,6 +70,13 @@ func Int64Keys(m interface{}) (keys []int64) {
 			keys[i] = k
 			i++
 		}
+	case map[int64]interface{}:
+		keys = make([]int64, len(v))
+		i := 0
+		for k := range v {
+			keys[i] = k
+			i++
+		}
 	default:
 		mTyp := reflect.TypeOf(m)
 		if mTyp.Kind() != reflect.Map || !isIntType(mTyp.Key()) {
@@ -167,6 +174,13 @@ func StringKeys(m interface{}) (keys []string) {
 			i++
 		}
 	case map[string][]string:
+		keys = make([]string, len(v))
+		i := 0
+		for k := range v {
+			keys[i] = k
+			i++
+		}
+	case map[string]interface{}:
 		keys = make([]string, len(v))
 		i := 0
 		for k := range v {
