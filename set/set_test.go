@@ -1,6 +1,7 @@
 package set
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"testing"
@@ -82,98 +83,102 @@ func TestSet_Add(t *testing.T) {
 	}
 }
 
-func TestSet_Slice_Nil(t *testing.T) {
+func TestSet_Slice(t *testing.T) {
 	set1 := NewSet(1, 2, 3)
 	set1.Add([]int{4, 5, 6})
 	target := []interface{}{1, 2, 3, 4, 5, 6}
 
-	vals := set1.Slice(nil).([]interface{})
+	vals := set1.Slice()
 	sort.Slice(vals, func(i, j int) bool {
 		return vals[i].(int) < vals[j].(int)
 	})
 
 	if !reflect.DeepEqual(target, vals) {
-		t.Errorf("failed Slice_Nil")
+		t.Errorf("failed Slice")
 	}
 }
 
-func TestSet_Slice_Interface(t *testing.T) {
+func TestSet_SliceTo_Interface(t *testing.T) {
 	set1 := NewSet(1, 2, 3)
 	set1.Add([]int{4, 5, 6})
 	target := []interface{}{1, 2, 3, 4, 5, 6}
 
 	vals1 := make([]interface{}, 0)
-	vals2 := set1.Slice(&vals1).([]interface{})
+	set1.SliceTo(&vals1)
 	sort.Slice(vals1, func(i, j int) bool {
 		return vals1[i].(int) < vals1[j].(int)
 	})
-	sort.Slice(vals2, func(i, j int) bool {
-		return vals2[i].(int) < vals2[j].(int)
-	})
 
 	if !reflect.DeepEqual(target, vals1) {
-		t.Errorf("failed Slice_Interface vals1")
-	}
-	if !reflect.DeepEqual(target, vals2) {
-		t.Errorf("failed Slice_Interface vals2")
-	}
-
-	var vals3 = set1.Slice((*[]interface{})(nil)).([]interface{})
-	sort.Slice(vals3, func(i, j int) bool {
-		return vals3[i].(int) < vals3[j].(int)
-	})
-	if !reflect.DeepEqual(target, vals3) {
-		t.Errorf("failed Slice_Interface vals3")
+		t.Errorf("failed SliceTo_Interface vals1")
 	}
 }
 
-func TestSet_Slice_Int(t *testing.T) {
+func TestSet_SliceTo_Int(t *testing.T) {
 	set1 := NewSet(1, 2, 3)
 	set1.Add([]int{4, 5, 6})
 	target := []int{1, 2, 3, 4, 5, 6}
 
 	vals1 := make([]int, 0)
-	vals2 := set1.Slice(&vals1).([]int)
+	set1.SliceTo(&vals1)
 	sort.Slice(vals1, func(i, j int) bool {
 		return vals1[i] < vals1[j]
 	})
-	sort.Slice(vals2, func(i, j int) bool {
-		return vals2[i] < vals2[j]
-	})
 
 	if !reflect.DeepEqual(target, vals1) {
-		t.Errorf("failed Slice_Int vals1")
-	}
-	if !reflect.DeepEqual(target, vals2) {
-		t.Errorf("failed Slice_Int_vals2")
+		t.Errorf("failed SliceTo_Int vals1")
 	}
 
 	var vals3 []int
-	var vals4 = set1.Slice(&vals3).([]int)
+	set1.SliceTo(&vals3)
 	sort.Slice(vals3, func(i, j int) bool {
 		return vals3[i] < vals3[j]
 	})
-	sort.Slice(vals4, func(i, j int) bool {
-		return vals4[i] < vals4[j]
-	})
 
 	if !reflect.DeepEqual(target, vals3) {
-		t.Errorf("failed Slice_Int vals3")
-	}
-	if !reflect.DeepEqual(target, vals4) {
-		t.Errorf("failed Slice_Int vals4")
-	}
-
-	var vals6 = set1.Slice((*[]int)(nil)).([]int)
-	sort.Slice(vals6, func(i, j int) bool {
-		return vals6[i] < vals6[j]
-	})
-	if !reflect.DeepEqual(target, vals6) {
-		t.Errorf("failed Slice_int, vals6")
+		t.Errorf("failed SliceTo_Int vals3")
 	}
 }
 
-func TestSet_Map_Nil(t *testing.T) {
+func TestSet_SliceTo_InvalidDst(t *testing.T) {
+	set1 := NewSet(1, 2, 3)
+	set1.Add([]int{4, 5, 6})
+
+	// nil interface{}, should panic
+	var vals1, vals2 interface{}
+	err1 := shouldPanic(func() {
+		set1.SliceTo(vals1)
+	})
+	if err1 == nil {
+		t.Errorf("failed SliceTo_InvalidDst vals1")
+	}
+	err2 := shouldPanic(func() {
+		set1.SliceTo(&vals2)
+	})
+	if err2 == nil {
+		t.Errorf("failed SliceTo_InvalidDst vals2")
+	}
+
+	// （*[]interface{})(nil), should panic
+	var vals3 *[]interface{}
+	err3 := shouldPanic(func() {
+		set1.SliceTo(vals3)
+	})
+	if err3 == nil {
+		t.Errorf("failed SliceTo_InvalidDst vals3")
+	}
+
+	// (*[]int)(nil), should panic
+	var vals4 *[]int
+	err4 := shouldPanic(func() {
+		set1.SliceTo(vals4)
+	})
+	if err4 == nil {
+		t.Errorf("failed SliceTo_InvalidDst vals4")
+	}
+}
+
+func TestSet_Map(t *testing.T) {
 	set1 := NewSet(1, 2, 3)
 	set1.Add([]int{4, 5, 6})
 	target := map[interface{}]bool{
@@ -185,13 +190,13 @@ func TestSet_Map_Nil(t *testing.T) {
 		6: true,
 	}
 
-	vals := set1.Map(nil).(map[interface{}]bool)
+	vals := set1.Map()
 	if !reflect.DeepEqual(target, vals) {
-		t.Errorf("failed Map_Nil")
+		t.Errorf("failed Map")
 	}
 }
 
-func TestSet_Map_Interface(t *testing.T) {
+func TestSet_MapTo_Interface(t *testing.T) {
 	set1 := NewSet(1, 2, 3)
 	set1.Add([]int{4, 5, 6})
 	target := map[interface{}]bool{
@@ -204,21 +209,13 @@ func TestSet_Map_Interface(t *testing.T) {
 	}
 
 	vals1 := make(map[interface{}]bool)
-	vals2 := set1.Map(&vals1).(map[interface{}]bool)
+	set1.MapTo(&vals1)
 	if !reflect.DeepEqual(target, vals1) {
-		t.Errorf("failed Map_Interface vals1")
-	}
-	if !reflect.DeepEqual(target, vals2) {
-		t.Errorf("failed Map_Interface vals2")
-	}
-
-	var vals3 = set1.Map((*map[interface{}]bool)(nil)).(map[interface{}]bool)
-	if !reflect.DeepEqual(target, vals3) {
-		t.Errorf("failed Map_Interface vals3")
+		t.Errorf("failed MapTo_Interface vals1")
 	}
 }
 
-func TestSet_Map_Int(t *testing.T) {
+func TestSet_MapTo_Int(t *testing.T) {
 	set1 := NewSet(1, 2, 3)
 	set1.Add(4, 5, 6)
 	target := map[int]bool{
@@ -231,25 +228,56 @@ func TestSet_Map_Int(t *testing.T) {
 	}
 
 	vals1 := make(map[int]bool)
-	vals2 := set1.Map(&vals1).(map[int]bool)
+	set1.MapTo(&vals1)
 	if !reflect.DeepEqual(target, vals1) {
-		t.Errorf("failed Map_Int vals1")
+		t.Errorf("failed MapTo_Int vals1")
 	}
-	if !reflect.DeepEqual(target, vals2) {
-		t.Errorf("failed Map_Int vals2")
+}
+
+func TestSet_MapTo_InvalidDst(t *testing.T) {
+	set1 := NewSet(1, 2, 3)
+	set1.Add(4, 5, 6)
+
+	// nil interface{}, should panic
+	var vals1, vals2 interface{}
+	err1 := shouldPanic(func() {
+		set1.MapTo(vals1)
+	})
+	if err1 == nil {
+		t.Errorf("failed MapTo_InavlidDst vals1")
+	}
+	err2 := shouldPanic(func() {
+		set1.MapTo(&vals2)
+	})
+	if err2 == nil {
+		t.Errorf("failed MapTo_InvalidDst vals2")
 	}
 
-	var vals3 map[int]bool
-	var vals4 = set1.Map(&vals3).(map[int]bool)
-	if !reflect.DeepEqual(target, vals3) {
-		t.Errorf("failed Map_Int vals3")
-	}
-	if !reflect.DeepEqual(target, vals4) {
-		t.Errorf("failed Map_Int vals4")
+	// (*map[interface{}]bool)(nil), should panic
+	var vals3 map[interface{}]bool
+	err3 := shouldPanic(func() {
+		set1.MapTo(&vals3)
+	})
+	if err3 == nil {
+		t.Errorf("failed MapTo_InvalidDst vals3")
 	}
 
-	var vals6 = set1.Map((*map[int]bool)(nil)).(map[int]bool)
-	if !reflect.DeepEqual(target, vals6) {
-		t.Errorf("failed Map_Int vals6")
+	// (*map[int]bool)(nil), should panic
+	var vals4 map[int]bool
+	err4 := shouldPanic(func() {
+		set1.MapTo(&vals4)
+	})
+	if err4 == nil {
+		t.Errorf("failed MapTo_InvalidDst vals4")
 	}
+}
+
+func shouldPanic(f func()) (err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = fmt.Errorf("%v", e)
+		}
+	}()
+	f()
+	return
 }

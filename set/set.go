@@ -124,101 +124,63 @@ func (s *Set) Size() int {
 	return len(s.m)
 }
 
-// Slice copy the set elements to the given dst slice.
+// Slice converts set into interface{} slice.
+func (s *Set) Slice() []interface{} {
+	res := make([]interface{}, 0, len(s.m))
+	for val := range s.m {
+		res = append(res, val)
+	}
+	return res
+}
+
+// SliceTo copy the set elements to the given dst slice.
 //
-// The param dst should be either a pointer to an interface slice, or a
+// The param dst must be either a pointer to an interface slice, or a
 // pointer to a slice of the concrete element type, else it panics.
-//
-// The return value has same type with the slice that dst points to.
-// Generally if dst is not nil, the return value should be ignored.
-//
-// If dst is a nil interface, the return value will be of type []interface{}
-// which holds the set elements. And if dst is a pointer which point to a
-// nil interface slice, the pointer will be pointed to the return value,
-// which is a new malloced []interface{} holds the set elements.
-//
-// If dst is a pointer points to a concrete slice type, then the set elements
-// will be appended to the slice, the return value is the same slice.
-// In case of dst is a nil pointer, the return value will be a new malloced
-// slice of the dst element type.
-//
-func (s *Set) Slice(dst interface{}) interface{} {
-	if dst == nil {
-		dstVal := make([]interface{}, 0, len(s.m))
-		for val := range s.m {
-			dstVal = append(dstVal, val)
-		}
-		return dstVal
-	}
-
+func (s *Set) SliceTo(dst interface{}) {
 	dstTyp := reflect.TypeOf(dst)
-	if dstTyp.Kind() != reflect.Ptr || dstTyp.Elem().Kind() != reflect.Slice {
-		panic(fmt.Errorf("cannot convert set to destination: %T", dst))
+	if dstTyp == nil || dstTyp.Kind() != reflect.Ptr || dstTyp.Elem().Kind() != reflect.Slice {
+		panic(fmt.Sprintf("invalid destination type %T", dst))
 	}
-
 	dstPtr := reflect.ValueOf(dst)
 	dstElem := dstPtr.Elem()
 	dstVal := dstElem
-
-	// interface slice or concrete slice type
-	if !dstVal.IsValid() || dstVal.IsNil() {
-		dstVal = reflect.MakeSlice(dstTyp.Elem(), 0, len(s.m))
+	if !dstElem.IsValid() {
+		panic(fmt.Sprintf("invalid destination value %v", dst))
 	}
 	for val := range s.m {
 		dstVal = reflect.Append(dstVal, reflect.ValueOf(val))
 	}
-	if dstElem.IsValid() {
-		dstElem.Set(dstVal)
-	}
-	return dstVal.Interface()
+	dstElem.Set(dstVal)
 }
 
-// Map copy the set elements to the given map as keys.
-//
-// The param dst should be either a pointer to map[interface{}]bool, or a
-// pointer to a bool map using the concrete element type as key, else it panic.
-//
-// The return value has same type with the map that dst points to.
-// Generally if dst is not nil, the return value should be ignored.
-//
-// If dst is a nil interface, the return value will be of type map[interface{}]bool,
-// which holds the set elements as keys. And if dst is a pointer which point to
-// a nil map[interface{}]bool, the pointer will be pointed to the return value,
-// which is a new malloced map[interfaces{}]bool holds the set elements as keys.
-//
-// If dst is a pointer points to a map using the concrete element type as key,
-// then the set elements will be populated into the map, the return value is
-// the same map. In case of dst is a nil pointer, the return value will be a
-// new malloced map of the same concrete type that dst points to.
-//
-func (s *Set) Map(dst interface{}) interface{} {
-	if dst == nil {
-		dstVal := make(map[interface{}]bool, len(s.m))
-		for val := range s.m {
-			dstVal[val] = true
-		}
-		return dstVal
+// Map converts set into map[interface{}]bool.
+func (s *Set) Map() map[interface{}]bool {
+	res := make(map[interface{}]bool, len(s.m))
+	for val := range s.m {
+		res[val] = true
 	}
+	return res
+}
 
+// MapTo copy the set elements to the given map as keys.
+//
+// The param dst must be either a pointer to map[interface{}]bool, or a
+// pointer to a bool map using the concrete element type as key, else it panics.
+func (s *Set) MapTo(dst interface{}) {
 	dstTyp := reflect.TypeOf(dst)
-	if dstTyp.Kind() != reflect.Ptr || dstTyp.Elem().Kind() != reflect.Map {
-		panic(fmt.Errorf("cannot convert set to destination: %T", dst))
+	if dstTyp == nil || dstTyp.Kind() != reflect.Ptr || dstTyp.Elem().Kind() != reflect.Map {
+		panic(fmt.Sprintf("invalid destination type %T", dst))
 	}
-
 	dstPtr := reflect.ValueOf(dst)
 	dstElem := dstPtr.Elem()
 	dstVal := dstElem
-
-	// interface map or concrete map type
-	trueVal := reflect.ValueOf(true)
-	if !dstVal.IsValid() || dstVal.IsNil() {
-		dstVal = reflect.MakeMapWithSize(dstTyp.Elem(), len(s.m))
+	if !dstElem.IsValid() {
+		panic(fmt.Sprintf("invalid destination value %v", dst))
 	}
+	trueVal := reflect.ValueOf(true)
 	for val := range s.m {
 		dstVal.SetMapIndex(reflect.ValueOf(val), trueVal)
 	}
-	if dstElem.IsValid() {
-		dstElem.Set(dstVal)
-	}
-	return dstVal.Interface()
+	dstElem.Set(dstVal)
 }
