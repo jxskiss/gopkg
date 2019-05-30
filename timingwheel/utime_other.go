@@ -1,4 +1,4 @@
-// +build !darwin,!netbsd,!freebsd,!openbsd,!dragonfly,!linux
+// +build !linux
 
 package wheel
 
