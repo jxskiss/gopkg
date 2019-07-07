@@ -18,11 +18,14 @@ const (
 	_SYS_TIMERFD_GETTIME = 287
 )
 
-func Usleep(usec uint) {
+//go:linkname Nanotime runtime.nanotime
+func Nanotime() int64
+
+func Usleep(usec uint32) {
 	C.usleep(C.useconds_t(usec))
 }
 
-func Utick(usec uint, f func() bool) {
+func Utick(usec uint32, f func() bool) {
 	fd, _, errno := syscall.RawSyscall(_SYS_TIMERFD_CREATE, _CLOCK_MONOTONIC, 0, 0)
 	if errno > 0 {
 		panic(errno.Error())

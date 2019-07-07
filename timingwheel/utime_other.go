@@ -1,19 +1,20 @@
-// +build !linux
+// +build !linux no_cgo_utime
 
 package wheel
 
-import "time"
+import (
+	_ "unsafe"
+)
 
-func Usleep(usec uint) {
-	time.Sleep(time.Duration(usec) * time.Microsecond)
-}
+//go:linkname Nanotime runtime.nanotime
+func Nanotime() int64
 
-func Utick(usec uint, f func() bool) {
-	d := time.Duration(usec) * time.Microsecond
-	timer := time.NewTimer(d)
+//go:linkname Usleep runtime.usleep
+func Usleep(usec uint32)
+
+func Utick(usec uint32, f func() bool) {
 	for {
-		timer.Reset(d)
-		<-timer.C
+		Usleep(usec)
 		if done := f(); done {
 			break
 		}

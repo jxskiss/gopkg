@@ -239,7 +239,7 @@ func (w *Wheel) run() {
 		//
 		// See: https://github.com/golang/go/issues/27707
 		var tickUs = w.tick / time.Microsecond
-		Utick(uint(tickUs), func() bool {
+		Utick(uint32(tickUs), func() bool {
 			if atomic.LoadUint32(&w.stopped) > 0 {
 				return true
 			}
