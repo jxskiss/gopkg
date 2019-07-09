@@ -23,6 +23,10 @@ type Slab struct {
 	buf unsafe.Pointer
 }
 
+// DefaultSlab is meant to be used by multiple packages to share the
+// underlying memory block, it allocates no memory if it's never used.
+var DefaultSlab = &Slab{Size: 1 << 20} // 1MB
+
 const defaultThreshold = 2048      // 2KB
 const defaultBlockSize = 256 << 10 // 256KB
 type block struct {
