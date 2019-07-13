@@ -93,7 +93,7 @@ func (c *cache) get(key interface{}) (idx uint32, elem *element, exists bool) {
 	return
 }
 
-func (c *cache) MGetInt64(keys ...int64) map[int64]interface{} {
+func (c *cache) MGetInt64(keys []int64) map[int64]interface{} {
 	res := make(map[int64]interface{}, len(keys))
 	c.mu.RLock()
 	for _, key := range keys {
@@ -108,7 +108,7 @@ func (c *cache) MGetInt64(keys ...int64) map[int64]interface{} {
 	return res
 }
 
-func (c *cache) MGetString(keys ...string) map[string]interface{} {
+func (c *cache) MGetString(keys []string) map[string]interface{} {
 	res := make(map[string]interface{}, len(keys))
 	c.mu.RLock()
 	for _, key := range keys {
@@ -198,7 +198,7 @@ func (c *cache) Del(key interface{}) {
 	c.mu.Unlock()
 }
 
-func (c *cache) MDelInt64(keys ...int64) {
+func (c *cache) MDelInt64(keys []int64) {
 	c.mu.Lock()
 	if c.buf.p > 0 {
 		c.flushBuf(c.buf)
@@ -209,7 +209,7 @@ func (c *cache) MDelInt64(keys ...int64) {
 	c.mu.Unlock()
 }
 
-func (c *cache) MDelString(keys ...string) {
+func (c *cache) MDelString(keys []string) {
 	c.mu.Lock()
 	if c.buf.p > 0 {
 		c.flushBuf(c.buf)
@@ -224,7 +224,10 @@ func (c *cache) del(key interface{}) {
 	idx, exists := c.m[key]
 	if exists {
 		delete(c.m, key)
-		c.list.MoveToBack(&c.elems[idx])
+		elem := &c.elems[idx]
+		elem.key = nil
+		elem.value = nil
+		c.list.MoveToBack(elem)
 	}
 }
 

@@ -45,7 +45,7 @@ func TestMultiBasicEviction(t *testing.T) {
 		t.Error("vi")
 	}
 
-	m := c.MGetString("h", "i")
+	m := c.MGetString([]string{"h", "i"})
 	if m["h"] != "vh" {
 		t.Error("expecting MSetString and MGetString to work")
 	}
