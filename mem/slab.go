@@ -10,8 +10,8 @@ import (
 // public APIs, it's designed to be fast and reduce GC pressure in case of
 // allocating many temporary small bytes or int(N) or uint(N) slice.
 //
-// Don't use this to allocate long-living objects, the underlying heap
-// memory won't be freed until all allocated objects been released.
+// WARN: don't use this to allocate long-living objects, the underlying
+// heap memory won't be freed until all allocated objects been released.
 //
 // It uses unsafe tricks but is very fast and safe for concurrent use.
 // The zero value of Slab allocates no memory and is ready to use.
@@ -56,6 +56,8 @@ func (m *Slab) block(p *unsafe.Pointer) *block {
 	return (*block)(atomic.LoadPointer(p))
 }
 
+// Bytes allocates byte slice whose length is zero and capacity is the
+// given size from the underlying buffer.
 func (m *Slab) Bytes(size int) []byte {
 	// allocate big chunk directly from heap
 	if size >= m.threshold() {
@@ -86,16 +88,22 @@ func (m *Slab) Bytes(size int) []byte {
 	return b.b[i-x : i-x : i]
 }
 
+// Int8 allocates int8 slice whose length is zero and capacity is the
+// given size from the underlying buffer.
 func (m *Slab) Int8(size int) []int8 {
 	s := m.Bytes(size)
 	return *(*[]int8)(unsafe.Pointer(&s))
 }
 
+// Uint8 allocates uint8 slice whose length is zero and capacity is the
+// given size from the underlying buffer.
 func (m *Slab) Uint8(size int) []uint8 {
 	s := m.Bytes(size)
 	return *(*[]uint8)(unsafe.Pointer(&s))
 }
 
+// Int16 allocates int16 slice whose length is zero and capacity is the
+// given size from the underlying buffer.
 func (m *Slab) Int16(size int) []int16 {
 	s := m.Bytes(size * 2)
 	h := (*sliceHeader)(unsafe.Pointer(&s))
@@ -103,6 +111,8 @@ func (m *Slab) Int16(size int) []int16 {
 	return *(*[]int16)(unsafe.Pointer(h))
 }
 
+// Uint16 allocates uint16 slice whose length is zero and capacity is the
+// given size from the underlying buffer.
 func (m *Slab) Uint16(size int) []uint16 {
 	s := m.Bytes(size * 2)
 	h := (*sliceHeader)(unsafe.Pointer(&s))
@@ -110,6 +120,8 @@ func (m *Slab) Uint16(size int) []uint16 {
 	return *(*[]uint16)(unsafe.Pointer(h))
 }
 
+// Int32 allocates int32 slice whose length is zero and capacity is the
+// given size from the underlying buffer.
 func (m *Slab) Int32(size int) []int32 {
 	s := m.Bytes(size * 4)
 	h := (*sliceHeader)(unsafe.Pointer(&s))
@@ -117,6 +129,8 @@ func (m *Slab) Int32(size int) []int32 {
 	return *(*[]int32)(unsafe.Pointer(h))
 }
 
+// Uint32 allocates uint32 slice whose length is zero and capacity is the
+// given size from the underlying buffer.
 func (m *Slab) Uint32(size int) []uint32 {
 	s := m.Bytes(size * 4)
 	h := (*sliceHeader)(unsafe.Pointer(&s))
@@ -124,6 +138,8 @@ func (m *Slab) Uint32(size int) []uint32 {
 	return *(*[]uint32)(unsafe.Pointer(h))
 }
 
+// Int64 allocates int64 slice whose length is zero and capacity is the
+// given size from the underlying buffer.
 func (m *Slab) Int64(size int) []int64 {
 	s := m.Bytes(size * 8)
 	h := (*sliceHeader)(unsafe.Pointer(&s))
@@ -131,6 +147,8 @@ func (m *Slab) Int64(size int) []int64 {
 	return *(*[]int64)(unsafe.Pointer(h))
 }
 
+// Uint64 allocates uint64 slice whose length is zero and capacity is the
+// given size from the underlying buffer.
 func (m *Slab) Uint64(size int) []uint64 {
 	s := m.Bytes(size * 8)
 	h := (*sliceHeader)(unsafe.Pointer(&s))
