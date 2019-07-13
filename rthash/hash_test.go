@@ -25,6 +25,7 @@ func Test_Hash(t *testing.T) {
 		float64(1.1314),
 		complex(float32(1.1314), float32(1.1314)),
 		complex(float64(1.1314), float64(1.1314)),
+		hashable{1234, "1234"},
 	}
 
 	var h uintptr
@@ -32,4 +33,9 @@ func Test_Hash(t *testing.T) {
 		h = Hash(x)
 		log.Println(fmt.Sprintf("%T: %v, hash: %d", x, x, h))
 	}
+}
+
+type hashable struct {
+	A int
+	B string
 }
