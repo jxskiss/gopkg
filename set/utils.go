@@ -5,9 +5,21 @@ import (
 	"reflect"
 )
 
+// Int64Keys returns int64 key slice of a map, the given map's key type
+// must be int64, or it will panic.
+//
+// For many frequently used types, type assertion is used to get best perf,
+// else reflect is used to support any map type with int64 keys.
 func Int64Keys(m interface{}) (keys []int64) {
 	switch v := m.(type) {
 	case map[int64]string:
+		keys = make([]int64, len(v))
+		i := 0
+		for k := range v {
+			keys[i] = k
+			i++
+		}
+	case map[int64][]byte:
 		keys = make([]int64, len(v))
 		i := 0
 		for k := range v {
@@ -115,9 +127,21 @@ func reflectInt(v reflect.Value) int64 {
 	panic(fmt.Errorf("reflectInt: not int type: %s", v.Kind().String()))
 }
 
+// StringKeys returns string key slice of a map, the given map's key type
+// must be string, or it will panic.
+//
+// For many frequently used types, type assertion is used to get best perf,
+// else reflect is used to support any map type with string keys.
 func StringKeys(m interface{}) (keys []string) {
 	switch v := m.(type) {
 	case map[string]string:
+		keys = make([]string, len(v))
+		i := 0
+		for k := range v {
+			keys[i] = k
+			i++
+		}
+	case map[string][]byte:
 		keys = make([]string, len(v))
 		i := 0
 		for k := range v {

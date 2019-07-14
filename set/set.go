@@ -135,8 +135,8 @@ func (s *Set) Slice() []interface{} {
 
 // SliceTo copy the set elements to the given dst slice.
 //
-// The param dst must be either a pointer to an interface slice, or a
-// pointer to a slice of the concrete element type, else it panics.
+// The param dst must be a pointer to either an interface slice, or a
+// slice of the concrete element type, else it panics.
 func (s *Set) SliceTo(dst interface{}) {
 	dstTyp := reflect.TypeOf(dst)
 	if dstTyp == nil || dstTyp.Kind() != reflect.Ptr || dstTyp.Elem().Kind() != reflect.Slice {
@@ -165,8 +165,8 @@ func (s *Set) Map() map[interface{}]bool {
 
 // MapTo copy the set elements to the given map as keys.
 //
-// The param dst must be either a pointer to map[interface{}]bool, or a
-// pointer to a bool map using the concrete element type as key, else it panics.
+// The param dst must be a pointer to either map[interface{}]bool, or a
+// map using the concrete element type as key, else it panics.
 func (s *Set) MapTo(dst interface{}) {
 	dstTyp := reflect.TypeOf(dst)
 	if dstTyp == nil || dstTyp.Kind() != reflect.Ptr || dstTyp.Elem().Kind() != reflect.Map {
