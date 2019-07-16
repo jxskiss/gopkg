@@ -5,6 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 )
 
 const (
@@ -19,7 +20,8 @@ func NewCache(capacity int) *cache {
 	c := &cache{
 		m:     make(map[interface{}]uint32, capacity),
 		elems: make([]element, capacity),
-		buf:   &walbuf{},
+		buf:   unsafe.Pointer(&walbuf{}),
+		_buf:  unsafe.Pointer(&walbuf{}),
 	}
 	c.list = newList(c.elems)
 	return c
@@ -28,8 +30,10 @@ func NewCache(capacity int) *cache {
 type cache struct {
 	mu   sync.RWMutex
 	list *list
-	buf  *walbuf
 	m    map[interface{}]uint32
+
+	buf  unsafe.Pointer // *walbuf
+	_buf unsafe.Pointer // *walbuf
 
 	elems []element
 	flush int32
@@ -52,7 +56,7 @@ func (c *cache) Get(key interface{}) (v interface{}, exists, expired bool) {
 	idx, elem, exists := c.get(key)
 	if exists {
 		v = elem.value
-		expired = isExpired(elem.expires)
+		expired = elem.expires > 0 && elem.expires < time.Now().UnixNano()
 		c.promote(idx)
 	}
 	c.mu.RUnlock()
@@ -64,7 +68,7 @@ func (c *cache) GetQuiet(key interface{}) (v interface{}, exists, expired bool) 
 	_, elem, exists := c.get(key)
 	if exists {
 		v = elem.value
-		expired = isExpired(elem.expires)
+		expired = elem.expires > 0 && elem.expires < time.Now().UnixNano()
 	}
 	c.mu.RUnlock()
 	return
@@ -74,7 +78,8 @@ func (c *cache) GetNotStale(key interface{}) (v interface{}, exists bool) {
 	c.mu.RLock()
 	idx, elem, exists := c.get(key)
 	if exists {
-		if !isExpired(elem.expires) {
+		expired := elem.expires > 0 && elem.expires < time.Now().UnixNano()
+		if !expired {
 			v = elem.value
 			c.promote(idx)
 		} else {
@@ -124,44 +129,65 @@ func (c *cache) MGetString(keys []string) map[string]interface{} {
 }
 
 func (c *cache) promote(idx uint32) {
-	buf := c.buf
-	if i := atomic.AddInt32(&buf.p, 1); i > walBufSize {
-		// wal buffer is full, discard current promotion and trigger flush
-		if atomic.CompareAndSwapInt32(&c.flush, 0, 1) {
-			go func() {
-				c.mu.Lock()
-				if oldbuf := c.buf; oldbuf.p > 0 {
-					c.buf = &walbuf{}
-					c.flushBuf(oldbuf)
-				}
-				c.mu.Unlock()
-				atomic.StoreInt32(&c.flush, 0)
-			}()
-		}
-	} else {
+	buf := (*walbuf)(atomic.LoadPointer(&c.buf))
+	i := atomic.AddInt32(&buf.p, 1)
+	if i <= walBufSize {
 		buf.b[i-1] = idx
+		return
+	}
+
+	// buffer is full, swap buffer
+	oldbuf := buf
+	newbuf := (*walbuf)(atomic.SwapPointer(&c._buf, nil))
+	if newbuf != nil {
+		atomic.StorePointer(&c.buf, unsafe.Pointer(newbuf))
+	} else {
+		newbuf = (*walbuf)(atomic.LoadPointer(&c.buf))
+		if newbuf == oldbuf {
+			newbuf = nil
+		}
+	}
+	// in case of too high concurrency, discard current promotion
+	if newbuf != nil {
+		i = atomic.AddInt32(&newbuf.p, 1)
+		if i <= walBufSize {
+			newbuf.b[i-1] = idx
+		}
+	}
+
+	// flush the full buffer
+	if atomic.CompareAndSwapInt32(&c.flush, 0, 1) {
+		go func(c *cache, buf *walbuf) {
+			c.mu.Lock()
+			c.flushBuf(buf)
+			c._buf = unsafe.Pointer(buf)
+			c.flush = 0
+			c.mu.Unlock()
+		}(c, oldbuf)
 	}
 }
 
 func (c *cache) Set(key, value interface{}, ttl time.Duration) {
-	expires := expires(ttl)
-	c.mu.Lock()
-	if c.buf.p > 0 {
-		c.flushBuf(c.buf)
+	var expires int64
+	if ttl > 0 {
+		expires = time.Now().UnixNano() + int64(ttl)
 	}
+	c.mu.Lock()
+	c.checkAndFlushBuf()
 	c.set(key, value, expires)
 	c.mu.Unlock()
 }
 
 func (c *cache) MSet(kvmap interface{}, ttl time.Duration) {
-	expires := expires(ttl)
+	var expires int64
+	if ttl > 0 {
+		expires = time.Now().UnixNano() + int64(ttl)
+	}
 	m := reflect.ValueOf(kvmap)
 	keys := m.MapKeys()
 
 	c.mu.Lock()
-	if c.buf.p > 0 {
-		c.flushBuf(c.buf)
-	}
+	c.checkAndFlushBuf()
 	for _, key := range keys {
 		value := m.MapIndex(key)
 		c.set(key.Interface(), value.Interface(), expires)
@@ -191,18 +217,14 @@ func (c *cache) set(k, v interface{}, expires int64) {
 
 func (c *cache) Del(key interface{}) {
 	c.mu.Lock()
-	if c.buf.p > 0 {
-		c.flushBuf(c.buf)
-	}
+	c.checkAndFlushBuf()
 	c.del(key)
 	c.mu.Unlock()
 }
 
 func (c *cache) MDelInt64(keys []int64) {
 	c.mu.Lock()
-	if c.buf.p > 0 {
-		c.flushBuf(c.buf)
-	}
+	c.checkAndFlushBuf()
 	for _, key := range keys {
 		c.del(key)
 	}
@@ -211,9 +233,7 @@ func (c *cache) MDelInt64(keys []int64) {
 
 func (c *cache) MDelString(keys []string) {
 	c.mu.Lock()
-	if c.buf.p > 0 {
-		c.flushBuf(c.buf)
-	}
+	c.checkAndFlushBuf()
 	for _, key := range keys {
 		c.del(key)
 	}
@@ -228,6 +248,13 @@ func (c *cache) del(key interface{}) {
 		elem.key = nil
 		elem.value = nil
 		c.list.MoveToBack(elem)
+	}
+}
+
+func (c *cache) checkAndFlushBuf() {
+	buf := (*walbuf)(c.buf)
+	if buf.p > 0 {
+		c.flushBuf(buf)
 	}
 }
 

@@ -1,7 +1,5 @@
 package lru
 
-import "time"
-
 type element struct {
 	next, prev *element
 
@@ -9,14 +7,6 @@ type element struct {
 
 	expires int64 // nanosecond timestamp
 	index   uint32
-}
-
-func expires(ttl time.Duration) (expires int64) {
-	return time.Now().Add(ttl).UnixNano()
-}
-
-func isExpired(expires int64) bool {
-	return expires > 0 && expires < time.Now().UnixNano()
 }
 
 func newList(elems []element) *list {
