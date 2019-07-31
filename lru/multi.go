@@ -6,6 +6,11 @@ import (
 	"time"
 )
 
+// NewMultiCache returns a hash-shared lru cache instance which is suitable
+// to use for heavy lock contention use-case. It keeps same interface with
+// the lru cache instance returned by NewCache function.
+// Generally NewCache should be used instead of this unless you are sure that
+// you are facing the lock contention problem.
 func NewMultiCache(buckets, bucketCapacity int) *multiCache {
 	mc := &multiCache{
 		buckets: uintptr(buckets),
