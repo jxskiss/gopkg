@@ -12,7 +12,7 @@ type Ring struct {
 	size    int32
 	workers *RingBuffer
 	queued  chan func()
-	sleepf  func()
+	cond    *sync.Cond
 
 	wait      sync.WaitGroup
 	stop      chan struct{}
@@ -33,7 +33,7 @@ func (w *worker) submit(task func()) {
 	w.tasks <- task
 }
 
-func NewRing(size, queue, spawn int, sleepFunc func()) *Ring {
+func NewRing(size, queue, spawn int) *Ring {
 	if spawn <= 0 {
 		panic("dead queue configuration detected")
 	}
@@ -43,15 +43,12 @@ func NewRing(size, queue, spawn int, sleepFunc func()) *Ring {
 	if queue > 1 {
 		queue -= 1
 	}
-	if sleepFunc == nil {
-		sleepFunc = func() { runtime.Gosched() }
-	}
 	p := &Ring{
 		size:    int32(size),
-		queued:  make(chan func(), queue),
 		workers: NewRingBuffer(uint64(size)),
+		queued:  make(chan func(), queue),
+		cond:    sync.NewCond(&sync.Mutex{}),
 		stop:    make(chan struct{}),
-		sleepf:  sleepFunc,
 	}
 	for i := 0; i < spawn; i++ {
 		atomic.AddInt32(&p.sem, 1)
@@ -73,13 +70,17 @@ func (p *Ring) newWorker() *worker {
 
 func (p *Ring) runWorker(w *worker) {
 	defer p.doneWorker()
+	threshold := p.size - int32(runtime.NumCPU()*2)
 L1:
 	for {
 		select {
 		case task := <-w.tasks:
 			task()
 			p.putWorker(w)
-			atomic.AddInt32(&p.busy, -1)
+			busy := atomic.AddInt32(&p.busy, -1)
+			if busy > threshold {
+				p.cond.Signal()
+			}
 		case <-p.stop:
 			break L1
 		}
@@ -189,7 +190,6 @@ L2:
 		case task = <-p.queued:
 			task()
 		default:
-			time.Sleep(100 * time.Millisecond)
 			close(p.queued)
 			break L2
 		}
@@ -209,18 +209,19 @@ func (p *Ring) doQueuedTask(task func()) {
 		}
 	}
 
+	// Wait for a free worker to submit the task.
 	for {
-		if atomic.LoadInt32(&p.busy) >= p.size {
-			p.sleepf()
-			continue
+		p.cond.L.Lock()
+		for atomic.LoadInt32(&p.busy) >= p.size {
+			p.cond.Wait()
 		}
 		busy := atomic.AddInt32(&p.busy, 1)
+		p.cond.L.Unlock()
 		if busy > p.size {
 			atomic.AddInt32(&p.busy, -1)
 			runtime.Gosched()
 			continue
 		}
-		// got free worker, submit the task
 		p.scheduleRing(task, 0)
 		atomic.AddInt32(&p.pending, -1)
 		break
