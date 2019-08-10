@@ -70,8 +70,9 @@ func (p *Pool) schedule(task func(), timeout <-chan time.Time) (err error) {
 	if atomic.LoadInt32(&p.isStopped) == 1 {
 		return ErrStopped
 	}
-	// TODO: should we check pool stopped?
 	select {
+	case <-p.stop:
+		return ErrStopped
 	case <-timeout:
 		atomic.AddUint64(&p.timeout, 1)
 		return ErrTimeout
@@ -79,7 +80,7 @@ func (p *Pool) schedule(task func(), timeout <-chan time.Time) (err error) {
 		atomic.AddInt32(&p.pending, 1)
 	case p.sem <- struct{}{}:
 		p.wait.Add(1)
-		go p.worker(task)
+		go p.worker(nil)
 	}
 	return nil
 }
@@ -88,9 +89,11 @@ func (p *Pool) worker(task func()) {
 	atomic.AddInt32(&p.active, 1)
 	defer p.doneWorker()
 
-	atomic.AddInt32(&p.busy, 1)
-	task()
-	atomic.AddInt32(&p.busy, -1)
+	if task != nil {
+		atomic.AddInt32(&p.busy, 1)
+		task()
+		atomic.AddInt32(&p.busy, -1)
+	}
 
 	for {
 		select {
@@ -117,11 +120,9 @@ func (p *Pool) Stop() {
 	}
 
 	// clean up the pending tasks
-	p.sem <- struct{}{}
 	p.wait.Add(1)
 	go func() {
-		atomic.AddInt32(&p.active, 1)
-		defer p.doneWorker()
+		defer p.wait.Done()
 		for {
 			select {
 			case task := <-p.work:

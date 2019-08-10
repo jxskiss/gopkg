@@ -78,22 +78,26 @@ L1:
 			task()
 			p.putWorker(w)
 			busy := atomic.AddInt32(&p.busy, -1)
-			if busy > threshold {
+			if busy >= threshold {
 				p.cond.Signal()
 			}
 		case <-p.stop:
+			p.cond.Signal()
 			break L1
 		}
 	}
-	select {
-	case task := <-w.tasks:
-		// After pool stopped, there will be at most one task left.
-		task()
-		atomic.AddInt32(&p.busy, -1)
-	default:
-		// done the queued tasks
-		for task := range p.queued {
+L2:
+	for {
+		select {
+		case task := <-w.tasks:
 			task()
+			atomic.AddInt32(&p.busy, -1)
+		case task, ok := <-p.queued:
+			if !ok {
+				break L2
+			}
+			task()
+			atomic.AddInt32(&p.pending, -1)
 		}
 	}
 }
@@ -160,22 +164,25 @@ func (p *Ring) scheduleQueue(task func(), timeout time.Duration) error {
 	if timeout > 0 {
 		deadline = time.After(timeout)
 	}
+
+	atomic.AddInt32(&p.pending, 1)
 	select {
 	case <-deadline:
+		atomic.AddInt32(&p.pending, -1)
 		atomic.AddUint64(&p.timeout, 1)
 		return ErrTimeout
 	case <-p.stop:
+		atomic.AddInt32(&p.pending, -1)
 		return ErrStopped
 	case p.queued <- task:
+		return nil
 	}
-	atomic.AddInt32(&p.pending, 1)
-	return nil
 }
 
 func (p *Ring) runQueued() {
 	var task func()
 L1:
-	for {
+	for atomic.LoadInt32(&p.isStopped) == 0 {
 		select {
 		case task = <-p.queued:
 			p.doQueuedTask(task)
@@ -189,6 +196,7 @@ L2:
 		select {
 		case task = <-p.queued:
 			task()
+			atomic.AddInt32(&p.pending, -1)
 		default:
 			close(p.queued)
 			break L2
