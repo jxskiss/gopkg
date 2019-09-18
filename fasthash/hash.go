@@ -1,7 +1,7 @@
-// Package rthash exposes the fast hash functions in runtime package.
+// Package fasthash exposes the fast hash functions in runtime package.
 //
 // The idea mainly comes from https://github.com/golang/go/issues/21195.
-package rthash
+package fasthash
 
 import (
 	"reflect"

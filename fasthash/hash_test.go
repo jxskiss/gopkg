@@ -1,4 +1,4 @@
-package rthash
+package fasthash
 
 import (
 	"fmt"

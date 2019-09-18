@@ -1,7 +1,7 @@
 package lru
 
 import (
-	"github.com/jxskiss/gopkg/rthash"
+	"github.com/jxskiss/gopkg/fasthash"
 	"reflect"
 	"time"
 )
@@ -35,17 +35,17 @@ func (c *multiCache) Len() (n int) {
 }
 
 func (c *multiCache) Get(key interface{}) (v interface{}, exists, expired bool) {
-	h := rthash.Hash(key)
+	h := fasthash.Hash(key)
 	return c.cache[h%c.buckets].Get(key)
 }
 
 func (c *multiCache) GetQuiet(key interface{}) (v interface{}, exists, expired bool) {
-	h := rthash.Hash(key)
+	h := fasthash.Hash(key)
 	return c.cache[h%c.buckets].GetQuiet(key)
 }
 
 func (c *multiCache) GetNotStale(key interface{}) (v interface{}, exists bool) {
-	h := rthash.Hash(key)
+	h := fasthash.Hash(key)
 	return c.cache[h%c.buckets].GetNotStale(key)
 }
 
@@ -84,7 +84,7 @@ func (c *multiCache) MGetString(keys []string) map[string]interface{} {
 }
 
 func (c *multiCache) Set(key, value interface{}, ttl time.Duration) {
-	h := rthash.Hash(key)
+	h := fasthash.Hash(key)
 	c.cache[h%c.buckets].Set(key, value, ttl)
 }
 
@@ -99,7 +99,7 @@ func (c *multiCache) MSet(kvmap interface{}, ttl time.Duration) {
 }
 
 func (c *multiCache) Del(key interface{}) {
-	h := rthash.Hash(key)
+	h := fasthash.Hash(key)
 	c.cache[h%c.buckets].Del(key)
 }
 
@@ -122,7 +122,7 @@ func (c *multiCache) MDelString(keys []string) {
 func (c *multiCache) groupInt64Keys(keys []int64) map[uintptr][]int64 {
 	grpKeys := make(map[uintptr][]int64)
 	for _, key := range keys {
-		idx := rthash.Int64(key) % c.buckets
+		idx := fasthash.Int64(key) % c.buckets
 		grpKeys[idx] = append(grpKeys[idx], key)
 	}
 	return grpKeys
@@ -131,7 +131,7 @@ func (c *multiCache) groupInt64Keys(keys []int64) map[uintptr][]int64 {
 func (c *multiCache) groupStringKeys(keys []string) map[uintptr][]string {
 	grpKeys := make(map[uintptr][]string)
 	for _, key := range keys {
-		idx := rthash.String(key) % c.buckets
+		idx := fasthash.String(key) % c.buckets
 		grpKeys[idx] = append(grpKeys[idx], key)
 	}
 	return grpKeys
