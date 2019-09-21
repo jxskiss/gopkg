@@ -1,5 +1,7 @@
 module github.com/jxskiss/gopkg
 
+go 1.12
+
 require (
 	github.com/gobwas/pool v0.2.0
 	github.com/json-iterator/go v1.1.5

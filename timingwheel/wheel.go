@@ -1,7 +1,6 @@
 package wheel
 
 import (
-	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -16,7 +15,8 @@ const (
 	tvn_mask = 63  // tvn_size - 1
 	tvr_mask = 255 // tvr_size -1
 
-	defaultTimerSize = 128
+	defaultTimerSize     = 128
+	defaultWheelInterval = 10 * time.Millisecond
 )
 
 type timer struct {
@@ -218,34 +218,16 @@ func (w *Wheel) run() {
 		}
 	}()
 
-	// TODO: is it unnecessary to lock OS thread?
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
+	heartbeat := time.NewTicker(w.tick)
+	defer heartbeat.Stop()
 
-	if w.tick >= time.Second {
-		// time.Ticker based loop
-		t := time.NewTicker(w.tick)
-		defer t.Stop()
-		for {
-			select {
-			case now := <-t.C:
-				w.onTick(now)
-			case <-w.quit:
-				return
-			}
+	for {
+		select {
+		case now := <-heartbeat.C:
+			w.onTick(now)
+		case <-w.quit:
+			return
 		}
-	} else {
-		// syscall or timerfd based busy loop on unix/linux for lower CPU usage
-		//
-		// See: https://github.com/golang/go/issues/27707
-		var tickUs = w.tick / time.Microsecond
-		Utick(uint32(tickUs), func() bool {
-			if atomic.LoadUint32(&w.stopped) > 0 {
-				return true
-			}
-			w.onTick(time.Now())
-			return false
-		})
 	}
 }
 
@@ -261,7 +243,7 @@ func (w *Wheel) After(d time.Duration) <-chan time.Time {
 	return w.NewTimer(d).C
 }
 
-func (w *Wheel) AfterFunc(d time.Duration, f callback) *Timer {
+func (w *Wheel) AfterFunc(d time.Duration, f func()) *Timer {
 	t := &Timer{
 		r: w.newTimer(d, 0, goFunc, f),
 	}
@@ -273,7 +255,7 @@ func (w *Wheel) Tick(d time.Duration) <-chan time.Time {
 	return w.NewTicker(d).C
 }
 
-func (w *Wheel) TickFunc(d time.Duration, f callback) *Ticker {
+func (w *Wheel) TickFunc(d time.Duration, f func()) *Ticker {
 	t := &Ticker{
 		r: w.newTimer(d, d, goFunc, f),
 	}
@@ -303,24 +285,27 @@ func (w *Wheel) NewTicker(d time.Duration) *Ticker {
 }
 
 func sendTime(t time.Time, arg interface{}) {
+	// Non-blocking send of time on arg.
+	// Used in NewTimer, it cannot block anyway (buffer).
+	// Used in NewTicker, dropping sends on the floor is
+	// the desired behavior when the reader gets behind,
+	// because the sends are periodic.
 	select {
 	case arg.(chan time.Time) <- t:
 	default:
 	}
 }
 
-type callback func()
-
 func goFunc(t time.Time, arg interface{}) {
-	go arg.(callback)()
+	go arg.(func())()
 }
 
-var defaultMilliWheel *Wheel
-var defaultWheelOnce sync.Once
+var _defaultWheel *Wheel
+var _defaultWheelOnce sync.Once
 
 func defaultWheel() *Wheel {
-	defaultWheelOnce.Do(func() {
-		defaultMilliWheel = NewWheel(time.Millisecond)
+	_defaultWheelOnce.Do(func() {
+		_defaultWheel = NewWheel(defaultWheelInterval)
 	})
-	return defaultMilliWheel
+	return _defaultWheel
 }
