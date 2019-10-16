@@ -3,9 +3,7 @@
 package json
 
 import (
-	"io"
-
-	"github.com/gobwas/pool/pbytes"
+	stdjson "encoding/json"
 	"github.com/json-iterator/go"
 )
 
@@ -14,31 +12,23 @@ var (
 	cfg = jsoniter.ConfigCompatibleWithStandardLibrary
 )
 
-func Marshal(v interface{}) ([]byte, error) {
-	stream := cfg.BorrowStream(nil)
-	defer cfg.ReturnStream(stream)
-	stream.WriteVal(v)
-	if stream.Error != nil {
-		return nil, stream.Error
-	}
-	result := stream.Buffer()
-	b := pbytes.GetLen(len(result))
-	copy(b, result)
-	return b, nil
-}
+var (
+	Marshal       = cfg.Marshal
+	MarshalIndent = cfg.MarshalIndent
+	Unmarshal     = cfg.Unmarshal
 
-func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
-	return cfg.MarshalIndent(v, prefix, indent)
-}
+	MarshalToString = cfg.MarshalToString
 
-func Unmarshal(data []byte, v interface{}) error {
+	NewEncoder = cfg.NewEncoder
+	NewDecoder = cfg.NewDecoder
+
+	Compact    = stdjson.Compact
+	HTMLEscape = stdjson.HTMLEscape
+	Indent     = stdjson.Indent
+	Valid      = cfg.Valid
+)
+
+func UnmarshalFromString(str string, v interface{}) error {
+	data := s2b(str)
 	return cfg.Unmarshal(data, v)
-}
-
-func NewEncoder(writer io.Writer) *jsoniter.Encoder {
-	return cfg.NewEncoder(writer)
-}
-
-func NewDecoder(reader io.Reader) *jsoniter.Decoder {
-	return cfg.NewDecoder(reader)
 }
