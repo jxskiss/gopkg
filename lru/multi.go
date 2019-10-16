@@ -49,12 +49,12 @@ func (c *multiCache) GetNotStale(key interface{}) (v interface{}, exists bool) {
 	return c.cache[h%c.buckets].GetNotStale(key)
 }
 
-func (c *multiCache) MGetInt64(keys []int64) map[int64]interface{} {
-	grpKeys := c.groupInt64Keys(keys)
+func (c *multiCache) MGet(keys ...interface{}) map[interface{}]interface{} {
+	grpKeys := c.groupKeys(keys)
 
-	var res map[int64]interface{}
+	var res map[interface{}]interface{}
 	for idx, keys := range grpKeys {
-		grp := c.cache[idx].MGetInt64(keys)
+		grp := c.cache[idx].MGet(keys...)
 		if res == nil {
 			res = grp
 		} else {
@@ -66,12 +66,63 @@ func (c *multiCache) MGetInt64(keys []int64) map[int64]interface{} {
 	return res
 }
 
-func (c *multiCache) MGetString(keys []string) map[string]interface{} {
+func (c *multiCache) MGetInt(keys ...int) map[int]interface{} {
+	grpKeys := c.groupIntKeys(keys)
+
+	var res map[int]interface{}
+	for idx, keys := range grpKeys {
+		grp := c.cache[idx].MGetInt(keys...)
+		if res == nil {
+			res = grp
+		} else {
+			for k, v := range grp {
+				res[k] = v
+			}
+		}
+	}
+	return res
+}
+
+func (c *multiCache) MGetInt64(keys ...int64) map[int64]interface{} {
+	grpKeys := c.groupInt64Keys(keys)
+
+	var res map[int64]interface{}
+	for idx, keys := range grpKeys {
+		grp := c.cache[idx].MGetInt64(keys...)
+		if res == nil {
+			res = grp
+		} else {
+			for k, v := range grp {
+				res[k] = v
+			}
+		}
+	}
+	return res
+}
+
+func (c *multiCache) MGetUint64(keys ...uint64) map[uint64]interface{} {
+	grpKeys := c.groupUint64Keys(keys)
+
+	var res map[uint64]interface{}
+	for idx, keys := range grpKeys {
+		grp := c.cache[idx].MGetUint64(keys...)
+		if res == nil {
+			res = grp
+		} else {
+			for k, v := range grp {
+				res[k] = v
+			}
+		}
+	}
+	return res
+}
+
+func (c *multiCache) MGetString(keys ...string) map[string]interface{} {
 	grpKeys := c.groupStringKeys(keys)
 
 	var res map[string]interface{}
 	for idx, keys := range grpKeys {
-		grp := c.cache[idx].MGetString(keys)
+		grp := c.cache[idx].MGetString(keys...)
 		if res == nil {
 			res = grp
 		} else {
@@ -103,26 +154,77 @@ func (c *multiCache) Del(key interface{}) {
 	c.cache[h%c.buckets].Del(key)
 }
 
-func (c *multiCache) MDelInt64(keys []int64) {
-	grpKeys := c.groupInt64Keys(keys)
+func (c *multiCache) MDel(keys ...interface{}) {
+	grpKeys := c.groupKeys(keys)
 
 	for idx, keys := range grpKeys {
-		c.cache[idx].MDelInt64(keys)
+		c.cache[idx].MDel(keys...)
 	}
 }
 
-func (c *multiCache) MDelString(keys []string) {
+func (c *multiCache) MDelInt(keys ...int) {
+	grpKeys := c.groupIntKeys(keys)
+
+	for idx, keys := range grpKeys {
+		c.cache[idx].MDelInt(keys...)
+	}
+}
+
+func (c *multiCache) MDelInt64(keys ...int64) {
+	grpKeys := c.groupInt64Keys(keys)
+
+	for idx, keys := range grpKeys {
+		c.cache[idx].MDelInt64(keys...)
+	}
+}
+
+func (c *multiCache) MDelUint64(keys ...uint64) {
+	grpKeys := c.groupUint64Keys(keys)
+
+	for idx, keys := range grpKeys {
+		c.cache[idx].MDelUint64(keys...)
+	}
+}
+
+func (c *multiCache) MDelString(keys ...string) {
 	grpKeys := c.groupStringKeys(keys)
 
 	for idx, keys := range grpKeys {
-		c.cache[idx].MDelString(keys)
+		c.cache[idx].MDelString(keys...)
 	}
+}
+
+func (c *multiCache) groupKeys(keys []interface{}) map[uintptr][]interface{} {
+	grpKeys := make(map[uintptr][]interface{})
+	for _, key := range keys {
+		idx := fasthash.Interface(key) % c.buckets
+		grpKeys[idx] = append(grpKeys[idx], key)
+	}
+	return grpKeys
+}
+
+func (c *multiCache) groupIntKeys(keys []int) map[uintptr][]int {
+	grpKeys := make(map[uintptr][]int)
+	for _, key := range keys {
+		idx := fasthash.Int(key) % c.buckets
+		grpKeys[idx] = append(grpKeys[idx], key)
+	}
+	return grpKeys
 }
 
 func (c *multiCache) groupInt64Keys(keys []int64) map[uintptr][]int64 {
 	grpKeys := make(map[uintptr][]int64)
 	for _, key := range keys {
 		idx := fasthash.Int64(key) % c.buckets
+		grpKeys[idx] = append(grpKeys[idx], key)
+	}
+	return grpKeys
+}
+
+func (c *multiCache) groupUint64Keys(keys []uint64) map[uintptr][]uint64 {
+	grpKeys := make(map[uintptr][]uint64)
+	for _, key := range keys {
+		idx := fasthash.Uint64(key) % c.buckets
 		grpKeys[idx] = append(grpKeys[idx], key)
 	}
 	return grpKeys

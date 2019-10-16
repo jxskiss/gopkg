@@ -91,7 +91,7 @@ func TestBasicEviction(t *testing.T) {
 	}
 
 	// h/i, i/h, d, [h, i]
-	m := c.MGetString([]string{"h", "i"})
+	m := c.MGetString("h", "i")
 	if m["h"] != "vh" {
 		t.Error("expecting MSetString and MGetString to work")
 	}

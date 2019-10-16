@@ -114,12 +114,68 @@ func (c *cache) get(key interface{}) (idx uint32, elem *element, exists bool) {
 	return
 }
 
+// MGet returns map of cached values for the given interface keys and
+// update their LRU scores. The returned values may be expired.
+// It's a convenient and efficient way to retrieve multiple values.
+func (c *cache) MGet(keys ...interface{}) map[interface{}]interface{} {
+	res := make(map[interface{}]interface{}, len(keys))
+	c.mu.RLock()
+	for _, key := range keys {
+		idx, exists := c.m[key]
+		if exists {
+			elem := &c.elems[idx]
+			res[key] = elem.value
+			c.promote(idx)
+		}
+	}
+	c.mu.RUnlock()
+	return res
+}
+
+// MGetInt returns map of cached values for the given int keys and
+// update their LRU scores. The returned values may be expired.
+// It's a convenient and efficient way to retrieve multiple values for
+// int keys.
+func (c *cache) MGetInt(keys ...int) map[int]interface{} {
+	res := make(map[int]interface{}, len(keys))
+	c.mu.RLock()
+	for _, key := range keys {
+		idx, exists := c.m[key]
+		if exists {
+			elem := &c.elems[idx]
+			res[key] = elem.value
+			c.promote(idx)
+		}
+	}
+	c.mu.RUnlock()
+	return res
+}
+
 // MGetInt64 returns map of cached values for the given int64 keys and
 // update their LRU scores. The returned values may be expired.
 // It's a convenient and efficient way to retrieve multiple values for
 // int64 keys.
-func (c *cache) MGetInt64(keys []int64) map[int64]interface{} {
+func (c *cache) MGetInt64(keys ...int64) map[int64]interface{} {
 	res := make(map[int64]interface{}, len(keys))
+	c.mu.RLock()
+	for _, key := range keys {
+		idx, exists := c.m[key]
+		if exists {
+			elem := &c.elems[idx]
+			res[key] = elem.value
+			c.promote(idx)
+		}
+	}
+	c.mu.RUnlock()
+	return res
+}
+
+// MGetUint64 returns map of cached values for the given uint64 keys and
+// update their LRU scores. The returned values may be expired.
+// It's a convenient and efficient way to retrieve multiple values for
+// uint64 keys.
+func (c *cache) MGetUint64(keys ...uint64) map[uint64]interface{} {
+	res := make(map[uint64]interface{}, len(keys))
 	c.mu.RLock()
 	for _, key := range keys {
 		idx, exists := c.m[key]
@@ -137,7 +193,7 @@ func (c *cache) MGetInt64(keys []int64) map[int64]interface{} {
 // update their LRU scores. The returned values may be expired.
 // It's a convenient and efficient way to retrieve multiple values for
 // string keys.
-func (c *cache) MGetString(keys []string) map[string]interface{} {
+func (c *cache) MGetString(keys ...string) map[string]interface{} {
 	res := make(map[string]interface{}, len(keys))
 	c.mu.RLock()
 	for _, key := range keys {
@@ -251,9 +307,42 @@ func (c *cache) Del(key interface{}) {
 	c.mu.Unlock()
 }
 
+// MDel removes multiple interface keys from the cache if exists.
+// It's a convenient and efficient way to remove multiple keys.
+func (c *cache) MDel(keys ...interface{}) {
+	c.mu.Lock()
+	c.checkAndFlushBuf()
+	for _, key := range keys {
+		c.del(key)
+	}
+	c.mu.Unlock()
+}
+
+// MDelInt removes multiple int keys from the cache if exists.
+// It's a convenient and efficient way to remove multiple int keys.
+func (c *cache) MDelInt(keys ...int) {
+	c.mu.Lock()
+	c.checkAndFlushBuf()
+	for _, key := range keys {
+		c.del(key)
+	}
+	c.mu.Unlock()
+}
+
 // MDelInt64 removes multiple int64 keys from the cache if exists.
 // It's a convenient and efficient way to remove multiple int64 keys.
-func (c *cache) MDelInt64(keys []int64) {
+func (c *cache) MDelInt64(keys ...int64) {
+	c.mu.Lock()
+	c.checkAndFlushBuf()
+	for _, key := range keys {
+		c.del(key)
+	}
+	c.mu.Unlock()
+}
+
+// MDelUint64 removes multiple uint64 keys from the cache if exists.
+// It's a convenient and efficient way to remove multiple uint64 keys.
+func (c *cache) MDelUint64(keys ...uint64) {
 	c.mu.Lock()
 	c.checkAndFlushBuf()
 	for _, key := range keys {
@@ -264,7 +353,7 @@ func (c *cache) MDelInt64(keys []int64) {
 
 // MDelString removes multiple string keys from the cache if exists.
 // It's a convenient and efficient way to remove multiple string keys.
-func (c *cache) MDelString(keys []string) {
+func (c *cache) MDelString(keys ...string) {
 	c.mu.Lock()
 	c.checkAndFlushBuf()
 	for _, key := range keys {
