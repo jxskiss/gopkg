@@ -1,5 +1,7 @@
 package set
 
+//go:generate go run template.go
+
 import (
 	"fmt"
 	"reflect"
@@ -35,7 +37,7 @@ func (s *Set) Add(vals ...interface{}) {
 	}
 }
 
-// Del delete values from the set.
+// Del deletes values from the set.
 func (s *Set) Del(vals ...interface{}) {
 	if len(vals) == 1 && reflect.TypeOf(vals[0]).Kind() == reflect.Slice {
 		values := reflect.ValueOf(vals[0])
@@ -50,7 +52,7 @@ func (s *Set) Del(vals ...interface{}) {
 	}
 }
 
-// Pop pop an element from the set, in no particular order.
+// Pop pops an element from the set, in no particular order.
 func (s *Set) Pop() interface{} {
 	for val := range s.m {
 		delete(s.m, val)
@@ -59,46 +61,63 @@ func (s *Set) Pop() interface{} {
 	return nil
 }
 
-// Iterate iterate the set in no particular order and call the given function
-// for each set element.
+// Iterate iterates the set in no particular order and call the given
+// function for each set element.
 func (s *Set) Iterate(fn func(interface{})) {
 	for val := range s.m {
 		fn(val)
 	}
 }
 
-// Has return true if the set has the value.
-func (s *Set) Has(val interface{}) bool {
-	_, ok := s.m[val]
-	return ok
+// Contains returns true if the set contains all the values.
+func (s *Set) Contains(vals ...interface{}) bool {
+	if len(vals) == 0 {
+		return false
+	}
+	for _, v := range vals {
+		if _, ok := s.m[v]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
-// Diff return new Set about the values which other set doesn't contain.
+// ContainsAny returns true if the set contains any of the values.
+func (s *Set) ContainsAny(vals ...interface{}) bool {
+	for _, v := range vals {
+		if _, ok := s.m[v]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+// Diff returns new Set about the values which other sets don't contain.
 func (s *Set) Diff(other *Set) *Set {
 	res := NewSet()
 
 	for val := range s.m {
-		if !other.Has(val) {
+		if !other.Contains(val) {
 			res.Add(val)
 		}
 	}
 	return res
 }
 
-// Intersect return new Set about values which other set also contains.
+// Intersect returns new Set about values which other set also contains.
 func (s *Set) Intersect(other *Set) *Set {
 	res := NewSet()
 
 	// loop over the smaller set
 	if len(s.m) <= len(other.m) {
 		for val := range s.m {
-			if other.Has(val) {
+			if other.Contains(val) {
 				res.Add(val)
 			}
 		}
 	} else {
 		for val := range other.m {
-			if s.Has(val) {
+			if s.Contains(val) {
 				res.Add(val)
 			}
 		}
@@ -106,7 +125,7 @@ func (s *Set) Intersect(other *Set) *Set {
 	return res
 }
 
-// Union return new Set about values either in the set or the other set.
+// Union returns new Set about values either in the set or the other set.
 func (s *Set) Union(other *Set) *Set {
 	res := NewSet()
 
@@ -119,7 +138,7 @@ func (s *Set) Union(other *Set) *Set {
 	return res
 }
 
-// Size return the size of the set.
+// Size returns the size of the set.
 func (s *Set) Size() int {
 	return len(s.m)
 }

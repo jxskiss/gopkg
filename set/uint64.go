@@ -4,53 +4,53 @@ package set
 
 import "encoding/json"
 
-// String is string set collection.
-type String struct {
-	m map[string]struct{}
+// Uint64 is uint64 set collection.
+type Uint64 struct {
+	m map[uint64]struct{}
 }
 
-// NewString creates String instance.
-func NewString(vals ...string) *String {
-	set := &String{
-		m: make(map[string]struct{}),
+// NewUint64 creates Uint64 instance.
+func NewUint64(vals ...uint64) *Uint64 {
+	set := &Uint64{
+		m: make(map[uint64]struct{}),
 	}
 	set.Add(vals...)
 	return set
 }
 
 // Add adds values into the set.
-func (s *String) Add(vals ...string) {
+func (s *Uint64) Add(vals ...uint64) {
 	for idx := range vals {
 		s.m[vals[idx]] = struct{}{}
 	}
 }
 
 // Del deletes values from the set.
-func (s *String) Del(vals ...string) {
+func (s *Uint64) Del(vals ...uint64) {
 	for idx := range vals {
 		delete(s.m, vals[idx])
 	}
 }
 
 // Pop pops an element from the set, in no particular order.
-func (s *String) Pop() string {
+func (s *Uint64) Pop() uint64 {
 	for val := range s.m {
 		delete(s.m, val)
 		return val
 	}
-	return ""
+	return 0
 }
 
 // Iterate iterates the set in no particular order and call the given function
 // for each set element.
-func (s *String) Iterate(fn func(string)) {
+func (s *Uint64) Iterate(fn func(uint64)) {
 	for val := range s.m {
 		fn(val)
 	}
 }
 
 // Contains returns true if the set contains all the values.
-func (s *String) Contains(vals ...string) bool {
+func (s *Uint64) Contains(vals ...uint64) bool {
 	if len(vals) == 0 {
 		return false
 	}
@@ -63,7 +63,7 @@ func (s *String) Contains(vals ...string) bool {
 }
 
 // ContainsAny returns true if the set contains any of the values.
-func (s *String) ContainsAny(vals ...string) bool {
+func (s *Uint64) ContainsAny(vals ...uint64) bool {
 	for _, v := range vals {
 		if _, ok := s.m[v]; ok {
 			return true
@@ -72,9 +72,9 @@ func (s *String) ContainsAny(vals ...string) bool {
 	return false
 }
 
-// Diff returns new String about the values which other set doesn't contain.
-func (s *String) Diff(other *String) *String {
-	res := NewString()
+// Diff returns new Uint64 about the values which other set doesn't contain.
+func (s *Uint64) Diff(other *Uint64) *Uint64 {
+	res := NewUint64()
 
 	for val := range s.m {
 		if !other.Contains(val) {
@@ -84,9 +84,9 @@ func (s *String) Diff(other *String) *String {
 	return res
 }
 
-// Intersect returns new String about values which other set also contains.
-func (s *String) Intersect(other *String) *String {
-	res := NewString()
+// Intersect returns new Uint64 about values which other set also contains.
+func (s *Uint64) Intersect(other *Uint64) *Uint64 {
+	res := NewUint64()
 
 	// loop over the smaller set
 	if len(s.m) <= len(other.m) {
@@ -105,9 +105,9 @@ func (s *String) Intersect(other *String) *String {
 	return res
 }
 
-// Union returns new String about values either in the set or the other set.
-func (s *String) Union(other *String) *String {
-	res := NewString()
+// Union returns new Uint64 about values either in the set or the other set.
+func (s *Uint64) Union(other *Uint64) *Uint64 {
+	res := NewUint64()
 
 	for val := range s.m {
 		res.Add(val)
@@ -119,13 +119,13 @@ func (s *String) Union(other *String) *String {
 }
 
 // Size returns the size of set.
-func (s *String) Size() int {
+func (s *Uint64) Size() int {
 	return len(s.m)
 }
 
-// Slice converts set into string slice.
-func (s *String) Slice() []string {
-	res := make([]string, 0, len(s.m))
+// Slice converts set into uint64 slice.
+func (s *Uint64) Slice() []uint64 {
+	res := make([]uint64, 0, len(s.m))
 
 	for val := range s.m {
 		res = append(res, val)
@@ -133,9 +133,9 @@ func (s *String) Slice() []string {
 	return res
 }
 
-// Map converts set into map[string]bool.
-func (s *String) Map() map[string]bool {
-	res := make(map[string]bool, len(s.m))
+// Map converts set into map[uint64]bool.
+func (s *Uint64) Map() map[uint64]bool {
+	res := make(map[uint64]bool, len(s.m))
 
 	for val := range s.m {
 		res[val] = true
@@ -144,16 +144,16 @@ func (s *String) Map() map[string]bool {
 }
 
 // MarshalJSON implements json.Marshaler interface, the set will be
-// marshaled as an string array.
-func (s *String) MarshalJSON() ([]byte, error) {
+// marshaled as an uint64 array.
+func (s *Uint64) MarshalJSON() ([]byte, error) {
 	res := s.Slice()
 	return json.Marshal(res)
 }
 
 // UnmarshalJSON implements json.Unmarshaler interface, it will unmarshal
-// an string array to the set.
-func (s *String) UnmarshalJSON(b []byte) error {
-	vals := make([]string, 0)
+// an uint64 array to the set.
+func (s *Uint64) UnmarshalJSON(b []byte) error {
+	vals := make([]uint64, 0)
 	err := json.Unmarshal(b, &vals)
 	if err == nil {
 		s.Add(vals...)

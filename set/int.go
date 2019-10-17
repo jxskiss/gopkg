@@ -4,53 +4,53 @@ package set
 
 import "encoding/json"
 
-// String is string set collection.
-type String struct {
-	m map[string]struct{}
+// Int is int set collection.
+type Int struct {
+	m map[int]struct{}
 }
 
-// NewString creates String instance.
-func NewString(vals ...string) *String {
-	set := &String{
-		m: make(map[string]struct{}),
+// NewInt creates Int instance.
+func NewInt(vals ...int) *Int {
+	set := &Int{
+		m: make(map[int]struct{}),
 	}
 	set.Add(vals...)
 	return set
 }
 
 // Add adds values into the set.
-func (s *String) Add(vals ...string) {
+func (s *Int) Add(vals ...int) {
 	for idx := range vals {
 		s.m[vals[idx]] = struct{}{}
 	}
 }
 
 // Del deletes values from the set.
-func (s *String) Del(vals ...string) {
+func (s *Int) Del(vals ...int) {
 	for idx := range vals {
 		delete(s.m, vals[idx])
 	}
 }
 
 // Pop pops an element from the set, in no particular order.
-func (s *String) Pop() string {
+func (s *Int) Pop() int {
 	for val := range s.m {
 		delete(s.m, val)
 		return val
 	}
-	return ""
+	return 0
 }
 
 // Iterate iterates the set in no particular order and call the given function
 // for each set element.
-func (s *String) Iterate(fn func(string)) {
+func (s *Int) Iterate(fn func(int)) {
 	for val := range s.m {
 		fn(val)
 	}
 }
 
 // Contains returns true if the set contains all the values.
-func (s *String) Contains(vals ...string) bool {
+func (s *Int) Contains(vals ...int) bool {
 	if len(vals) == 0 {
 		return false
 	}
@@ -63,7 +63,7 @@ func (s *String) Contains(vals ...string) bool {
 }
 
 // ContainsAny returns true if the set contains any of the values.
-func (s *String) ContainsAny(vals ...string) bool {
+func (s *Int) ContainsAny(vals ...int) bool {
 	for _, v := range vals {
 		if _, ok := s.m[v]; ok {
 			return true
@@ -72,9 +72,9 @@ func (s *String) ContainsAny(vals ...string) bool {
 	return false
 }
 
-// Diff returns new String about the values which other set doesn't contain.
-func (s *String) Diff(other *String) *String {
-	res := NewString()
+// Diff returns new Int about the values which other set doesn't contain.
+func (s *Int) Diff(other *Int) *Int {
+	res := NewInt()
 
 	for val := range s.m {
 		if !other.Contains(val) {
@@ -84,9 +84,9 @@ func (s *String) Diff(other *String) *String {
 	return res
 }
 
-// Intersect returns new String about values which other set also contains.
-func (s *String) Intersect(other *String) *String {
-	res := NewString()
+// Intersect returns new Int about values which other set also contains.
+func (s *Int) Intersect(other *Int) *Int {
+	res := NewInt()
 
 	// loop over the smaller set
 	if len(s.m) <= len(other.m) {
@@ -105,9 +105,9 @@ func (s *String) Intersect(other *String) *String {
 	return res
 }
 
-// Union returns new String about values either in the set or the other set.
-func (s *String) Union(other *String) *String {
-	res := NewString()
+// Union returns new Int about values either in the set or the other set.
+func (s *Int) Union(other *Int) *Int {
+	res := NewInt()
 
 	for val := range s.m {
 		res.Add(val)
@@ -119,13 +119,13 @@ func (s *String) Union(other *String) *String {
 }
 
 // Size returns the size of set.
-func (s *String) Size() int {
+func (s *Int) Size() int {
 	return len(s.m)
 }
 
-// Slice converts set into string slice.
-func (s *String) Slice() []string {
-	res := make([]string, 0, len(s.m))
+// Slice converts set into int slice.
+func (s *Int) Slice() []int {
+	res := make([]int, 0, len(s.m))
 
 	for val := range s.m {
 		res = append(res, val)
@@ -133,9 +133,9 @@ func (s *String) Slice() []string {
 	return res
 }
 
-// Map converts set into map[string]bool.
-func (s *String) Map() map[string]bool {
-	res := make(map[string]bool, len(s.m))
+// Map converts set into map[int]bool.
+func (s *Int) Map() map[int]bool {
+	res := make(map[int]bool, len(s.m))
 
 	for val := range s.m {
 		res[val] = true
@@ -144,16 +144,16 @@ func (s *String) Map() map[string]bool {
 }
 
 // MarshalJSON implements json.Marshaler interface, the set will be
-// marshaled as an string array.
-func (s *String) MarshalJSON() ([]byte, error) {
+// marshaled as an int array.
+func (s *Int) MarshalJSON() ([]byte, error) {
 	res := s.Slice()
 	return json.Marshal(res)
 }
 
 // UnmarshalJSON implements json.Unmarshaler interface, it will unmarshal
-// an string array to the set.
-func (s *String) UnmarshalJSON(b []byte) error {
-	vals := make([]string, 0)
+// an int array to the set.
+func (s *Int) UnmarshalJSON(b []byte) error {
+	vals := make([]int, 0)
 	err := json.Unmarshal(b, &vals)
 	if err == nil {
 		s.Add(vals...)

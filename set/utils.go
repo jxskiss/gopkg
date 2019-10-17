@@ -5,6 +5,84 @@ import (
 	"reflect"
 )
 
+// IntKeys returns int key slice of a map, the given map's key type
+// must be int, or it will panic.
+//
+// For many frequently used types, type assertion is used to get best perf,
+// else reflect is used to support any map type with int keys.
+func IntKeys(m interface{}) (keys []int) {
+	switch v := m.(type) {
+	case map[int]string:
+		keys = make([]int, len(v))
+		i := 0
+		for k := range v {
+			keys[i] = k
+			i++
+		}
+	case map[int][]byte:
+		keys = make([]int, len(v))
+		i := 0
+		for k := range v {
+			keys[i] = k
+			i++
+		}
+	case map[int]int:
+		keys = make([]int, len(v))
+		i := 0
+		for k := range v {
+			keys[i] = k
+			i++
+		}
+	case map[int]int64:
+		keys = make([]int, len(v))
+		i := 0
+		for k := range v {
+			keys[i] = k
+			i++
+		}
+	case map[int]uint64:
+		keys = make([]int, len(v))
+		i := 0
+		for k := range v {
+			keys[i] = k
+			i++
+		}
+	case map[int]bool:
+		keys = make([]int, len(v))
+		i := 0
+		for k := range v {
+			keys[i] = k
+			i++
+		}
+	case map[int]struct{}:
+		keys = make([]int, len(v))
+		i := 0
+		for k := range v {
+			keys[i] = k
+			i++
+		}
+	case map[int]interface{}:
+		keys = make([]int, len(v))
+		i := 0
+		for k := range v {
+			keys[i] = k
+			i++
+		}
+	default:
+		mTyp := reflect.TypeOf(m)
+		if mTyp.Kind() != reflect.Map || !isIntType(mTyp.Key()) {
+			panic(fmt.Errorf("unsupported type or IntKeys: %T", v))
+		}
+
+		mVal := reflect.ValueOf(m)
+		keys = make([]int, mVal.Len())
+		for i, k := range mVal.MapKeys() {
+			keys[i] = int(reflectInt(k))
+		}
+	}
+	return keys
+}
+
 // Int64Keys returns int64 key slice of a map, the given map's key type
 // must be int64, or it will panic.
 //
@@ -26,6 +104,13 @@ func Int64Keys(m interface{}) (keys []int64) {
 			keys[i] = k
 			i++
 		}
+	case map[int64]int:
+		keys = make([]int64, len(v))
+		i := 0
+		for k := range v {
+			keys[i] = k
+			i++
+		}
 	case map[int64]int64:
 		keys = make([]int64, len(v))
 		i := 0
@@ -33,7 +118,7 @@ func Int64Keys(m interface{}) (keys []int64) {
 			keys[i] = k
 			i++
 		}
-	case map[int64]int:
+	case map[int64]uint64:
 		keys = make([]int64, len(v))
 		i := 0
 		for k := range v {
@@ -48,34 +133,6 @@ func Int64Keys(m interface{}) (keys []int64) {
 			i++
 		}
 	case map[int64]struct{}:
-		keys = make([]int64, len(v))
-		i := 0
-		for k := range v {
-			keys[i] = k
-			i++
-		}
-	case map[int64]map[int64]bool:
-		keys = make([]int64, len(v))
-		i := 0
-		for k := range v {
-			keys[i] = k
-			i++
-		}
-	case map[int64]map[string]bool:
-		keys = make([]int64, len(v))
-		i := 0
-		for k := range v {
-			keys[i] = k
-			i++
-		}
-	case map[int64][]int64:
-		keys = make([]int64, len(v))
-		i := 0
-		for k := range v {
-			keys[i] = k
-			i++
-		}
-	case map[int64][]string:
 		keys = make([]int64, len(v))
 		i := 0
 		for k := range v {
@@ -99,6 +156,79 @@ func Int64Keys(m interface{}) (keys []int64) {
 		keys = make([]int64, mVal.Len())
 		for i, k := range mVal.MapKeys() {
 			keys[i] = reflectInt(k)
+		}
+	}
+	return keys
+}
+
+func Uint64Keys(m interface{}) (keys []uint64) {
+	switch v := m.(type) {
+	case map[uint64]string:
+		keys := make([]uint64, len(v))
+		i := 0
+		for k := range v {
+			keys[i] = k
+			i++
+		}
+	case map[uint64][]byte:
+		keys := make([]uint64, len(v))
+		i := 0
+		for k := range v {
+			keys[i] = k
+			i++
+		}
+	case map[uint64]int:
+		keys := make([]uint64, len(v))
+		i := 0
+		for k := range v {
+			keys[i] = k
+			i++
+		}
+	case map[uint64]int64:
+		keys := make([]uint64, len(v))
+		i := 0
+		for k := range v {
+			keys[i] = k
+			i++
+		}
+	case map[uint64]uint64:
+		keys := make([]uint64, len(v))
+		i := 0
+		for k := range v {
+			keys[i] = k
+			i++
+		}
+	case map[uint64]bool:
+		keys := make([]uint64, len(v))
+		i := 0
+		for k := range v {
+			keys[i] = k
+			i++
+		}
+	case map[uint64]struct{}:
+		keys := make([]uint64, len(v))
+		i := 0
+		for k := range v {
+			keys[i] = k
+			i++
+		}
+	case map[uint64]interface{}:
+		keys := make([]uint64, len(v))
+		i := 0
+		for k := range v {
+			keys[i] = k
+			i++
+		}
+	default:
+		mTyp := reflect.TypeOf(m)
+		if mTyp.Kind() != reflect.Map || !isIntType(mTyp.Key()) {
+			panic(fmt.Errorf("unsupported type for Int64Keys: %T", v))
+		}
+
+		mVal := reflect.ValueOf(m)
+		keys := make([]uint64, mVal.Len())
+		for i, k := range mVal.MapKeys() {
+			keys[i] = uint64(reflectInt(k))
 		}
 	}
 	return keys
@@ -148,6 +278,13 @@ func StringKeys(m interface{}) (keys []string) {
 			keys[i] = k
 			i++
 		}
+	case map[string]int:
+		keys = make([]string, len(v))
+		i := 0
+		for k := range v {
+			keys[i] = k
+			i++
+		}
 	case map[string]int64:
 		keys = make([]string, len(v))
 		i := 0
@@ -155,7 +292,7 @@ func StringKeys(m interface{}) (keys []string) {
 			keys[i] = k
 			i++
 		}
-	case map[string]int:
+	case map[string]uint64:
 		keys = make([]string, len(v))
 		i := 0
 		for k := range v {
@@ -170,34 +307,6 @@ func StringKeys(m interface{}) (keys []string) {
 			i++
 		}
 	case map[string]struct{}:
-		keys = make([]string, len(v))
-		i := 0
-		for k := range v {
-			keys[i] = k
-			i++
-		}
-	case map[string]map[int64]bool:
-		keys = make([]string, len(v))
-		i := 0
-		for k := range v {
-			keys[i] = k
-			i++
-		}
-	case map[string]map[string]bool:
-		keys = make([]string, len(v))
-		i := 0
-		for k := range v {
-			keys[i] = k
-			i++
-		}
-	case map[string][]int64:
-		keys = make([]string, len(v))
-		i := 0
-		for k := range v {
-			keys[i] = k
-			i++
-		}
-	case map[string][]string:
 		keys = make([]string, len(v))
 		i := 0
 		for k := range v {
