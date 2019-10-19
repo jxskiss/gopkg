@@ -1,0 +1,4 @@
+{
+  // dummy comment
+  "foo": "bar", // <-- trailing comma
+}
