@@ -7,6 +7,8 @@ import (
 	"reflect"
 )
 
+const minSize = 8
+
 // Set is set collection of general type.
 type Set struct {
 	m map[interface{}]struct{}
@@ -14,16 +16,28 @@ type Set struct {
 
 // NewSet creates Set instance.
 func NewSet(vals ...interface{}) *Set {
+	size := max(len(vals), minSize)
 	set := &Set{
-		m: make(map[interface{}]struct{}),
+		m: make(map[interface{}]struct{}, size),
 	}
 
 	set.Add(vals...)
 	return set
 }
 
+func NewSetSize(size int) *Set {
+	set := &Set{
+		m: make(map[interface{}]struct{}, size),
+	}
+	return set
+}
+
 // Add adds values into set.
 func (s *Set) Add(vals ...interface{}) {
+	if s.m == nil {
+		size := max(len(vals), minSize)
+		s.m = make(map[interface{}]struct{}, size)
+	}
 	if len(vals) == 1 && reflect.TypeOf(vals[0]).Kind() == reflect.Slice {
 		values := reflect.ValueOf(vals[0])
 		for i := 0; i < values.Len(); i++ {
@@ -94,7 +108,7 @@ func (s *Set) ContainsAny(vals ...interface{}) bool {
 
 // Diff returns new Set about the values which other sets don't contain.
 func (s *Set) Diff(other *Set) *Set {
-	res := NewSet()
+	res := NewSetSize(s.Size())
 
 	for val := range s.m {
 		if !other.Contains(val) {
@@ -106,7 +120,7 @@ func (s *Set) Diff(other *Set) *Set {
 
 // Intersect returns new Set about values which other set also contains.
 func (s *Set) Intersect(other *Set) *Set {
-	res := NewSet()
+	res := NewSetSize(min(s.Size(), other.Size()))
 
 	// loop over the smaller set
 	if len(s.m) <= len(other.m) {
@@ -127,7 +141,7 @@ func (s *Set) Intersect(other *Set) *Set {
 
 // Union returns new Set about values either in the set or the other set.
 func (s *Set) Union(other *Set) *Set {
-	res := NewSet()
+	res := NewSetSize(s.Size() + other.Size())
 
 	for val := range s.m {
 		res.Add(val)
@@ -202,4 +216,18 @@ func (s *Set) MapTo(dst interface{}) {
 		dstVal.SetMapIndex(reflect.ValueOf(val), trueVal)
 	}
 	dstElem.Set(dstVal)
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }

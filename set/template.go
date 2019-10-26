@@ -61,15 +61,27 @@ type {{ .SetType }} struct {
 
 // New{{ .SetType }} creates {{ .SetType }} instance.
 func New{{ .SetType }}(vals ...{{ .Type }}) *{{ .SetType }} {
+	size := max(len(vals), minSize)
 	set := &{{ .SetType }}{
-		m: make(map[{{ .Type }}]struct{}),
+		m: make(map[{{ .Type }}]struct{}, size),
 	}
 	set.Add(vals...)
 	return set
 }
 
+func New{{ .SetType }}Size(size int) *{{ .SetType }} {
+	set := &{{ .SetType }}{
+		m: make(map[{{ .Type }}]struct{}, size),
+	}
+	return set
+}
+
 // Add adds values into the set.
 func (s *{{ .SetType }}) Add(vals ...{{ .Type }}) {
+	if s.m == nil {
+		size := max(len(vals), minSize)
+		s.m = make(map[{{ .Type }}]struct{}, size)
+	}
 	for idx := range vals {
 		s.m[vals[idx]] = struct{}{}
 	}
@@ -124,7 +136,7 @@ func (s *{{ .SetType }}) ContainsAny(vals ...{{ .Type }}) bool {
 
 // Diff returns new {{ .SetType }} about the values which other set doesn't contain.
 func (s *{{ .SetType }}) Diff(other *{{ .SetType }}) *{{ .SetType }} {
-	res := New{{ .SetType }}()
+	res := New{{ .SetType }}Size(s.Size())
 
 	for val := range s.m {
 		if !other.Contains(val) {
@@ -136,7 +148,7 @@ func (s *{{ .SetType }}) Diff(other *{{ .SetType }}) *{{ .SetType }} {
 
 // Intersect returns new {{ .SetType }} about values which other set also contains.
 func (s *{{ .SetType }}) Intersect(other *{{ .SetType }}) *{{ .SetType }} {
-	res := New{{ .SetType }}()
+	res := New{{ .SetType }}Size(min(s.Size(), other.Size()))
 
 	// loop over the smaller set
 	if len(s.m) <= len(other.m) {
@@ -157,7 +169,7 @@ func (s *{{ .SetType }}) Intersect(other *{{ .SetType }}) *{{ .SetType }} {
 
 // Union returns new {{ .SetType }} about values either in the set or the other set.
 func (s *{{ .SetType }}) Union(other *{{ .SetType }}) *{{ .SetType }} {
-	res := New{{ .SetType }}()
+	res := New{{ .SetType }}Size(s.Size() + other.Size())
 
 	for val := range s.m {
 		res.Add(val)

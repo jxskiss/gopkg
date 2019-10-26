@@ -83,6 +83,14 @@ func TestSet_Add(t *testing.T) {
 	}
 }
 
+func TestSet_Zero_Add(t *testing.T) {
+	var set1 Set
+	set1.Add(1, 2, 3)
+	if set1.Size() != 3 {
+		t.Errorf("failed add to zero set")
+	}
+}
+
 func TestSet_Slice(t *testing.T) {
 	set1 := NewSet(1, 2, 3)
 	set1.Add([]int{4, 5, 6})
