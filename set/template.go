@@ -55,22 +55,24 @@ package set
 import "encoding/json"
 
 // {{ .SetType }} is {{ .Type }} set collection.
+// The zero value of {{ .SetType }} is an empty instance ready to use.
 type {{ .SetType }} struct {
 	m map[{{ .Type }}]struct{}
 }
 
 // New{{ .SetType }} creates {{ .SetType }} instance.
-func New{{ .SetType }}(vals ...{{ .Type }}) *{{ .SetType }} {
+func New{{ .SetType }}(vals ...{{ .Type }}) {{ .SetType }} {
 	size := max(len(vals), minSize)
-	set := &{{ .SetType }}{
+	set := {{ .SetType }}{
 		m: make(map[{{ .Type }}]struct{}, size),
 	}
 	set.Add(vals...)
 	return set
 }
 
-func New{{ .SetType }}Size(size int) *{{ .SetType }} {
-	set := &{{ .SetType }}{
+// New{{ .SetType }}WithSize creates {{ .SetType }} instance with given initial size.
+func New{{ .SetType }}WithSize(size int) {{ .SetType }} {
+	set := {{ .SetType }}{
 		m: make(map[{{ .Type }}]struct{}, size),
 	}
 	return set
@@ -135,8 +137,8 @@ func (s *{{ .SetType }}) ContainsAny(vals ...{{ .Type }}) bool {
 }
 
 // Diff returns new {{ .SetType }} about the values which other set doesn't contain.
-func (s *{{ .SetType }}) Diff(other *{{ .SetType }}) *{{ .SetType }} {
-	res := New{{ .SetType }}Size(s.Size())
+func (s *{{ .SetType }}) Diff(other {{ .SetType }}) {{ .SetType }} {
+	res := New{{ .SetType }}WithSize(s.Size())
 
 	for val := range s.m {
 		if !other.Contains(val) {
@@ -147,8 +149,8 @@ func (s *{{ .SetType }}) Diff(other *{{ .SetType }}) *{{ .SetType }} {
 }
 
 // Intersect returns new {{ .SetType }} about values which other set also contains.
-func (s *{{ .SetType }}) Intersect(other *{{ .SetType }}) *{{ .SetType }} {
-	res := New{{ .SetType }}Size(min(s.Size(), other.Size()))
+func (s *{{ .SetType }}) Intersect(other {{ .SetType }}) {{ .SetType }} {
+	res := New{{ .SetType }}WithSize(min(s.Size(), other.Size()))
 
 	// loop over the smaller set
 	if len(s.m) <= len(other.m) {
@@ -168,8 +170,8 @@ func (s *{{ .SetType }}) Intersect(other *{{ .SetType }}) *{{ .SetType }} {
 }
 
 // Union returns new {{ .SetType }} about values either in the set or the other set.
-func (s *{{ .SetType }}) Union(other *{{ .SetType }}) *{{ .SetType }} {
-	res := New{{ .SetType }}Size(s.Size() + other.Size())
+func (s *{{ .SetType }}) Union(other {{ .SetType }}) {{ .SetType }} {
+	res := New{{ .SetType }}WithSize(s.Size() + other.Size())
 
 	for val := range s.m {
 		res.Add(val)

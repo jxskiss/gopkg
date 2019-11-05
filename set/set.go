@@ -10,14 +10,15 @@ import (
 const minSize = 8
 
 // Set is set collection of general type.
+// The zero value of Set is an empty instance ready to use.
 type Set struct {
 	m map[interface{}]struct{}
 }
 
 // NewSet creates Set instance.
-func NewSet(vals ...interface{}) *Set {
+func NewSet(vals ...interface{}) Set {
 	size := max(len(vals), minSize)
-	set := &Set{
+	set := Set{
 		m: make(map[interface{}]struct{}, size),
 	}
 
@@ -25,8 +26,9 @@ func NewSet(vals ...interface{}) *Set {
 	return set
 }
 
-func NewSetSize(size int) *Set {
-	set := &Set{
+// NewSetWithSize creates Set instance with given initial size.
+func NewSetWithSize(size int) Set {
+	set := Set{
 		m: make(map[interface{}]struct{}, size),
 	}
 	return set
@@ -107,8 +109,8 @@ func (s *Set) ContainsAny(vals ...interface{}) bool {
 }
 
 // Diff returns new Set about the values which other sets don't contain.
-func (s *Set) Diff(other *Set) *Set {
-	res := NewSetSize(s.Size())
+func (s *Set) Diff(other Set) Set {
+	res := NewSetWithSize(s.Size())
 
 	for val := range s.m {
 		if !other.Contains(val) {
@@ -119,8 +121,8 @@ func (s *Set) Diff(other *Set) *Set {
 }
 
 // Intersect returns new Set about values which other set also contains.
-func (s *Set) Intersect(other *Set) *Set {
-	res := NewSetSize(min(s.Size(), other.Size()))
+func (s *Set) Intersect(other Set) Set {
+	res := NewSetWithSize(min(s.Size(), other.Size()))
 
 	// loop over the smaller set
 	if len(s.m) <= len(other.m) {
@@ -140,8 +142,8 @@ func (s *Set) Intersect(other *Set) *Set {
 }
 
 // Union returns new Set about values either in the set or the other set.
-func (s *Set) Union(other *Set) *Set {
-	res := NewSetSize(s.Size() + other.Size())
+func (s *Set) Union(other Set) Set {
+	res := NewSetWithSize(s.Size() + other.Size())
 
 	for val := range s.m {
 		res.Add(val)
