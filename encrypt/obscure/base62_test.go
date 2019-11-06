@@ -8,20 +8,20 @@ import (
 func Test_Base62_Encode(t *testing.T) {
 	src := []byte("0123456789abcdefghij")
 	dst := B62Encode(src)
-	want := []byte("uvy18nslsP5DMmy67aMB5qrQrCx6")
+	want := []byte("pBayTFbYbZo06GaNkW68oRHsHX1N")
 
 	if !bytes.Equal(want, dst) {
-		t.Errorf("Test_Encode failed: got=%v want=%v", string(dst), string(want))
+		t.Errorf("Test_Base62_Encode failed: got=%v want=%v", string(dst), string(want))
 	}
 }
 
 func Test_Base62_Decode(t *testing.T) {
-	src := []byte("uvy18nslsP5DMmy67aMB5qrQrCx6")
+	src := []byte("pBayTFbYbZo06GaNkW68oRHsHX1N")
 	dst, _ := B62Decode(src)
 	want := []byte("0123456789abcdefghij")
 
 	if !bytes.Equal(want, dst) {
-		t.Errorf("Test_Decode failed: got=%v want=%v", string(dst), string(want))
+		t.Errorf("Test_Base62_Decode failed: got=%v want=%v", string(dst), string(want))
 	}
 }
 

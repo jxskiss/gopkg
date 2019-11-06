@@ -4,7 +4,7 @@ func B64Encode(src []byte) (dst []byte) {
 	if len(src) == 0 {
 		return
 	}
-	idx := src[0] & idxlen
+	idx := calcSeqIdx(src)
 	idxchar := idxchars[idx]
 	enc := b64encodings[idx%seqlen]
 	dst = make([]byte, enc.EncodedLen(len(src)+1))

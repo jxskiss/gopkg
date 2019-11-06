@@ -8,20 +8,20 @@ import (
 func Test_Base64_Encode(t *testing.T) {
 	src := []byte("0123456789abcdefghij")
 	dst := B64Encode(src)
-	want := []byte("urJfurMxysXVWFglAb75NEj+pwgp")
+	want := []byte("paPYRaJwbsETy4GAcuKM+L5B7SG7")
 
 	if !bytes.Equal(want, dst) {
-		t.Errorf("Test_Encode failed: got=%v want=%v", string(dst), string(want))
+		t.Errorf("Test_Base64_Encode failed: got=%v want=%v", string(dst), string(want))
 	}
 }
 
 func Test_Base64_Decode(t *testing.T) {
-	src := []byte("urJfurMxysXVWFglAb75NEj+pwgp")
+	src := []byte("paPYRaJwbsETy4GAcuKM+L5B7SG7")
 	dst, _ := B64Decode(src)
 	want := []byte("0123456789abcdefghij")
 
 	if !bytes.Equal(want, dst) {
-		t.Errorf("Test_Decode failed: got=%v want=%v", string(dst), string(want))
+		t.Errorf("Test_Base64_Decode failed: got=%v want=%v", string(dst), string(want))
 	}
 }
 

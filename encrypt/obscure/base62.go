@@ -4,7 +4,7 @@ func B62Encode(src []byte) (dst []byte) {
 	if len(src) == 0 {
 		return
 	}
-	idx := src[0] % idxlen
+	idx := calcSeqIdx(src)
 	idxchar := idxchars[idx]
 	enc := b62encodings[idx%seqlen]
 	dst = enc.Encode(src)

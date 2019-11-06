@@ -53,6 +53,14 @@ func SetIdxChars(chars string) {
 	}
 }
 
+func calcSeqIdx(b []byte) int {
+	var idx int
+	for i := len(b) - 1; i >= 0; i -= 3 {
+		idx += int(b[i])
+	}
+	return idx % idxlen
+}
+
 var (
 	// random sequence of digit number and alphabet, length 59
 	idseqcharsMu      sync.Mutex
