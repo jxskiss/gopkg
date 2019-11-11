@@ -20,6 +20,7 @@ const (
 // TLS1.2标准使用的就是AES-GCM算法，并且Intel CPU提供了GHASH的硬件加速功能。
 func GCMEncrypt(plainText, key []byte, opts ...Option) (cipherText []byte, err error) {
 	opt := (&options{}).apply(opts...)
+	key = KeyPadding(key)
 	nonceSize := defaultInt(opt.nonceSize, gcmStandardNonceSize)
 	nonce := make([]byte, nonceSize)
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
@@ -95,6 +96,7 @@ func UnpackGCMCipherText(cipherText []byte, opts ...Option) (cipherData, nonce, 
 
 func GCMDecrypt(cipherText, key []byte, opts ...Option) (plainText []byte, err error) {
 	opt := (&options{}).apply(opts...)
+	key = KeyPadding(key)
 	nonceSize := defaultInt(opt.nonceSize, gcmStandardNonceSize)
 	cipherText, err = opt.decode(cipherText)
 	if err != nil {
