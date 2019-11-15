@@ -31,6 +31,8 @@ var (
 		// Literal strings which should be reserved.
 		`|` + stringPattern,
 	)
+
+	maxImportDepth = 10
 )
 
 type Decoder interface {
@@ -76,12 +78,10 @@ func (r *extDecoder) Decode(v interface{}) error {
 		r.importRoot = wd
 	}
 
-	data, err := replaceImports(content, r.importRoot)
+	data, err := fixJSON(content, r.importRoot, 1)
 	if err != nil {
 		return err
 	}
-	data = removeComments(data)
-	data = fixTrailingCommas(data)
 	return Unmarshal(data, v)
 }
 
@@ -90,13 +90,27 @@ func UnmarshalExt(data []byte, v interface{}) error {
 	if err != nil {
 		return err
 	}
-	data, err = replaceImports(data, wd)
+	data, err = fixJSON(data, wd, 1)
 	if err != nil {
 		return err
 	}
+	return Unmarshal(data, v)
+}
+
+func fixJSON(data []byte, importRoot string, depth int) ([]byte, error) {
+	if depth > maxImportDepth {
+		return nil, errors.New("max depth exceeded")
+	}
 	data = removeComments(data)
 	data = fixTrailingCommas(data)
-	return Unmarshal(data, v)
+	data, replaced, err := replaceImports(data, importRoot)
+	if err != nil {
+		return nil, err
+	}
+	if replaced {
+		return fixJSON(data, importRoot, depth+1)
+	}
+	return data, nil
 }
 
 func removeComments(data []byte) []byte {
@@ -126,25 +140,26 @@ func fixTrailingCommas(data []byte) []byte {
 	return data
 }
 
-func replaceImports(data []byte, importRoot string) ([]byte, error) {
-	errs := make([]error, 0)
-	data = importRegexp.ReplaceAllFunc(data, func(src []byte) []byte {
+func replaceImports(data []byte, importRoot string) (result []byte, replaced bool, err error) {
+	replaceErrs := make([]error, 0)
+	result = importRegexp.ReplaceAllFunc(data, func(src []byte) []byte {
+		replaced = true
 		subMatches := importRegexp.FindSubmatch(src)
 		includedPath := filepath.Join(importRoot, string(subMatches[1]))
 		included, err := ioutil.ReadFile(includedPath)
 		if err != nil {
-			errs = append(errs, err)
+			replaceErrs = append(replaceErrs, err)
 			return src
 		}
 		return included
 	})
 
-	if len(errs) != 0 {
-		var errStrings = make([]string, len(errs))
-		for i, e := range errs {
+	if len(replaceErrs) != 0 {
+		var errStrings = make([]string, len(replaceErrs))
+		for i, e := range replaceErrs {
 			errStrings[i] = e.Error()
 		}
-		return nil, errors.New(strings.Join(errStrings, "; "))
+		err = errors.New(strings.Join(errStrings, "; "))
 	}
-	return data, nil
+	return
 }
