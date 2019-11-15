@@ -50,11 +50,20 @@ func (c *multiCache) GetNotStale(key interface{}) (v interface{}, exists bool) {
 }
 
 func (c *multiCache) MGet(keys ...interface{}) map[interface{}]interface{} {
+	return c.mget(false, keys...)
+}
+
+func (c *multiCache) MGetNotStale(keys ...interface{}) map[interface{}]interface{} {
+	return c.mget(true, keys...)
+}
+
+func (c *multiCache) mget(notStale bool, keys ...interface{}) map[interface{}]interface{} {
 	grpKeys := c.groupKeys(keys)
+	nowNano := time.Now().UnixNano()
 
 	var res map[interface{}]interface{}
 	for idx, keys := range grpKeys {
-		grp := c.cache[idx].MGet(keys...)
+		grp := c.cache[idx].mget(notStale, nowNano, keys...)
 		if res == nil {
 			res = grp
 		} else {
@@ -67,11 +76,20 @@ func (c *multiCache) MGet(keys ...interface{}) map[interface{}]interface{} {
 }
 
 func (c *multiCache) MGetInt(keys ...int) map[int]interface{} {
+	return c.mgetInt(false, keys...)
+}
+
+func (c *multiCache) MGetIntNotStale(keys ...int) map[int]interface{} {
+	return c.mgetInt(true, keys...)
+}
+
+func (c *multiCache) mgetInt(notStale bool, keys ...int) map[int]interface{} {
 	grpKeys := c.groupIntKeys(keys)
+	nowNano := time.Now().UnixNano()
 
 	var res map[int]interface{}
 	for idx, keys := range grpKeys {
-		grp := c.cache[idx].MGetInt(keys...)
+		grp := c.cache[idx].mgetInt(notStale, nowNano, keys...)
 		if res == nil {
 			res = grp
 		} else {
@@ -84,11 +102,20 @@ func (c *multiCache) MGetInt(keys ...int) map[int]interface{} {
 }
 
 func (c *multiCache) MGetInt64(keys ...int64) map[int64]interface{} {
+	return c.mgetInt64(false, keys...)
+}
+
+func (c *multiCache) MGetInt64NotStale(keys ...int64) map[int64]interface{} {
+	return c.mgetInt64(true, keys...)
+}
+
+func (c *multiCache) mgetInt64(notStale bool, keys ...int64) map[int64]interface{} {
 	grpKeys := c.groupInt64Keys(keys)
+	nowNano := time.Now().UnixNano()
 
 	var res map[int64]interface{}
 	for idx, keys := range grpKeys {
-		grp := c.cache[idx].MGetInt64(keys...)
+		grp := c.cache[idx].mgetInt64(notStale, nowNano, keys...)
 		if res == nil {
 			res = grp
 		} else {
@@ -101,11 +128,20 @@ func (c *multiCache) MGetInt64(keys ...int64) map[int64]interface{} {
 }
 
 func (c *multiCache) MGetUint64(keys ...uint64) map[uint64]interface{} {
+	return c.mgetUint64(false, keys...)
+}
+
+func (c *multiCache) MGetUint64NotStale(keys ...uint64) map[uint64]interface{} {
+	return c.mgetUint64(true, keys...)
+}
+
+func (c *multiCache) mgetUint64(notStale bool, keys ...uint64) map[uint64]interface{} {
 	grpKeys := c.groupUint64Keys(keys)
+	nowNano := time.Now().UnixNano()
 
 	var res map[uint64]interface{}
 	for idx, keys := range grpKeys {
-		grp := c.cache[idx].MGetUint64(keys...)
+		grp := c.cache[idx].mgetUint64(notStale, nowNano, keys...)
 		if res == nil {
 			res = grp
 		} else {
@@ -118,11 +154,20 @@ func (c *multiCache) MGetUint64(keys ...uint64) map[uint64]interface{} {
 }
 
 func (c *multiCache) MGetString(keys ...string) map[string]interface{} {
+	return c.mgetString(false, keys...)
+}
+
+func (c *multiCache) MGetStringNotStale(keys ...string) map[string]interface{} {
+	return c.mgetString(true, keys...)
+}
+
+func (c *multiCache) mgetString(notStale bool, keys ...string) map[string]interface{} {
 	grpKeys := c.groupStringKeys(keys)
+	nowNano := time.Now().UnixNano()
 
 	var res map[string]interface{}
 	for idx, keys := range grpKeys {
-		grp := c.cache[idx].MGetString(keys...)
+		grp := c.cache[idx].mgetString(notStale, nowNano, keys...)
 		if res == nil {
 			res = grp
 		} else {

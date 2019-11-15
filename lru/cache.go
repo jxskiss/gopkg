@@ -118,12 +118,28 @@ func (c *cache) get(key interface{}) (idx uint32, elem *element, exists bool) {
 // update their LRU scores. The returned values may be expired.
 // It's a convenient and efficient way to retrieve multiple values.
 func (c *cache) MGet(keys ...interface{}) map[interface{}]interface{} {
+	nowNano := time.Now().UnixNano()
+	return c.mget(false, nowNano, keys...)
+}
+
+// MGetNotStale is similar to MGet, but it returns only not stale values.
+func (c *cache) MGetNotStale(keys ...interface{}) map[interface{}]interface{} {
+	nowNano := time.Now().UnixNano()
+	return c.mget(true, nowNano, keys...)
+}
+
+func (c *cache) mget(notStale bool, nowNano int64, keys ...interface{}) map[interface{}]interface{} {
 	res := make(map[interface{}]interface{}, len(keys))
 	c.mu.RLock()
 	for _, key := range keys {
-		idx, exists := c.m[key]
+		idx, elem, exists := c.get(key)
 		if exists {
-			elem := &c.elems[idx]
+			if notStale {
+				expired := elem.expires > 0 && elem.expires < nowNano
+				if expired {
+					continue
+				}
+			}
 			res[key] = elem.value
 			c.promote(idx)
 		}
@@ -137,12 +153,28 @@ func (c *cache) MGet(keys ...interface{}) map[interface{}]interface{} {
 // It's a convenient and efficient way to retrieve multiple values for
 // int keys.
 func (c *cache) MGetInt(keys ...int) map[int]interface{} {
+	nowNano := time.Now().UnixNano()
+	return c.mgetInt(false, nowNano, keys...)
+}
+
+// MGetIntNotStale is similar to MGetInt, but it returns only not stale values.
+func (c *cache) MGetIntNotStale(keys ...int) map[int]interface{} {
+	nowNano := time.Now().UnixNano()
+	return c.mgetInt(true, nowNano, keys...)
+}
+
+func (c *cache) mgetInt(notStale bool, nowNano int64, keys ...int) map[int]interface{} {
 	res := make(map[int]interface{}, len(keys))
 	c.mu.RLock()
 	for _, key := range keys {
-		idx, exists := c.m[key]
+		idx, elem, exists := c.get(key)
 		if exists {
-			elem := &c.elems[idx]
+			if notStale {
+				expired := elem.expires > 0 && elem.expires < nowNano
+				if expired {
+					continue
+				}
+			}
 			res[key] = elem.value
 			c.promote(idx)
 		}
@@ -156,12 +188,28 @@ func (c *cache) MGetInt(keys ...int) map[int]interface{} {
 // It's a convenient and efficient way to retrieve multiple values for
 // int64 keys.
 func (c *cache) MGetInt64(keys ...int64) map[int64]interface{} {
+	nowNano := time.Now().UnixNano()
+	return c.mgetInt64(false, nowNano, keys...)
+}
+
+// MGetInt64NotStale is similar to MGetInt64, but it returns only not stale values.
+func (c *cache) MGetInt64NotStale(keys ...int64) map[int64]interface{} {
+	nowNano := time.Now().UnixNano()
+	return c.mgetInt64(true, nowNano, keys...)
+}
+
+func (c *cache) mgetInt64(notStale bool, nowNano int64, keys ...int64) map[int64]interface{} {
 	res := make(map[int64]interface{}, len(keys))
 	c.mu.RLock()
 	for _, key := range keys {
-		idx, exists := c.m[key]
+		idx, elem, exists := c.get(key)
 		if exists {
-			elem := &c.elems[idx]
+			if notStale {
+				expired := elem.expires > 0 && elem.expires < nowNano
+				if expired {
+					continue
+				}
+			}
 			res[key] = elem.value
 			c.promote(idx)
 		}
@@ -175,12 +223,28 @@ func (c *cache) MGetInt64(keys ...int64) map[int64]interface{} {
 // It's a convenient and efficient way to retrieve multiple values for
 // uint64 keys.
 func (c *cache) MGetUint64(keys ...uint64) map[uint64]interface{} {
+	nowNano := time.Now().UnixNano()
+	return c.mgetUint64(false, nowNano, keys...)
+}
+
+// MGetUint64NotStale is similar to MGetUint64, but it returns only not stale values.
+func (c *cache) MGetUint64NotStale(keys ...uint64) map[uint64]interface{} {
+	nowNano := time.Now().UnixNano()
+	return c.mgetUint64(true, nowNano, keys...)
+}
+
+func (c *cache) mgetUint64(notStale bool, nowNano int64, keys ...uint64) map[uint64]interface{} {
 	res := make(map[uint64]interface{}, len(keys))
 	c.mu.RLock()
 	for _, key := range keys {
-		idx, exists := c.m[key]
+		idx, elem, exists := c.get(key)
 		if exists {
-			elem := &c.elems[idx]
+			if notStale {
+				expired := elem.expires > 0 && elem.expires < nowNano
+				if expired {
+					continue
+				}
+			}
 			res[key] = elem.value
 			c.promote(idx)
 		}
@@ -194,12 +258,28 @@ func (c *cache) MGetUint64(keys ...uint64) map[uint64]interface{} {
 // It's a convenient and efficient way to retrieve multiple values for
 // string keys.
 func (c *cache) MGetString(keys ...string) map[string]interface{} {
+	nowNano := time.Now().UnixNano()
+	return c.mgetString(false, nowNano, keys...)
+}
+
+// MGetStringNotStale is similar to MGetString, but it returns only not stale values.
+func (c *cache) MGetStringNotStale(keys ...string) map[string]interface{} {
+	nowNano := time.Now().UnixNano()
+	return c.mgetString(true, nowNano, keys...)
+}
+
+func (c *cache) mgetString(notStale bool, nowNano int64, keys ...string) map[string]interface{} {
 	res := make(map[string]interface{}, len(keys))
 	c.mu.RLock()
 	for _, key := range keys {
-		idx, exists := c.m[key]
+		idx, elem, exists := c.get(key)
 		if exists {
-			elem := &c.elems[idx]
+			if notStale {
+				expired := elem.expires > 0 && elem.expires < nowNano
+				if expired {
+					continue
+				}
+			}
 			res[key] = elem.value
 			c.promote(idx)
 		}
