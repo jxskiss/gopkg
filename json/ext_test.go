@@ -15,7 +15,7 @@ var malformedJSONData = `
 	This style of comments will also be safely removed.
 	*/
 	"array": [1, 2, 3, ], // Trailing comma in array.
-	"import": "@import(testdata.json)", // Import another json file.
+	"import": @import("testdata.json"), // Import another json file.
 	"obj2": {
 		"foo": "bar", /* Another style inline comment. */
 	}, // <-- Another trailing comma!
