@@ -29,6 +29,9 @@ func parse(data []byte, importRoot string, depth int) ([]byte, error) {
 	if err := doc.Parse(); err != nil {
 		return nil, err
 	}
+	if !doc.hasExtendedFeature() {
+		return data, nil
+	}
 
 	parser := &parser{
 		doc:   doc,
@@ -176,6 +179,40 @@ func (p *parser) parseImport(n *node32) (err error) {
 	}
 	p.buf = append(p.buf, included...)
 	return nil
+}
+
+func (p *JSON) hasExtendedFeature() bool {
+	var preRule pegRule
+	for _, n := range p.Tokens() {
+		switch n.pegRule {
+		case ruleSingleQuoteLiteral,
+			ruleImport,
+			ruleLongComment, ruleLineComment, rulePragma:
+			return true
+		case ruleRWING:
+			if preRule == ruleCOMMA {
+				return true
+			}
+		case ruleRBRK:
+			if preRule == ruleCOMMA {
+				return true
+			}
+		case ruleTrue:
+			if string(p.buffer[n.begin:n.end]) != "true" {
+				return true
+			}
+		case ruleFalse:
+			if string(p.buffer[n.begin:n.end]) != "false" {
+				return true
+			}
+		case ruleNull:
+			if string(p.buffer[n.begin:n.end]) != "null" {
+				return true
+			}
+		}
+		preRule = n.pegRule
+	}
+	return false
 }
 
 func b2s(b []byte) string {
