@@ -99,7 +99,8 @@ func decodeBase64(data []byte) ([]byte, error) {
 //	return charmap.ISO8859_1.NewEncoder().Bytes(data)
 //}
 
-// "github.com/jxskiss/gopkg/base62"
+// "github.com/jxskiss/base62"
+// Convert arbitrary bytes to Base62 and vice-versa.
 
 //func encodeBase62(data []byte) ([]byte, error) {
 //	out := base62.Encode(data)

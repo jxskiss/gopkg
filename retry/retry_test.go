@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jxskiss/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,7 +20,7 @@ func Test_Retry(t *testing.T) {
 	is.True(cost > 150*time.Millisecond)
 	is.True(cost < 450*time.Millisecond)
 
-	merr, ok := r.Error.(errors.ErrorGroup)
+	merr, ok := r.Error.(*sizedError)
 	is.True(ok)
 	merrors := merr.Errors()
 	is.Equal(len(merrors), 3)
@@ -38,7 +37,7 @@ func Test_Retry(t *testing.T) {
 	is.True(cost > 350*time.Millisecond)
 	is.True(cost < 1050*time.Millisecond)
 
-	merr, ok = r.Error.(errors.ErrorGroup)
+	merr, ok = r.Error.(*sizedError)
 	is.True(ok)
 	merrors = merr.Errors()
 	is.Equal(len(merrors), 3)

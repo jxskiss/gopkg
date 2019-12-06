@@ -1,12 +1,7 @@
 // Package retry implements frequently used retry strategies and options.
-//
 package retry
 
-import (
-	"time"
-
-	"github.com/jxskiss/errors"
-)
+import "time"
 
 // Stop is used to indicate the retry function to stop retry.
 type Stop struct {
@@ -79,7 +74,7 @@ func retry(opt options, f func() error, opts ...Option) (r Result) {
 		return
 	}
 
-	var merr = errors.NewSizedError(opt.MaxErrors)
+	var merr = NewSizedError(opt.MaxErrors)
 	var sleep = opt.Sleep
 	for {
 		// attempts <= 0 means retry forever.
@@ -116,7 +111,7 @@ func retry(opt options, f func() error, opts ...Option) (r Result) {
 			opt.Hook(r.Attempts, err)
 		}
 	}
-	r.Error = errors.ErrOrNil(merr)
+	r.Error = merr.ErrOrNil()
 	return
 }
 

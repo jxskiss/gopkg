@@ -14,8 +14,8 @@ const (
 )
 
 // NewCache returns a lru cache instance with given capacity, the underlying
-// memory will will be immediately allocated. For best performance, the
-// memory will be reused and won't be freed for the lifetime of the cache.
+// memory will be immediately allocated. For best performance, the memory
+// will be reused and won't be freed for the lifetime of the cache.
 //
 // Param capacity must be smaller than 2^32, else it will panic.
 func NewCache(capacity int) *cache {
