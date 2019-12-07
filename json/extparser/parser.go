@@ -51,7 +51,7 @@ type parser struct {
 }
 
 func (p *parser) text(n *node32) string {
-	return string(p.doc.buffer[n.begin:n.end])
+	return p.doc.text(n.token32)
 }
 
 func (p *parser) rewrite() ([]byte, error) {
@@ -189,30 +189,30 @@ func (p *JSON) hasExtendedFeature() bool {
 			ruleImport,
 			ruleLongComment, ruleLineComment, rulePragma:
 			return true
-		case ruleRWING:
-			if preRule == ruleCOMMA {
-				return true
-			}
-		case ruleRBRK:
+		case ruleRWING, ruleRBRK:
 			if preRule == ruleCOMMA {
 				return true
 			}
 		case ruleTrue:
-			if string(p.buffer[n.begin:n.end]) != "true" {
+			if p.text(n) != "true" {
 				return true
 			}
 		case ruleFalse:
-			if string(p.buffer[n.begin:n.end]) != "false" {
+			if p.text(n) != "false" {
 				return true
 			}
 		case ruleNull:
-			if string(p.buffer[n.begin:n.end]) != "null" {
+			if p.text(n) != "null" {
 				return true
 			}
 		}
 		preRule = n.pegRule
 	}
 	return false
+}
+
+func (p *JSON) text(n token32) string {
+	return string(p.buffer[n.begin:n.end])
 }
 
 func b2s(b []byte) string {
