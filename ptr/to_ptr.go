@@ -61,3 +61,11 @@ func Float64(v float64) *float64 {
 func Time(v time.Time) *time.Time {
 	return &v
 }
+
+func Int64FromInt32(p *int32) *int64 {
+	var pInt64 *int64
+	if p != nil {
+		pInt64 = Int64(int64(*p))
+	}
+	return pInt64
+}
