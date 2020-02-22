@@ -778,7 +778,7 @@ func (p *JSON) Init(options ...func(*JSON) error) error {
 			position, tokenIndex = position41, tokenIndex41
 			return false
 		},
-		/* 8 SingleQuoteEscape <- <('\\' ('b' / 't' / 'n' / 'f' / 'r' / '\'' / '\\' / UnicodeEscape))> */
+		/* 8 SingleQuoteEscape <- <('\\' ('b' / 't' / 'n' / 'f' / 'r' / '\'' / '\\' / '/' / UnicodeEscape))> */
 		func() bool {
 			position52, tokenIndex52 := position, tokenIndex
 			{
@@ -838,6 +838,13 @@ func (p *JSON) Init(options ...func(*JSON) error) error {
 					goto l54
 				l61:
 					position, tokenIndex = position54, tokenIndex54
+					if buffer[position] != rune('/') {
+						goto l62
+					}
+					position++
+					goto l54
+				l62:
+					position, tokenIndex = position54, tokenIndex54
 					if !_rules[ruleUnicodeEscape]() {
 						goto l52
 					}
@@ -850,115 +857,111 @@ func (p *JSON) Init(options ...func(*JSON) error) error {
 			position, tokenIndex = position52, tokenIndex52
 			return false
 		},
-		/* 9 DoubleQuoteEscape <- <('\\' ('b' / 't' / 'n' / 'f' / 'r' / '"' / '\\' / UnicodeEscape))> */
+		/* 9 DoubleQuoteEscape <- <('\\' ('b' / 't' / 'n' / 'f' / 'r' / '"' / '\\' / '/' / UnicodeEscape))> */
 		func() bool {
-			position62, tokenIndex62 := position, tokenIndex
+			position63, tokenIndex63 := position, tokenIndex
 			{
-				position63 := position
+				position64 := position
 				if buffer[position] != rune('\\') {
-					goto l62
+					goto l63
 				}
 				position++
 				{
-					position64, tokenIndex64 := position, tokenIndex
+					position65, tokenIndex65 := position, tokenIndex
 					if buffer[position] != rune('b') {
-						goto l65
-					}
-					position++
-					goto l64
-				l65:
-					position, tokenIndex = position64, tokenIndex64
-					if buffer[position] != rune('t') {
 						goto l66
 					}
 					position++
-					goto l64
+					goto l65
 				l66:
-					position, tokenIndex = position64, tokenIndex64
-					if buffer[position] != rune('n') {
+					position, tokenIndex = position65, tokenIndex65
+					if buffer[position] != rune('t') {
 						goto l67
 					}
 					position++
-					goto l64
+					goto l65
 				l67:
-					position, tokenIndex = position64, tokenIndex64
-					if buffer[position] != rune('f') {
+					position, tokenIndex = position65, tokenIndex65
+					if buffer[position] != rune('n') {
 						goto l68
 					}
 					position++
-					goto l64
+					goto l65
 				l68:
-					position, tokenIndex = position64, tokenIndex64
-					if buffer[position] != rune('r') {
+					position, tokenIndex = position65, tokenIndex65
+					if buffer[position] != rune('f') {
 						goto l69
 					}
 					position++
-					goto l64
+					goto l65
 				l69:
-					position, tokenIndex = position64, tokenIndex64
-					if buffer[position] != rune('"') {
+					position, tokenIndex = position65, tokenIndex65
+					if buffer[position] != rune('r') {
 						goto l70
 					}
 					position++
-					goto l64
+					goto l65
 				l70:
-					position, tokenIndex = position64, tokenIndex64
-					if buffer[position] != rune('\\') {
+					position, tokenIndex = position65, tokenIndex65
+					if buffer[position] != rune('"') {
 						goto l71
 					}
 					position++
-					goto l64
+					goto l65
 				l71:
-					position, tokenIndex = position64, tokenIndex64
-					if !_rules[ruleUnicodeEscape]() {
-						goto l62
-					}
-				}
-			l64:
-				add(ruleDoubleQuoteEscape, position63)
-			}
-			return true
-		l62:
-			position, tokenIndex = position62, tokenIndex62
-			return false
-		},
-		/* 10 UnicodeEscape <- <(('u' / 'U') HexDigit HexDigit HexDigit HexDigit)> */
-		func() bool {
-			position72, tokenIndex72 := position, tokenIndex
-			{
-				position73 := position
-				{
-					position74, tokenIndex74 := position, tokenIndex
-					if buffer[position] != rune('u') {
-						goto l75
-					}
-					position++
-					goto l74
-				l75:
-					position, tokenIndex = position74, tokenIndex74
-					if buffer[position] != rune('U') {
+					position, tokenIndex = position65, tokenIndex65
+					if buffer[position] != rune('\\') {
 						goto l72
 					}
 					position++
+					goto l65
+				l72:
+					position, tokenIndex = position65, tokenIndex65
+					if buffer[position] != rune('/') {
+						goto l73
+					}
+					position++
+					goto l65
+				l73:
+					position, tokenIndex = position65, tokenIndex65
+					if !_rules[ruleUnicodeEscape]() {
+						goto l63
+					}
 				}
-			l74:
-				if !_rules[ruleHexDigit]() {
-					goto l72
-				}
-				if !_rules[ruleHexDigit]() {
-					goto l72
-				}
-				if !_rules[ruleHexDigit]() {
-					goto l72
-				}
-				if !_rules[ruleHexDigit]() {
-					goto l72
-				}
-				add(ruleUnicodeEscape, position73)
+			l65:
+				add(ruleDoubleQuoteEscape, position64)
 			}
 			return true
-		l72:
-			position, tokenIndex = position72, tokenIndex72
+		l63:
+			position, tokenIndex = position63, tokenIndex63
+			return false
+		},
+		/* 10 UnicodeEscape <- <('u' HexDigit HexDigit HexDigit HexDigit)> */
+		func() bool {
+			position74, tokenIndex74 := position, tokenIndex
+			{
+				position75 := position
+				if buffer[position] != rune('u') {
+					goto l74
+				}
+				position++
+				if !_rules[ruleHexDigit]() {
+					goto l74
+				}
+				if !_rules[ruleHexDigit]() {
+					goto l74
+				}
+				if !_rules[ruleHexDigit]() {
+					goto l74
+				}
+				if !_rules[ruleHexDigit]() {
+					goto l74
+				}
+				add(ruleUnicodeEscape, position75)
+			}
+			return true
+		l74:
+			position, tokenIndex = position74, tokenIndex74
 			return false
 		},
 		/* 11 HexDigit <- <([a-f] / [A-F] / [0-9])> */

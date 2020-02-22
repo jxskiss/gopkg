@@ -28,9 +28,9 @@ Import    <-  '@import(' String ')'
 String              <-  SingleQuoteLiteral / DoubleQuoteLiteral
 SingleQuoteLiteral  <-  '\'' ( SingleQuoteEscape / !['\\\n\r] .)* '\''
 DoubleQuoteLiteral  <-  '\"' ( DoubleQuoteEscape / !["\\\n\r] .)* '\"'
-SingleQuoteEscape   <-  '\\' ( [btnfr'\\] / UnicodeEscape )
-DoubleQuoteEscape   <-  '\\' ( [btnfr"\\] / UnicodeEscape )
-UnicodeEscape       <-  "u" HexDigit HexDigit HexDigit HexDigit
+SingleQuoteEscape   <-  '\\' ( [btnfr'\\/] / UnicodeEscape )
+DoubleQuoteEscape   <-  '\\' ( [btnfr"\\/] / UnicodeEscape )
+UnicodeEscape       <-  'u' HexDigit HexDigit HexDigit HexDigit
 HexDigit            <-  [a-f] / [A-F] / [0-9]
 
 True            <-  'true'  / 'True'

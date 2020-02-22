@@ -44,3 +44,12 @@ func TestUnmarshalExt_comment_trailingComma(t *testing.T) {
 		t.Fatalf("expecting equal: got = %v, want = %v", got, want)
 	}
 }
+
+func TestUnmarshalExt_UnicodeEscape(t *testing.T) {
+	jsonData := `["Grammar \u0026 Mechanics \/ Word Work"]`
+	got := make([]string, 0)
+	err := UnmarshalExt([]byte(jsonData), &got)
+	if err != nil {
+		t.Errorf("failed unmarshal unicode escape char: %v", err)
+	}
+}
