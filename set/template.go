@@ -141,8 +141,28 @@ func (s *{{ .SetType }}) Diff(other {{ .SetType }}) {{ .SetType }} {
 	res := New{{ .SetType }}WithSize(s.Size())
 
 	for val := range s.m {
-		if !other.Contains(val) {
-			res.Add(val)
+		if _, ok := other.m[val]; !ok {
+			res.m[val] = struct{}{}
+		}
+	}
+	return res
+}
+
+// DiffSlice is similar to Diff, but takes a slice as parameter.
+func (s *{{ .SetType }}) DiffSlice(other []{{ .Type }}) {{ .SetType }} {
+	tmp := New{{ .SetType }}WithSize(len(other))
+	count := 0
+	for _, val := range other {
+		if _, ok := s.m[val]; ok {
+			count++
+		}
+		tmp.m[val] = struct{}{}
+	}
+
+	res := New{{ .SetType }}WithSize(s.Size() - count)
+	for val := range s.m {
+		if _, ok := tmp.m[val]; !ok {
+			res.m[val] = struct{}{}
 		}
 	}
 	return res
@@ -155,15 +175,27 @@ func (s *{{ .SetType }}) Intersect(other {{ .SetType }}) {{ .SetType }} {
 	// loop over the smaller set
 	if len(s.m) <= len(other.m) {
 		for val := range s.m {
-			if other.Contains(val) {
-				res.Add(val)
+			if _, ok := other.m[val]; ok {
+				res.m[val] = struct{}{}
 			}
 		}
 	} else {
 		for val := range other.m {
-			if s.Contains(val) {
-				res.Add(val)
+			if _, ok := s.m[val]; ok {
+				res.m[val] = struct{}{}
 			}
+		}
+	}
+	return res
+}
+
+// IntersectSlice is similar to Intersect, but takes a slice as parameter.
+func (s *{{ .SetType }}) IntersectSlice(other []{{ .Type }}) {{ .SetType }} {
+	res := New{{ .SetType }}WithSize(min(s.Size(), len(other)))
+
+	for _, val := range other {
+		if _, ok := s.m[val]; ok {
+			res.m[val] = struct{}{}
 		}
 	}
 	return res
@@ -174,10 +206,23 @@ func (s *{{ .SetType }}) Union(other {{ .SetType }}) {{ .SetType }} {
 	res := New{{ .SetType }}WithSize(s.Size() + other.Size())
 
 	for val := range s.m {
-		res.Add(val)
+		res.m[val] = struct{}{}
 	}
 	for val := range other.m {
-		res.Add(val)
+		res.m[val] = struct{}{}
+	}
+	return res
+}
+
+// UnionSlice is similar to Union, but takes a slice as parameter.
+func (s *{{ .SetType }}) UnionSlice(other []{{ .Type }}) {{ .SetType }} {
+	res := New{{ .SetType }}WithSize(s.Size() + len(other))
+
+	for val := range s.m {
+		res.m[val] = struct{}{}
+	}
+	for _, val := range other {
+		res.m[val] = struct{}{}
 	}
 	return res
 }
