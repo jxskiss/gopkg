@@ -10,7 +10,8 @@ import (
 const minSize = 8
 
 // Set is set collection of general type.
-// The zero value of Set is an empty instance ready to use.
+// The zero value of Set is an empty instance ready to use. A zero Set
+// value shall not be copied, or it may result incorrect behavior.
 type Set struct {
 	m map[interface{}]struct{}
 }
@@ -33,6 +34,9 @@ func NewSetWithSize(size int) Set {
 	}
 	return set
 }
+
+// Size returns the size of the set.
+func (s *Set) Size() int { return len(s.m) }
 
 // Add adds values into set.
 func (s *Set) Add(vals ...interface{}) {
@@ -109,7 +113,7 @@ func (s *Set) ContainsAny(vals ...interface{}) bool {
 }
 
 // Diff returns new Set about the values which other sets don't contain.
-func (s *Set) Diff(other Set) Set {
+func (s Set) Diff(other Set) Set {
 	res := NewSetWithSize(s.Size())
 
 	for val := range s.m {
@@ -121,27 +125,63 @@ func (s *Set) Diff(other Set) Set {
 }
 
 // DiffSlice is similar to Diff, but takes a slice as parameter.
-func (s *Set) DiffSlice(other []interface{}) Set {
-	tmp := NewSetWithSize(len(other))
-	count := 0
-	for _, val := range other {
-		if _, ok := s.m[val]; ok {
-			count++
+func (s Set) DiffSlice(other []interface{}) Set {
+	if len(s.m) > len(other) {
+		tmp := NewSetWithSize(len(other))
+		dup := 0
+		for _, val := range other {
+			if _, ok := s.m[val]; ok {
+				dup++
+			}
+			tmp.m[val] = struct{}{}
 		}
-		tmp.m[val] = struct{}{}
-	}
-
-	res := NewSetWithSize(s.Size() - count)
-	for val := range s.m {
-		if _, ok := tmp.m[val]; !ok {
+		res := NewSetWithSize(max(s.Size()-dup, 0))
+		for val := range s.m {
+			if _, ok := tmp.m[val]; !ok {
+				res.m[val] = struct{}{}
+			}
+		}
+		return res
+	} else {
+		res := NewSetWithSize(s.Size())
+		for val := range s.m {
 			res.m[val] = struct{}{}
+		}
+		for _, val := range other {
+			if _, ok := res.m[val]; ok {
+				delete(res.m, val)
+			}
+		}
+		return res
+	}
+}
+
+// FilterInclude returns a new slice which contains values that present in
+// the provided slice and also present in the Set.
+func (s Set) FilterInclude(slice []interface{}) []interface{} {
+	res := make([]interface{}, 0, min(s.Size(), len(slice)))
+	for _, val := range slice {
+		if _, ok := s.m[val]; ok {
+			res = append(res, val)
+		}
+	}
+	return res
+}
+
+// FilterExclude returns a new slice which contains values that present in
+// the provided slice but don't present in the Set.
+func (s Set) FilterExclude(slice []interface{}) []interface{} {
+	res := make([]interface{}, 0, len(slice))
+	for _, val := range slice {
+		if _, ok := s.m[val]; !ok {
+			res = append(res, val)
 		}
 	}
 	return res
 }
 
 // Intersect returns new Set about values which other set also contains.
-func (s *Set) Intersect(other Set) Set {
+func (s Set) Intersect(other Set) Set {
 	res := NewSetWithSize(min(s.Size(), other.Size()))
 
 	// loop over the smaller set
@@ -162,7 +202,7 @@ func (s *Set) Intersect(other Set) Set {
 }
 
 // IntersectSlice is similar to Intersect, but takes a slice as parameter.
-func (s *Set) IntersectSlice(other []interface{}) Set {
+func (s Set) IntersectSlice(other []interface{}) Set {
 	res := NewSetWithSize(min(s.Size(), len(other)))
 
 	for _, val := range other {
@@ -174,7 +214,7 @@ func (s *Set) IntersectSlice(other []interface{}) Set {
 }
 
 // Union returns new Set about values either in the set or the other set.
-func (s *Set) Union(other Set) Set {
+func (s Set) Union(other Set) Set {
 	res := NewSetWithSize(s.Size() + other.Size())
 
 	for val := range s.m {
@@ -187,7 +227,7 @@ func (s *Set) Union(other Set) Set {
 }
 
 // UnionSlice is similar to Union, but takes a slice as parameter.
-func (s *Set) UnionSlice(other []interface{}) Set {
+func (s Set) UnionSlice(other []interface{}) Set {
 	res := NewSetWithSize(s.Size() + len(other))
 
 	for val := range s.m {
@@ -199,13 +239,8 @@ func (s *Set) UnionSlice(other []interface{}) Set {
 	return res
 }
 
-// Size returns the size of the set.
-func (s *Set) Size() int {
-	return len(s.m)
-}
-
 // Slice converts set into interface{} slice.
-func (s *Set) Slice() []interface{} {
+func (s Set) Slice() []interface{} {
 	res := make([]interface{}, 0, len(s.m))
 	for val := range s.m {
 		res = append(res, val)
@@ -217,7 +252,7 @@ func (s *Set) Slice() []interface{} {
 //
 // The param dst must be a pointer to either an interface slice, or a
 // slice of the concrete element type, else it panics.
-func (s *Set) SliceTo(dst interface{}) {
+func (s Set) SliceTo(dst interface{}) {
 	dstTyp := reflect.TypeOf(dst)
 	if dstTyp == nil || dstTyp.Kind() != reflect.Ptr || dstTyp.Elem().Kind() != reflect.Slice {
 		panic(fmt.Sprintf("invalid destination type %T", dst))
@@ -235,7 +270,7 @@ func (s *Set) SliceTo(dst interface{}) {
 }
 
 // Map converts set into map[interface{}]bool.
-func (s *Set) Map() map[interface{}]bool {
+func (s Set) Map() map[interface{}]bool {
 	res := make(map[interface{}]bool, len(s.m))
 	for val := range s.m {
 		res[val] = true
@@ -247,7 +282,7 @@ func (s *Set) Map() map[interface{}]bool {
 //
 // The param dst must be a pointer to either map[interface{}]bool, or a
 // map using the concrete element type as key, else it panics.
-func (s *Set) MapTo(dst interface{}) {
+func (s Set) MapTo(dst interface{}) {
 	dstTyp := reflect.TypeOf(dst)
 	if dstTyp == nil || dstTyp.Kind() != reflect.Ptr || dstTyp.Elem().Kind() != reflect.Map {
 		panic(fmt.Sprintf("invalid destination type %T", dst))

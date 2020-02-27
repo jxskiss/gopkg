@@ -280,6 +280,16 @@ func TestSet_MapTo_InvalidDst(t *testing.T) {
 	}
 }
 
+func TestSet_Chaining(t *testing.T) {
+	set := NewSet(1, 2, 3, 4).
+		Diff(NewSet(1, 2)).
+		Union(NewSet(7, 8)).
+		Intersect(NewSet(7, 8, 9, 0))
+	if !reflect.DeepEqual(set.m, NewSet(7, 8).m) {
+		t.Errorf("failed TestSet_Chaining")
+	}
+}
+
 func shouldPanic(f func()) (err error) {
 	defer func() {
 		if e := recover(); e != nil {

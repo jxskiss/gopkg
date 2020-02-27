@@ -55,7 +55,8 @@ package set
 import "encoding/json"
 
 // {{ .SetType }} is {{ .Type }} set collection.
-// The zero value of {{ .SetType }} is an empty instance ready to use.
+// The zero value of {{ .SetType }} is an empty instance ready to use. A zero {{ .SetType }}
+// value shall not be copied, or it may result incorrect behavior.
 type {{ .SetType }} struct {
 	m map[{{ .Type }}]struct{}
 }
@@ -77,6 +78,9 @@ func New{{ .SetType }}WithSize(size int) {{ .SetType }} {
 	}
 	return set
 }
+
+// Size returns the size of set.
+func (s *{{ .SetType }}) Size() int { return len(s.m) }
 
 // Add adds values into the set.
 func (s *{{ .SetType }}) Add(vals ...{{ .Type }}) {
@@ -137,7 +141,7 @@ func (s *{{ .SetType }}) ContainsAny(vals ...{{ .Type }}) bool {
 }
 
 // Diff returns new {{ .SetType }} about the values which other set doesn't contain.
-func (s *{{ .SetType }}) Diff(other {{ .SetType }}) {{ .SetType }} {
+func (s {{ .SetType }}) Diff(other {{ .SetType }}) {{ .SetType }} {
 	res := New{{ .SetType }}WithSize(s.Size())
 
 	for val := range s.m {
@@ -149,27 +153,63 @@ func (s *{{ .SetType }}) Diff(other {{ .SetType }}) {{ .SetType }} {
 }
 
 // DiffSlice is similar to Diff, but takes a slice as parameter.
-func (s *{{ .SetType }}) DiffSlice(other []{{ .Type }}) {{ .SetType }} {
-	tmp := New{{ .SetType }}WithSize(len(other))
-	count := 0
-	for _, val := range other {
-		if _, ok := s.m[val]; ok {
-			count++
+func (s {{ .SetType }}) DiffSlice(other []{{ .Type }}) {{ .SetType }} {
+	if len(s.m) > len(other) {
+		tmp := New{{ .SetType }}WithSize(len(other))
+		dup := 0
+		for _, val := range other {
+			if _, ok := s.m[val]; ok {
+				dup++
+			}
+			tmp.m[val] = struct{}{}
 		}
-		tmp.m[val] = struct{}{}
-	}
-
-	res := New{{ .SetType }}WithSize(s.Size() - count)
-	for val := range s.m {
-		if _, ok := tmp.m[val]; !ok {
+		res := New{{ .SetType }}WithSize(max(s.Size()-dup, 0))
+		for val := range s.m {
+			if _, ok := tmp.m[val]; !ok {
+				res.m[val] = struct{}{}
+			}
+		}
+		return res
+	} else {
+		res := New{{ .SetType }}WithSize(s.Size())
+		for val := range s.m {
 			res.m[val] = struct{}{}
+		}
+		for _, val := range other {
+			if _, ok := res.m[val]; ok {
+				delete(res.m, val)
+			}
+		}
+		return res
+	}
+}
+
+// FilterInclude returns a new slice which contains values that present in
+// the provided slice and also present in the {{ .SetType }} set.
+func (s {{ .SetType }}) FilterInclude(slice []{{ .Type }}) []{{ .Type }} {
+	res := make([]{{ .Type }}, 0, min(s.Size(), len(slice)))
+	for _, val := range slice {
+		if _, ok := s.m[val]; ok {
+			res = append(res, val)
+		}
+	}
+	return res
+}
+
+// FilterExclude returns a new slice which contains values that present in
+// the provided slice but don't present in the {{ .SetType }} set.
+func (s {{ .SetType }}) FilterExclude(slice []{{ .Type }}) []{{ .Type }} {
+	res := make([]{{ .Type }}, 0, len(slice))
+	for _, val := range slice {
+		if _, ok := s.m[val]; !ok {
+			res = append(res, val)
 		}
 	}
 	return res
 }
 
 // Intersect returns new {{ .SetType }} about values which other set also contains.
-func (s *{{ .SetType }}) Intersect(other {{ .SetType }}) {{ .SetType }} {
+func (s {{ .SetType }}) Intersect(other {{ .SetType }}) {{ .SetType }} {
 	res := New{{ .SetType }}WithSize(min(s.Size(), other.Size()))
 
 	// loop over the smaller set
@@ -190,7 +230,7 @@ func (s *{{ .SetType }}) Intersect(other {{ .SetType }}) {{ .SetType }} {
 }
 
 // IntersectSlice is similar to Intersect, but takes a slice as parameter.
-func (s *{{ .SetType }}) IntersectSlice(other []{{ .Type }}) {{ .SetType }} {
+func (s {{ .SetType }}) IntersectSlice(other []{{ .Type }}) {{ .SetType }} {
 	res := New{{ .SetType }}WithSize(min(s.Size(), len(other)))
 
 	for _, val := range other {
@@ -202,7 +242,7 @@ func (s *{{ .SetType }}) IntersectSlice(other []{{ .Type }}) {{ .SetType }} {
 }
 
 // Union returns new {{ .SetType }} about values either in the set or the other set.
-func (s *{{ .SetType }}) Union(other {{ .SetType }}) {{ .SetType }} {
+func (s {{ .SetType }}) Union(other {{ .SetType }}) {{ .SetType }} {
 	res := New{{ .SetType }}WithSize(s.Size() + other.Size())
 
 	for val := range s.m {
@@ -215,7 +255,7 @@ func (s *{{ .SetType }}) Union(other {{ .SetType }}) {{ .SetType }} {
 }
 
 // UnionSlice is similar to Union, but takes a slice as parameter.
-func (s *{{ .SetType }}) UnionSlice(other []{{ .Type }}) {{ .SetType }} {
+func (s {{ .SetType }}) UnionSlice(other []{{ .Type }}) {{ .SetType }} {
 	res := New{{ .SetType }}WithSize(s.Size() + len(other))
 
 	for val := range s.m {
@@ -227,13 +267,8 @@ func (s *{{ .SetType }}) UnionSlice(other []{{ .Type }}) {{ .SetType }} {
 	return res
 }
 
-// Size returns the size of set.
-func (s *{{ .SetType }}) Size() int {
-	return len(s.m)
-}
-
 // Slice converts set into {{ .Type }} slice.
-func (s *{{ .SetType }}) Slice() []{{ .Type }} {
+func (s {{ .SetType }}) Slice() []{{ .Type }} {
 	res := make([]{{ .Type }}, 0, len(s.m))
 
 	for val := range s.m {
@@ -243,7 +278,7 @@ func (s *{{ .SetType }}) Slice() []{{ .Type }} {
 }
 
 // Map converts set into map[{{ .Type }}]bool.
-func (s *{{ .SetType }}) Map() map[{{ .Type }}]bool {
+func (s {{ .SetType }}) Map() map[{{ .Type }}]bool {
 	res := make(map[{{ .Type }}]bool, len(s.m))
 
 	for val := range s.m {
@@ -254,7 +289,7 @@ func (s *{{ .SetType }}) Map() map[{{ .Type }}]bool {
 
 // MarshalJSON implements json.Marshaler interface, the set will be
 // marshaled as an {{ .Type }} array.
-func (s *{{ .SetType }}) MarshalJSON() ([]byte, error) {
+func (s {{ .SetType }}) MarshalJSON() ([]byte, error) {
 	res := s.Slice()
 	return json.Marshal(res)
 }
