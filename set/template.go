@@ -304,4 +304,22 @@ func (s *{{ .SetType }}) UnmarshalJSON(b []byte) error {
 	}
 	return err
 }
+
+// MarshalYAML implements yaml.Marshaler interface of the yaml package,
+// the set will be marshaled as an {{ .Type }} array.
+func (s {{ .SetType }}) MarshalYAML() (interface{}, error) {
+	res := s.Slice()
+	return res, nil
+}
+
+// UnmarshalYAML implements yaml.Unmarshaler interface of the yaml package,
+// it will unmarshal an {{ .Type }} array to the set.
+func (s *{{ .SetType }}) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	vals := make([]{{ .Type }}, 0)
+	err := unmarshal(&vals)
+	if err == nil {
+		s.Add(vals...)
+	}
+	return err
+}
 `
