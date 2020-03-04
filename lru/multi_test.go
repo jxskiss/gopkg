@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func createFilledMultiCache(ttl time.Duration) *multiCache {
+func createFilledMultiCache(ttl time.Duration) *MultiCache {
 	c := NewMultiCache(8, 500)
 	for i := 0; i < 1000; i++ {
 		key := int64(rand.Intn(5000))

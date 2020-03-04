@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func createFilledCache(ttl time.Duration) *cache {
+func createFilledCache(ttl time.Duration) *Cache {
 	c := NewCache(1000)
 	for i := 0; i < 1000; i++ {
 		key := int64(rand.Intn(5000))

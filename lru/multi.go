@@ -11,10 +11,10 @@ import (
 // the lru cache instance returned by NewCache function.
 // Generally NewCache should be used instead of this unless you are sure that
 // you are facing the lock contention problem.
-func NewMultiCache(buckets, bucketCapacity int) *multiCache {
-	mc := &multiCache{
+func NewMultiCache(buckets, bucketCapacity int) *MultiCache {
+	mc := &MultiCache{
 		buckets: uintptr(buckets),
-		cache:   make([]*cache, buckets),
+		cache:   make([]*Cache, buckets),
 	}
 	for i := 0; i < buckets; i++ {
 		mc.cache[i] = NewCache(bucketCapacity)
@@ -22,42 +22,42 @@ func NewMultiCache(buckets, bucketCapacity int) *multiCache {
 	return mc
 }
 
-type multiCache struct {
+type MultiCache struct {
 	buckets uintptr
-	cache   []*cache
+	cache   []*Cache
 }
 
-func (c *multiCache) Len() (n int) {
+func (c *MultiCache) Len() (n int) {
 	for _, c := range c.cache {
 		n += c.Len()
 	}
 	return
 }
 
-func (c *multiCache) Get(key interface{}) (v interface{}, exists, expired bool) {
+func (c *MultiCache) Get(key interface{}) (v interface{}, exists, expired bool) {
 	h := fasthash.Hash(key)
 	return c.cache[h%c.buckets].Get(key)
 }
 
-func (c *multiCache) GetQuiet(key interface{}) (v interface{}, exists, expired bool) {
+func (c *MultiCache) GetQuiet(key interface{}) (v interface{}, exists, expired bool) {
 	h := fasthash.Hash(key)
 	return c.cache[h%c.buckets].GetQuiet(key)
 }
 
-func (c *multiCache) GetNotStale(key interface{}) (v interface{}, exists bool) {
+func (c *MultiCache) GetNotStale(key interface{}) (v interface{}, exists bool) {
 	h := fasthash.Hash(key)
 	return c.cache[h%c.buckets].GetNotStale(key)
 }
 
-func (c *multiCache) MGet(keys ...interface{}) map[interface{}]interface{} {
+func (c *MultiCache) MGet(keys ...interface{}) map[interface{}]interface{} {
 	return c.mget(false, keys...)
 }
 
-func (c *multiCache) MGetNotStale(keys ...interface{}) map[interface{}]interface{} {
+func (c *MultiCache) MGetNotStale(keys ...interface{}) map[interface{}]interface{} {
 	return c.mget(true, keys...)
 }
 
-func (c *multiCache) mget(notStale bool, keys ...interface{}) map[interface{}]interface{} {
+func (c *MultiCache) mget(notStale bool, keys ...interface{}) map[interface{}]interface{} {
 	grpKeys := c.groupKeys(keys)
 	nowNano := time.Now().UnixNano()
 
@@ -75,15 +75,15 @@ func (c *multiCache) mget(notStale bool, keys ...interface{}) map[interface{}]in
 	return res
 }
 
-func (c *multiCache) MGetInt(keys ...int) map[int]interface{} {
+func (c *MultiCache) MGetInt(keys ...int) map[int]interface{} {
 	return c.mgetInt(false, keys...)
 }
 
-func (c *multiCache) MGetIntNotStale(keys ...int) map[int]interface{} {
+func (c *MultiCache) MGetIntNotStale(keys ...int) map[int]interface{} {
 	return c.mgetInt(true, keys...)
 }
 
-func (c *multiCache) mgetInt(notStale bool, keys ...int) map[int]interface{} {
+func (c *MultiCache) mgetInt(notStale bool, keys ...int) map[int]interface{} {
 	grpKeys := c.groupIntKeys(keys)
 	nowNano := time.Now().UnixNano()
 
@@ -101,15 +101,15 @@ func (c *multiCache) mgetInt(notStale bool, keys ...int) map[int]interface{} {
 	return res
 }
 
-func (c *multiCache) MGetInt64(keys ...int64) map[int64]interface{} {
+func (c *MultiCache) MGetInt64(keys ...int64) map[int64]interface{} {
 	return c.mgetInt64(false, keys...)
 }
 
-func (c *multiCache) MGetInt64NotStale(keys ...int64) map[int64]interface{} {
+func (c *MultiCache) MGetInt64NotStale(keys ...int64) map[int64]interface{} {
 	return c.mgetInt64(true, keys...)
 }
 
-func (c *multiCache) mgetInt64(notStale bool, keys ...int64) map[int64]interface{} {
+func (c *MultiCache) mgetInt64(notStale bool, keys ...int64) map[int64]interface{} {
 	grpKeys := c.groupInt64Keys(keys)
 	nowNano := time.Now().UnixNano()
 
@@ -127,15 +127,15 @@ func (c *multiCache) mgetInt64(notStale bool, keys ...int64) map[int64]interface
 	return res
 }
 
-func (c *multiCache) MGetUint64(keys ...uint64) map[uint64]interface{} {
+func (c *MultiCache) MGetUint64(keys ...uint64) map[uint64]interface{} {
 	return c.mgetUint64(false, keys...)
 }
 
-func (c *multiCache) MGetUint64NotStale(keys ...uint64) map[uint64]interface{} {
+func (c *MultiCache) MGetUint64NotStale(keys ...uint64) map[uint64]interface{} {
 	return c.mgetUint64(true, keys...)
 }
 
-func (c *multiCache) mgetUint64(notStale bool, keys ...uint64) map[uint64]interface{} {
+func (c *MultiCache) mgetUint64(notStale bool, keys ...uint64) map[uint64]interface{} {
 	grpKeys := c.groupUint64Keys(keys)
 	nowNano := time.Now().UnixNano()
 
@@ -153,15 +153,15 @@ func (c *multiCache) mgetUint64(notStale bool, keys ...uint64) map[uint64]interf
 	return res
 }
 
-func (c *multiCache) MGetString(keys ...string) map[string]interface{} {
+func (c *MultiCache) MGetString(keys ...string) map[string]interface{} {
 	return c.mgetString(false, keys...)
 }
 
-func (c *multiCache) MGetStringNotStale(keys ...string) map[string]interface{} {
+func (c *MultiCache) MGetStringNotStale(keys ...string) map[string]interface{} {
 	return c.mgetString(true, keys...)
 }
 
-func (c *multiCache) mgetString(notStale bool, keys ...string) map[string]interface{} {
+func (c *MultiCache) mgetString(notStale bool, keys ...string) map[string]interface{} {
 	grpKeys := c.groupStringKeys(keys)
 	nowNano := time.Now().UnixNano()
 
@@ -179,12 +179,12 @@ func (c *multiCache) mgetString(notStale bool, keys ...string) map[string]interf
 	return res
 }
 
-func (c *multiCache) Set(key, value interface{}, ttl time.Duration) {
+func (c *MultiCache) Set(key, value interface{}, ttl time.Duration) {
 	h := fasthash.Hash(key)
 	c.cache[h%c.buckets].Set(key, value, ttl)
 }
 
-func (c *multiCache) MSet(kvmap interface{}, ttl time.Duration) {
+func (c *MultiCache) MSet(kvmap interface{}, ttl time.Duration) {
 	m := reflect.ValueOf(kvmap)
 	keys := m.MapKeys()
 
@@ -194,12 +194,12 @@ func (c *multiCache) MSet(kvmap interface{}, ttl time.Duration) {
 	}
 }
 
-func (c *multiCache) Del(key interface{}) {
+func (c *MultiCache) Del(key interface{}) {
 	h := fasthash.Hash(key)
 	c.cache[h%c.buckets].Del(key)
 }
 
-func (c *multiCache) MDel(keys ...interface{}) {
+func (c *MultiCache) MDel(keys ...interface{}) {
 	grpKeys := c.groupKeys(keys)
 
 	for idx, keys := range grpKeys {
@@ -207,7 +207,7 @@ func (c *multiCache) MDel(keys ...interface{}) {
 	}
 }
 
-func (c *multiCache) MDelInt(keys ...int) {
+func (c *MultiCache) MDelInt(keys ...int) {
 	grpKeys := c.groupIntKeys(keys)
 
 	for idx, keys := range grpKeys {
@@ -215,7 +215,7 @@ func (c *multiCache) MDelInt(keys ...int) {
 	}
 }
 
-func (c *multiCache) MDelInt64(keys ...int64) {
+func (c *MultiCache) MDelInt64(keys ...int64) {
 	grpKeys := c.groupInt64Keys(keys)
 
 	for idx, keys := range grpKeys {
@@ -223,7 +223,7 @@ func (c *multiCache) MDelInt64(keys ...int64) {
 	}
 }
 
-func (c *multiCache) MDelUint64(keys ...uint64) {
+func (c *MultiCache) MDelUint64(keys ...uint64) {
 	grpKeys := c.groupUint64Keys(keys)
 
 	for idx, keys := range grpKeys {
@@ -231,7 +231,7 @@ func (c *multiCache) MDelUint64(keys ...uint64) {
 	}
 }
 
-func (c *multiCache) MDelString(keys ...string) {
+func (c *MultiCache) MDelString(keys ...string) {
 	grpKeys := c.groupStringKeys(keys)
 
 	for idx, keys := range grpKeys {
@@ -239,7 +239,7 @@ func (c *multiCache) MDelString(keys ...string) {
 	}
 }
 
-func (c *multiCache) groupKeys(keys []interface{}) map[uintptr][]interface{} {
+func (c *MultiCache) groupKeys(keys []interface{}) map[uintptr][]interface{} {
 	grpKeys := make(map[uintptr][]interface{})
 	for _, key := range keys {
 		idx := fasthash.Interface(key) % c.buckets
@@ -248,7 +248,7 @@ func (c *multiCache) groupKeys(keys []interface{}) map[uintptr][]interface{} {
 	return grpKeys
 }
 
-func (c *multiCache) groupIntKeys(keys []int) map[uintptr][]int {
+func (c *MultiCache) groupIntKeys(keys []int) map[uintptr][]int {
 	grpKeys := make(map[uintptr][]int)
 	for _, key := range keys {
 		idx := fasthash.Int(key) % c.buckets
@@ -257,7 +257,7 @@ func (c *multiCache) groupIntKeys(keys []int) map[uintptr][]int {
 	return grpKeys
 }
 
-func (c *multiCache) groupInt64Keys(keys []int64) map[uintptr][]int64 {
+func (c *MultiCache) groupInt64Keys(keys []int64) map[uintptr][]int64 {
 	grpKeys := make(map[uintptr][]int64)
 	for _, key := range keys {
 		idx := fasthash.Int64(key) % c.buckets
@@ -266,7 +266,7 @@ func (c *multiCache) groupInt64Keys(keys []int64) map[uintptr][]int64 {
 	return grpKeys
 }
 
-func (c *multiCache) groupUint64Keys(keys []uint64) map[uintptr][]uint64 {
+func (c *MultiCache) groupUint64Keys(keys []uint64) map[uintptr][]uint64 {
 	grpKeys := make(map[uintptr][]uint64)
 	for _, key := range keys {
 		idx := fasthash.Uint64(key) % c.buckets
@@ -275,7 +275,7 @@ func (c *multiCache) groupUint64Keys(keys []uint64) map[uintptr][]uint64 {
 	return grpKeys
 }
 
-func (c *multiCache) groupStringKeys(keys []string) map[uintptr][]string {
+func (c *MultiCache) groupStringKeys(keys []string) map[uintptr][]string {
 	grpKeys := make(map[uintptr][]string)
 	for _, key := range keys {
 		idx := fasthash.String(key) % c.buckets
