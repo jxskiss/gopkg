@@ -1,13 +1,21 @@
 package easy
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
+	"fmt"
 	"reflect"
 	"strconv"
 	"unsafe"
 )
 
 var ErrNotSliceOfInt = errors.New("not a slice of integers")
+
+var (
+	binEncoding = binary.LittleEndian
+	binMagic    = []byte("EZY0")
+)
 
 // intSize is the size in bits of an int or uint value.
 const intSize = 32 << (^uint(0) >> 63)
@@ -100,8 +108,78 @@ func (p Int64s) Drop(x int64, inPlace bool) Int64s {
 	return out
 }
 
+func (p Int64s) Marshal32() []byte {
+	bufLen := 4 + 4*len(p)
+	out := make([]byte, bufLen)
+	copy(out, binMagic)
+	buf := out[4:]
+	for i, x := range p {
+		binEncoding.PutUint32(buf[4*i:4*(i+1)], uint32(x))
+	}
+	return out
+}
+
+func (p *Int64s) Unmarshal32(buf []byte) error {
+	if len(buf) == 0 {
+		return nil
+	}
+	if len(buf) < 4 || !bytes.Equal(buf[:4], binMagic) {
+		return errors.New("invalid bytes format")
+	}
+	buf = buf[4:]
+	if len(buf)%4 != 0 {
+		return fmt.Errorf("invalid bytes with length=%d", len(buf))
+	}
+	slice := *p
+	if cap(slice)-len(slice) < len(buf)/4 {
+		slice = make([]int64, 0, len(buf)/4)
+	}
+	for i := 0; i < len(buf); i += 4 {
+		x := binEncoding.Uint32(buf[i : i+4])
+		slice = append(slice, int64(x))
+	}
+	*p = slice
+	return nil
+}
+
+func (p Int64s) Marshal64() []byte {
+	bufLen := 4 + 8*len(p)
+	out := make([]byte, bufLen)
+	copy(out, binMagic)
+	buf := out[4:]
+	for i, x := range p {
+		binEncoding.PutUint64(buf[8*i:8*(i+1)], uint64(x))
+	}
+	return out
+}
+
+func (p *Int64s) Unmarshal64(buf []byte) error {
+	if len(buf) == 0 {
+		return nil
+	}
+	if len(buf) < 4 || !bytes.Equal(buf[:4], binMagic) {
+		return errors.New("invalid bytes format")
+	}
+	buf = buf[4:]
+	if len(buf)%8 != 0 {
+		return fmt.Errorf("invalid bytes with length=%d", len(buf))
+	}
+	slice := *p
+	if cap(slice)-len(slice) < len(buf)/8 {
+		slice = make([]int64, 0, len(buf)/8)
+	}
+	for i := 0; i < len(buf); i += 8 {
+		x := binEncoding.Uint64(buf[i : i+8])
+		slice = append(slice, int64(x))
+	}
+	*p = slice
+	return nil
+}
+
 func ToInt64s_(intSlice interface{}) Int64s {
 	switch slice := intSlice.(type) {
+	case Int64s:
+		return slice
 	case []int64:
 		return slice
 	case []uint64:
@@ -111,6 +189,10 @@ func ToInt64s_(intSlice interface{}) Int64s {
 			iface := *(*[2]unsafe.Pointer)(unsafe.Pointer(&slice))
 			return *(*[]int64)(iface[1])
 		}
+	case Strings:
+		return slice.ToInt64s()
+	case []string:
+		return Strings(slice).ToInt64s()
 	}
 
 	sliceTyp := reflect.TypeOf(intSlice)
@@ -135,11 +217,11 @@ func (p Strings) Copy() Strings {
 }
 
 func (p Strings) ToInt64s() Int64s {
-	out := make([]int64, len(p))
-	for i := len(p) - 1; i >= 0; i-- {
+	out := make([]int64, 0, len(p))
+	for i := 0; i < len(p); i++ {
 		x, err := strconv.ParseInt(p[i], 10, 64)
 		if err == nil {
-			out[i] = x
+			out = append(out, x)
 		}
 	}
 	return out

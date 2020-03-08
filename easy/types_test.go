@@ -114,15 +114,16 @@ func TestToInt64s(t *testing.T) {
 		[]int{1, 2, 3},
 		[]uint{1, 2, 3},
 		[]uintptr{1, 2, 3},
+		Int64s{1, 2, 3},
+		Strings{"1", "2", "3"},
+		[]string{"1", "2", "3"},
+		[]string{"1", "a", "2", "", "3", "b"},
 	}
 	want := Int64s{1, 2, 3}
 	for _, test := range tests {
 		got := ToInt64s_(test)
 		assert.Equal(t, want, got)
 	}
-
-	strSlice := []string{"1", "2", "3"}
-	assert.Panics(t, func() { ToInt64s_(strSlice) })
 }
 
 func TestToInt64s_UnsafeCasting_ChangeOriginal(t *testing.T) {
