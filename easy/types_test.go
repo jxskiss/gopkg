@@ -127,7 +127,7 @@ func TestToInt64s(t *testing.T) {
 }
 
 func TestToInt64s_UnsafeCasting_ChangeOriginal(t *testing.T) {
-	if intSize == 32 {
+	if platform32bit {
 		return
 	}
 

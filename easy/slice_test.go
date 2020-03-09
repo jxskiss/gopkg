@@ -49,6 +49,18 @@ var inSliceTests = []map[string]interface{}{
 	},
 	{
 		"func":  InSlice,
+		"slice": Int64s{1, 2, 3, 4},
+		"elem":  3,
+		"want":  true,
+	},
+	{
+		"func":  InSlice,
+		"slice": Strings{"1", "2", "3", "4"},
+		"elem":  "3",
+		"want":  true,
+	},
+	{
+		"func":  InSlice,
 		"slice": []simple{{"a"}, {"b"}, {"c"}, {"d"}},
 		"elem":  simple{"c"},
 		"want":  true,
@@ -222,3 +234,17 @@ func TestPluck_StructField(t *testing.T) {
 	assert.Len(t, got2, len(slice))
 	assert.Nil(t, got2.([]*simple)[3])
 }
+
+// TODO: TestIndex
+
+// TODO: TestLastIndex
+
+// TODO: TestReverseSlice
+
+// TODO: TestToMap
+
+// TODO: TestToInt64Map
+
+// TODO: TestToStringMap
+
+// TODO: TestParseCommaInts

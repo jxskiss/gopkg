@@ -17,8 +17,12 @@ var (
 	binMagic    = []byte("EZY0")
 )
 
-// intSize is the size in bits of an int or uint value.
-const intSize = 32 << (^uint(0) >> 63)
+const (
+	// intSize is the size in bits of an int or uint value.
+	intSize       = 32 << (^uint(0) >> 63)
+	platform32bit = intSize == 32
+	platform64bit = intSize == 64
+)
 
 type Int64s []int64
 
@@ -43,7 +47,7 @@ func (p Int64s) Uint32s() []uint32 {
 }
 
 func (p Int64s) Ints_() []int {
-	if intSize == 64 {
+	if platform64bit {
 		return *(*[]int)(unsafe.Pointer(&p))
 	}
 	out := make([]int, len(p))
@@ -54,7 +58,7 @@ func (p Int64s) Ints_() []int {
 }
 
 func (p Int64s) Uints_() []uint {
-	if intSize == 64 {
+	if platform64bit {
 		return *(*[]uint)(unsafe.Pointer(&p))
 	}
 	out := make([]uint, len(p))
@@ -177,6 +181,10 @@ func (p *Int64s) Unmarshal64(buf []byte) error {
 }
 
 func ToInt64s_(intSlice interface{}) Int64s {
+	if intSlice == nil {
+		return nil
+	}
+
 	switch slice := intSlice.(type) {
 	case Int64s:
 		return slice
@@ -185,7 +193,7 @@ func ToInt64s_(intSlice interface{}) Int64s {
 	case []uint64:
 		return *(*[]int64)(unsafe.Pointer(&slice))
 	case []int, []uint, []uintptr:
-		if intSize == 64 {
+		if platform64bit {
 			iface := *(*[2]unsafe.Pointer)(unsafe.Pointer(&slice))
 			return *(*[]int64)(iface[1])
 		}
@@ -200,15 +208,56 @@ func ToInt64s_(intSlice interface{}) Int64s {
 		panic(ErrNotSliceOfInt)
 	}
 
-	sliceVal := reflect.ValueOf(intSlice)
-	out := make([]int64, sliceVal.Len())
-	for i := len(out) - 1; i >= 0; i-- {
-		out[i] = reflectInt(sliceVal.Index(i))
+	//sliceVal := reflect.ValueOf(intSlice)
+	//out := make([]int64, sliceVal.Len())
+	//for i := len(out) - 1; i >= 0; i-- {
+	//	out[i] = reflectInt(sliceVal.Index(i))
+	//}
+	//return out
+
+	tab := int64table[sliceTyp.Elem().Kind()]
+	return _toInt64s(intSlice, tab.size, tab.fn)
+}
+
+var int64table = map[reflect.Kind]struct {
+	size uintptr
+	fn   func(unsafe.Pointer) int64
+}{
+	reflect.Int8:    {1, func(p unsafe.Pointer) int64 { return int64(*(*int8)(p)) }},
+	reflect.Uint8:   {1, func(p unsafe.Pointer) int64 { return int64(*(*uint8)(p)) }},
+	reflect.Int16:   {2, func(p unsafe.Pointer) int64 { return int64(*(*int16)(p)) }},
+	reflect.Uint16:  {2, func(p unsafe.Pointer) int64 { return int64(*(*uint16)(p)) }},
+	reflect.Int32:   {4, func(p unsafe.Pointer) int64 { return int64(*(*int32)(p)) }},
+	reflect.Uint32:  {4, func(p unsafe.Pointer) int64 { return int64(*(*uint32)(p)) }},
+	reflect.Int64:   {8, func(p unsafe.Pointer) int64 { return int64(*(*int64)(p)) }},
+	reflect.Uint64:  {8, func(p unsafe.Pointer) int64 { return int64(*(*uint64)(p)) }},
+	reflect.Int:     {intSize / 8, func(p unsafe.Pointer) int64 { return int64(*(*int)(p)) }},
+	reflect.Uint:    {intSize / 8, func(p unsafe.Pointer) int64 { return int64(*(*uint)(p)) }},
+	reflect.Uintptr: {intSize / 8, func(p unsafe.Pointer) int64 { return int64(*(*uintptr)(p)) }},
+}
+
+func _toInt64s(slice interface{}, size uintptr, fn func(unsafe.Pointer) int64) []int64 {
+	iface := *(*[2]unsafe.Pointer)(unsafe.Pointer(&slice))
+	header := *(*reflect.SliceHeader)(iface[1])
+	out := make([]int64, header.Len)
+	for i := 0; i < header.Len; i++ {
+		x := fn(unsafe.Pointer(uintptr(i)*size + header.Data))
+		out[i] = x
 	}
 	return out
 }
 
 type Strings []string
+
+func _Strings(strSlice interface{}) Strings {
+	switch slice := strSlice.(type) {
+	case []string:
+		return slice
+	case Strings:
+		return slice
+	}
+	panic("bug: not string slice")
+}
 
 func (p Strings) Copy() Strings {
 	out := make([]string, len(p))
@@ -276,4 +325,14 @@ func s2b(s string) []byte {
 		Cap:  sh.Len,
 	}
 	return *(*[]byte)(unsafe.Pointer(bh))
+}
+
+func _int64(x interface{}) int64 {
+	iface := *(*[2]unsafe.Pointer)(unsafe.Pointer(&x))
+	return *(*int64)(iface[1])
+}
+
+func _string(x interface{}) string {
+	iface := *(*[2]unsafe.Pointer)(unsafe.Pointer(&x))
+	return *(*string)(iface[1])
 }
