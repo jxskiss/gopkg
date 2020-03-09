@@ -192,11 +192,6 @@ func ToInt64s_(intSlice interface{}) Int64s {
 		return slice
 	case []uint64:
 		return *(*[]int64)(unsafe.Pointer(&slice))
-	case []int, []uint, []uintptr:
-		if platform64bit {
-			iface := *(*[2]unsafe.Pointer)(unsafe.Pointer(&slice))
-			return *(*[]int64)(iface[1])
-		}
 	case Strings:
 		return slice.ToInt64s()
 	case []string:
@@ -216,24 +211,36 @@ func ToInt64s_(intSlice interface{}) Int64s {
 	//return out
 
 	tab := int64table[sliceTyp.Elem().Kind()]
-	return _toInt64s(intSlice, tab.size, tab.fn)
+	if tab.sz == 8 {
+		iface := *(*[2]unsafe.Pointer)(unsafe.Pointer(&intSlice))
+		return *(*[]int64)(iface[1])
+	}
+	return _toInt64s(intSlice, tab.sz, tab.fn)
 }
 
-var int64table = map[reflect.Kind]struct {
-	size uintptr
-	fn   func(unsafe.Pointer) int64
-}{
-	reflect.Int8:    {1, func(p unsafe.Pointer) int64 { return int64(*(*int8)(p)) }},
-	reflect.Uint8:   {1, func(p unsafe.Pointer) int64 { return int64(*(*uint8)(p)) }},
-	reflect.Int16:   {2, func(p unsafe.Pointer) int64 { return int64(*(*int16)(p)) }},
-	reflect.Uint16:  {2, func(p unsafe.Pointer) int64 { return int64(*(*uint16)(p)) }},
-	reflect.Int32:   {4, func(p unsafe.Pointer) int64 { return int64(*(*int32)(p)) }},
-	reflect.Uint32:  {4, func(p unsafe.Pointer) int64 { return int64(*(*uint32)(p)) }},
-	reflect.Int64:   {8, func(p unsafe.Pointer) int64 { return int64(*(*int64)(p)) }},
-	reflect.Uint64:  {8, func(p unsafe.Pointer) int64 { return int64(*(*uint64)(p)) }},
-	reflect.Int:     {intSize / 8, func(p unsafe.Pointer) int64 { return int64(*(*int)(p)) }},
-	reflect.Uint:    {intSize / 8, func(p unsafe.Pointer) int64 { return int64(*(*uint)(p)) }},
-	reflect.Uintptr: {intSize / 8, func(p unsafe.Pointer) int64 { return int64(*(*uintptr)(p)) }},
+type i64conv struct {
+	sz uintptr
+	fn func(unsafe.Pointer) int64
+}
+
+var int64table = func() [16]i64conv {
+	var table [16]i64conv
+	table[reflect.Int8] = i64conv{1, func(p unsafe.Pointer) int64 { return int64(*(*int8)(p)) }}
+	table[reflect.Uint8] = i64conv{1, func(p unsafe.Pointer) int64 { return int64(*(*uint8)(p)) }}
+	table[reflect.Int16] = i64conv{2, func(p unsafe.Pointer) int64 { return int64(*(*int16)(p)) }}
+	table[reflect.Uint16] = i64conv{2, func(p unsafe.Pointer) int64 { return int64(*(*uint16)(p)) }}
+	table[reflect.Int32] = i64conv{4, func(p unsafe.Pointer) int64 { return int64(*(*int32)(p)) }}
+	table[reflect.Uint32] = i64conv{4, func(p unsafe.Pointer) int64 { return int64(*(*uint32)(p)) }}
+	table[reflect.Int64] = i64conv{8, func(p unsafe.Pointer) int64 { return int64(*(*int64)(p)) }}
+	table[reflect.Uint64] = i64conv{8, func(p unsafe.Pointer) int64 { return int64(*(*uint64)(p)) }}
+	table[reflect.Int] = i64conv{intSize / 8, func(p unsafe.Pointer) int64 { return int64(*(*int)(p)) }}
+	table[reflect.Uint] = i64conv{intSize / 8, func(p unsafe.Pointer) int64 { return int64(*(*uint)(p)) }}
+	table[reflect.Uintptr] = i64conv{intSize / 8, func(p unsafe.Pointer) int64 { return int64(*(*uintptr)(p)) }}
+	return table
+}()
+
+func _is64bitInt(typ reflect.Type) bool {
+	return isIntType(typ) && int64table[typ.Kind()].sz == 8
 }
 
 func _toInt64s(slice interface{}, size uintptr, fn func(unsafe.Pointer) int64) []int64 {

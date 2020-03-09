@@ -102,6 +102,9 @@ func TestStrings_Drop(t *testing.T) {
 }
 
 func TestToInt64s(t *testing.T) {
+	type I64 int64
+	type UI64 uint64
+
 	tests := []interface{}{
 		[]int8{1, 2, 3},
 		[]uint8{1, 2, 3},
@@ -115,6 +118,8 @@ func TestToInt64s(t *testing.T) {
 		[]uint{1, 2, 3},
 		[]uintptr{1, 2, 3},
 		Int64s{1, 2, 3},
+		[]I64{1, 2, 3},
+		[]UI64{1, 2, 3},
 		Strings{"1", "2", "3"},
 		[]string{"1", "2", "3"},
 		[]string{"1", "a", "2", "", "3", "b"},
@@ -210,3 +215,25 @@ func Test_bytes(t *testing.T) {
 
 	assert.Panics(t, func() { Bytes_(12345) })
 }
+
+func Test_int64(t *testing.T) {
+	var x int64 = 12345
+	assert.Equal(t, x, _int64(x))
+
+	type INT64 int64
+	var y INT64 = 12345
+	assert.Equal(t, x, _int64(y))
+}
+
+func Test_string(t *testing.T) {
+	x := "abcde"
+	assert.Equal(t, x, _string(x))
+
+	type STRING string
+	var y STRING = "abcde"
+	assert.Equal(t, x, _string(y))
+}
+
+// TODO: TestInt64sConversion
+
+// TODO: TestStringsConversion

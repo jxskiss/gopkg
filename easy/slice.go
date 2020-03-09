@@ -79,6 +79,116 @@ func InStrings(slice []string, elem string) bool {
 	return false
 }
 
+func Index(slice interface{}, elem interface{}) int {
+	if slice == nil || elem == nil {
+		return -1
+	}
+	sliceTyp := reflect.TypeOf(slice)
+	elemTyp := reflect.TypeOf(elem)
+	if sliceTyp.Kind() == reflect.Slice &&
+		sliceTyp.Elem().Kind() == elemTyp.Kind() {
+		if _is64bitInt(elemTyp) {
+			return IndexInt64s(ToInt64s_(slice), _int64(elem))
+		}
+		if elemTyp.Kind() == reflect.String {
+			return IndexStrings(_Strings(slice), _string(elem))
+		}
+	}
+
+	sliceVal, intTypeNotMatch := assertSliceAndElemType(reflect.ValueOf(slice), elemTyp)
+
+	if intTypeNotMatch {
+		_elemInt := reflectInt(reflect.ValueOf(elem))
+		for i := 0; i < sliceVal.Len(); i++ {
+			_sliceInt := reflectInt(sliceVal.Index(i))
+			if _elemInt == _sliceInt {
+				return i
+			}
+		}
+		return -1
+	}
+
+	for i := 0; i < sliceVal.Len(); i++ {
+		if elem == sliceVal.Index(i).Interface() {
+			return i
+		}
+	}
+	return -1
+}
+
+func IndexInt64s(slice []int64, elem int64) int {
+	for i := 0; i < len(slice); i++ {
+		if elem == slice[i] {
+			return i
+		}
+	}
+	return -1
+}
+
+func IndexStrings(slice []string, elem string) int {
+	for i := 0; i < len(slice); i++ {
+		if elem == slice[i] {
+			return i
+		}
+	}
+	return -1
+}
+
+func LastIndex(slice interface{}, elem interface{}) int {
+	if slice == nil || elem == nil {
+		return -1
+	}
+	sliceTyp := reflect.TypeOf(slice)
+	elemTyp := reflect.TypeOf(elem)
+	if sliceTyp.Kind() == reflect.Slice &&
+		sliceTyp.Elem().Kind() == elemTyp.Kind() {
+		if _is64bitInt(elemTyp) {
+			return LastIndexInt64s(ToInt64s_(slice), _int64(elem))
+		}
+		if elemTyp.Kind() == reflect.String {
+			return LastIndexStrings(_Strings(slice), _string(elem))
+		}
+	}
+
+	sliceVal, intTypeNotMatch := assertSliceAndElemType(reflect.ValueOf(slice), elemTyp)
+
+	if intTypeNotMatch {
+		_elemInt := reflectInt(reflect.ValueOf(elem))
+		for i := sliceVal.Len() - 1; i >= 0; i-- {
+			_sliceInt := reflectInt(sliceVal.Index(i))
+			if _elemInt == _sliceInt {
+				return i
+			}
+		}
+		return -1
+	}
+
+	for i := sliceVal.Len() - 1; i >= 0; i-- {
+		if elem == sliceVal.Index(i).Interface() {
+			return i
+		}
+	}
+	return -1
+}
+
+func LastIndexInt64s(slice []int64, elem int64) int {
+	for i := len(slice) - 1; i >= 0; i-- {
+		if elem == slice[i] {
+			return i
+		}
+	}
+	return -1
+}
+
+func LastIndexStrings(slice []string, elem string) int {
+	for i := len(slice) - 1; i >= 0; i-- {
+		if elem == slice[i] {
+			return i
+		}
+	}
+	return -1
+}
+
 func InsertSlice(slice interface{}, index int, elem interface{}) (out interface{}) {
 	if slice == nil || elem == nil {
 		return slice
@@ -87,14 +197,10 @@ func InsertSlice(slice interface{}, index int, elem interface{}) (out interface{
 	elemTyp := reflect.TypeOf(elem)
 	if sliceTyp.Kind() == reflect.Slice &&
 		sliceTyp.Elem().Kind() == elemTyp.Kind() {
-		switch elemTyp.Kind() {
-		case reflect.Int64, reflect.Uint64:
+		if _is64bitInt(elemTyp) {
 			return InsertInt64s(ToInt64s_(slice), index, _int64(elem))
-		case reflect.Int, reflect.Uint, reflect.Uintptr:
-			if platform64bit {
-				return InsertInt64s(ToInt64s_(slice), index, _int64(elem))
-			}
-		case reflect.String:
+		}
+		if elemTyp.Kind() == reflect.String {
 			return InsertStrings(_Strings(slice), index, _string(elem))
 		}
 	}
