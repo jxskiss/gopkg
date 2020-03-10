@@ -19,6 +19,8 @@ type Type struct {
 
 var targetTypes = []Type{
 	{"int", "Int", "0"},
+	{"int32", "Int32", "0"},
+	{"uint32", "Uint32", "0"},
 	{"int64", "Int64", "0"},
 	{"uint64", "Uint64", "0"},
 	{"string", "String", `""`},
