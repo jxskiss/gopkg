@@ -524,3 +524,23 @@ func ParseCommaInts(values string, ignoreZero bool) (slice Int64s, isMalformed b
 	}
 	return
 }
+
+type IJ struct{ I, J int }
+
+// SplitBatch
+func SplitBatch(total, batch int) []IJ {
+	if total <= 0 {
+		return nil
+	}
+	if batch <= 0 {
+		return []IJ{{0, total}}
+	}
+	ret := make([]IJ, 0, total/batch+1)
+	for i, j := 0, batch; i < total; i, j = i+batch, j+batch {
+		if j > total {
+			j = total
+		}
+		ret = append(ret, IJ{i, j})
+	}
+	return ret
+}
