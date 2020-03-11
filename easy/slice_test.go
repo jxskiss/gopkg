@@ -19,6 +19,12 @@ var inSliceTests = []map[string]interface{}{
 	},
 	{
 		"func":  InSlice,
+		"slice": []int{1, 2, 3, 4},
+		"elem":  3,
+		"want":  true,
+	},
+	{
+		"func":  InSlice,
 		"slice": []int64{1, 2, 3, 4},
 		"elem":  int64(8),
 		"want":  false,
@@ -71,6 +77,18 @@ var inSliceTests = []map[string]interface{}{
 		"elem":  simple{"z"},
 		"want":  false,
 	},
+	{
+		"func":  InSlice,
+		"slice": nil,
+		"elem":  "a",
+		"want":  false,
+	},
+	{
+		"func":  InSlice,
+		"slice": Int64s{1, 2, 3},
+		"elem":  nil,
+		"want":  false,
+	},
 }
 
 func TestInSlice(t *testing.T) {
@@ -98,10 +116,24 @@ var insertSliceTests = []map[string]interface{}{
 	},
 	{
 		"func":  InsertSlice,
+		"slice": []int{1, 2, 3, 4},
+		"elem":  9,
+		"index": 10,
+		"want":  Int64s{1, 2, 3, 4, 9},
+	},
+	{
+		"func":  InsertSlice,
 		"slice": []string{"1", "2", "3", "4"},
 		"elem":  "9",
 		"index": 3,
 		"want":  Strings{"1", "2", "3", "9", "4"},
+	},
+	{
+		"func":  InsertSlice,
+		"slice": Strings{"1", "2", "3", "4"},
+		"elem":  "9",
+		"index": 10,
+		"want":  Strings{"1", "2", "3", "4", "9"},
 	},
 	{
 		"func":  InsertSlice,
@@ -116,6 +148,20 @@ var insertSliceTests = []map[string]interface{}{
 		"elem":  int16(9), // int type not match
 		"index": 10,       // exceeds slice length
 		"want":  []int64{1, 2, 3, 4, 9},
+	},
+	{
+		"func":  InsertSlice,
+		"slice": nil,
+		"elem":  9,
+		"index": 3,
+		"want":  nil,
+	},
+	{
+		"func":  InsertSlice,
+		"slice": []int64{1, 2, 3, 4},
+		"elem":  nil,
+		"index": 3,
+		"want":  []int64{1, 2, 3, 4},
 	},
 }
 
@@ -191,6 +237,11 @@ func TestPluck(t *testing.T) {
 
 	assert.Equal(t, want, Pluck(slice1, "A"))
 	assert.Equal(t, want, Pluck(slice2, "A"))
+	assert.Equal(t, want, Pluck(&slice1, "A"))
+	assert.Equal(t, want, Pluck(&slice2, "A"))
+
+	assert.Nil(t, Pluck(nil, "A"))
+	assert.Nil(t, Pluck(slice1, ""))
 }
 
 func TestPluckStrings(t *testing.T) {
@@ -200,6 +251,11 @@ func TestPluckStrings(t *testing.T) {
 
 	assert.Equal(t, want, PluckStrings(slice1, "A"))
 	assert.Equal(t, want, PluckStrings(slice2, "A"))
+	assert.Equal(t, want, PluckStrings(&slice1, "A"))
+	assert.Equal(t, want, PluckStrings(&slice2, "A"))
+
+	assert.Nil(t, PluckStrings(nil, "A"))
+	assert.Nil(t, PluckStrings(slice1, ""))
 }
 
 func TestPluckInt64s(t *testing.T) {
@@ -208,18 +264,25 @@ func TestPluckInt64s(t *testing.T) {
 	got1 := PluckInt64s(slice, "I32")
 	want1 := Int64s{32, 33, 34, 35}
 	assert.Equal(t, want1, got1)
+	assert.Equal(t, want1, PluckInt64s(&slice, "I32"))
 
 	got2 := PluckInt64s(slice, "I32_p")
 	want2 := Int64s{32, 33, 34}
 	assert.Equal(t, want2, got2)
+	assert.Equal(t, want2, PluckInt64s(&slice, "I32_p"))
 
 	got3 := PluckInt64s(slice, "I64")
 	want3 := Int64s{64, 65, 66, 67}
 	assert.Equal(t, want3, got3)
+	assert.Equal(t, want3, PluckInt64s(&slice, "I64"))
 
 	got4 := PluckInt64s(slice, "I64_p")
 	want4 := Int64s{64, 65, 66}
 	assert.Equal(t, want4, got4)
+	assert.Equal(t, want4, PluckInt64s(&slice, "I64_p"))
+
+	assert.Nil(t, PluckInt64s(nil, "I32"))
+	assert.Nil(t, PluckInt64s(slice, ""))
 }
 
 func TestPluck_StructField(t *testing.T) {
@@ -235,16 +298,254 @@ func TestPluck_StructField(t *testing.T) {
 	assert.Nil(t, got2.([]*simple)[3])
 }
 
-// TODO: TestIndex
+var indexSliceTests = []map[string]interface{}{
+	{
+		"slice": nil,
+		"elem":  2,
+		"want":  -1,
+	},
+	{
+		"slice": []int{1, 2, 3},
+		"elem":  nil,
+		"want":  -1,
+	},
+	{
+		"slice": []int64{1, 2, 3},
+		"elem":  int64(2),
+		"want":  1,
+	},
+	{
+		"slice": []int64{1, 2, 3},
+		"elem":  int32(2), // int type not match
+		"want":  1,
+	},
+	{
+		"slice": []uint{1, 2, 3},
+		"elem":  2,
+		"want":  1,
+	},
+	{
+		"slice": []uint{1, 2, 3},
+		"elem":  4,
+		"want":  -1,
+	},
+	{
+		"slice": []string{"1", "2", "3"},
+		"elem":  "2",
+		"want":  1,
+	},
+	{
+		"slice": []string{"1", "2", "3"},
+		"elem":  "a",
+		"want":  -1,
+	},
+	{
+		"slice": []simple{{"a"}, {"b"}, {"c"}},
+		"elem":  simple{"b"},
+		"want":  1,
+	},
+	{
+		"slice": []*simple{{"a"}, {"b"}, {"c"}},
+		"elem":  &simple{"b"},
+		"want":  -1,
+	},
+}
 
-// TODO: TestLastIndex
+func TestIndex(t *testing.T) {
+	for _, test := range indexSliceTests {
+		got := Index(test["slice"], test["elem"])
+		assert.Equal(t, test["want"], got)
+	}
+}
 
-// TODO: TestReverseSlice
+var lastIndexSliceTests = []map[string]interface{}{
+	{
+		"slice": nil,
+		"elem":  2,
+		"want":  -1,
+	},
+	{
+		"slice": []int{1, 2, 3, 2},
+		"elem":  nil,
+		"want":  -1,
+	},
+	{
+		"slice": []int64{1, 2, 3, 2},
+		"elem":  int64(2),
+		"want":  3,
+	},
+	{
+		"slice": []int64{1, 2, 3, 2},
+		"elem":  int32(2), // int type not match
+		"want":  3,
+	},
+	{
+		"slice": []string{"1", "2", "3", "2"},
+		"elem":  "2",
+		"want":  3,
+	},
+	{
+		"slice": []string{"1", "2", "3", "2"},
+		"elem":  "a",
+		"want":  -1,
+	},
+	{
+		"slice": []simple{{"a"}, {"b"}, {"c"}, {"b"}},
+		"elem":  simple{"b"},
+		"want":  3,
+	},
+	{
+		"slice": []*simple{{"a"}, {"b"}, {"c"}, {"b"}},
+		"elem":  &simple{"b"},
+		"want":  -1,
+	},
+}
 
-// TODO: TestToMap
+func TestLastIndex(t *testing.T) {
+	for _, test := range lastIndexSliceTests {
+		got := LastIndex(test["slice"], test["elem"])
+		assert.Equal(t, test["want"], got)
+	}
+}
 
-// TODO: TestToInt64Map
+var reverseSliceTests = []map[string]interface{}{
+	{
+		"slice": nil,
+		"want":  nil,
+	},
+	{
+		"slice": []uint64{1, 2, 3},
+		"want":  Int64s{3, 2, 1},
+	},
+	{
+		"slice": []int8{1, 2, 3},
+		"want":  []int8{3, 2, 1},
+	},
+	{
+		"slice": []string{"1", "2", "3"},
+		"want":  Strings{"3", "2", "1"},
+	},
+	{
+		"slice": []simple{{"a"}, {"b"}, {"c"}},
+		"want":  []simple{{"c"}, {"b"}, {"a"}},
+	},
+}
 
-// TODO: TestToStringMap
+func TestReverseSlice(t *testing.T) {
+	for _, test := range reverseSliceTests {
+		got := ReverseSlice(test["slice"])
+		assert.Equal(t, test["want"], got)
+	}
+}
 
-// TODO: TestParseCommaInts
+func TestDiffInt64s(t *testing.T) {
+	a := []int64{1, 2, 3, 4, 5}
+	b := []int64{4, 5, 6, 7, 8}
+	want1 := Int64s{1, 2, 3}
+	assert.Equal(t, want1, DiffInt64s(a, b))
+
+	want2 := Int64s{6, 7, 8}
+	assert.Equal(t, want2, DiffInt64s(b, a))
+}
+
+func TestDiffStrings(t *testing.T) {
+	a := []string{"1", "2", "3", "4", "5"}
+	b := []string{"4", "5", "6", "7", "8"}
+	want1 := Strings{"1", "2", "3"}
+	assert.Equal(t, want1, DiffStrings(a, b))
+
+	want2 := Strings{"6", "7", "8"}
+	assert.Equal(t, want2, DiffStrings(b, a))
+}
+
+func TestToMap(t *testing.T) {
+	a := &simple{"a"}
+	b := &simple{"b"}
+	c := &simple{"c"}
+	slice := []*simple{a, b, c}
+	want := map[string]*simple{"a": a, "b": b, "c": c}
+	got := ToMap(slice, "A")
+	assert.Equal(t, want, got)
+
+	assert.Nil(t, ToMap(nil, "A"))
+	assert.Nil(t, ToMap(slice, ""))
+}
+
+func TestToMap_Pointer(t *testing.T) {
+	a := &comptyp{Str_p: ptr.String("a")}
+	b := &comptyp{Str_p: ptr.String("b")}
+	c := &comptyp{Str_p: ptr.String("c")}
+	slice := []*comptyp{a, b, c}
+	want := map[string]*comptyp{"a": a, "b": b, "c": c}
+	got := ToMap(slice, "Str_p")
+	assert.Equal(t, want, got)
+}
+
+func TestToInt64Map(t *testing.T) {
+	a := &comptyp{I32_p: ptr.Int32(1)}
+	b := &comptyp{I32_p: ptr.Int32(2)}
+	c := &comptyp{I32_p: ptr.Int32(3)}
+	slice := []*comptyp{a, b, c}
+	want := map[int64]*comptyp{1: a, 2: b, 3: c}
+	got := ToInt64Map(slice, "I32_p")
+	assert.Equal(t, want, got)
+
+	assert.Nil(t, ToInt64Map(nil, "I32_p"))
+	assert.Nil(t, ToInt64Map(slice, ""))
+}
+
+func TestToStringMap(t *testing.T) {
+	a := &comptyp{Str_p: ptr.String("a")}
+	b := &comptyp{Str_p: ptr.String("b")}
+	c := &comptyp{Str_p: ptr.String("c")}
+	slice := []*comptyp{a, b, c}
+	want := map[string]*comptyp{"a": a, "b": b, "c": c}
+	got := ToStringMap(slice, "Str_p")
+	assert.Equal(t, want, got)
+
+	assert.Nil(t, ToStringMap(nil, "Str_p"))
+	assert.Nil(t, ToStringMap(slice, ""))
+}
+
+func TestParseCommaInt64s(t *testing.T) {
+	strIntIDs := "123,,456,789, ,0,"
+	want := Int64s{123, 456, 789}
+	got, isMalformed := ParseCommaInt64s(strIntIDs, true)
+	assert.True(t, isMalformed)
+	assert.Equal(t, want, got)
+}
+
+var splitBatchTests = []map[string]interface{}{
+	{
+		"total": 0,
+		"batch": 10,
+		"want":  []IJ(nil),
+	},
+	{
+		"total": 72,
+		"batch": -36,
+		"want":  []IJ{{0, 72}},
+	},
+	{
+		"total": 72,
+		"batch": 0,
+		"want":  []IJ{{0, 72}},
+	},
+	{
+		"total": 72,
+		"batch": 35,
+		"want":  []IJ{{0, 35}, {35, 70}, {70, 72}},
+	},
+	{
+		"total": 72,
+		"batch": 24,
+		"want":  []IJ{{0, 24}, {24, 48}, {48, 72}},
+	},
+}
+
+func TestSplitBatch(t *testing.T) {
+	for _, test := range splitBatchTests {
+		got := SplitBatch(test["total"].(int), test["batch"].(int))
+		assert.Equal(t, test["want"], got)
+	}
+}

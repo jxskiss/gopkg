@@ -10,8 +10,6 @@ import (
 	"unsafe"
 )
 
-var ErrNotSliceOfInt = errors.New("not a slice of integers")
-
 var (
 	binEncoding = binary.LittleEndian
 	binMagic    = []byte("EZY0")
@@ -200,7 +198,7 @@ func ToInt64s_(intSlice interface{}) Int64s {
 
 	sliceTyp := reflect.TypeOf(intSlice)
 	if sliceTyp.Kind() != reflect.Slice || !isIntType(sliceTyp.Elem()) {
-		panic(ErrNotSliceOfInt)
+		panic("ToInt64s_: not a slice of integers")
 	}
 
 	//sliceVal := reflect.ValueOf(intSlice)
@@ -313,7 +311,7 @@ func Bytes_(b interface{}) bytes_ {
 	case []byte:
 		return b
 	}
-	panic("invalid type for bytes (string/[]byte)")
+	panic("Bytes_: invalid type for bytes (string/[]byte)")
 }
 
 func (p bytes_) String() string { return b2s(p) }

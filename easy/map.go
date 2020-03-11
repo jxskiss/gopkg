@@ -36,7 +36,7 @@ func NewSafeStringMap() *SafeStringMap {
 func MapKeys(m interface{}) (keys interface{}) {
 	mTyp := reflect.TypeOf(m)
 	if mTyp.Kind() != reflect.Map {
-		panic(fmt.Errorf("unsupported type %T calling MapKeys", m))
+		panic(fmt.Sprintf("MapKeys: invalid type %T", m))
 	}
 
 	mVal := reflect.ValueOf(m)
@@ -50,7 +50,7 @@ func MapKeys(m interface{}) (keys interface{}) {
 func MapValues(m interface{}) (values interface{}) {
 	mTyp := reflect.TypeOf(m)
 	if mTyp.Kind() != reflect.Map {
-		panic(fmt.Errorf("unsupported type %T calling MapValues", m))
+		panic(fmt.Sprintf("MapValues: invalid type %T", m))
 	}
 
 	mVal := reflect.ValueOf(m)
@@ -64,7 +64,7 @@ func MapValues(m interface{}) (values interface{}) {
 func IntKeys(m interface{}) (keys Int64s) {
 	mTyp := reflect.TypeOf(m)
 	if mTyp.Kind() != reflect.Map || !isIntType(mTyp.Key()) {
-		panic(fmt.Errorf("unsupported type %T calling IntKeys", m))
+		panic(fmt.Sprintf("IntKeys: invalid type %T", m))
 	}
 
 	mVal := reflect.ValueOf(m)
@@ -78,7 +78,7 @@ func IntKeys(m interface{}) (keys Int64s) {
 func IntValues(m interface{}) (values Int64s) {
 	mTyp := reflect.TypeOf(m)
 	if mTyp.Kind() != reflect.Map || !isIntType(mTyp.Elem()) {
-		panic(fmt.Errorf("unsupported type %T calling IntValues", m))
+		panic(fmt.Sprintf("IntValues: invalid type %T", m))
 	}
 
 	mVal := reflect.ValueOf(m)
@@ -92,7 +92,7 @@ func IntValues(m interface{}) (values Int64s) {
 func StringKeys(m interface{}) (keys []string) {
 	mTyp := reflect.TypeOf(m)
 	if mTyp.Kind() != reflect.Map || mTyp.Key().Kind() != reflect.String {
-		panic(fmt.Errorf("unsupported type %T calling StringKeys", m))
+		panic(fmt.Sprintf("StringKeys: unsupporteeed type %T", m))
 	}
 
 	mVal := reflect.ValueOf(m)
@@ -106,7 +106,7 @@ func StringKeys(m interface{}) (keys []string) {
 func StringValues(m interface{}) (values []string) {
 	mTyp := reflect.TypeOf(m)
 	if mTyp.Kind() != reflect.Map || mTyp.Elem().Kind() != reflect.String {
-		panic(fmt.Errorf("unsupported type %T calling StringValues", m))
+		panic(fmt.Sprintf("StringValues: invalid type %T", m))
 	}
 
 	mVal := reflect.ValueOf(m)
@@ -137,5 +137,5 @@ func reflectInt(v reflect.Value) int64 {
 	}
 
 	// shall not happen, type should be pre-checked
-	panic(fmt.Errorf("not int type: %s", v.Kind().String()))
+	panic("bug: not int type")
 }

@@ -69,6 +69,30 @@ func TestInt64s_Drop(t *testing.T) {
 	assert.Len(t, slice, length)
 }
 
+func TestInt64s_Serialization32(t *testing.T) {
+	slice := Int64s{1, 2, 3, 4, 5}
+	buf := slice.Marshal32()
+	assert.Len(t, buf, len(binMagic)+4*len(slice))
+	assert.Equal(t, binMagic, buf[:len(binMagic)])
+
+	var got Int64s
+	err := got.Unmarshal32(buf)
+	assert.Nil(t, err)
+	assert.Equal(t, slice, got)
+}
+
+func TestInt64s_Serialization64(t *testing.T) {
+	slice := Int64s{1, 2, 3, 4, 5}
+	buf := slice.Marshal64()
+	assert.Len(t, buf, len(binMagic)+8*len(slice))
+	assert.Equal(t, binMagic, buf[:len(binMagic)])
+
+	var got Int64s
+	err := got.Unmarshal64(buf)
+	assert.Nil(t, err)
+	assert.Equal(t, slice, got)
+}
+
 var stringsSample = Strings{"5", "6", "7", "8"}
 
 var stringsMethodTests = []map[string]interface{}{
@@ -239,7 +263,3 @@ func Test_string(t *testing.T) {
 	var y STRING = "abcde"
 	assert.Equal(t, x, _string(y))
 }
-
-// TODO: TestInt64sConversion
-
-// TODO: TestStringsConversion

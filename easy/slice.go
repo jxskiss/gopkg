@@ -1,20 +1,19 @@
 package easy
 
 import (
-	"errors"
 	"reflect"
 	"strconv"
 	"strings"
 )
 
-var (
-	ErrNotSliceType           = errors.New("not slice type")
-	ErrNotSliceOrPointer      = errors.New("not a slice or pointer to slice")
-	ErrElemTypeNotMatchSlice  = errors.New("elem type does not match slice")
-	ErrElemNotStructOrPointer = errors.New("elem is not struct or pointer to struct")
-	ErrStructFieldNotExists   = errors.New("struct filed not exists")
-	ErrStructFieldIsNotInt    = errors.New("struct field is not integer or pointer")
-	ErrStructFieldIsNotStr    = errors.New("struct field is not string or pointer")
+const (
+	errNotSliceType           = "not slice type"
+	errNotSliceOrPointer      = "not a slice or pointer to slice"
+	errElemTypeNotMatchSlice  = "elem type does not match slice"
+	errElemNotStructOrPointer = "elem is not struct or pointer to struct"
+	errStructFieldNotExists   = "struct field not exists"
+	errStructFieldIsNotInt    = "struct field is not integer or pointer"
+	errStructFieldIsNotStr    = "struct field is not string or pointer"
 )
 
 var int64Type = reflect.TypeOf(int64(0))
@@ -40,7 +39,7 @@ func InSlice(slice interface{}, elem interface{}) bool {
 		}
 	}
 
-	sliceVal, intTypeNotMatch := assertSliceAndElemType(reflect.ValueOf(slice), elemTyp)
+	sliceVal, intTypeNotMatch := assertSliceAndElemType("InSlice", reflect.ValueOf(slice), elemTyp)
 
 	if intTypeNotMatch {
 		_elemInt := reflectInt(reflect.ValueOf(elem))
@@ -95,7 +94,7 @@ func Index(slice interface{}, elem interface{}) int {
 		}
 	}
 
-	sliceVal, intTypeNotMatch := assertSliceAndElemType(reflect.ValueOf(slice), elemTyp)
+	sliceVal, intTypeNotMatch := assertSliceAndElemType("Index", reflect.ValueOf(slice), elemTyp)
 
 	if intTypeNotMatch {
 		_elemInt := reflectInt(reflect.ValueOf(elem))
@@ -150,7 +149,7 @@ func LastIndex(slice interface{}, elem interface{}) int {
 		}
 	}
 
-	sliceVal, intTypeNotMatch := assertSliceAndElemType(reflect.ValueOf(slice), elemTyp)
+	sliceVal, intTypeNotMatch := assertSliceAndElemType("LastIndex", reflect.ValueOf(slice), elemTyp)
 
 	if intTypeNotMatch {
 		_elemInt := reflectInt(reflect.ValueOf(elem))
@@ -205,7 +204,7 @@ func InsertSlice(slice interface{}, index int, elem interface{}) (out interface{
 		}
 	}
 
-	sliceVal, intTypeNotMatch := assertSliceAndElemType(reflect.ValueOf(slice), elemTyp)
+	sliceVal, intTypeNotMatch := assertSliceAndElemType("InsertSlice", reflect.ValueOf(slice), elemTyp)
 
 	outVal := reflect.MakeSlice(sliceVal.Type(), 0, sliceVal.Len()+1)
 	for i := 0; i < sliceVal.Len() && i < index; i++ {
@@ -264,7 +263,7 @@ func ReverseSlice(slice interface{}) interface{} {
 
 	sliceVal := reflect.ValueOf(slice)
 	if sliceVal.Kind() != reflect.Slice {
-		panic(ErrNotSliceType)
+		panic("ReverseSlice: " + errNotSliceType)
 	}
 	outVal := reflect.MakeSlice(sliceVal.Type(), 0, sliceVal.Len())
 	for i := sliceVal.Len() - 1; i >= 0; i-- {
@@ -318,15 +317,15 @@ func DiffStrings(a []string, b []string) Strings {
 }
 
 func Pluck(slice interface{}, field string) interface{} {
-	if slice == nil {
-		return slice
+	if slice == nil || field == "" {
+		return nil
 	}
 	sliceVal := reflect.ValueOf(slice)
 	for sliceVal.Kind() == reflect.Ptr {
 		sliceVal = reflect.Indirect(sliceVal)
 	}
 	sliceTyp := sliceVal.Type()
-	fieldInfo := assertSliceElemStructAndField(sliceTyp, field)
+	fieldInfo := assertSliceElemStructAndField("Pluck", sliceTyp, field)
 
 	var outVal = reflect.MakeSlice(reflect.SliceOf(fieldInfo.Type), 0, sliceVal.Len())
 	for i := 0; i < sliceVal.Len(); i++ {
@@ -338,7 +337,7 @@ func Pluck(slice interface{}, field string) interface{} {
 }
 
 func PluckInt64s(slice interface{}, field string) Int64s {
-	if slice == nil {
+	if slice == nil || field == "" {
 		return nil
 	}
 	sliceVal := reflect.ValueOf(slice)
@@ -346,10 +345,10 @@ func PluckInt64s(slice interface{}, field string) Int64s {
 		sliceVal = reflect.Indirect(sliceVal)
 	}
 	sliceTyp := sliceVal.Type()
-	fieldInfo := assertSliceElemStructAndField(sliceTyp, field)
+	fieldInfo := assertSliceElemStructAndField("PluckInt64s", sliceTyp, field)
 	if !(isIntType(fieldInfo.Type) ||
 		(fieldInfo.Type.Kind() == reflect.Ptr && isIntType(fieldInfo.Type.Elem()))) {
-		panic(ErrStructFieldIsNotInt)
+		panic("PluckInt64s: " + errStructFieldIsNotInt)
 	}
 
 	out := make([]int64, 0, sliceVal.Len())
@@ -364,7 +363,7 @@ func PluckInt64s(slice interface{}, field string) Int64s {
 }
 
 func PluckStrings(slice interface{}, field string) Strings {
-	if slice == nil {
+	if slice == nil || field == "" {
 		return nil
 	}
 	sliceVal := reflect.ValueOf(slice)
@@ -372,10 +371,10 @@ func PluckStrings(slice interface{}, field string) Strings {
 		sliceVal = reflect.Indirect(sliceVal)
 	}
 	sliceTyp := sliceVal.Type()
-	fieldInfo := assertSliceElemStructAndField(sliceTyp, field)
+	fieldInfo := assertSliceElemStructAndField("PluckStrings", sliceTyp, field)
 	if !(fieldInfo.Type.Kind() == reflect.String ||
 		(fieldInfo.Type.Kind() == reflect.Ptr && fieldInfo.Type.Elem().Kind() == reflect.String)) {
-		panic(ErrStructFieldIsNotStr)
+		panic("PluckStrings: " + errStructFieldIsNotStr)
 	}
 
 	out := make([]string, 0, sliceVal.Len())
@@ -390,7 +389,7 @@ func PluckStrings(slice interface{}, field string) Strings {
 }
 
 func ToMap(slice interface{}, keyField string) interface{} {
-	if slice == nil {
+	if slice == nil || keyField == "" {
 		return nil
 	}
 	sliceVal := reflect.ValueOf(slice)
@@ -399,7 +398,7 @@ func ToMap(slice interface{}, keyField string) interface{} {
 	}
 	sliceTyp := sliceVal.Type()
 	elemTyp := sliceTyp.Elem()
-	fieldInfo := assertSliceElemStructAndField(sliceTyp, keyField)
+	fieldInfo := assertSliceElemStructAndField("ToMap", sliceTyp, keyField)
 	keyTyp := fieldInfo.Type
 	if keyTyp.Kind() == reflect.Ptr {
 		keyTyp = keyTyp.Elem()
@@ -415,7 +414,7 @@ func ToMap(slice interface{}, keyField string) interface{} {
 }
 
 func ToInt64Map(slice interface{}, keyField string) interface{} {
-	if slice == nil {
+	if slice == nil || keyField == "" {
 		return nil
 	}
 	sliceVal := reflect.ValueOf(slice)
@@ -424,10 +423,10 @@ func ToInt64Map(slice interface{}, keyField string) interface{} {
 	}
 	sliceTyp := sliceVal.Type()
 	elemTyp := sliceTyp.Elem()
-	fieldInfo := assertSliceElemStructAndField(sliceTyp, keyField)
+	fieldInfo := assertSliceElemStructAndField("ToInt64Map", sliceTyp, keyField)
 	if !(isIntType(fieldInfo.Type) ||
 		(fieldInfo.Type.Kind() == reflect.Ptr && isIntType(fieldInfo.Type.Elem()))) {
-		panic(ErrStructFieldIsNotInt)
+		panic("ToInt64Map: " + errStructFieldIsNotInt)
 	}
 
 	outVal := reflect.MakeMapWithSize(reflect.MapOf(int64Type, elemTyp), sliceVal.Len())
@@ -441,7 +440,7 @@ func ToInt64Map(slice interface{}, keyField string) interface{} {
 }
 
 func ToStringMap(slice interface{}, keyField string) interface{} {
-	if slice == nil {
+	if slice == nil || keyField == "" {
 		return nil
 	}
 	sliceVal := reflect.ValueOf(slice)
@@ -450,10 +449,10 @@ func ToStringMap(slice interface{}, keyField string) interface{} {
 	}
 	sliceTyp := sliceVal.Type()
 	elemTyp := sliceTyp.Elem()
-	fieldInfo := assertSliceElemStructAndField(sliceTyp, keyField)
+	fieldInfo := assertSliceElemStructAndField("ToStringMap", sliceTyp, keyField)
 	if !(fieldInfo.Type.Kind() == reflect.String ||
 		(fieldInfo.Type.Kind() == reflect.Ptr && fieldInfo.Type.Elem().Kind() == reflect.String)) {
-		panic(ErrStructFieldIsNotStr)
+		panic("ToStringMap: " + errStructFieldIsNotStr)
 	}
 
 	outVal := reflect.MakeMapWithSize(reflect.MapOf(stringType, elemTyp), sliceVal.Len())
@@ -465,12 +464,12 @@ func ToStringMap(slice interface{}, keyField string) interface{} {
 	return outVal.Interface()
 }
 
-func assertSliceAndElemType(sliceVal reflect.Value, elemTyp reflect.Type) (reflect.Value, bool) {
+func assertSliceAndElemType(where string, sliceVal reflect.Value, elemTyp reflect.Type) (reflect.Value, bool) {
 	for sliceVal.Kind() == reflect.Ptr {
 		sliceVal = reflect.Indirect(sliceVal)
 	}
 	if sliceVal.Kind() != reflect.Slice {
-		panic(ErrNotSliceOrPointer)
+		panic(where + ": " + errNotSliceOrPointer)
 	}
 	intTypeNotMatch := false
 	sliceTyp := sliceVal.Type()
@@ -479,21 +478,21 @@ func assertSliceAndElemType(sliceVal reflect.Value, elemTyp reflect.Type) (refle
 		if isIntType(sliceTyp.Elem()) && isIntType(elemTyp) {
 			intTypeNotMatch = true
 		} else {
-			panic(ErrElemTypeNotMatchSlice)
+			panic(where + ": " + errElemTypeNotMatchSlice)
 		}
 	}
 	return sliceVal, intTypeNotMatch
 }
 
-func assertSliceElemStructAndField(sliceTyp reflect.Type, field string) reflect.StructField {
+func assertSliceElemStructAndField(where string, sliceTyp reflect.Type, field string) reflect.StructField {
 	if sliceTyp.Kind() != reflect.Slice {
-		panic(ErrNotSliceOrPointer)
+		panic(where + ": " + errNotSliceOrPointer)
 	}
 	elemTyp := sliceTyp.Elem()
 	elemIsPtr := elemTyp.Kind() == reflect.Ptr
 	if !(elemTyp.Kind() == reflect.Struct ||
 		(elemIsPtr && elemTyp.Elem().Kind() == reflect.Struct)) {
-		panic(ErrElemNotStructOrPointer)
+		panic(where + ": " + errElemNotStructOrPointer)
 	}
 	var fieldInfo reflect.StructField
 	var ok bool
@@ -503,12 +502,12 @@ func assertSliceElemStructAndField(sliceTyp reflect.Type, field string) reflect.
 		fieldInfo, ok = elemTyp.FieldByName(field)
 	}
 	if !ok {
-		panic(ErrStructFieldNotExists)
+		panic(where + ": " + errStructFieldNotExists)
 	}
 	return fieldInfo
 }
 
-func ParseCommaInts(values string, ignoreZero bool) (slice Int64s, isMalformed bool) {
+func ParseCommaInt64s(values string, ignoreZero bool) (slice Int64s, isMalformed bool) {
 	values = strings.ReplaceAll(values, " ", "")
 	values = strings.Trim(values, ",")
 	for _, x := range strings.Split(values, ",") {
