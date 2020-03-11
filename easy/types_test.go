@@ -199,7 +199,7 @@ func TestStringsToInt64Map(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func Test_bytes(t *testing.T) {
+func TestBytes_(t *testing.T) {
 	text := "Hello, 世界"
 	assertEqual := func(buf bytes_) {
 		assert.Equal(t, text, buf.String())
@@ -214,6 +214,12 @@ func Test_bytes(t *testing.T) {
 	}
 
 	assert.Panics(t, func() { Bytes_(12345) })
+}
+
+func TestString_(t *testing.T) {
+	text := []byte("Hello, 世界")
+	str := String_(text)
+	assert.Equal(t, string(text), str)
 }
 
 func Test_int64(t *testing.T) {

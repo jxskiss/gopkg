@@ -320,6 +320,10 @@ func (p bytes_) String() string { return b2s(p) }
 
 func (p bytes_) Bytes() []byte { return p }
 
+func String_(b []byte) string {
+	return b2s(b)
+}
+
 func b2s(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
 }
