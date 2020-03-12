@@ -14,6 +14,7 @@ const (
 	errStructFieldNotExists   = "struct field not exists"
 	errStructFieldIsNotInt    = "struct field is not integer or pointer"
 	errStructFieldIsNotStr    = "struct field is not string or pointer"
+	errPredicateFuncSig       = "predicate func signature not match"
 )
 
 var int64Type = reflect.TypeOf(int64(0))
@@ -464,6 +465,65 @@ func ToStringMap(slice interface{}, keyField string) interface{} {
 	return outVal.Interface()
 }
 
+func Find(slice interface{}, predicate interface{}) interface{} {
+	if slice == nil || predicate == nil {
+		return nil
+	}
+
+	sliceVal := reflect.ValueOf(slice)
+	fnVal := reflect.ValueOf(predicate)
+	sliceVal = assertSliceAndPredicateFund("Find", sliceVal, fnVal.Type())
+
+	for i := 0; i < sliceVal.Len(); i++ {
+		elem := sliceVal.Index(i)
+		match := fnVal.Call([]reflect.Value{elem})[0].Interface().(bool)
+		if match {
+			return elem.Interface()
+		}
+	}
+	return nil
+}
+
+func FindAll(slice interface{}, predicate interface{}) interface{} {
+	if slice == nil || predicate == nil {
+		return nil
+	}
+
+	sliceVal := reflect.ValueOf(slice)
+	fnVal := reflect.ValueOf(predicate)
+	sliceVal = assertSliceAndPredicateFund("FindAll", sliceVal, fnVal.Type())
+
+	outVal := reflect.MakeSlice(sliceVal.Type(), 0, 1)
+	for i := 0; i < sliceVal.Len(); i++ {
+		elem := sliceVal.Index(i)
+		match := fnVal.Call([]reflect.Value{elem})[0].Interface().(bool)
+		if match {
+			outVal = reflect.Append(outVal, elem)
+		}
+	}
+	return outVal.Interface()
+}
+
+func Drop(slice interface{}, predicate interface{}) interface{} {
+	if slice == nil || predicate == nil {
+		return nil
+	}
+
+	sliceVal := reflect.ValueOf(slice)
+	fnVal := reflect.ValueOf(predicate)
+	sliceVal = assertSliceAndPredicateFund("Drop", sliceVal, fnVal.Type())
+
+	outVal := reflect.MakeSlice(sliceVal.Type(), 0, sliceVal.Len())
+	for i := 0; i < sliceVal.Len(); i++ {
+		elem := sliceVal.Index(i)
+		match := fnVal.Call([]reflect.Value{elem})[0].Interface().(bool)
+		if !match {
+			outVal = reflect.Append(outVal, elem)
+		}
+	}
+	return outVal.Interface()
+}
+
 func assertSliceAndElemType(where string, sliceVal reflect.Value, elemTyp reflect.Type) (reflect.Value, bool) {
 	for sliceVal.Kind() == reflect.Ptr {
 		sliceVal = reflect.Indirect(sliceVal)
@@ -505,6 +565,23 @@ func assertSliceElemStructAndField(where string, sliceTyp reflect.Type, field st
 		panic(where + ": " + errStructFieldNotExists)
 	}
 	return fieldInfo
+}
+
+func assertSliceAndPredicateFund(where string, sliceVal reflect.Value, fnTyp reflect.Type) reflect.Value {
+	for sliceVal.Kind() == reflect.Ptr {
+		sliceVal = reflect.Indirect(sliceVal)
+	}
+	if sliceVal.Kind() != reflect.Slice {
+		panic(where + ": " + errNotSliceOrPointer)
+	}
+	elemTyp := sliceVal.Type().Elem()
+	if !(fnTyp.Kind() == reflect.Func &&
+		fnTyp.NumIn() == 1 && fnTyp.NumOut() == 1 &&
+		(fnTyp.In(0).Kind() == reflect.Interface || fnTyp.In(0) == elemTyp) &&
+		fnTyp.Out(0).Kind() == reflect.Bool) {
+		panic(where + ": " + errPredicateFuncSig)
+	}
+	return sliceVal
 }
 
 func ParseCommaInt64s(values string, ignoreZero bool) (slice Int64s, isMalformed bool) {

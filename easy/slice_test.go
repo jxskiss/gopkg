@@ -507,6 +507,53 @@ func TestToStringMap(t *testing.T) {
 	assert.Nil(t, ToStringMap(slice, ""))
 }
 
+func TestFind(t *testing.T) {
+	a := &comptyp{I32: 1, Str_p: ptr.String("a")}
+	b := &comptyp{I64: 2, Str_p: ptr.String("b")}
+	c := &comptyp{I64_p: ptr.Int64(3), Str_p: ptr.String("c")}
+	slice := []*comptyp{a, b, c}
+
+	f1 := func(x *comptyp) bool { return x.Str_p == nil }
+	assert.Nil(t, Find(slice, f1))
+	assert.NotNil(t, FindAll(slice, f1))
+	assert.Len(t, FindAll(slice, f1), 0)
+
+	f2 := func(x interface{}) bool { return x.(*comptyp).Str_p != nil }
+	got2 := Find(slice, f2)
+	all2 := FindAll(slice, f2)
+	assert.NotNil(t, got2)
+	assert.Len(t, all2, 3)
+	assert.Equal(t, got2, a)
+	assert.Equal(t, slice, all2)
+
+	f3 := func(x *comptyp) bool { return ptr.DerefInt64(x.I64_p) == 3 }
+	got3 := Find(slice, f3)
+	all3 := FindAll(slice, f3)
+	assert.NotNil(t, got3)
+	assert.Len(t, all3, 1)
+	assert.Equal(t, c, got3)
+
+	assert.Nil(t, Find(nil, f3))
+	assert.Nil(t, Find(slice, nil))
+	assert.Nil(t, FindAll(nil, f3))
+	assert.Nil(t, FindAll(slice, nil))
+}
+
+func TestDrop(t *testing.T) {
+	a := &comptyp{I32: 1, Str_p: ptr.String("a")}
+	b := &comptyp{I64: 2, Str_p: ptr.String("b")}
+	c := &comptyp{I64_p: ptr.Int64(3), Str_p: ptr.String("c")}
+	slice := []*comptyp{a, b, c}
+
+	f1 := func(x *comptyp) bool { return x.I64_p == nil }
+	got1 := Drop(slice, f1)
+	assert.Len(t, got1, 1)
+	assert.Equal(t, c, got1.([]*comptyp)[0])
+
+	assert.Nil(t, Drop(nil, f1))
+	assert.Nil(t, Drop(slice, nil))
+}
+
 func TestParseCommaInt64s(t *testing.T) {
 	strIntIDs := "123,,456,789, ,0,"
 	want := Int64s{123, 456, 789}
