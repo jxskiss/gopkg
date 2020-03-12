@@ -1,6 +1,7 @@
 package easy
 
 import (
+	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
@@ -11,19 +12,46 @@ const (
 	errNotSliceOrPointer      = "not a slice or pointer to slice"
 	errElemTypeNotMatchSlice  = "elem type does not match slice"
 	errElemNotStructOrPointer = "elem is not struct or pointer to struct"
+	errStructFieldNotProvided = "struct field is not provided"
 	errStructFieldNotExists   = "struct field not exists"
 	errStructFieldIsNotInt    = "struct field is not integer or pointer"
 	errStructFieldIsNotStr    = "struct field is not string or pointer"
 	errPredicateFuncSig       = "predicate func signature not match"
 )
 
+func panicNilParams(where string, params ...interface{}) {
+	const (
+		isNilInterface = "%s: param %s is nil interface"
+	)
+	for i := 0; i < len(params); i += 2 {
+		arg := params[i].(string)
+		val := params[i+1]
+		if val == nil {
+			panic(fmt.Sprintf(isNilInterface, where, arg))
+		}
+	}
+}
+
 var int64Type = reflect.TypeOf(int64(0))
 var stringType = reflect.TypeOf("")
 
 func InSlice(slice interface{}, elem interface{}) bool {
-	if slice == nil || elem == nil {
+	if slice == nil {
 		return false
 	}
+	if elem == nil {
+		sliceVal := indirect(reflect.ValueOf(slice))
+		sliceTyp := sliceVal.Type()
+		if sliceTyp.Kind() == reflect.Slice && isNillableKind(sliceTyp.Elem().Kind()) {
+			for i := 0; i < sliceVal.Len(); i++ {
+				if sliceVal.Index(i).IsNil() {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
 	sliceTyp := reflect.TypeOf(slice)
 	elemTyp := reflect.TypeOf(elem)
 	if sliceTyp.Kind() == reflect.Slice &&
@@ -80,9 +108,22 @@ func InStrings(slice []string, elem string) bool {
 }
 
 func Index(slice interface{}, elem interface{}) int {
-	if slice == nil || elem == nil {
+	if slice == nil {
 		return -1
 	}
+	if elem == nil {
+		sliceVal := indirect(reflect.ValueOf(slice))
+		sliceTyp := sliceVal.Type()
+		if sliceTyp.Kind() == reflect.Slice && isNillableKind(sliceTyp.Elem().Kind()) {
+			for i := 0; i < sliceVal.Len(); i++ {
+				if sliceVal.Index(i).IsNil() {
+					return i
+				}
+			}
+		}
+		return -1
+	}
+
 	sliceTyp := reflect.TypeOf(slice)
 	elemTyp := reflect.TypeOf(elem)
 	if sliceTyp.Kind() == reflect.Slice &&
@@ -135,9 +176,22 @@ func IndexStrings(slice []string, elem string) int {
 }
 
 func LastIndex(slice interface{}, elem interface{}) int {
-	if slice == nil || elem == nil {
+	if slice == nil {
 		return -1
 	}
+	if elem == nil {
+		sliceVal := indirect(reflect.ValueOf(slice))
+		sliceTyp := sliceVal.Type()
+		if sliceTyp.Kind() == reflect.Slice && isNillableKind(sliceTyp.Elem().Kind()) {
+			for i := sliceVal.Len() - 1; i >= 0; i-- {
+				if sliceVal.Index(i).IsNil() {
+					return i
+				}
+			}
+		}
+		return -1
+	}
+
 	sliceTyp := reflect.TypeOf(slice)
 	elemTyp := reflect.TypeOf(elem)
 	if sliceTyp.Kind() == reflect.Slice &&
@@ -191,7 +245,7 @@ func LastIndexStrings(slice []string, elem string) int {
 
 func InsertSlice(slice interface{}, index int, elem interface{}) (out interface{}) {
 	if slice == nil || elem == nil {
-		return slice
+		panicNilParams("InsertSlice", "slice", slice, "elem", elem)
 	}
 	sliceTyp := reflect.TypeOf(slice)
 	elemTyp := reflect.TypeOf(elem)
@@ -253,7 +307,7 @@ func InsertStrings(slice []string, index int, elem string) (out Strings) {
 
 func ReverseSlice(slice interface{}) interface{} {
 	if slice == nil {
-		return slice
+		panicNilParams("ReverseSlice", "slice", slice)
 	}
 	switch slice := slice.(type) {
 	case Int64s, []int64, []uint64:
@@ -318,8 +372,8 @@ func DiffStrings(a []string, b []string) Strings {
 }
 
 func Pluck(slice interface{}, field string) interface{} {
-	if slice == nil || field == "" {
-		return nil
+	if slice == nil {
+		panicNilParams("Pluck", "slice", slice)
 	}
 	sliceVal := reflect.ValueOf(slice)
 	for sliceVal.Kind() == reflect.Ptr {
@@ -338,8 +392,8 @@ func Pluck(slice interface{}, field string) interface{} {
 }
 
 func PluckInt64s(slice interface{}, field string) Int64s {
-	if slice == nil || field == "" {
-		return nil
+	if slice == nil {
+		panicNilParams("PluckInt64s", "slice", slice)
 	}
 	sliceVal := reflect.ValueOf(slice)
 	for sliceVal.Kind() == reflect.Ptr {
@@ -364,8 +418,8 @@ func PluckInt64s(slice interface{}, field string) Int64s {
 }
 
 func PluckStrings(slice interface{}, field string) Strings {
-	if slice == nil || field == "" {
-		return nil
+	if slice == nil {
+		panicNilParams("PluckStrings", "slice", slice)
 	}
 	sliceVal := reflect.ValueOf(slice)
 	for sliceVal.Kind() == reflect.Ptr {
@@ -390,8 +444,8 @@ func PluckStrings(slice interface{}, field string) Strings {
 }
 
 func ToMap(slice interface{}, keyField string) interface{} {
-	if slice == nil || keyField == "" {
-		return nil
+	if slice == nil {
+		panicNilParams("ToMap", "slice", slice)
 	}
 	sliceVal := reflect.ValueOf(slice)
 	for sliceVal.Kind() == reflect.Ptr {
@@ -415,8 +469,8 @@ func ToMap(slice interface{}, keyField string) interface{} {
 }
 
 func ToInt64Map(slice interface{}, keyField string) interface{} {
-	if slice == nil || keyField == "" {
-		return nil
+	if slice == nil {
+		panicNilParams("ToInt64Map", "slice", slice)
 	}
 	sliceVal := reflect.ValueOf(slice)
 	for sliceVal.Kind() == reflect.Ptr {
@@ -441,8 +495,8 @@ func ToInt64Map(slice interface{}, keyField string) interface{} {
 }
 
 func ToStringMap(slice interface{}, keyField string) interface{} {
-	if slice == nil || keyField == "" {
-		return nil
+	if slice == nil {
+		panicNilParams("ToStringMap", "slice", slice)
 	}
 	sliceVal := reflect.ValueOf(slice)
 	for sliceVal.Kind() == reflect.Ptr {
@@ -467,31 +521,31 @@ func ToStringMap(slice interface{}, keyField string) interface{} {
 
 func Find(slice interface{}, predicate interface{}) interface{} {
 	if slice == nil || predicate == nil {
-		return nil
+		panicNilParams("Find", "slice", slice, "predicate", predicate)
 	}
-
 	sliceVal := reflect.ValueOf(slice)
 	fnVal := reflect.ValueOf(predicate)
-	sliceVal = assertSliceAndPredicateFund("Find", sliceVal, fnVal.Type())
+	sliceVal = assertSliceAndPredicateFunc("Find", sliceVal, fnVal.Type())
 
+	outVal := reflect.New(sliceVal.Type().Elem())
 	for i := 0; i < sliceVal.Len(); i++ {
 		elem := sliceVal.Index(i)
 		match := fnVal.Call([]reflect.Value{elem})[0].Interface().(bool)
 		if match {
-			return elem.Interface()
+			outVal.Elem().Set(elem)
+			break
 		}
 	}
-	return nil
+	return outVal.Elem().Interface()
 }
 
-func FindAll(slice interface{}, predicate interface{}) interface{} {
+func Filter(slice interface{}, predicate interface{}) interface{} {
 	if slice == nil || predicate == nil {
-		return nil
+		panicNilParams("Filter", "slice", slice, "predicate", predicate)
 	}
-
 	sliceVal := reflect.ValueOf(slice)
 	fnVal := reflect.ValueOf(predicate)
-	sliceVal = assertSliceAndPredicateFund("FindAll", sliceVal, fnVal.Type())
+	sliceVal = assertSliceAndPredicateFunc("Filter", sliceVal, fnVal.Type())
 
 	outVal := reflect.MakeSlice(sliceVal.Type(), 0, 1)
 	for i := 0; i < sliceVal.Len(); i++ {
@@ -504,30 +558,8 @@ func FindAll(slice interface{}, predicate interface{}) interface{} {
 	return outVal.Interface()
 }
 
-func Drop(slice interface{}, predicate interface{}) interface{} {
-	if slice == nil || predicate == nil {
-		return nil
-	}
-
-	sliceVal := reflect.ValueOf(slice)
-	fnVal := reflect.ValueOf(predicate)
-	sliceVal = assertSliceAndPredicateFund("Drop", sliceVal, fnVal.Type())
-
-	outVal := reflect.MakeSlice(sliceVal.Type(), 0, sliceVal.Len())
-	for i := 0; i < sliceVal.Len(); i++ {
-		elem := sliceVal.Index(i)
-		match := fnVal.Call([]reflect.Value{elem})[0].Interface().(bool)
-		if !match {
-			outVal = reflect.Append(outVal, elem)
-		}
-	}
-	return outVal.Interface()
-}
-
 func assertSliceAndElemType(where string, sliceVal reflect.Value, elemTyp reflect.Type) (reflect.Value, bool) {
-	for sliceVal.Kind() == reflect.Ptr {
-		sliceVal = reflect.Indirect(sliceVal)
-	}
+	sliceVal = indirect(sliceVal)
 	if sliceVal.Kind() != reflect.Slice {
 		panic(where + ": " + errNotSliceOrPointer)
 	}
@@ -545,6 +577,9 @@ func assertSliceAndElemType(where string, sliceVal reflect.Value, elemTyp reflec
 }
 
 func assertSliceElemStructAndField(where string, sliceTyp reflect.Type, field string) reflect.StructField {
+	if field == "" {
+		panic(where + ": " + errStructFieldNotProvided)
+	}
 	if sliceTyp.Kind() != reflect.Slice {
 		panic(where + ": " + errNotSliceOrPointer)
 	}
@@ -567,10 +602,8 @@ func assertSliceElemStructAndField(where string, sliceTyp reflect.Type, field st
 	return fieldInfo
 }
 
-func assertSliceAndPredicateFund(where string, sliceVal reflect.Value, fnTyp reflect.Type) reflect.Value {
-	for sliceVal.Kind() == reflect.Ptr {
-		sliceVal = reflect.Indirect(sliceVal)
-	}
+func assertSliceAndPredicateFunc(where string, sliceVal reflect.Value, fnTyp reflect.Type) reflect.Value {
+	sliceVal = indirect(sliceVal)
 	if sliceVal.Kind() != reflect.Slice {
 		panic(where + ": " + errNotSliceOrPointer)
 	}
@@ -619,4 +652,11 @@ func SplitBatch(total, batch int) []IJ {
 		ret = append(ret, IJ{i, j})
 	}
 	return ret
+}
+
+func indirect(value reflect.Value) reflect.Value {
+	for value.Kind() == reflect.Ptr {
+		value = reflect.Indirect(value)
+	}
+	return value
 }

@@ -89,6 +89,24 @@ var inSliceTests = []map[string]interface{}{
 		"elem":  nil,
 		"want":  false,
 	},
+	{
+		"func":  InSlice,
+		"slice": []simple{{"a"}},
+		"elem":  nil,
+		"want":  false,
+	},
+	{
+		"func":  InSlice,
+		"slice": []*simple{{"a"}, nil},
+		"elem":  nil,
+		"want":  true,
+	},
+	{
+		"func":  InSlice,
+		"slice": []*simple{{"a"}, nil},
+		"elem":  (*simple)(nil),
+		"want":  true,
+	},
 }
 
 func TestInSlice(t *testing.T) {
@@ -154,22 +172,45 @@ var insertSliceTests = []map[string]interface{}{
 		"slice": nil,
 		"elem":  9,
 		"index": 3,
-		"want":  nil,
+		"want":  "panic",
 	},
 	{
 		"func":  InsertSlice,
 		"slice": []int64{1, 2, 3, 4},
 		"elem":  nil,
 		"index": 3,
-		"want":  []int64{1, 2, 3, 4},
+		"want":  "panic",
+	},
+	{
+		"func":  InsertSlice,
+		"slice": []*simple{},
+		"elem":  nil,
+		"index": 3,
+		"want":  "panic",
+	},
+	{
+		"func":  InsertSlice,
+		"slice": []*simple{},
+		"elem":  (*simple)(nil),
+		"index": 3,
+		"want":  []*simple{nil},
 	},
 }
 
 func TestInsertSlice(t *testing.T) {
 	for _, test := range insertSliceTests {
 		f := test["func"].(func(slice interface{}, index int, elem interface{}) interface{})
-		got := f(test["slice"], test["index"].(int), test["elem"])
-		assert.Equal(t, test["want"], got)
+
+		var got interface{}
+		insert := func() {
+			got = f(test["slice"], test["index"].(int), test["elem"])
+		}
+		if test["want"] == "panic" {
+			assert.Panics(t, insert)
+		} else {
+			assert.NotPanics(t, insert)
+			assert.Equal(t, test["want"], got)
+		}
 	}
 }
 
@@ -240,8 +281,8 @@ func TestPluck(t *testing.T) {
 	assert.Equal(t, want, Pluck(&slice1, "A"))
 	assert.Equal(t, want, Pluck(&slice2, "A"))
 
-	assert.Nil(t, Pluck(nil, "A"))
-	assert.Nil(t, Pluck(slice1, ""))
+	assert.Panics(t, func() { Pluck(nil, "A") })
+	assert.Panics(t, func() { Pluck(slice1, "") })
 }
 
 func TestPluckStrings(t *testing.T) {
@@ -254,8 +295,8 @@ func TestPluckStrings(t *testing.T) {
 	assert.Equal(t, want, PluckStrings(&slice1, "A"))
 	assert.Equal(t, want, PluckStrings(&slice2, "A"))
 
-	assert.Nil(t, PluckStrings(nil, "A"))
-	assert.Nil(t, PluckStrings(slice1, ""))
+	assert.Panics(t, func() { PluckStrings(nil, "A") })
+	assert.Panics(t, func() { PluckStrings(slice1, "") })
 }
 
 func TestPluckInt64s(t *testing.T) {
@@ -281,8 +322,8 @@ func TestPluckInt64s(t *testing.T) {
 	assert.Equal(t, want4, got4)
 	assert.Equal(t, want4, PluckInt64s(&slice, "I64_p"))
 
-	assert.Nil(t, PluckInt64s(nil, "I32"))
-	assert.Nil(t, PluckInt64s(slice, ""))
+	assert.Panics(t, func() { PluckInt64s(nil, "I32") })
+	assert.Panics(t, func() { PluckInt64s(slice, "") })
 }
 
 func TestPluck_StructField(t *testing.T) {
@@ -410,10 +451,6 @@ func TestLastIndex(t *testing.T) {
 
 var reverseSliceTests = []map[string]interface{}{
 	{
-		"slice": nil,
-		"want":  nil,
-	},
-	{
 		"slice": []uint64{1, 2, 3},
 		"want":  Int64s{3, 2, 1},
 	},
@@ -429,6 +466,10 @@ var reverseSliceTests = []map[string]interface{}{
 		"slice": []simple{{"a"}, {"b"}, {"c"}},
 		"want":  []simple{{"c"}, {"b"}, {"a"}},
 	},
+	{
+		"slice": []int(nil),
+		"want":  []int{},
+	},
 }
 
 func TestReverseSlice(t *testing.T) {
@@ -436,6 +477,8 @@ func TestReverseSlice(t *testing.T) {
 		got := ReverseSlice(test["slice"])
 		assert.Equal(t, test["want"], got)
 	}
+
+	assert.Panics(t, func() { ReverseSlice(nil) })
 }
 
 func TestDiffInt64s(t *testing.T) {
@@ -467,8 +510,8 @@ func TestToMap(t *testing.T) {
 	got := ToMap(slice, "A")
 	assert.Equal(t, want, got)
 
-	assert.Nil(t, ToMap(nil, "A"))
-	assert.Nil(t, ToMap(slice, ""))
+	assert.Panics(t, func() { ToMap(nil, "A") })
+	assert.Panics(t, func() { ToMap(slice, "") })
 }
 
 func TestToMap_Pointer(t *testing.T) {
@@ -490,8 +533,8 @@ func TestToInt64Map(t *testing.T) {
 	got := ToInt64Map(slice, "I32_p")
 	assert.Equal(t, want, got)
 
-	assert.Nil(t, ToInt64Map(nil, "I32_p"))
-	assert.Nil(t, ToInt64Map(slice, ""))
+	assert.Panics(t, func() { ToInt64Map(nil, "I32_p") })
+	assert.Panics(t, func() { ToInt64Map(slice, "") })
 }
 
 func TestToStringMap(t *testing.T) {
@@ -503,24 +546,28 @@ func TestToStringMap(t *testing.T) {
 	got := ToStringMap(slice, "Str_p")
 	assert.Equal(t, want, got)
 
-	assert.Nil(t, ToStringMap(nil, "Str_p"))
-	assert.Nil(t, ToStringMap(slice, ""))
+	assert.Panics(t, func() { ToStringMap(nil, "Str_p") })
+	assert.Panics(t, func() { ToStringMap(slice, "") })
 }
 
-func TestFind(t *testing.T) {
+func TestFindAndFilter(t *testing.T) {
 	a := &comptyp{I32: 1, Str_p: ptr.String("a")}
 	b := &comptyp{I64: 2, Str_p: ptr.String("b")}
 	c := &comptyp{I64_p: ptr.Int64(3), Str_p: ptr.String("c")}
 	slice := []*comptyp{a, b, c}
 
 	f1 := func(x *comptyp) bool { return x.Str_p == nil }
-	assert.Nil(t, Find(slice, f1))
-	assert.NotNil(t, FindAll(slice, f1))
-	assert.Len(t, FindAll(slice, f1), 0)
+	got1 := Find(slice, f1)
+	all1 := Filter(slice, f1)
+
+	assert.Nil(t, got1)
+	assert.NotEqual(t, nil, got1)
+	assert.NotNil(t, all1)
+	assert.Len(t, all1, 0)
 
 	f2 := func(x interface{}) bool { return x.(*comptyp).Str_p != nil }
 	got2 := Find(slice, f2)
-	all2 := FindAll(slice, f2)
+	all2 := Filter(slice, f2)
 	assert.NotNil(t, got2)
 	assert.Len(t, all2, 3)
 	assert.Equal(t, got2, a)
@@ -528,30 +575,15 @@ func TestFind(t *testing.T) {
 
 	f3 := func(x *comptyp) bool { return ptr.DerefInt64(x.I64_p) == 3 }
 	got3 := Find(slice, f3)
-	all3 := FindAll(slice, f3)
+	all3 := Filter(slice, f3)
 	assert.NotNil(t, got3)
 	assert.Len(t, all3, 1)
 	assert.Equal(t, c, got3)
 
-	assert.Nil(t, Find(nil, f3))
-	assert.Nil(t, Find(slice, nil))
-	assert.Nil(t, FindAll(nil, f3))
-	assert.Nil(t, FindAll(slice, nil))
-}
-
-func TestDrop(t *testing.T) {
-	a := &comptyp{I32: 1, Str_p: ptr.String("a")}
-	b := &comptyp{I64: 2, Str_p: ptr.String("b")}
-	c := &comptyp{I64_p: ptr.Int64(3), Str_p: ptr.String("c")}
-	slice := []*comptyp{a, b, c}
-
-	f1 := func(x *comptyp) bool { return x.I64_p == nil }
-	got1 := Drop(slice, f1)
-	assert.Len(t, got1, 1)
-	assert.Equal(t, c, got1.([]*comptyp)[0])
-
-	assert.Nil(t, Drop(nil, f1))
-	assert.Nil(t, Drop(slice, nil))
+	assert.Panics(t, func() { Find(nil, f3) })
+	assert.Panics(t, func() { Find(slice, nil) })
+	assert.Panics(t, func() { Filter(nil, f3) })
+	assert.Panics(t, func() { Filter(slice, nil) })
 }
 
 func TestParseCommaInt64s(t *testing.T) {

@@ -345,3 +345,29 @@ func _string(x interface{}) string {
 	iface := *(*[2]unsafe.Pointer)(unsafe.Pointer(&x))
 	return *(*string)(iface[1])
 }
+
+func IsNil(x interface{}) bool {
+	if x == nil {
+		return true
+	}
+	val := reflect.ValueOf(x)
+	if isNillableKind(val.Kind()) {
+		return val.IsNil()
+	}
+	return false
+}
+
+func isNillableKind(kind reflect.Kind) bool {
+	switch kind {
+	case
+		reflect.Chan,
+		reflect.Func,
+		reflect.Interface,
+		reflect.Map,
+		reflect.Ptr,
+		reflect.Slice,
+		reflect.UnsafePointer:
+		return true
+	}
+	return false
+}
