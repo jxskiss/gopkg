@@ -14,29 +14,30 @@ type PanicError struct {
 }
 
 func (p *PanicError) Error() string {
-	return fmt.Sprintf("catch panic: %v, location: %v, check PanicError.Stack for stacktrace", p.Err, p.Loc)
+	return fmt.Sprintf("catch panic: %v, location: %v", p.Err, p.Loc)
 }
 
 func Go(f func(), logger ...interface{}) {
-	err := Safe(f)()
-	if err != nil && len(logger) > 0 {
-		if perr, ok := err.(*PanicError); ok {
-			logErr(logger[0], "%s\nstacktrace:\n%s", perr.Error(), perr.Stack)
-		} else {
-			logErr(logger[0], "catch error: %v", err)
+	go func() {
+		err := Safe(f)()
+		if err != nil && len(logger) > 0 {
+			perr := err.(*PanicError)
+			logError(logger[0], "%s\n%s", perr.Error(), perr.Stack)
 		}
-	}
+	}()
 }
 
 func Go1(f func() error, logger ...interface{}) {
-	err := Safe1(f)()
-	if err != nil && len(logger) > 0 {
-		if perr, ok := err.(*PanicError); ok {
-			logErr(logger[0], "%s\nstacktrace:\n%s", perr.Error(), perr.Stack)
-		} else {
-			logErr(logger[0], "catch error: %v", err)
+	go func() {
+		err := Safe1(f)()
+		if err != nil && len(logger) > 0 {
+			if perr, ok := err.(*PanicError); ok {
+				logError(logger[0], "%s\n%s", perr.Error(), perr.Stack)
+			} else {
+				logError(logger[0], "catch error: %v", err)
+			}
 		}
-	}
+	}()
 }
 
 func Safe(f func()) func() error {
@@ -46,12 +47,9 @@ func Safe(f func()) func() error {
 			if e == nil {
 				return
 			}
-			panicLoc := identifyPanicLoc()
-			err = &PanicError{
-				Err:   EnsureError(e),
-				Loc:   panicLoc,
-				Stack: debug.Stack(),
-			}
+			panicLoc := IdentifyPanic()
+			err = EnsureError(e)
+			err = &PanicError{Err: err, Loc: panicLoc, Stack: debug.Stack()}
 		}()
 		f()
 		return nil
@@ -65,19 +63,16 @@ func Safe1(f func() error) func() error {
 			if e == nil {
 				return
 			}
-			panicLoc := identifyPanicLoc()
-			err = &PanicError{
-				Err:   EnsureError(e),
-				Loc:   panicLoc,
-				Stack: debug.Stack(),
-			}
+			panicLoc := IdentifyPanic()
+			err = EnsureError(e)
+			err = &PanicError{Err: err, Loc: panicLoc, Stack: debug.Stack()}
 		}()
 		err = f()
 		return
 	}
 }
 
-func identifyPanicLoc() string {
+func IdentifyPanic() string {
 	var name, file string
 	var line int
 	var pc [16]uintptr
