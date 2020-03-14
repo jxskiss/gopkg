@@ -116,26 +116,3 @@ func StringValues(m interface{}) (values []string) {
 	}
 	return
 }
-
-func isIntType(t reflect.Type) bool {
-	switch t.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return true
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return true
-	default:
-		return false
-	}
-}
-
-func reflectInt(v reflect.Value) int64 {
-	switch v.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return v.Int()
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return int64(v.Uint())
-	}
-
-	// shall not happen, type should be pre-checked
-	panic("bug: not int type")
-}

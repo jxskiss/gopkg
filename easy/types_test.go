@@ -5,6 +5,113 @@ import (
 	"testing"
 )
 
+var int32sSample = Int32s{5, 6, 7, 8}
+
+var int32sMethodTests = []map[string]interface{}{
+	{
+		"got":  int32sSample.Uint32s_(),
+		"want": []uint32{5, 6, 7, 8},
+	},
+	{
+		"got":  int32sSample.Int64s(),
+		"want": []int64{5, 6, 7, 8},
+	},
+	{
+		"got":  int32sSample.Uint64s(),
+		"want": []uint64{5, 6, 7, 8},
+	},
+	{
+		"got":  int32sSample.Ints_(),
+		"want": []int{5, 6, 7, 8},
+	},
+	{
+		"got":  int32sSample.Uints_(),
+		"want": []uint{5, 6, 7, 8},
+	},
+	{
+		"got":  int32sSample.ToStrings(),
+		"want": Strings{"5", "6", "7", "8"},
+	},
+	{
+		"got": int32sSample.ToMap(),
+		"want": map[int32]bool{
+			5: true, 6: true, 7: true, 8: true,
+		},
+	},
+	{
+		"got": int32sSample.ToStringMap(),
+		"want": map[string]bool{
+			"5": true, "6": true, "7": true, "8": true,
+		},
+	},
+}
+
+func TestInt32sMethods(t *testing.T) {
+	for _, test := range int32sMethodTests {
+		assert.Equal(t, test["want"], test["got"])
+	}
+}
+
+func TestInt32s_Drop(t *testing.T) {
+	slice := []int32{0, 1, 0, 2, 0, 0, 3, 4, 0}
+	want := []int32{1, 2, 3, 4}
+	length := len(slice)
+
+	var got1 []int32
+	got1 = Int32s(slice).Drop(0, false)
+	assert.Equal(t, want, got1)
+	assert.Equal(t, slice[0], int32(0))
+
+	var got2 []int32
+	got2 = Int32s(slice).Drop(0, true)
+	assert.Equal(t, want, got2)
+	assert.Equal(t, want, slice[:len(got2)])
+	assert.Len(t, slice, length)
+}
+
+func TestInt32s_Serialization(t *testing.T) {
+	slice := Int32s{1, 2, 3, 4, 5}
+	buf := slice.Marshal()
+	assert.Len(t, buf, len(binMagic)+4*len(slice))
+	assert.Equal(t, binMagic, buf[:len(binMagic)])
+
+	var got Int32s
+	err := got.Unmarshal(buf)
+	assert.Nil(t, err)
+	assert.Equal(t, slice, got)
+}
+
+func TestToInt32s(t *testing.T) {
+	type I32 int32
+	type UI64 uint64
+
+	tests := []interface{}{
+		[]int8{1, 2, 3},
+		[]uint8{1, 2, 3},
+		[]int16{1, 2, 3},
+		[]uint16{1, 2, 3},
+		[]int32{1, 2, 3},
+		[]uint32{1, 2, 3},
+		[]int64{1, 2, 3},
+		[]uint64{1, 2, 3},
+		[]int{1, 2, 3},
+		[]uint{1, 2, 3},
+		[]uintptr{1, 2, 3},
+		Int32s{1, 2, 3},
+		Int64s{1, 2, 3},
+		[]I32{1, 2, 3},
+		[]UI64{1, 2, 3},
+		Strings{"1", "2", "3"},
+		[]string{"1", "2", "3"},
+		[]string{"1", "a", "2", "", "3", "b"},
+	}
+	want := Int32s{1, 2, 3}
+	for _, test := range tests {
+		got := ToInt32s_(test)
+		assert.Equal(t, want, got)
+	}
+}
+
 var int64sSample = Int64s{5, 6, 7, 8}
 
 var int64sMethodTests = []map[string]interface{}{
@@ -93,38 +200,6 @@ func TestInt64s_Serialization64(t *testing.T) {
 	assert.Equal(t, slice, got)
 }
 
-var stringsSample = Strings{"5", "6", "7", "8"}
-
-var stringsMethodTests = []map[string]interface{}{
-	{
-		"got":  stringsSample.ToInt64s(),
-		"want": Int64s{5, 6, 7, 8},
-	},
-	{
-		"got": stringsSample.ToMap(),
-		"want": map[string]bool{
-			"5": true, "6": true, "7": true, "8": true,
-		},
-	},
-}
-
-func TestStrings_Drop(t *testing.T) {
-	slice := []string{"", "a", "b", "", "c", ""}
-	want := []string{"a", "b", "c"}
-	length := len(slice)
-
-	var got1 []string
-	got1 = Strings(slice).Drop("", false)
-	assert.Equal(t, want, got1)
-	assert.Equal(t, slice[0], "")
-
-	var got2 []string
-	got2 = Strings(slice).Drop("", true)
-	assert.Equal(t, want, got2)
-	assert.Equal(t, want, slice[:len(got2)])
-	assert.Len(t, slice, length)
-}
-
 func TestToInt64s(t *testing.T) {
 	type I64 int64
 	type UI64 uint64
@@ -141,6 +216,7 @@ func TestToInt64s(t *testing.T) {
 		[]int{1, 2, 3},
 		[]uint{1, 2, 3},
 		[]uintptr{1, 2, 3},
+		Int32s{1, 2, 3},
 		Int64s{1, 2, 3},
 		[]I64{1, 2, 3},
 		[]UI64{1, 2, 3},
@@ -211,16 +287,54 @@ func TestToInt64s_UnsafeCasting_ChangeOriginal(t *testing.T) {
 	}
 }
 
+var stringsSample = Strings{"5", "6", "7", "8"}
+
+var stringsMethodTests = []map[string]interface{}{
+	{
+		"got":  stringsSample.ToInt32s(),
+		"want": Int32s{5, 6, 7, 8},
+	},
+	{
+		"got":  stringsSample.ToInt64s(),
+		"want": Int64s{5, 6, 7, 8},
+	},
+	{
+		"got": stringsSample.ToMap(),
+		"want": map[string]bool{
+			"5": true, "6": true, "7": true, "8": true,
+		},
+	},
+	{
+		"got":  stringsSample.ToInt32s().ToMap(),
+		"want": map[int32]bool{5: true, 6: true, 7: true, 8: true},
+	},
+	{
+		"got":  stringsSample.ToInt64s().ToMap(),
+		"want": map[int64]bool{5: true, 6: true, 7: true, 8: true},
+	},
+}
+
 func TestStringsMethods(t *testing.T) {
 	for _, test := range stringsMethodTests {
 		assert.Equal(t, test["want"], test["got"])
 	}
 }
 
-func TestStringsToInt64Map(t *testing.T) {
-	want := map[int64]bool{5: true, 6: true, 7: true, 8: true}
-	got := stringsSample.ToInt64s().ToMap()
-	assert.Equal(t, want, got)
+func TestStrings_Drop(t *testing.T) {
+	slice := []string{"", "a", "b", "", "c", ""}
+	want := []string{"a", "b", "c"}
+	length := len(slice)
+
+	var got1 []string
+	got1 = Strings(slice).Drop("", false)
+	assert.Equal(t, want, got1)
+	assert.Equal(t, slice[0], "")
+
+	var got2 []string
+	got2 = Strings(slice).Drop("", true)
+	assert.Equal(t, want, got2)
+	assert.Equal(t, want, slice[:len(got2)])
+	assert.Len(t, slice, length)
 }
 
 func TestBytes_(t *testing.T) {
