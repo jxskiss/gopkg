@@ -586,11 +586,18 @@ func TestFindAndFilter(t *testing.T) {
 	assert.Panics(t, func() { Filter(slice, nil) })
 }
 
-func TestParseCommaInt64s(t *testing.T) {
+func TestParseInt64s(t *testing.T) {
 	strIntIDs := "123,,456,789, ,0,"
 	want := Int64s{123, 456, 789}
-	got, isMalformed := ParseCommaInt64s(strIntIDs, true)
+	got, isMalformed := ParseInt64s(strIntIDs, ",", true)
 	assert.True(t, isMalformed)
+	assert.Equal(t, want, got)
+}
+
+func TestJoinInt64s(t *testing.T) {
+	slice := []int64{1, 2, 3, 4, 5}
+	want := "1,2,3,4,5"
+	got := JoinInt64s(slice, ",")
 	assert.Equal(t, want, got)
 }
 

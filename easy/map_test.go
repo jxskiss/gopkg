@@ -31,6 +31,16 @@ var mapKeyValueTests = []map[string]interface{}{
 		"keys":   []simple{{"1"}, {"2"}, {"3"}},
 		"values": []simple{{"11"}, {"12"}, {"13"}},
 	},
+	{
+		"map":    map[int32]string{1: "11", 2: "12", 3: "13"},
+		"keys":   []int32{1, 2, 3},
+		"values": []string{"11", "12", "13"},
+	},
+	{
+		"map":    map[int64]int64{1: 11, 2: 12, 3: 13},
+		"keys":   []int64{1, 2, 3},
+		"values": []int64{11, 12, 13},
+	},
 }
 
 func TestMapKeysValues(t *testing.T) {
@@ -92,11 +102,11 @@ var intKeysTests = []map[string]interface{}{
 		"keys": Int64s{1, 2, 3},
 	},
 	{
-		"map":  map[int]string{1: "11", 2: "12", 3: "13"},
+		"map":  map[uint]string{1: "11", 2: "12", 3: "13"},
 		"keys": Int64s{1, 2, 3},
 	},
 	{
-		"map": map[int64]simple{
+		"map": map[uint64]simple{
 			1: {"11"}, 2: {"12"}, 3: {"13"},
 		},
 		"keys": Int64s{1, 2, 3},
@@ -116,7 +126,7 @@ var intValuesTests = []map[string]interface{}{
 		"values": Int64s{11, 12, 13},
 	},
 	{
-		"map":    map[int32]int16{1: 11, 2: 12, 3: 13},
+		"map":    map[int32]uint16{1: 11, 2: 12, 3: 13},
 		"values": Int64s{11, 12, 13},
 	},
 	{
@@ -124,7 +134,7 @@ var intValuesTests = []map[string]interface{}{
 		"values": Int64s{11, 12, 13},
 	},
 	{
-		"map":    map[string]int{"1": 11, "2": 12, "3": 13},
+		"map":    map[string]uint{"1": 11, "2": 12, "3": 13},
 		"values": Int64s{11, 12, 13},
 	},
 	{
@@ -146,4 +156,74 @@ func TestStringKeysValues(t *testing.T) {
 	m := map[string]string{"1": "11", "2": "12", "3": "13"}
 	assert.ElementsMatch(t, []string{"1", "2", "3"}, StringKeys(m))
 	assert.ElementsMatch(t, []string{"11", "12", "13"}, StringValues(m))
+}
+
+var benchmarkMapData = map[int]*simple{
+	1:  {"abc"},
+	2:  {"bcd"},
+	3:  {"cde"},
+	4:  {"def"},
+	5:  {"efg"},
+	6:  {"fgh"},
+	7:  {"ghi"},
+	8:  {"hij"},
+	9:  {"ijk"},
+	10: {"jkl"},
+}
+
+func BenchmarkMapKeys_static(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		keys := make([]int, 0, len(benchmarkMapData))
+		for k := range benchmarkMapData {
+			keys = append(keys, k)
+		}
+		_ = keys
+	}
+}
+
+func BenchmarkMapKeys_int64s(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = IntKeys(benchmarkMapData)
+	}
+}
+
+func BenchmarkMapKeys_reflect(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = _iterMapKeys_reflect(benchmarkMapData)
+	}
+}
+
+func BenchmarkMapKeys_unsafe(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = _iterMapKeys_unsafe(benchmarkMapData)
+	}
+}
+
+func BenchmarkMapValues_static(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		values := make([]*simple, 0, len(benchmarkMapData))
+		for _, v := range benchmarkMapData {
+			values = append(values, v)
+		}
+		_ = values
+	}
+}
+
+func BenchmarkMapValues_reflect(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = _iterMapValues_reflect(benchmarkMapData)
+	}
+}
+
+func BenchmarkMapValues_unsafe(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = _iterMapValues_unsafe(benchmarkMapData)
+	}
 }

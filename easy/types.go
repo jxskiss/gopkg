@@ -163,27 +163,15 @@ func ToInt32s_(intSlice interface{}) Int32s {
 	}
 
 	sliceTyp := reflect.TypeOf(intSlice)
-	if sliceTyp.Kind() != reflect.Slice || !isIntType(sliceTyp.Elem()) {
+	if sliceTyp.Kind() != reflect.Slice || !isIntType(sliceTyp.Elem().Kind()) {
 		panic("ToInt32s_: not a slice of integers")
 	}
 
 	tab := int64table[sliceTyp.Elem().Kind()]
 	if tab.sz == 4 {
-		iface := *(*[2]unsafe.Pointer)(unsafe.Pointer(&intSlice))
-		return *(*[]int32)(iface[1])
+		return _castInt32s(intSlice)
 	}
-	return _toInt32s(intSlice, tab.sz, tab.fn)
-}
-
-func _toInt32s(slice interface{}, size uintptr, fn func(unsafe.Pointer) int64) []int32 {
-	iface := *(*[2]unsafe.Pointer)(unsafe.Pointer(&slice))
-	header := *(*reflect.SliceHeader)(iface[1])
-	out := make([]int32, header.Len)
-	for i := 0; i < header.Len; i++ {
-		x := fn(unsafe.Pointer(uintptr(i)*size + header.Data))
-		out[i] = int32(x)
-	}
-	return out
+	return _convertInt32s(intSlice, tab.sz, tab.fn)
 }
 
 type Int64s []int64
@@ -361,56 +349,15 @@ func ToInt64s_(intSlice interface{}) Int64s {
 	}
 
 	sliceTyp := reflect.TypeOf(intSlice)
-	if sliceTyp.Kind() != reflect.Slice || !isIntType(sliceTyp.Elem()) {
+	if sliceTyp.Kind() != reflect.Slice || !isIntType(sliceTyp.Elem().Kind()) {
 		panic("ToInt64s_: not a slice of integers")
 	}
 
 	tab := int64table[sliceTyp.Elem().Kind()]
 	if tab.sz == 8 {
-		iface := *(*[2]unsafe.Pointer)(unsafe.Pointer(&intSlice))
-		return *(*[]int64)(iface[1])
+		return _castInt64s(intSlice)
 	}
-	return _toInt64s(intSlice, tab.sz, tab.fn)
-}
-
-func _toInt64s(slice interface{}, size uintptr, fn func(unsafe.Pointer) int64) []int64 {
-	iface := *(*[2]unsafe.Pointer)(unsafe.Pointer(&slice))
-	header := *(*reflect.SliceHeader)(iface[1])
-	out := make([]int64, header.Len)
-	for i := 0; i < header.Len; i++ {
-		x := fn(unsafe.Pointer(uintptr(i)*size + header.Data))
-		out[i] = x
-	}
-	return out
-}
-
-type i64conv struct {
-	sz uintptr
-	fn func(unsafe.Pointer) int64
-}
-
-var int64table = func() [16]i64conv {
-	var table [16]i64conv
-	table[reflect.Int8] = i64conv{1, func(p unsafe.Pointer) int64 { return int64(*(*int8)(p)) }}
-	table[reflect.Uint8] = i64conv{1, func(p unsafe.Pointer) int64 { return int64(*(*uint8)(p)) }}
-	table[reflect.Int16] = i64conv{2, func(p unsafe.Pointer) int64 { return int64(*(*int16)(p)) }}
-	table[reflect.Uint16] = i64conv{2, func(p unsafe.Pointer) int64 { return int64(*(*uint16)(p)) }}
-	table[reflect.Int32] = i64conv{4, func(p unsafe.Pointer) int64 { return int64(*(*int32)(p)) }}
-	table[reflect.Uint32] = i64conv{4, func(p unsafe.Pointer) int64 { return int64(*(*uint32)(p)) }}
-	table[reflect.Int64] = i64conv{8, func(p unsafe.Pointer) int64 { return int64(*(*int64)(p)) }}
-	table[reflect.Uint64] = i64conv{8, func(p unsafe.Pointer) int64 { return int64(*(*uint64)(p)) }}
-	table[reflect.Int] = i64conv{intSize / 8, func(p unsafe.Pointer) int64 { return int64(*(*int)(p)) }}
-	table[reflect.Uint] = i64conv{intSize / 8, func(p unsafe.Pointer) int64 { return int64(*(*uint)(p)) }}
-	table[reflect.Uintptr] = i64conv{intSize / 8, func(p unsafe.Pointer) int64 { return int64(*(*uintptr)(p)) }}
-	return table
-}()
-
-func _is64bitInt(typ reflect.Type) bool {
-	return isIntType(typ) && int64table[typ.Kind()].sz == 8
-}
-
-func _is32bitInt(typ reflect.Type) bool {
-	return isIntType(typ) && int64table[typ.Kind()].sz == 4
+	return _convertInt64s(intSlice, tab.sz, tab.fn)
 }
 
 type Strings []string
@@ -474,53 +421,22 @@ func (p Strings) Drop(x string, inPlace bool) Strings {
 	return out
 }
 
-type bytes_ []byte
+type Bytes []byte
 
-func Bytes_(b interface{}) bytes_ {
+func ToBytes_(b interface{}) Bytes {
 	switch b := b.(type) {
 	case string:
 		return s2b(b)
 	case []byte:
 		return b
 	}
-	panic("Bytes_: invalid type for bytes (string/[]byte)")
+	panic("ToBytes_: invalid type (must be string/[]byte)")
 }
 
-func (p bytes_) String() string { return b2s(p) }
-
-func (p bytes_) Bytes() []byte { return p }
+func (p Bytes) String_() string { return b2s(p) }
 
 func String_(b []byte) string {
 	return b2s(b)
-}
-
-func b2s(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
-}
-
-func s2b(s string) []byte {
-	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
-	bh := &reflect.SliceHeader{
-		Data: sh.Data,
-		Len:  sh.Len,
-		Cap:  sh.Len,
-	}
-	return *(*[]byte)(unsafe.Pointer(bh))
-}
-
-func _int32(x interface{}) int32 {
-	iface := *(*[2]unsafe.Pointer)(unsafe.Pointer(&x))
-	return *(*int32)(iface[1])
-}
-
-func _int64(x interface{}) int64 {
-	iface := *(*[2]unsafe.Pointer)(unsafe.Pointer(&x))
-	return *(*int64)(iface[1])
-}
-
-func _string(x interface{}) string {
-	iface := *(*[2]unsafe.Pointer)(unsafe.Pointer(&x))
-	return *(*string)(iface[1])
 }
 
 func IsNil(x interface{}) bool {
@@ -549,8 +465,16 @@ func isNillableKind(kind reflect.Kind) bool {
 	return false
 }
 
-func isIntType(t reflect.Type) bool {
-	switch t.Kind() {
+func _is64bitInt(kind reflect.Kind) bool {
+	return isIntType(kind) && int64table[kind].sz == 8
+}
+
+func _is32bitInt(kind reflect.Kind) bool {
+	return isIntType(kind) && int64table[kind].sz == 4
+}
+
+func isIntType(kind reflect.Kind) bool {
+	switch kind {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return true
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
@@ -558,6 +482,16 @@ func isIntType(t reflect.Type) bool {
 	default:
 		return false
 	}
+}
+
+func isIntTypeOrPtr(typ reflect.Type) bool {
+	return isIntType(typ.Kind()) ||
+		(typ.Kind() == reflect.Ptr && isIntType(typ.Elem().Kind()))
+}
+
+func isStringTypeOrPtr(typ reflect.Type) bool {
+	return typ.Kind() == reflect.String ||
+		(typ.Kind() == reflect.Ptr && typ.Elem().Kind() == reflect.String)
 }
 
 func reflectInt(v reflect.Value) int64 {
