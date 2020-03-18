@@ -64,7 +64,7 @@ func InSlice(slice interface{}, elem interface{}) bool {
 			return InInt32s(ToInt32s_(slice), _int32(elem))
 		}
 		if elemKind == reflect.String {
-			return InStrings(_Strings(slice), _string(elem))
+			return InStrings(ToStrings_(slice), _string(elem))
 		}
 	}
 
@@ -144,7 +144,7 @@ func Index(slice interface{}, elem interface{}) int {
 			return IndexInt32s(ToInt32s_(slice), _int32(elem))
 		}
 		if elemKind == reflect.String {
-			return IndexStrings(_Strings(slice), _string(elem))
+			return IndexStrings(ToStrings_(slice), _string(elem))
 		}
 	}
 
@@ -224,7 +224,7 @@ func LastIndex(slice interface{}, elem interface{}) int {
 			return LastIndexInt32s(ToInt32s_(slice), _int32(elem))
 		}
 		if elemKind == reflect.String {
-			return LastIndexStrings(_Strings(slice), _string(elem))
+			return LastIndexStrings(ToStrings_(slice), _string(elem))
 		}
 	}
 
@@ -291,7 +291,7 @@ func InsertSlice(slice interface{}, index int, elem interface{}) (out interface{
 			return InsertInt32s(ToInt32s_(slice), index, _int32(elem))
 		}
 		if elemKind == reflect.String {
-			return InsertStrings(_Strings(slice), index, _string(elem))
+			return InsertStrings(ToStrings_(slice), index, _string(elem))
 		}
 	}
 
@@ -364,7 +364,7 @@ func ReverseSlice(slice interface{}) interface{} {
 	case Int32s, []int32, []uint32:
 		return ReverseInt32s(ToInt32s_(slice))
 	case Strings, []string:
-		return ReverseStrings(_Strings(slice))
+		return ReverseStrings(ToStrings_(slice))
 	}
 
 	sliceVal := reflect.ValueOf(slice)

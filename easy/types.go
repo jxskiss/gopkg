@@ -362,14 +362,30 @@ func ToInt64s_(intSlice interface{}) Int64s {
 
 type Strings []string
 
-func _Strings(strSlice interface{}) Strings {
-	switch slice := strSlice.(type) {
+func ToStrings_(slice interface{}) Strings {
+	switch slice := slice.(type) {
 	case []string:
 		return slice
 	case Strings:
 		return slice
+	case [][]byte:
+		out := make([]string, len(slice))
+		for i, x := range slice {
+			out[i] = string(x)
+		}
+		return out
 	}
-	panic("bug: not string slice")
+	sliceTyp := reflect.TypeOf(slice)
+	if sliceTyp.Kind() != reflect.Slice {
+		panic("ToStrings_: " + errNotSliceType)
+	}
+	sliceVal := reflect.ValueOf(slice)
+	out := make([]string, sliceVal.Len())
+	for i := len(out) - 1; i >= 0; i-- {
+		str := fmt.Sprint(sliceVal.Index(i).Interface())
+		out[i] = str
+	}
+	return out
 }
 
 func (p Strings) Copy() Strings {
@@ -425,6 +441,8 @@ type Bytes []byte
 
 func ToBytes_(b interface{}) Bytes {
 	switch b := b.(type) {
+	case Bytes:
+		return b
 	case string:
 		return s2b(b)
 	case []byte:

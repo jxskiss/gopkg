@@ -18,12 +18,24 @@ func TestInSortedInt64s(t *testing.T) {
 		{"elem": 50, "want": false},
 	}
 	for _, test := range tests {
-		got := InSortedInt64s(slice1, int64(test["elem"].(int)))
-		assert.Equal(t, test["want"], got)
+		got64 := InSortedInt64s(slice1, int64(test["elem"].(int)))
+		assert.Equal(t, test["want"], got64)
+
+		got32 := InSortedInt32s(Int64s(slice1).Int32s(), int32(test["elem"].(int)))
+		assert.Equal(t, test["want"], got32)
+
+		gotInt := InSortedInts(Int64s(slice1).Ints_(), test["elem"].(int))
+		assert.Equal(t, test["want"], gotInt)
 	}
 	for _, test := range tests {
-		got := InSortedInt64s(slice2, int64(test["elem"].(int)))
-		assert.Equal(t, test["want"], got)
+		got64 := InSortedInt64s(slice2, int64(test["elem"].(int)))
+		assert.Equal(t, test["want"], got64)
+
+		got32 := InSortedInt32s(Int64s(slice2).Int32s(), int32(test["elem"].(int)))
+		assert.Equal(t, test["want"], got32)
+
+		gotInt := InSortedInts(Int64s(slice2).Ints_(), test["elem"].(int))
+		assert.Equal(t, test["want"], gotInt)
 	}
 }
 

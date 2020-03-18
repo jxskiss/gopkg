@@ -2,25 +2,31 @@ package easy
 
 import (
 	"bytes"
+	"context"
+	"encoding/xml"
 	"github.com/jxskiss/gopkg/json"
 	"io"
 	"io/ioutil"
+	"log"
+	"net/http"
+	"net/http/httputil"
 	"strings"
+	"time"
 )
 
-func SlashJoin(path ...string) string {
+func SingleJoin(sep string, path ...string) string {
 	if len(path) == 0 {
 		return ""
 	}
 	result := path[0]
 	for _, next := range path[1:] {
-		aslash := strings.HasSuffix(result, "/")
-		bslash := strings.HasPrefix(next, "/")
+		asep := strings.HasSuffix(result, sep)
+		bsep := strings.HasPrefix(next, sep)
 		switch {
-		case aslash && bslash:
+		case asep && bsep:
 			result += next[1:]
-		case !aslash && !bslash:
-			result += "/" + next
+		case !asep && !bsep:
+			result += sep + next
 		default:
 			result += next
 		}
@@ -28,7 +34,11 @@ func SlashJoin(path ...string) string {
 	return result
 }
 
-func JsonToReader(obj interface{}) (io.Reader, error) {
+func SlashJoin(path ...string) string {
+	return SingleJoin("/", path...)
+}
+
+func JSONToReader(obj interface{}) (io.Reader, error) {
 	b, err := json.Marshal(obj)
 	if err != nil {
 		return nil, err
@@ -36,10 +46,111 @@ func JsonToReader(obj interface{}) (io.Reader, error) {
 	return bytes.NewBuffer(b), nil
 }
 
-func DecodeJson(r io.Reader, v interface{}) error {
+func DecodeJSON(r io.Reader, v interface{}) error {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return err
 	}
 	return json.Unmarshal(data, v)
+}
+
+func XMLToReader(obj interface{}) (io.Reader, error) {
+	b, err := xml.Marshal(obj)
+	if err != nil {
+		return nil, err
+	}
+	return bytes.NewBuffer(b), nil
+}
+
+func DecodeXML(r io.Reader, v interface{}) error {
+	data, err := ioutil.ReadAll(r)
+	if err != nil {
+		return err
+	}
+	return xml.Unmarshal(data, v)
+}
+
+type Request struct {
+	Req  *http.Request
+	Resp interface{}
+
+	Context   context.Context
+	Timeout   time.Duration
+	Client    *http.Client
+	Unmarshal func([]byte, interface{}) error
+
+	DisableRedirect bool
+	DumpRequest     bool
+	DumpResponse    bool
+}
+
+func (p *Request) buildClient() *http.Client {
+	if p.Client == nil &&
+		!p.DisableRedirect {
+		return http.DefaultClient
+	}
+	var client http.Client
+	if p.Client != nil {
+		client = *p.Client
+	}
+	if p.DisableRedirect {
+		client.CheckRedirect = func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+	}
+	return &client
+}
+
+func DoRequest(req *Request) (respContent []byte, status int, err error) {
+	httpReq := req.Req
+	if req.Context != nil {
+		httpReq = httpReq.WithContext(req.Context)
+	}
+	if req.Timeout > 0 {
+		timeoutCtx, cancel := context.WithTimeout(httpReq.Context(), req.Timeout)
+		defer cancel()
+		httpReq = httpReq.WithContext(timeoutCtx)
+	}
+	if req.DumpRequest {
+		var dump Bytes
+		dump, err = httputil.DumpRequestOut(httpReq, true)
+		if err != nil {
+			return
+		}
+		log.Printf("dump request: %v\n", dump.String_())
+	}
+
+	httpClient := req.buildClient()
+	httpResp, err := httpClient.Do(httpReq)
+	if err != nil {
+		return
+	}
+	defer httpResp.Body.Close()
+
+	status = httpResp.StatusCode
+	if req.DumpResponse {
+		var dump Bytes
+		dump, err = httputil.DumpResponse(httpResp, true)
+		if err != nil {
+			return
+		}
+		log.Printf("dump response: %v\n", dump.String_())
+	}
+
+	respContent, err = ioutil.ReadAll(httpResp.Body)
+	if err != nil {
+		return
+	}
+
+	if req.Resp != nil && len(respContent) > 0 {
+		unmarshal := req.Unmarshal
+		if unmarshal == nil {
+			unmarshal = json.Unmarshal
+		}
+		err = unmarshal(respContent, req.Resp)
+		if err != nil {
+			return
+		}
+	}
+	return
 }
