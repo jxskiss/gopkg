@@ -10,8 +10,16 @@ import (
 	"log"
 	"net/http"
 	"net/http/httputil"
+	"regexp"
 	"strings"
 	"time"
+)
+
+var (
+	hdrContentTypeKey = http.CanonicalHeaderKey("Content-Type")
+
+	jsonCheck = regexp.MustCompile(`(?i:(application|text)/(json|.*\+json|json\-.*)(;|$))`)
+	xmlCheck  = regexp.MustCompile(`(?i:(application|text)/(xml|.*\+xml)(;|$))`)
 )
 
 func SingleJoin(sep string, path ...string) string {
@@ -54,6 +62,11 @@ func DecodeJSON(r io.Reader, v interface{}) error {
 	return json.Unmarshal(data, v)
 }
 
+// IsJSONType method is to check JSON content type or not.
+func IsJSONType(contentType string) bool {
+	return jsonCheck.MatchString(contentType)
+}
+
 func XMLToReader(obj interface{}) (io.Reader, error) {
 	b, err := xml.Marshal(obj)
 	if err != nil {
@@ -70,6 +83,12 @@ func DecodeXML(r io.Reader, v interface{}) error {
 	return xml.Unmarshal(data, v)
 }
 
+// IsXMLType method is to check XML content type or not.
+func IsXMLType(contentType string) bool {
+	return xmlCheck.MatchString(contentType)
+}
+
+// Request represents a request and options to send with the DoRequest function.
 type Request struct {
 	Req  *http.Request
 	Resp interface{}
@@ -101,6 +120,14 @@ func (p *Request) buildClient() *http.Client {
 	return &client
 }
 
+// DoRequest is a convenient function to send request and control redirect
+// and debug options. If `Request.Resp` is provided, it will be used as
+// destination to try to unmarshal the response body.
+//
+// Tradeoff was taken to balance simplicity and convenience of the function.
+//
+// For more powerful controls of a http request and convenient utilities,
+// one may take a look at the awesome package `https://github.com/go-resty/resty/`.
 func DoRequest(req *Request) (respContent []byte, status int, err error) {
 	httpReq := req.Req
 	if req.Context != nil {
@@ -145,7 +172,14 @@ func DoRequest(req *Request) (respContent []byte, status int, err error) {
 	if req.Resp != nil && len(respContent) > 0 {
 		unmarshal := req.Unmarshal
 		if unmarshal == nil {
-			unmarshal = json.Unmarshal
+			ct := httpResp.Header.Get(hdrContentTypeKey)
+			if IsXMLType(ct) {
+				unmarshal = xml.Unmarshal
+			}
+			// default: JSON
+			if unmarshal == nil {
+				unmarshal = json.Unmarshal
+			}
 		}
 		err = unmarshal(respContent, req.Resp)
 		if err != nil {

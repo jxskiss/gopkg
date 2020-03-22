@@ -39,8 +39,8 @@ type hiter struct {
 	// rest fields are ignored
 }
 
-// emptyInterface is the header for an interface{} value.
-type emptyInterface struct {
+// eface is the header for an interface{} value.
+type eface struct {
 	typ  unsafe.Pointer // *rtype
 	word unsafe.Pointer
 }
@@ -58,16 +58,16 @@ type sliceHeader struct {
 	Cap  int
 }
 
-func unpackEface(x interface{}) emptyInterface {
-	return *(*emptyInterface)(unsafe.Pointer(&x))
+func efaceOf(ep *interface{}) *eface {
+	return (*eface)(unsafe.Pointer(ep))
 }
 
 func unpackSlice(slice interface{}) sliceHeader {
-	return *(*sliceHeader)(unpackEface(slice).word)
+	return *(*sliceHeader)(efaceOf(&slice).word)
 }
 
 func _iterIntKeys(kind reflect.Kind, m interface{}) []int64 {
-	eface := unpackEface(m)
+	eface := efaceOf(&m)
 	hiter := mapiterinit(eface.typ, eface.word)
 	tab := int64table[kind]
 
@@ -81,7 +81,7 @@ func _iterIntKeys(kind reflect.Kind, m interface{}) []int64 {
 }
 
 func _iterIntValues(kind reflect.Kind, m interface{}) []int64 {
-	eface := unpackEface(m)
+	eface := efaceOf(&m)
 	hiter := mapiterinit(eface.typ, eface.word)
 	tab := int64table[kind]
 
@@ -95,7 +95,7 @@ func _iterIntValues(kind reflect.Kind, m interface{}) []int64 {
 }
 
 func _iterStringKeys(m interface{}) []string {
-	eface := unpackEface(m)
+	eface := efaceOf(&m)
 	hiter := mapiterinit(eface.typ, eface.word)
 
 	keys := make([]string, 0, maplen(eface.word))
@@ -108,7 +108,7 @@ func _iterStringKeys(m interface{}) []string {
 }
 
 func _iterStringValues(m interface{}) []string {
-	eface := unpackEface(m)
+	eface := efaceOf(&m)
 	hiter := mapiterinit(eface.typ, eface.word)
 
 	values := make([]string, 0, maplen(eface.word))
@@ -121,7 +121,7 @@ func _iterStringValues(m interface{}) []string {
 }
 
 func _iterMapKeys_unsafe(m interface{}) interface{} {
-	eface := unpackEface(m)
+	eface := efaceOf(&m)
 	hiter := mapiterinit(eface.typ, eface.word)
 	length := maplen(eface.word)
 
@@ -138,7 +138,7 @@ func _iterMapKeys_unsafe(m interface{}) interface{} {
 }
 
 func _iterMapValues_unsafe(m interface{}) interface{} {
-	eface := unpackEface(m)
+	eface := efaceOf(&m)
 	hiter := mapiterinit(eface.typ, eface.word)
 	length := maplen(eface.word)
 
@@ -168,13 +168,16 @@ func s2b(s string) []byte {
 	return *(*[]byte)(unsafe.Pointer(bh))
 }
 
-func _int32(x interface{}) int32 { return *(*int32)(unpackEface(x).word) }
+func _int32(x interface{}) int32 { return *(*int32)(efaceOf(&x).word) }
 
-func _int64(x interface{}) int64 { return *(*int64)(unpackEface(x).word) }
+func _int64(x interface{}) int64 { return *(*int64)(efaceOf(&x).word) }
 
-func _string(x interface{}) string { return *(*string)(unpackEface(x).word) }
+func _string(x interface{}) string { return *(*string)(efaceOf(&x).word) }
 
-func _rtype(typ reflect.Type) unsafe.Pointer { return unpackEface(typ).word }
+func rtypeOf(typ reflect.Type) unsafe.Pointer {
+	var i interface{} = typ
+	return efaceOf(&i).word
+}
 
 type i64conv struct {
 	sz uintptr
@@ -198,11 +201,11 @@ var int64table = func() [16]i64conv {
 }()
 
 func _castInt32s(i32Slice interface{}) []int32 {
-	return *(*[]int32)(unpackEface(i32Slice).word)
+	return *(*[]int32)(efaceOf(&i32Slice).word)
 }
 
 func _castInt64s(i64Slice interface{}) []int64 {
-	return *(*[]int64)(unpackEface(i64Slice).word)
+	return *(*[]int64)(efaceOf(&i64Slice).word)
 }
 
 func _convertInt32s(slice interface{}, size uintptr, fn func(unsafe.Pointer) int64) []int32 {
@@ -236,14 +239,14 @@ func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
 func makeSlice(elemTyp reflect.Type, length int) (
 	iface interface{}, slice *sliceHeader, elemRType unsafe.Pointer,
 ) {
-	elemRType = _rtype(elemTyp)
+	elemRType = rtypeOf(elemTyp)
 	slice = &sliceHeader{
 		Data: unsafe_NewArray(elemRType, length),
 		Len:  length,
 		Cap:  length,
 	}
-	iface = *(*interface{})(unsafe.Pointer(&emptyInterface{
-		typ:  _rtype(reflect.SliceOf(elemTyp)),
+	iface = *(*interface{})(unsafe.Pointer(&eface{
+		typ:  rtypeOf(reflect.SliceOf(elemTyp)),
 		word: unsafe.Pointer(slice),
 	}))
 	return

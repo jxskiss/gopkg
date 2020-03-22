@@ -21,8 +21,8 @@ func Test_rtype(t *testing.T) {
 		&simple{"b"},
 	}
 	for _, x := range types {
-		rtype1 := _rtype(reflect.TypeOf(x))
-		rtype2 := unpackEface(x).typ
+		rtype1 := rtypeOf(reflect.TypeOf(x))
+		rtype2 := efaceOf(&x).typ
 		assert.Equal(t, rtype1, rtype2)
 	}
 }
