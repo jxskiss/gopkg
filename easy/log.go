@@ -34,7 +34,7 @@ func logError(logger interface{}, format string, args ...interface{}) {
 	}
 }
 
-var _json = jsoniter.Config{
+var logjson = jsoniter.Config{
 	// compatible with standard library behavior
 	SortMapKeys:            true,
 	ValidateJsonRawMessage: true,
@@ -45,7 +45,7 @@ var _json = jsoniter.Config{
 
 // JSON converts given object to a json string, it never returns error.
 func JSON(v interface{}) string {
-	b, err := _json.Marshal(v)
+	b, err := logjson.Marshal(v)
 	if err != nil {
 		return fmt.Sprintf("<error: %v>", err)
 	}

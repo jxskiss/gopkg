@@ -32,10 +32,6 @@ func panicNilParams(where string, params ...interface{}) {
 	}
 }
 
-var int32Type = reflect.TypeOf(int32(0))
-var int64Type = reflect.TypeOf(int64(0))
-var stringType = reflect.TypeOf("")
-
 func InSlice(slice interface{}, elem interface{}) bool {
 	if slice == nil {
 		return false
@@ -448,10 +444,7 @@ func Pluck(slice interface{}, field string) interface{} {
 	if slice == nil {
 		panicNilParams("Pluck", "slice", slice)
 	}
-	sliceVal := reflect.ValueOf(slice)
-	for sliceVal.Kind() == reflect.Ptr {
-		sliceVal = reflect.Indirect(sliceVal)
-	}
+	sliceVal := indirect(reflect.ValueOf(slice))
 	sliceTyp := sliceVal.Type()
 	fieldInfo := assertSliceElemStructAndField("Pluck", sliceTyp, field)
 
@@ -468,10 +461,7 @@ func PluckInt32s(slice interface{}, field string) Int32s {
 	if slice == nil {
 		panicNilParams("PluckInt32s", "slice", slice)
 	}
-	sliceVal := reflect.ValueOf(slice)
-	for sliceVal.Kind() == reflect.Ptr {
-		sliceVal = reflect.Indirect(sliceVal)
-	}
+	sliceVal := indirect(reflect.ValueOf(slice))
 	sliceTyp := sliceVal.Type()
 	fieldInfo := assertSliceElemStructAndField("PluckInt32s", sliceTyp, field)
 	if !isIntTypeOrPtr(fieldInfo.Type) {
@@ -493,10 +483,7 @@ func PluckInt64s(slice interface{}, field string) Int64s {
 	if slice == nil {
 		panicNilParams("PluckInt64s", "slice", slice)
 	}
-	sliceVal := reflect.ValueOf(slice)
-	for sliceVal.Kind() == reflect.Ptr {
-		sliceVal = reflect.Indirect(sliceVal)
-	}
+	sliceVal := indirect(reflect.ValueOf(slice))
 	sliceTyp := sliceVal.Type()
 	fieldInfo := assertSliceElemStructAndField("PluckInt64s", sliceTyp, field)
 	if !isIntTypeOrPtr(fieldInfo.Type) {
@@ -518,10 +505,7 @@ func PluckStrings(slice interface{}, field string) Strings {
 	if slice == nil {
 		panicNilParams("PluckStrings", "slice", slice)
 	}
-	sliceVal := reflect.ValueOf(slice)
-	for sliceVal.Kind() == reflect.Ptr {
-		sliceVal = reflect.Indirect(sliceVal)
-	}
+	sliceVal := indirect(reflect.ValueOf(slice))
 	sliceTyp := sliceVal.Type()
 	fieldInfo := assertSliceElemStructAndField("PluckStrings", sliceTyp, field)
 	if !isStringTypeOrPtr(fieldInfo.Type) {
@@ -543,18 +527,15 @@ func ToMap(slice interface{}, keyField string) interface{} {
 	if slice == nil {
 		panicNilParams("ToMap", "slice", slice)
 	}
-	sliceVal := reflect.ValueOf(slice)
-	for sliceVal.Kind() == reflect.Ptr {
-		sliceVal = reflect.Indirect(sliceVal)
-	}
+	sliceVal := indirect(reflect.ValueOf(slice))
 	sliceTyp := sliceVal.Type()
-	elemTyp := sliceTyp.Elem()
 	fieldInfo := assertSliceElemStructAndField("ToMap", sliceTyp, keyField)
 	keyTyp := fieldInfo.Type
 	if keyTyp.Kind() == reflect.Ptr {
 		keyTyp = keyTyp.Elem()
 	}
 
+	elemTyp := sliceTyp.Elem()
 	outVal := reflect.MakeMapWithSize(reflect.MapOf(keyTyp, elemTyp), sliceVal.Len())
 	for i := 0; i < sliceVal.Len(); i++ {
 		elem := sliceVal.Index(i)
@@ -564,76 +545,64 @@ func ToMap(slice interface{}, keyField string) interface{} {
 	return outVal.Interface()
 }
 
-func ToInt32Map(slice interface{}, keyField string) interface{} {
+func ToSliceMap(slice interface{}, keyField string) interface{} {
 	if slice == nil {
-		panicNilParams("ToInt32Map", "slice", slice)
+		panicNilParams("ToSliceMap", "slice", slice)
 	}
-	sliceVal := reflect.ValueOf(slice)
-	for sliceVal.Kind() == reflect.Ptr {
-		sliceVal = reflect.Indirect(sliceVal)
-	}
+	sliceVal := indirect(reflect.ValueOf(slice))
 	sliceTyp := sliceVal.Type()
-	elemTyp := sliceTyp.Elem()
-	fieldInfo := assertSliceElemStructAndField("ToInt32Map", sliceTyp, keyField)
-	if !isIntTypeOrPtr(fieldInfo.Type) {
-		panic("ToInt32Map: " + errStructFieldIsNotInt)
+	fieldInfo := assertSliceElemStructAndField("ToSliceMap", sliceTyp, keyField)
+	keyTyp := fieldInfo.Type
+	if keyTyp.Kind() == reflect.Ptr {
+		keyTyp = keyTyp.Elem()
 	}
 
-	outVal := reflect.MakeMapWithSize(reflect.MapOf(int32Type, elemTyp), sliceVal.Len())
-	for i := 0; i < sliceVal.Len(); i++ {
+	elemTyp := sliceTyp.Elem()
+	elemSliceTyp := reflect.SliceOf(elemTyp)
+	outVal := reflect.MakeMap(reflect.MapOf(keyTyp, elemSliceTyp))
+	for i := sliceVal.Len() - 1; i >= 0; i-- {
 		elem := sliceVal.Index(i)
 		fieldVal := reflect.Indirect(reflect.Indirect(elem).FieldByName(keyField))
-		key := int32(reflectInt(fieldVal))
-		outVal.SetMapIndex(reflect.ValueOf(key), elem)
+		elemSlice := outVal.MapIndex(fieldVal)
+		if !elemSlice.IsValid() {
+			elemSlice = reflect.MakeSlice(elemSliceTyp, 0, 1)
+		}
+		elemSlice = reflect.Append(elemSlice, elem)
+		outVal.SetMapIndex(fieldVal, elemSlice)
 	}
 	return outVal.Interface()
 }
 
-func ToInt64Map(slice interface{}, keyField string) interface{} {
+func ToMapMap(slice interface{}, keyField, subKeyField string) interface{} {
 	if slice == nil {
-		panicNilParams("ToInt64Map", "slice", slice)
+		panicNilParams("ToMapMap", "slice", slice)
 	}
-	sliceVal := reflect.ValueOf(slice)
-	for sliceVal.Kind() == reflect.Ptr {
-		sliceVal = reflect.Indirect(sliceVal)
-	}
+	sliceVal := indirect(reflect.ValueOf(slice))
 	sliceTyp := sliceVal.Type()
+	fieldInfo1 := assertSliceElemStructAndField("ToMapMap", sliceTyp, keyField)
+	fieldInfo2 := assertSliceElemStructAndField("ToMapMap", sliceTyp, subKeyField)
+	keyTyp1 := fieldInfo1.Type
+	if keyTyp1.Kind() == reflect.Ptr {
+		keyTyp1 = keyTyp1.Elem()
+	}
+	keyTyp2 := fieldInfo2.Type
+	if keyTyp2.Kind() == reflect.Ptr {
+		keyTyp2 = keyTyp2.Elem()
+	}
+
 	elemTyp := sliceTyp.Elem()
-	fieldInfo := assertSliceElemStructAndField("ToInt64Map", sliceTyp, keyField)
-	if !isIntTypeOrPtr(fieldInfo.Type) {
-		panic("ToInt64Map: " + errStructFieldIsNotInt)
-	}
-
-	outVal := reflect.MakeMapWithSize(reflect.MapOf(int64Type, elemTyp), sliceVal.Len())
-	for i := 0; i < sliceVal.Len(); i++ {
+	elemMapTyp := reflect.MapOf(keyTyp2, elemTyp)
+	outVal := reflect.MakeMap(reflect.MapOf(keyTyp1, elemMapTyp))
+	for i := sliceVal.Len() - 1; i >= 0; i-- {
 		elem := sliceVal.Index(i)
-		fieldVal := reflect.Indirect(reflect.Indirect(elem).FieldByName(keyField))
-		key := reflectInt(fieldVal)
-		outVal.SetMapIndex(reflect.ValueOf(key), elem)
-	}
-	return outVal.Interface()
-}
-
-func ToStringMap(slice interface{}, keyField string) interface{} {
-	if slice == nil {
-		panicNilParams("ToStringMap", "slice", slice)
-	}
-	sliceVal := reflect.ValueOf(slice)
-	for sliceVal.Kind() == reflect.Ptr {
-		sliceVal = reflect.Indirect(sliceVal)
-	}
-	sliceTyp := sliceVal.Type()
-	elemTyp := sliceTyp.Elem()
-	fieldInfo := assertSliceElemStructAndField("ToStringMap", sliceTyp, keyField)
-	if !isStringTypeOrPtr(fieldInfo.Type) {
-		panic("ToStringMap: " + errStructFieldIsNotStr)
-	}
-
-	outVal := reflect.MakeMapWithSize(reflect.MapOf(stringType, elemTyp), sliceVal.Len())
-	for i := 0; i < sliceVal.Len(); i++ {
-		elem := sliceVal.Index(i)
-		fieldVal := reflect.Indirect(reflect.Indirect(elem).FieldByName(keyField))
-		outVal.SetMapIndex(fieldVal, elem)
+		fieldVal1 := reflect.Indirect(reflect.Indirect(elem).FieldByName(keyField))
+		fieldVal2 := reflect.Indirect(reflect.Indirect(elem).FieldByName(subKeyField))
+		elemMap := outVal.MapIndex(fieldVal1)
+		if !elemMap.IsValid() {
+			elemMap = reflect.MakeMap(elemMapTyp)
+			outVal.SetMapIndex(fieldVal1, elemMap)
+		}
+		elemMap.SetMapIndex(fieldVal2, elem)
 	}
 	return outVal.Interface()
 }

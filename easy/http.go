@@ -124,7 +124,7 @@ func (p *Request) buildClient() *http.Client {
 // and debug options. If `Request.Resp` is provided, it will be used as
 // destination to try to unmarshal the response body.
 //
-// Tradeoff was taken to balance simplicity and convenience of the function.
+// Trade-off was taken to balance simplicity and convenience of the function.
 //
 // For more powerful controls of a http request and convenient utilities,
 // one may take a look at the awesome package `https://github.com/go-resty/resty/`.

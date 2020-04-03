@@ -524,30 +524,79 @@ func TestToMap_Pointer(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestToInt64Map(t *testing.T) {
-	a := &comptyp{I32_p: ptr.Int32(1)}
-	b := &comptyp{I32_p: ptr.Int32(2)}
-	c := &comptyp{I32_p: ptr.Int32(3)}
-	slice := []*comptyp{a, b, c}
-	want := map[int64]*comptyp{1: a, 2: b, 3: c}
-	got := ToInt64Map(slice, "I32_p")
-	assert.Equal(t, want, got)
+func TestToSliceMap(t *testing.T) {
+	a := &comptyp{I32: 1, I32_p: ptr.Int32(1)}
+	b := &comptyp{I32: 1, I32_p: ptr.Int32(1)}
+	c := &comptyp{I32: 2, I32_p: ptr.Int32(2)}
 
-	assert.Panics(t, func() { ToInt64Map(nil, "I32_p") })
-	assert.Panics(t, func() { ToInt64Map(slice, "") })
+	slice1 := []comptyp{*a, *b, *c}
+	want1 := map[int32][]comptyp{
+		1: {*a, *b},
+		2: {*c},
+	}
+	got1 := ToSliceMap(slice1, "I32").(map[int32][]comptyp)
+	assert.Len(t, got1, len(want1))
+	assert.ElementsMatch(t, MapKeys(got1), MapKeys(want1))
+	assert.ElementsMatch(t, got1[1], want1[1])
+	assert.ElementsMatch(t, got1[2], want1[2])
+
+	want2 := want1
+	got2 := ToSliceMap(slice1, "I32_p").(map[int32][]comptyp)
+	assert.Len(t, got2, len(want1))
+	assert.ElementsMatch(t, MapKeys(got2), MapKeys(want1))
+	assert.ElementsMatch(t, got2[1], want2[1])
+	assert.ElementsMatch(t, got2[2], want2[2])
+
+	slice3 := []*comptyp{a, b, c}
+	want3 := map[int32][]*comptyp{
+		1: {a, b},
+		2: {c},
+	}
+	got3 := ToSliceMap(slice3, "I32").(map[int32][]*comptyp)
+	assert.Len(t, got3, len(want3))
+	assert.ElementsMatch(t, MapKeys(got3), MapKeys(want3))
+	assert.ElementsMatch(t, got3[1], want3[1])
+	assert.ElementsMatch(t, got3[2], want3[2])
+
+	want4 := want3
+	got4 := ToSliceMap(slice3, "I32_p").(map[int32][]*comptyp)
+	assert.Len(t, got4, len(want4))
+	assert.ElementsMatch(t, MapKeys(got4), MapKeys(want4))
+	assert.ElementsMatch(t, got4[1], want4[1])
+	assert.ElementsMatch(t, got4[2], want4[2])
+
+	// panics
+	assert.Panics(t, func() { ToSliceMap(nil, "I32_p") })
+	assert.Panics(t, func() { ToSliceMap(slice1, "") })
+	assert.Panics(t, func() { ToSliceMap(a, "I32_p") })
 }
 
-func TestToStringMap(t *testing.T) {
-	a := &comptyp{Str_p: ptr.String("a")}
-	b := &comptyp{Str_p: ptr.String("b")}
-	c := &comptyp{Str_p: ptr.String("c")}
-	slice := []*comptyp{a, b, c}
-	want := map[string]*comptyp{"a": a, "b": b, "c": c}
-	got := ToStringMap(slice, "Str_p")
-	assert.Equal(t, want, got)
+func TestToMapMap(t *testing.T) {
+	a := &comptyp{I32: 1, I32_p: ptr.Int32(1)}
+	b := &comptyp{I32: 1, I32_p: ptr.Int32(2)}
+	c := &comptyp{I32: 3, I32_p: ptr.Int32(3)}
 
-	assert.Panics(t, func() { ToStringMap(nil, "Str_p") })
-	assert.Panics(t, func() { ToStringMap(slice, "") })
+	slice1 := []comptyp{*a, *b, *c}
+	want1 := map[int32]map[int32]comptyp{
+		1: {1: *a, 2: *b},
+		3: {3: *c},
+	}
+	got1 := ToMapMap(slice1, "I32", "I32_p")
+	assert.Equal(t, want1, got1)
+
+	slice2 := []*comptyp{a, b, c}
+	want2 := map[int32]map[int32]*comptyp{
+		1: {1: a, 2: b},
+		3: {3: c},
+	}
+	got2 := ToMapMap(slice2, "I32", "I32_p")
+	assert.Equal(t, want2, got2)
+
+	// panics
+	assert.Panics(t, func() { ToMapMap(nil, "I32", "I32_p") })
+	assert.Panics(t, func() { ToMapMap(slice1, "", "I32_p") })
+	assert.Panics(t, func() { ToMapMap(slice1, "I32", "") })
+	assert.Panics(t, func() { ToMapMap(a, "I32", "I32_p") })
 }
 
 func TestFindAndFilter(t *testing.T) {
