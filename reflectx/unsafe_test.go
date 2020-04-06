@@ -1,4 +1,4 @@
-package easy
+package reflectx
 
 import (
 	"github.com/jxskiss/gopkg/ptr"
@@ -6,6 +6,10 @@ import (
 	"reflect"
 	"testing"
 )
+
+type simple struct {
+	A string
+}
 
 func Test_rtype(t *testing.T) {
 	types := []interface{}{
@@ -21,8 +25,10 @@ func Test_rtype(t *testing.T) {
 		&simple{"b"},
 	}
 	for _, x := range types {
-		rtype1 := rtypeOf(reflect.TypeOf(x))
-		rtype2 := efaceOf(&x).typ
+		rtype1 := EFaceOf(&x).RType
+		rtype2 := RTypeOf(reflect.TypeOf(x))
+		rtype3 := RTypeOf(reflect.ValueOf(x))
 		assert.Equal(t, rtype1, rtype2)
+		assert.Equal(t, rtype2, rtype3)
 	}
 }

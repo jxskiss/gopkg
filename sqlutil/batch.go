@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/jxskiss/gopkg/easy"
+	"github.com/jxskiss/gopkg/strutil"
 	"reflect"
 	"strings"
 	"sync"
@@ -182,7 +182,7 @@ func parseType(rows interface{}) *typeInfo {
 	}
 
 	elemTyp := indirectType(indirectType(typ).Elem())
-	tableName := easy.ToSnake(elemTyp.Name())
+	tableName := strutil.ToSnake(elemTyp.Name())
 	fieldNum := elemTyp.NumField()
 	colNames := make([]string, 0, fieldNum)
 	fieldIndex := make([]int, 0)
@@ -226,7 +226,7 @@ func parseType(rows interface{}) *typeInfo {
 
 		// default
 		if col == "" {
-			col = easy.ToSnake(field.Name)
+			col = strutil.ToSnake(field.Name)
 		}
 
 		colNames = append(colNames, col)
@@ -234,7 +234,7 @@ func parseType(rows interface{}) *typeInfo {
 	}
 
 	placeholders := strings.Repeat("?,", len(fieldIndex))
-	placeholders = placeholders[:len(placeholders)-1]
+	placeholders = strings.TrimSuffix(placeholders, ",")
 	info := &typeInfo{
 		tableName:    tableName,
 		colNames:     "(" + strings.Join(colNames, ",") + ")",

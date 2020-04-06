@@ -1,6 +1,7 @@
 package easy
 
 import (
+	"github.com/jxskiss/gopkg/reflectx"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -232,7 +233,7 @@ func TestToInt64s(t *testing.T) {
 }
 
 func TestToInt64s_UnsafeCasting_ChangeOriginal(t *testing.T) {
-	if platform32bit {
+	if reflectx.IsPlatform32bit {
 		return
 	}
 

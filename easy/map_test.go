@@ -2,6 +2,7 @@ package easy
 
 import (
 	"github.com/stretchr/testify/assert"
+	"reflect"
 	"testing"
 )
 
@@ -192,14 +193,22 @@ func BenchmarkMapKeys_int64s(b *testing.B) {
 func BenchmarkMapKeys_reflect(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = _iterMapKeys_reflect(benchmarkMapData)
+		_ = MapKeys_reflect(benchmarkMapData)
 	}
+}
+
+func MapKeys_reflect(m interface{}) interface{} {
+	mTyp := reflect.TypeOf(m)
+	mVal := reflect.ValueOf(m)
+	keysVal := reflect.MakeSlice(reflect.SliceOf(mTyp.Key()), 0, mVal.Len())
+	keysVal = reflect.Append(keysVal, mVal.MapKeys()...)
+	return keysVal.Interface()
 }
 
 func BenchmarkMapKeys_unsafe(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = _iterMapKeys_unsafe(benchmarkMapData)
+		_ = MapKeys(benchmarkMapData)
 	}
 }
 
@@ -217,13 +226,23 @@ func BenchmarkMapValues_static(b *testing.B) {
 func BenchmarkMapValues_reflect(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = _iterMapValues_reflect(benchmarkMapData)
+		_ = MapValues_reflect(benchmarkMapData)
 	}
+}
+
+func MapValues_reflect(m interface{}) interface{} {
+	mTyp := reflect.TypeOf(m)
+	mVal := reflect.ValueOf(m)
+	valuesVal := reflect.MakeSlice(reflect.SliceOf(mTyp.Elem()), 0, mVal.Len())
+	for iter := mVal.MapRange(); iter.Next(); {
+		valuesVal = reflect.Append(valuesVal, iter.Value())
+	}
+	return valuesVal.Interface()
 }
 
 func BenchmarkMapValues_unsafe(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = _iterMapValues_unsafe(benchmarkMapData)
+		_ = MapValues(benchmarkMapData)
 	}
 }

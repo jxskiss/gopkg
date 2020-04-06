@@ -2,8 +2,10 @@ package easy
 
 import (
 	"fmt"
+	"github.com/jxskiss/gopkg/reflectx"
 	"reflect"
 	"sync"
+	"unsafe"
 )
 
 type SafeMap struct {
@@ -39,16 +41,18 @@ func MapKeys(m interface{}) (keys interface{}) {
 		panic(fmt.Sprintf("MapKeys: invalid type %T", m))
 	}
 
-	//return _iterMapKeys_reflect(m)
-	return _iterMapKeys_unsafe(m)
-}
-
-func _iterMapKeys_reflect(m interface{}) interface{} {
-	mTyp := reflect.TypeOf(m)
-	mVal := reflect.ValueOf(m)
-	keysVal := reflect.MakeSlice(reflect.SliceOf(mTyp.Key()), 0, mVal.Len())
-	keysVal = reflect.Append(keysVal, mVal.MapKeys()...)
-	return keysVal.Interface()
+	length := reflectx.MapLen(m)
+	keyTyp := mTyp.Key()
+	keySize := keyTyp.Size()
+	out, slice, keyRType := reflectx.MakeSlice(keyTyp, length, length)
+	array := slice.Data
+	i := 0
+	reflectx.MapIter(m, func(k, _ unsafe.Pointer) {
+		dst := reflectx.ArrayAt(array, i, keySize)
+		reflectx.TypedMemMove(keyRType, dst, k)
+		i++
+	})
+	return out
 }
 
 func MapValues(m interface{}) (values interface{}) {
@@ -57,36 +61,48 @@ func MapValues(m interface{}) (values interface{}) {
 		panic(fmt.Sprintf("MapValues: invalid type %T", m))
 	}
 
-	//return _iterMapValues_reflect(m)
-	return _iterMapValues_unsafe(m)
-}
-
-func _iterMapValues_reflect(m interface{}) interface{} {
-	mTyp := reflect.TypeOf(m)
-	mVal := reflect.ValueOf(m)
-	valuesVal := reflect.MakeSlice(reflect.SliceOf(mTyp.Elem()), 0, mVal.Len())
-	for iter := mVal.MapRange(); iter.Next(); {
-		valuesVal = reflect.Append(valuesVal, iter.Value())
-	}
-	return valuesVal.Interface()
+	length := reflectx.MapLen(m)
+	elemTyp := mTyp.Elem()
+	elemSize := elemTyp.Size()
+	out, slice, elemRType := reflectx.MakeSlice(elemTyp, length, length)
+	array := slice.Data
+	i := 0
+	reflectx.MapIter(m, func(_, v unsafe.Pointer) {
+		dst := reflectx.ArrayAt(array, i, elemSize)
+		reflectx.TypedMemMove(elemRType, dst, v)
+		i++
+	})
+	return out
 }
 
 func IntKeys(m interface{}) (keys Int64s) {
 	mTyp := reflect.TypeOf(m)
-	if mTyp.Kind() != reflect.Map || !isIntType(mTyp.Key().Kind()) {
+	if mTyp.Kind() != reflect.Map ||
+		!reflectx.IsIntType(mTyp.Key().Kind()) {
 		panic(fmt.Sprintf("IntKeys: invalid type %T", m))
 	}
 
-	return _iterIntKeys(mTyp.Key().Kind(), m)
+	out := make([]int64, 0, reflectx.MapLen(m))
+	cast := reflectx.GetIntCaster(mTyp.Key().Kind()).Cast
+	reflectx.MapIter(m, func(k, _ unsafe.Pointer) {
+		out = append(out, cast(k))
+	})
+	return out
 }
 
 func IntValues(m interface{}) (values Int64s) {
 	mTyp := reflect.TypeOf(m)
-	if mTyp.Kind() != reflect.Map || !isIntType(mTyp.Elem().Kind()) {
+	if mTyp.Kind() != reflect.Map ||
+		!reflectx.IsIntType(mTyp.Elem().Kind()) {
 		panic(fmt.Sprintf("IntValues: invalid type %T", m))
 	}
 
-	return _iterIntValues(mTyp.Elem().Kind(), m)
+	out := make([]int64, 0, reflectx.MapLen(m))
+	cast := reflectx.GetIntCaster(mTyp.Elem().Kind()).Cast
+	reflectx.MapIter(m, func(_, v unsafe.Pointer) {
+		out = append(out, cast(v))
+	})
+	return out
 }
 
 func StringKeys(m interface{}) (keys Strings) {
@@ -95,7 +111,12 @@ func StringKeys(m interface{}) (keys Strings) {
 		panic(fmt.Sprintf("StringKeys: invalid type %T", m))
 	}
 
-	return _iterStringKeys(m)
+	out := make([]string, 0, reflectx.MapLen(m))
+	reflectx.MapIter(m, func(k, _ unsafe.Pointer) {
+		x := *(*string)(k)
+		out = append(out, x)
+	})
+	return out
 }
 
 func StringValues(m interface{}) (values Strings) {
@@ -104,5 +125,10 @@ func StringValues(m interface{}) (values Strings) {
 		panic(fmt.Sprintf("StringValues: invalid type %T", m))
 	}
 
-	return _iterStringValues(m)
+	out := make([]string, 0, reflectx.MapLen(m))
+	reflectx.MapIter(m, func(_, v unsafe.Pointer) {
+		x := *(*string)(v)
+		out = append(out, x)
+	})
+	return out
 }

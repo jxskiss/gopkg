@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/jxskiss/gopkg/reflectx"
 	"reflect"
 	"strconv"
 	"unsafe"
@@ -13,13 +14,6 @@ import (
 var (
 	binEncoding = binary.LittleEndian
 	binMagic    = []byte("EZY0")
-)
-
-const (
-	// intSize is the size in bits of an int or uint value.
-	intSize       = 32 << (^uint(0) >> 63)
-	platform32bit = intSize == 32
-	platform64bit = intSize == 64
 )
 
 type Int32s []int32
@@ -45,7 +39,7 @@ func (p Int32s) Uint64s() []uint64 {
 }
 
 func (p Int32s) Ints_() []int {
-	if platform32bit {
+	if reflectx.IsPlatform32bit {
 		return *(*[]int)(unsafe.Pointer(&p))
 	}
 	out := make([]int, len(p))
@@ -56,7 +50,7 @@ func (p Int32s) Ints_() []int {
 }
 
 func (p Int32s) Uints_() []uint {
-	if platform32bit {
+	if reflectx.IsPlatform32bit {
 		return *(*[]uint)(unsafe.Pointer(&p))
 	}
 	out := make([]uint, len(p))
@@ -163,15 +157,15 @@ func ToInt32s_(intSlice interface{}) Int32s {
 	}
 
 	sliceTyp := reflect.TypeOf(intSlice)
-	if sliceTyp.Kind() != reflect.Slice || !isIntType(sliceTyp.Elem().Kind()) {
+	if sliceTyp.Kind() != reflect.Slice ||
+		!reflectx.IsIntType(sliceTyp.Elem().Kind()) {
 		panic("ToInt32s_: not a slice of integers")
 	}
 
-	tab := int64table[sliceTyp.Elem().Kind()]
-	if tab.sz == 4 {
-		return _castInt32s(intSlice)
+	if reflectx.Is32bitInt(sliceTyp.Elem().Kind()) {
+		return reflectx.CastInt32Slice(intSlice)
 	}
-	return _convertInt32s(intSlice, tab.sz, tab.fn)
+	return reflectx.ConvertInt32Slice(intSlice)
 }
 
 type Int64s []int64
@@ -197,7 +191,7 @@ func (p Int64s) Uint32s() []uint32 {
 }
 
 func (p Int64s) Ints_() []int {
-	if platform64bit {
+	if reflectx.IsPlatform64bit {
 		return *(*[]int)(unsafe.Pointer(&p))
 	}
 	out := make([]int, len(p))
@@ -208,7 +202,7 @@ func (p Int64s) Ints_() []int {
 }
 
 func (p Int64s) Uints_() []uint {
-	if platform64bit {
+	if reflectx.IsPlatform64bit {
 		return *(*[]uint)(unsafe.Pointer(&p))
 	}
 	out := make([]uint, len(p))
@@ -349,15 +343,15 @@ func ToInt64s_(intSlice interface{}) Int64s {
 	}
 
 	sliceTyp := reflect.TypeOf(intSlice)
-	if sliceTyp.Kind() != reflect.Slice || !isIntType(sliceTyp.Elem().Kind()) {
+	if sliceTyp.Kind() != reflect.Slice ||
+		!reflectx.IsIntType(sliceTyp.Elem().Kind()) {
 		panic("ToInt64s_: not a slice of integers")
 	}
 
-	tab := int64table[sliceTyp.Elem().Kind()]
-	if tab.sz == 8 {
-		return _castInt64s(intSlice)
+	if reflectx.Is64bitInt(sliceTyp.Elem().Kind()) {
+		return reflectx.CastInt64Slice(intSlice)
 	}
-	return _convertInt64s(intSlice, tab.sz, tab.fn)
+	return reflectx.ConvertInt64Slice(intSlice)
 }
 
 type Strings []string
@@ -437,24 +431,14 @@ func (p Strings) Drop(x string, inPlace bool) Strings {
 	return out
 }
 
-type Bytes []byte
+type Bytes = reflectx.Bytes
 
 func ToBytes_(b interface{}) Bytes {
-	switch b := b.(type) {
-	case Bytes:
-		return b
-	case string:
-		return s2b(b)
-	case []byte:
-		return b
-	}
-	panic("ToBytes_: invalid type (must be string/[]byte)")
+	return reflectx.ToBytes_(b)
 }
 
-func (p Bytes) String_() string { return b2s(p) }
-
 func String_(b []byte) string {
-	return b2s(b)
+	return reflectx.String_(b)
 }
 
 func IsNil(x interface{}) bool {
@@ -481,45 +465,4 @@ func isNillableKind(kind reflect.Kind) bool {
 		return true
 	}
 	return false
-}
-
-func _is64bitInt(kind reflect.Kind) bool {
-	return isIntType(kind) && int64table[kind].sz == 8
-}
-
-func _is32bitInt(kind reflect.Kind) bool {
-	return isIntType(kind) && int64table[kind].sz == 4
-}
-
-func isIntType(kind reflect.Kind) bool {
-	switch kind {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return true
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return true
-	default:
-		return false
-	}
-}
-
-func isIntTypeOrPtr(typ reflect.Type) bool {
-	return isIntType(typ.Kind()) ||
-		(typ.Kind() == reflect.Ptr && isIntType(typ.Elem().Kind()))
-}
-
-func isStringTypeOrPtr(typ reflect.Type) bool {
-	return typ.Kind() == reflect.String ||
-		(typ.Kind() == reflect.Ptr && typ.Elem().Kind() == reflect.String)
-}
-
-func reflectInt(v reflect.Value) int64 {
-	switch v.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return v.Int()
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return int64(v.Uint())
-	}
-
-	// shall not happen, type should be pre-checked
-	panic("bug: not int type")
 }

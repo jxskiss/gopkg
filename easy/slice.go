@@ -2,6 +2,7 @@ package easy
 
 import (
 	"fmt"
+	"github.com/jxskiss/gopkg/reflectx"
 	"reflect"
 	"strconv"
 	"strings"
@@ -53,10 +54,10 @@ func InSlice(slice interface{}, elem interface{}) bool {
 	elemTyp := reflect.TypeOf(elem)
 	elemKind := elemTyp.Kind()
 	if sliceTyp.Kind() == reflect.Slice && sliceTyp.Elem().Kind() == elemKind {
-		if _is64bitInt(elemKind) {
+		if reflectx.Is64bitInt(elemKind) {
 			return InInt64s(ToInt64s_(slice), _int64(elem))
 		}
-		if _is32bitInt(elemKind) {
+		if reflectx.Is32bitInt(elemKind) {
 			return InInt32s(ToInt32s_(slice), _int32(elem))
 		}
 		if elemKind == reflect.String {
@@ -67,7 +68,7 @@ func InSlice(slice interface{}, elem interface{}) bool {
 	sliceVal, intTypeNotMatch := assertSliceAndElemType("InSlice", reflect.ValueOf(slice), elemTyp)
 
 	if intTypeNotMatch {
-		_elemInt := reflectInt(reflect.ValueOf(elem))
+		_elemInt := _int64(elem)
 		for i := 0; i < sliceVal.Len(); i++ {
 			_sliceInt := reflectInt(sliceVal.Index(i))
 			if _elemInt == _sliceInt {
@@ -133,10 +134,10 @@ func Index(slice interface{}, elem interface{}) int {
 	elemTyp := reflect.TypeOf(elem)
 	elemKind := elemTyp.Kind()
 	if sliceTyp.Kind() == reflect.Slice && sliceTyp.Elem().Kind() == elemKind {
-		if _is64bitInt(elemKind) {
+		if reflectx.Is64bitInt(elemKind) {
 			return IndexInt64s(ToInt64s_(slice), _int64(elem))
 		}
-		if _is32bitInt(elemKind) {
+		if reflectx.Is32bitInt(elemKind) {
 			return IndexInt32s(ToInt32s_(slice), _int32(elem))
 		}
 		if elemKind == reflect.String {
@@ -147,7 +148,7 @@ func Index(slice interface{}, elem interface{}) int {
 	sliceVal, intTypeNotMatch := assertSliceAndElemType("Index", reflect.ValueOf(slice), elemTyp)
 
 	if intTypeNotMatch {
-		_elemInt := reflectInt(reflect.ValueOf(elem))
+		_elemInt := _int64(elem)
 		for i := 0; i < sliceVal.Len(); i++ {
 			_sliceInt := reflectInt(sliceVal.Index(i))
 			if _elemInt == _sliceInt {
@@ -213,10 +214,10 @@ func LastIndex(slice interface{}, elem interface{}) int {
 	elemTyp := reflect.TypeOf(elem)
 	elemKind := elemTyp.Kind()
 	if sliceTyp.Kind() == reflect.Slice && sliceTyp.Elem().Kind() == elemKind {
-		if _is64bitInt(elemKind) {
+		if reflectx.Is64bitInt(elemKind) {
 			return LastIndexInt64s(ToInt64s_(slice), _int64(elem))
 		}
-		if _is32bitInt(elemKind) {
+		if reflectx.Is32bitInt(elemKind) {
 			return LastIndexInt32s(ToInt32s_(slice), _int32(elem))
 		}
 		if elemKind == reflect.String {
@@ -227,7 +228,7 @@ func LastIndex(slice interface{}, elem interface{}) int {
 	sliceVal, intTypeNotMatch := assertSliceAndElemType("LastIndex", reflect.ValueOf(slice), elemTyp)
 
 	if intTypeNotMatch {
-		_elemInt := reflectInt(reflect.ValueOf(elem))
+		_elemInt := _int64(elem)
 		for i := sliceVal.Len() - 1; i >= 0; i-- {
 			_sliceInt := reflectInt(sliceVal.Index(i))
 			if _elemInt == _sliceInt {
@@ -280,10 +281,10 @@ func InsertSlice(slice interface{}, index int, elem interface{}) (out interface{
 	elemTyp := reflect.TypeOf(elem)
 	elemKind := elemTyp.Kind()
 	if sliceTyp.Kind() == reflect.Slice && sliceTyp.Elem().Kind() == elemKind {
-		if _is64bitInt(elemKind) {
+		if reflectx.Is64bitInt(elemKind) {
 			return InsertInt64s(ToInt64s_(slice), index, _int64(elem))
 		}
-		if _is32bitInt(elemKind) {
+		if reflectx.Is32bitInt(elemKind) {
 			return InsertInt32s(ToInt32s_(slice), index, _int32(elem))
 		}
 		if elemKind == reflect.String {
@@ -298,7 +299,7 @@ func InsertSlice(slice interface{}, index int, elem interface{}) (out interface{
 		outVal = reflect.Append(outVal, sliceVal.Index(i))
 	}
 	if intTypeNotMatch {
-		_elemInt := reflectInt(reflect.ValueOf(elem))
+		_elemInt := _int64(elem)
 		_sliceInt := reflect.New(sliceTyp.Elem())
 		_sliceInt.Elem().SetInt(_elemInt)
 		outVal = reflect.Append(outVal, reflect.Indirect(_sliceInt))
@@ -464,7 +465,7 @@ func PluckInt32s(slice interface{}, field string) Int32s {
 	sliceVal := indirect(reflect.ValueOf(slice))
 	sliceTyp := sliceVal.Type()
 	fieldInfo := assertSliceElemStructAndField("PluckInt32s", sliceTyp, field)
-	if !isIntTypeOrPtr(fieldInfo.Type) {
+	if !reflectx.IsIntTypeOrPtr(fieldInfo.Type) {
 		panic("PluckInt32s: " + errStructFieldIsNotInt)
 	}
 
@@ -486,7 +487,7 @@ func PluckInt64s(slice interface{}, field string) Int64s {
 	sliceVal := indirect(reflect.ValueOf(slice))
 	sliceTyp := sliceVal.Type()
 	fieldInfo := assertSliceElemStructAndField("PluckInt64s", sliceTyp, field)
-	if !isIntTypeOrPtr(fieldInfo.Type) {
+	if !reflectx.IsIntTypeOrPtr(fieldInfo.Type) {
 		panic("PluckInt64s: " + errStructFieldIsNotInt)
 	}
 
@@ -508,7 +509,7 @@ func PluckStrings(slice interface{}, field string) Strings {
 	sliceVal := indirect(reflect.ValueOf(slice))
 	sliceTyp := sliceVal.Type()
 	fieldInfo := assertSliceElemStructAndField("PluckStrings", sliceTyp, field)
-	if !isStringTypeOrPtr(fieldInfo.Type) {
+	if !reflectx.IsStringTypeOrPtr(fieldInfo.Type) {
 		panic("PluckStrings: " + errStructFieldIsNotStr)
 	}
 
@@ -655,7 +656,8 @@ func assertSliceAndElemType(where string, sliceVal reflect.Value, elemTyp reflec
 	sliceTyp := sliceVal.Type()
 	if elemTyp != sliceTyp.Elem() {
 		// int-family
-		if isIntType(sliceTyp.Elem().Kind()) && isIntType(elemTyp.Kind()) {
+		if reflectx.IsIntType(sliceTyp.Elem().Kind()) &&
+			reflectx.IsIntType(elemTyp.Kind()) {
 			intTypeNotMatch = true
 		} else {
 			panic(where + ": " + errElemTypeNotMatchSlice)
