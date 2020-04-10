@@ -7,16 +7,31 @@ import (
 	"runtime"
 )
 
+// ErrLogger is an interface which log an message at ERROR level.
+// It's implemented by *logrus.Logger, *logrus.Entry, *zap.SugaredLogger,
+// and many other logging packages.
 type ErrLogger interface {
 	Errorf(format string, args ...interface{})
 }
 
+// DebugLogger is an interface which log an message at DEBUG level.
+// It's implemented by *logrus.Logger, *logrus.Entry, *zap.SugaredLogger,
+// and many other logging packages.
 type DebugLogger interface {
 	Debugf(format string, args ...interface{})
 }
 
-type printfunc func(format string, args ...interface{})
+// PrintFunc is a function to print the given arguments in format to somewhere.
+// It implements both `ErrLogger` and `DebugLogger`.
+type PrintFunc func(format string, args ...interface{})
 
+func (f PrintFunc) Errorf(format string, args ...interface{}) { f(format, args...) }
+
+func (f PrintFunc) Debugf(format string, args ...interface{}) { f(format, args...) }
+
+// Printer is an interface which writes log messages to somewhere.
+// It's implemented by *logrus.Logger, *logrus.Entry, and many other
+// logging packages.
 type Printer interface {
 	Printf(format string, args ...interface{})
 }
@@ -27,7 +42,9 @@ func logError(logger interface{}, format string, args ...interface{}) {
 		logger.Errorf(format, args...)
 	case Printer:
 		logger.Printf(format, args...)
-	case printfunc:
+	case PrintFunc:
+		logger(format, args...)
+	case func(string, ...interface{}):
 		logger(format, args...)
 	default:
 		log.Printf(format, args...)
@@ -52,6 +69,7 @@ func JSON(v interface{}) string {
 	return String_(b)
 }
 
+// Caller returns function name, filename, and the line number of the caller.
 func Caller(skip int) (name, file string, line int) {
 	pc, file, line, _ := runtime.Caller(skip)
 	name = runtime.FuncForPC(pc).Name()

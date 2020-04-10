@@ -3,6 +3,7 @@ module github.com/jxskiss/gopkg
 go 1.12
 
 require (
+	github.com/davecgh/go-spew v1.1.1
 	github.com/json-iterator/go v1.1.9
 	github.com/jxskiss/base62 v0.0.0-20191017122030-4f11678b909b
 	github.com/kr/pretty v0.1.0 // indirect
