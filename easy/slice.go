@@ -20,6 +20,10 @@ const (
 	errPredicateFuncSig       = "predicate func signature not match"
 )
 
+const (
+	maxInsertGrowth = 1024
+)
+
 func panicNilParams(where string, params ...interface{}) {
 	const (
 		isNilInterface = "%s: param %s is nil interface"
@@ -294,60 +298,82 @@ func InsertSlice(slice interface{}, index int, elem interface{}) (out interface{
 
 	sliceVal, intTypeNotMatch := assertSliceAndElemType("InsertSlice", reflect.ValueOf(slice), elemTyp)
 
-	outVal := reflect.MakeSlice(sliceVal.Type(), 0, sliceVal.Len()+1)
-	for i := 0; i < sliceVal.Len() && i < index; i++ {
-		outVal = reflect.Append(outVal, sliceVal.Index(i))
+	var outVal reflect.Value
+	oldLen := sliceVal.Len()
+	if index >= oldLen {
+		index = oldLen
+	}
+	if sliceVal.Cap() == oldLen {
+		// capacity not enough, grow the slice
+		newCap := oldLen + min(max(1, oldLen), maxInsertGrowth)
+		outVal = reflect.MakeSlice(sliceVal.Type(), oldLen+1, newCap)
+		reflect.Copy(outVal, sliceVal.Slice(0, index))
+	} else {
+		outVal = sliceVal.Slice(0, oldLen+1)
+	}
+	if index < oldLen {
+		reflect.Copy(outVal.Slice(index+1, oldLen+1), sliceVal.Slice(index, oldLen))
 	}
 	if intTypeNotMatch {
 		_elemInt := _int64(elem)
-		_sliceInt := reflect.New(sliceTyp.Elem())
-		_sliceInt.Elem().SetInt(_elemInt)
-		outVal = reflect.Append(outVal, reflect.Indirect(_sliceInt))
+		outVal.Index(index).SetInt(_elemInt)
 	} else {
-		outVal = reflect.Append(outVal, reflect.ValueOf(elem))
-	}
-	for i := index; i < sliceVal.Len(); i++ {
-		outVal = reflect.Append(outVal, sliceVal.Index(i))
+		outVal.Index(index).Set(reflect.ValueOf(elem))
 	}
 	return outVal.Interface()
 }
 
 func InsertInt32s(slice []int32, index int, elem int32) (out Int32s) {
-	out = make([]int32, 0, len(slice)+1)
-	if len(slice) < index {
-		out = append(out, slice...)
-		out = append(out, elem)
-		return
+	if index >= len(slice) {
+		return append(slice, elem)
 	}
-	out = append(out, slice[:index]...)
-	out = append(out, elem)
-	out = append(out, slice[index:]...)
+	oldLen := len(slice)
+	if len(slice) == cap(slice) {
+		// capacity not enough, grow the slice
+		newCap := oldLen + min(max(1, oldLen), maxInsertGrowth)
+		out = make([]int32, oldLen+1, newCap)
+		copy(out, slice[:index])
+	} else {
+		out = slice[:oldLen+1]
+	}
+	copy(out[index+1:], slice[index:])
+	out[index] = elem
 	return
 }
 
 func InsertInt64s(slice []int64, index int, elem int64) (out Int64s) {
-	out = make([]int64, 0, len(slice)+1)
-	if len(slice) < index {
-		out = append(out, slice...)
-		out = append(out, elem)
-		return
+	if index >= len(slice) {
+		return append(slice, elem)
 	}
-	out = append(out, slice[:index]...)
-	out = append(out, elem)
-	out = append(out, slice[index:]...)
+	oldLen := len(slice)
+	if len(slice) == cap(slice) {
+		// capacity not enough, grow the slice
+		newCap := oldLen + min(max(1, oldLen), maxInsertGrowth)
+		out = make([]int64, oldLen+1, newCap)
+		copy(out, slice[:index])
+	} else {
+		out = slice[:oldLen+1]
+	}
+	copy(out[index+1:], slice[index:])
+	out[index] = elem
 	return
 }
 
 func InsertStrings(slice []string, index int, elem string) (out Strings) {
-	out = make([]string, 0, len(slice)+1)
-	if len(slice) < index {
-		out = append(out, slice...)
-		out = append(out, elem)
-		return
+	if index >= len(slice) {
+		return append(slice, elem)
 	}
-	out = append(out, slice[:index]...)
-	out = append(out, elem)
-	out = append(out, slice[index:]...)
+	oldLen := len(slice)
+	if len(slice) == cap(slice) {
+		// capacity not enough, grow the slice
+		newCap := oldLen + min(max(1, oldLen), maxInsertGrowth)
+		out = make([]string, oldLen+1, newCap)
+		copy(out, slice[:index])
+	} else {
+		out = slice[:oldLen+1]
+	}
+	copy(out[index+1:], slice[index:])
+	out[index] = elem
 	return
 }
 
@@ -767,4 +793,18 @@ func indirect(value reflect.Value) reflect.Value {
 		value = reflect.Indirect(value)
 	}
 	return value
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }

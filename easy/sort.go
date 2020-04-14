@@ -4,19 +4,19 @@ import (
 	"sort"
 )
 
-func SearchInts(slice []int, elem int) int {
+func SearchSortedInts(slice []int, elem int) int {
 	return sort.Search(len(slice), func(i int) bool { return slice[i] >= elem })
 }
 
-func SearchInt32s(slice []int32, elem int32) int {
+func SearchSortedInt32s(slice []int32, elem int32) int {
 	return sort.Search(len(slice), func(i int) bool { return slice[i] >= elem })
 }
 
-func SearchInt64s(slice []int64, elem int64) int {
+func SearchSortedInt64s(slice []int64, elem int64) int {
 	return sort.Search(len(slice), func(i int) bool { return slice[i] >= elem })
 }
 
-func SearchStrings(slice []string, elem string) int {
+func SearchSortedStrings(slice []string, elem string) int {
 	return sort.Search(len(slice), func(i int) bool { return slice[i] >= elem })
 }
 
