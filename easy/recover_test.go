@@ -88,3 +88,19 @@ func TestGoroutineRecover(t *testing.T) {
 	assert.Contains(t, logText, "catch error:")
 	assert.Contains(t, logText, "dummy error")
 }
+
+func TestPanicOnError(t *testing.T) {
+	panicErr := errors.New("dummy panic error")
+	willPanic := func() (int, error) {
+		return 123, panicErr
+	}
+
+	x, gotErr := willPanic()
+	assert.PanicsWithValue(t, panicErr, func() {
+		PanicOnError(x, gotErr)
+	})
+
+	assert.PanicsWithValue(t, panicErr, func() {
+		Must(willPanic())
+	})
+}

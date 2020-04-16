@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"log"
+	"math/rand"
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -36,11 +38,41 @@ func TestJSON(t *testing.T) {
 	}
 }
 
+var prettyTestWant = strings.TrimSpace(`
+{
+    "1": 123,
+    "b": "<html>"
+}`)
+
+func TestPretty(t *testing.T) {
+	test := map[interface{}]interface{}{
+		1:   123,
+		"b": "<html>",
+	}
+	jsonString := JSON(test)
+	assert.Equal(t, `{"1":123,"b":"<html>"}`, jsonString)
+
+	got1 := Pretty(test)
+	assert.Equal(t, prettyTestWant, got1)
+
+	got2 := Pretty(jsonString)
+	assert.Equal(t, prettyTestWant, got2)
+
+	test3 := []byte("<fff> not a json object")
+	got3 := Pretty(test3)
+	assert.Equal(t, string(test3), got3)
+
+	test4 := make([]byte, 16)
+	rand.Read(test4)
+	got4 := Pretty(test4)
+	assert.Equal(t, "<pretty: non-printable bytes>", got4)
+}
+
 func TestCaller(t *testing.T) {
 	name, file, line := Caller(1)
 	assert.Equal(t, "easy.TestCaller", name)
 	assert.Equal(t, "easy/log_test.go", file)
-	assert.Equal(t, 40, line)
+	assert.Equal(t, 72, line)
 }
 
 func TestDEBUG_bare_func(t *testing.T) {

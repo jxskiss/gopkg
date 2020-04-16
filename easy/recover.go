@@ -106,3 +106,13 @@ func EnsureError(v interface{}) error {
 	}
 	return err
 }
+
+func PanicOnError(args ...interface{}) {
+	for _, arg := range args {
+		if err, ok := arg.(error); ok && err != nil {
+			panic(err)
+		}
+	}
+}
+
+var Must = PanicOnError

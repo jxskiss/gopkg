@@ -1,10 +1,13 @@
 package easy
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/json-iterator/go"
+	"github.com/jxskiss/gopkg/json"
 	"log"
 	"runtime"
+	"unicode/utf8"
 )
 
 // ErrLogger is an interface which log an message at ERROR level.
@@ -67,6 +70,31 @@ func JSON(v interface{}) string {
 		return fmt.Sprintf("<error: %v>", err)
 	}
 	return String_(b)
+}
+
+// Pretty converts given object to a pretty formatted json string.
+// If the input is an json string, it will be formatted using json.Indent
+// with four space characters as indent.
+func Pretty(v interface{}) string {
+	switch v.(type) {
+	case []byte, string:
+		src := ToBytes_(v)
+		if json.Valid(ToBytes_(src)) {
+			buf := bytes.NewBuffer(nil)
+			_ = json.Indent(buf, src, "", "    ")
+			return String_(buf.Bytes())
+		}
+		if utf8.Valid(src) {
+			return src.String_()
+		}
+		return "<pretty: non-printable bytes>"
+	default:
+		buf, err := logjson.MarshalIndent(v, "", "    ")
+		if err != nil {
+			return fmt.Sprintf("<error: %v>", err)
+		}
+		return String_(buf)
+	}
 }
 
 // Caller returns function name, filename, and the line number of the caller.
