@@ -13,7 +13,8 @@ import (
 
 var (
 	binEncoding = binary.LittleEndian
-	binMagic    = []byte("EZY0")
+	binMagic32  = []byte("EZY0")
+	binMagic64  = []byte("EZY1")
 )
 
 type Int32s []int32
@@ -107,7 +108,7 @@ func (p Int32s) Drop(x int32, inPlace bool) Int32s {
 func (p Int32s) Marshal() []byte {
 	bufLen := 4 + 4*len(p)
 	out := make([]byte, bufLen)
-	copy(out, binMagic)
+	copy(out, binMagic32)
 	buf := out[4:]
 	for i, x := range p {
 		binEncoding.PutUint32(buf[4*i:4*(i+1)], uint32(x))
@@ -119,7 +120,7 @@ func (p *Int32s) Unmarshal(buf []byte) error {
 	if len(buf) == 0 {
 		return nil
 	}
-	if len(buf) < 4 || !bytes.Equal(buf[:4], binMagic) {
+	if len(buf) < 4 || !bytes.Equal(buf[:4], binMagic32) {
 		return errors.New("invalid bytes format")
 	}
 	buf = buf[4:]
@@ -259,7 +260,7 @@ func (p Int64s) Drop(x int64, inPlace bool) Int64s {
 func (p Int64s) Marshal32() []byte {
 	bufLen := 4 + 4*len(p)
 	out := make([]byte, bufLen)
-	copy(out, binMagic)
+	copy(out, binMagic32)
 	buf := out[4:]
 	for i, x := range p {
 		binEncoding.PutUint32(buf[4*i:4*(i+1)], uint32(x))
@@ -267,14 +268,34 @@ func (p Int64s) Marshal32() []byte {
 	return out
 }
 
-func (p *Int64s) Unmarshal32(buf []byte) error {
+func (p Int64s) Marshal64() []byte {
+	bufLen := 4 + 8*len(p)
+	out := make([]byte, bufLen)
+	copy(out, binMagic64)
+	buf := out[4:]
+	for i, x := range p {
+		binEncoding.PutUint64(buf[8*i:8*(i+1)], uint64(x))
+	}
+	return out
+}
+
+func (p *Int64s) Unmarshal(buf []byte) error {
 	if len(buf) == 0 {
 		return nil
 	}
-	if len(buf) < 4 || !bytes.Equal(buf[:4], binMagic) {
+	if len(buf) < 4 {
 		return errors.New("invalid bytes format")
 	}
-	buf = buf[4:]
+	switch {
+	case bytes.Equal(buf[:4], binMagic32):
+		return p.unmarshal32(buf[4:])
+	case bytes.Equal(buf[:4], binMagic64):
+		return p.unmarshal64(buf[4:])
+	}
+	return errors.New("invalid bytes format")
+}
+
+func (p *Int64s) unmarshal32(buf []byte) error {
 	if len(buf)%4 != 0 {
 		return fmt.Errorf("invalid bytes with length=%d", len(buf))
 	}
@@ -290,25 +311,7 @@ func (p *Int64s) Unmarshal32(buf []byte) error {
 	return nil
 }
 
-func (p Int64s) Marshal64() []byte {
-	bufLen := 4 + 8*len(p)
-	out := make([]byte, bufLen)
-	copy(out, binMagic)
-	buf := out[4:]
-	for i, x := range p {
-		binEncoding.PutUint64(buf[8*i:8*(i+1)], uint64(x))
-	}
-	return out
-}
-
-func (p *Int64s) Unmarshal64(buf []byte) error {
-	if len(buf) == 0 {
-		return nil
-	}
-	if len(buf) < 4 || !bytes.Equal(buf[:4], binMagic) {
-		return errors.New("invalid bytes format")
-	}
-	buf = buf[4:]
+func (p *Int64s) unmarshal64(buf []byte) error {
 	if len(buf)%8 != 0 {
 		return fmt.Errorf("invalid bytes with length=%d", len(buf))
 	}
