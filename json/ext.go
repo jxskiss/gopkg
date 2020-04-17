@@ -8,30 +8,22 @@ import (
 	"github.com/jxskiss/gopkg/json/extparser"
 )
 
-type Decoder interface {
-	Decode(v interface{}) error
-}
-
-type Encoder interface {
-	Encode(v interface{}) error
-}
-
-type extDecoder struct {
+type ExtDecoder struct {
 	reader io.Reader
 
 	importRoot string
 }
 
-func NewExtDecoder(r io.Reader) *extDecoder {
-	return &extDecoder{reader: r}
+func NewExtDecoder(r io.Reader) *ExtDecoder {
+	return &ExtDecoder{reader: r}
 }
 
-func (r *extDecoder) SetImportRoot(path string) *extDecoder {
+func (r *ExtDecoder) SetImportRoot(path string) *ExtDecoder {
 	r.importRoot = path
 	return r
 }
 
-func (r *extDecoder) Decode(v interface{}) error {
+func (r *ExtDecoder) Decode(v interface{}) error {
 	content, err := ioutil.ReadAll(r.reader)
 	if err != nil {
 		return err
