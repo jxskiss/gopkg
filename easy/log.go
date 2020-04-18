@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"github.com/json-iterator/go"
 	"github.com/jxskiss/gopkg/json"
+	"io"
 	"log"
+	"os"
 	"runtime"
+	"sync"
 	"unicode/utf8"
 )
 
@@ -118,4 +121,66 @@ func Caller(skip int) (name, file string, line int) {
 		}
 	}
 	return
+}
+
+var (
+	stdoutMu sync.Mutex
+	stderrMu sync.Mutex
+)
+
+// CopyStdout replaces os.Stdout with a file created by `os.Pipe()`, and
+// copies the content written to os.Stdout.
+// This is not safe and most likely problematic, it's mainly to help intercepting
+// output in testing.
+func CopyStdout(f func()) (Bytes, error) {
+	stdoutMu.Lock()
+	defer stdoutMu.Unlock()
+	old := os.Stdout
+	defer func() { os.Stdout = old }()
+
+	r, w, err := os.Pipe()
+	// just to make sure the error didn't happen
+	// in case of unfortunate, we should still do the specified work
+	if err != nil {
+		f()
+		return nil, err
+	}
+
+	// copy the output in a separate goroutine, so printing can't block indefinitely
+	outCh := make(chan []byte)
+	go func() {
+		var buf bytes.Buffer
+		multi := io.MultiWriter(&buf, old)
+		io.Copy(multi, r)
+		outCh <- buf.Bytes()
+	}()
+
+	// do the work, write the stdout to pipe
+	os.Stdout = w
+	f()
+	w.Close()
+
+	out := <-outCh
+	return out, nil
+}
+
+// CopyStdLog replaces the out Writer of the default logger of `log` package,
+// and copies the content written to it.
+// This is unsafe and most likely problematic, it's mainly to help intercepting
+// log output in testing.
+//
+// Also NOTE if the out Writer of the default logger has already been replaced
+// with another writer, we won't know anything about that writer and will
+// restore the out Writer to os.Stderr before it returns.
+// It will be a real mess.
+func CopyStdLog(f func()) Bytes {
+	stderrMu.Lock()
+	defer stderrMu.Unlock()
+	defer func() { log.SetOutput(os.Stderr) }()
+
+	var buf bytes.Buffer
+	multi := io.MultiWriter(&buf, os.Stderr)
+	log.SetOutput(multi)
+	f()
+	return buf.Bytes()
 }

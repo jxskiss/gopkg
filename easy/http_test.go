@@ -5,18 +5,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
-	"os"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 )
-
-var testMu sync.Mutex
 
 func TestSlashJoin(t *testing.T) {
 	got0 := SlashJoin()
@@ -101,7 +96,7 @@ func TestDoRequest(t *testing.T) {
 	var status int
 	var err error
 
-	logbuf := interceptLog(func() {
+	logbuf := CopyStdLog(func() {
 		respText, status, err = DoRequest(&Request{
 			Req:          req,
 			Timeout:      time.Second,
@@ -122,16 +117,4 @@ func testHttpHandler(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 	w.Write(dump)
-}
-
-func interceptLog(f func()) []byte {
-	testMu.Lock()
-	defer testMu.Unlock()
-
-	logbuf := bytes.NewBuffer(nil)
-	log.SetOutput(logbuf)
-	defer log.SetOutput(os.Stderr)
-
-	f()
-	return logbuf.Bytes()
 }

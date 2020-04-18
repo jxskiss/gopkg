@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"log"
 	"math/rand"
-	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -72,21 +71,34 @@ func TestCaller(t *testing.T) {
 	name, file, line := Caller(1)
 	assert.Equal(t, "easy.TestCaller", name)
 	assert.Equal(t, "easy/log_test.go", file)
-	assert.Equal(t, 72, line)
+	assert.Equal(t, 71, line)
+}
+
+func TestCopyStdout(t *testing.T) {
+	msg := "test CopyStdout"
+	got, _ := CopyStdout(func() {
+		fmt.Println(msg)
+	})
+	assert.Contains(t, got.String_(), msg)
+}
+
+func TestCopyStdLog(t *testing.T) {
+	msg := "test CopyStdLog"
+	got := CopyStdLog(func() {
+		log.Println(msg)
+	})
+	assert.Contains(t, got.String_(), msg)
 }
 
 func TestDEBUG_bare_func(t *testing.T) {
-	logbuf := bytes.NewBuffer(nil)
-	log.SetOutput(logbuf)
-	defer log.SetOutput(os.Stderr)
-
 	// test func()
 	ConfigDebugLog(true, nil, nil)
 	msg := "test DEBUG_bare_func"
-	DEBUG(func() {
-		log.Println(msg, 1, 2, 3)
-	})
-	got := logbuf.String()
+	got := CopyStdLog(func() {
+		DEBUG(func() {
+			log.Println(msg, 1, 2, 3)
+		})
+	}).String_()
 	assert.Contains(t, got, msg)
 	assert.Contains(t, got, "1 2 3")
 }
@@ -105,27 +117,20 @@ func TestDEBUG_logger_interface(t *testing.T) {
 }
 
 func TestDEBUG_logger_func(t *testing.T) {
-	logbuf := bytes.NewBuffer(nil)
-	log.SetOutput(logbuf)
-	defer log.SetOutput(os.Stderr)
-
 	// test logger function
 	ConfigDebugLog(true, nil, nil)
-	msg := "test DEBUG_logger_func"
 	logger := func() *stdLogger {
 		return &stdLogger{}
 	}
-	DEBUG(logger, msg, 1, 2, 3)
-	got := logbuf.String()
+	msg := "test DEBUG_logger_func"
+	got := CopyStdLog(func() {
+		DEBUG(logger, msg, 1, 2, 3)
+	}).String_()
 	assert.Contains(t, got, msg)
 	assert.Contains(t, got, "1 2 3")
 }
 
 func TestDEBUG_print_func(t *testing.T) {
-	logbuf := bytes.NewBuffer(nil)
-	log.SetOutput(logbuf)
-	defer log.SetOutput(os.Stderr)
-
 	// test print function
 	ConfigDebugLog(true, nil, nil)
 	msg := "test DEBUG_print_func"
@@ -134,8 +139,9 @@ func TestDEBUG_print_func(t *testing.T) {
 		format = prefix + format
 		log.Printf(format, args...)
 	}
-	DEBUG(logger, msg, 1, 2, 3)
-	got := logbuf.String()
+	got := CopyStdLog(func() {
+		DEBUG(logger, msg, 1, 2, 3)
+	}).String_()
 	assert.Contains(t, got, prefix)
 	assert.Contains(t, got, msg)
 	assert.Contains(t, got, "1 2 3")
@@ -158,51 +164,38 @@ func TestDEBUG_ctx_logger(t *testing.T) {
 }
 
 func TestDEBUG_simple(t *testing.T) {
-	logbuf := bytes.NewBuffer(nil)
-	log.SetOutput(logbuf)
-	defer log.SetOutput(os.Stderr)
 	ConfigDebugLog(true, nil, nil)
 
-	// format
-	DEBUG("test DEBUG_simple a=%v b=%v c=%v", 1, 2, 3)
+	// test format
+	got1 := CopyStdLog(func() {
+		DEBUG("test DEBUG_simple a=%v b=%v c=%v", 1, 2, 3)
+	}).String_()
 	want1 := "test DEBUG_simple a=1 b=2 c=3"
-	got1 := logbuf.String()
 	assert.Contains(t, got1, want1)
 
 	// raw params
-	logbuf.Reset()
-	DEBUG("test DEBUG_simple a=", 1, "b=", 2, "c=", 3)
+	got2 := CopyStdLog(func() {
+		DEBUG("test DEBUG_simple a=", 1, "b=", 2, "c=", 3)
+	}).String_()
 	want2 := "test DEBUG_simple a= 1 b= 2 c= 3"
-	got2 := logbuf.String()
 	assert.Contains(t, got2, want2)
 }
 
 func TestDEBUG_empty(t *testing.T) {
-	logbuf := bytes.NewBuffer(nil)
-	log.SetOutput(logbuf)
-	defer log.SetOutput(os.Stderr)
 	ConfigDebugLog(true, nil, nil)
-
-	DEBUG()
-	got := logbuf.String()
+	got := CopyStdLog(func() { DEBUG() }).String_()
 	want := regexp.MustCompile(`DEBUG: easy/log_test.go#L\d+ - easy.TestDEBUG_empty`)
 	assert.Regexp(t, want, got)
 }
 
 func TestDEBUGSkip(t *testing.T) {
-	logbuf := bytes.NewBuffer(nil)
-	log.SetOutput(logbuf)
-	defer log.SetOutput(os.Stderr)
 	ConfigDebugLog(true, nil, nil)
 
-	DEBUGWrap()
-	got := logbuf.String()
+	got := CopyStdLog(func() { DEBUGWrap() }).String_()
 	want := regexp.MustCompile(`DEBUG: easy/log_test.go#L\d+ - easy.TestDEBUGSkip`)
 	assert.Regexp(t, want, got)
 
-	logbuf.Reset()
-	DEBUGWrapSkip2()
-	got = logbuf.String()
+	got = CopyStdLog(func() { DEBUGWrapSkip2() }).String_()
 	want = regexp.MustCompile(`DEBUG: easy/log_test.go#L\d+ - easy.TestDEBUGSkip`)
 	assert.Regexp(t, want, got)
 }
