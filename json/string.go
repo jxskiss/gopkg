@@ -62,7 +62,7 @@ func AppendString(buf []byte, s string) []byte {
 	i := 0
 	for ; i < valLen; i++ {
 		c := s[i]
-		if c > 31 && c != '"' && c != '\\' {
+		if c < utf8.RuneSelf && htmlSafeSet[c] {
 			buf = append(buf, c)
 		} else {
 			break

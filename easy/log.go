@@ -125,7 +125,7 @@ func Caller(skip int) (name, file string, line int) {
 
 var (
 	stdoutMu sync.Mutex
-	stderrMu sync.Mutex
+	stdlogMu sync.Mutex
 )
 
 // CopyStdout replaces os.Stdout with a file created by `os.Pipe()`, and
@@ -174,9 +174,9 @@ func CopyStdout(f func()) (Bytes, error) {
 // restore the out Writer to os.Stderr before it returns.
 // It will be a real mess.
 func CopyStdLog(f func()) Bytes {
-	stderrMu.Lock()
-	defer stderrMu.Unlock()
-	defer func() { log.SetOutput(os.Stderr) }()
+	stdlogMu.Lock()
+	defer stdlogMu.Unlock()
+	defer log.SetOutput(os.Stderr)
 
 	var buf bytes.Buffer
 	multi := io.MultiWriter(&buf, os.Stderr)
