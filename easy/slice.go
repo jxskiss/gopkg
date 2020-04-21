@@ -425,6 +425,83 @@ func ReverseStrings(slice []string) Strings {
 	return out
 }
 
+var (
+	emptyStructVal = reflect.ValueOf(struct{}{})
+	emptyStructTyp = reflect.TypeOf(struct{}{})
+)
+
+func UniqueSlice(slice interface{}) interface{} {
+	if slice == nil {
+		panicNilParams("UniqueSlice", "slice", slice)
+	}
+	switch slice := slice.(type) {
+	case Int64s, []int64, []uint64:
+		return UniqueInt64s(ToInt64s_(slice))
+	case Int32s, []int32, []uint32:
+		return UniqueInt32s(ToInt32s_(slice))
+	case Strings, []string:
+		return UniqueStrings(ToStrings_(slice))
+	}
+
+	sliceVal := reflect.ValueOf(slice)
+	if sliceVal.Kind() != reflect.Slice {
+		panicNilParams("UniqueSlice: " + errNotSliceType)
+	}
+	sliceTyp := sliceVal.Type()
+	setTyp := reflect.MapOf(sliceTyp.Elem(), emptyStructTyp)
+	seen := reflect.MakeMap(setTyp)
+	outVal := reflect.MakeSlice(sliceVal.Type(), 0, 8)
+	sliceLen := sliceVal.Len()
+	for i := 0; i < sliceLen; i++ {
+		elem := sliceVal.Index(i)
+		if seen.MapIndex(elem).IsValid() {
+			continue
+		}
+		seen.SetMapIndex(elem, emptyStructVal)
+		outVal = reflect.Append(outVal, elem)
+	}
+	return outVal.Interface()
+}
+
+func UniqueInt32s(slice []int32) Int32s {
+	seen := make(map[int32]struct{})
+	out := make([]int32, 0)
+	for _, x := range slice {
+		if _, ok := seen[x]; ok {
+			continue
+		}
+		seen[x] = struct{}{}
+		out = append(out, x)
+	}
+	return out
+}
+
+func UniqueInt64s(slice []int64) Int64s {
+	seen := make(map[int64]struct{})
+	out := make([]int64, 0)
+	for _, x := range slice {
+		if _, ok := seen[x]; ok {
+			continue
+		}
+		seen[x] = struct{}{}
+		out = append(out, x)
+	}
+	return out
+}
+
+func UniqueStrings(slice []string) Strings {
+	seen := make(map[string]struct{})
+	out := make([]string, 0)
+	for _, x := range slice {
+		if _, ok := seen[x]; ok {
+			continue
+		}
+		seen[x] = struct{}{}
+		out = append(out, x)
+	}
+	return out
+}
+
 func DiffInt32s(a []int32, b []int32) Int32s {
 	bset := make(map[int32]struct{}, len(b))
 	for _, x := range b {

@@ -481,6 +481,36 @@ func TestReverseSlice(t *testing.T) {
 	assert.Panics(t, func() { ReverseSlice(nil) })
 }
 
+var uniqueSliceTests = []map[string]interface{}{
+	{
+		"slice": []uint64{2, 2, 1, 3, 2, 3, 1, 3},
+		"want":  Int64s{2, 1, 3},
+	},
+	{
+		"slice": []int8{2, 2, 1, 3, 2, 3, 1, 3},
+		"want":  []int8{2, 1, 3},
+	},
+	{
+		"slice": []string{"2", "2", "1", "3", "2", "3", "1", "3"},
+		"want":  Strings{"2", "1", "3"},
+	},
+	{
+		"slice": []simple{{"2"}, {"2"}, {"1"}, {"3"}, {"2"}, {"3"}, {"1"}, {"3"}},
+		"want":  []simple{{"2"}, {"1"}, {"3"}},
+	},
+	{
+		"slice": []int(nil),
+		"want":  []int{},
+	},
+}
+
+func TestUniqueSlice(t *testing.T) {
+	for _, test := range uniqueSliceTests {
+		got := UniqueSlice(test["slice"])
+		assert.Equal(t, test["want"], got)
+	}
+}
+
 func TestDiffInt64s(t *testing.T) {
 	a := []int64{1, 2, 3, 4, 5}
 	b := []int64{4, 5, 6, 7, 8}

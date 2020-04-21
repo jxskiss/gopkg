@@ -82,7 +82,7 @@ func Pretty(v interface{}) string {
 	switch v.(type) {
 	case []byte, string:
 		src := ToBytes_(v)
-		if json.Valid(ToBytes_(src)) {
+		if json.Valid(src) {
 			buf := bytes.NewBuffer(nil)
 			_ = json.Indent(buf, src, "", "    ")
 			return String_(buf.Bytes())
