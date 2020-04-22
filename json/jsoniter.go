@@ -10,7 +10,7 @@ type (
 )
 
 var (
-	Marshal       = cfg.Marshal
+	_Marshal      = cfg.Marshal
 	MarshalIndent = cfg.MarshalIndent
 	Unmarshal     = cfg.Unmarshal
 	Valid         = cfg.Valid

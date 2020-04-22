@@ -10,7 +10,7 @@ type (
 )
 
 var (
-	Marshal       = json.Marshal
+	_Marshal      = json.Marshal
 	MarshalIndent = json.MarshalIndent
 	Unmarshal     = json.Unmarshal
 	Valid         = json.Valid

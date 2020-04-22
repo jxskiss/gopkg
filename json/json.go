@@ -37,6 +37,19 @@ var (
 	Indent     = json.Indent
 )
 
+func Marshal(v interface{}) ([]byte, error) {
+	switch v := v.(type) {
+	case string:
+		buf := make([]byte, 0, 4+len(v))
+		buf = AppendString(buf, v)
+		return buf, nil
+	case map[string]string:
+		return MarshalStringMap(v)
+	default:
+		return _Marshal(v)
+	}
+}
+
 func MarshalToString(v interface{}) (string, error) {
 	buf, err := Marshal(v)
 	if err != nil {
