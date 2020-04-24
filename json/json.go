@@ -3,6 +3,7 @@ package json
 import (
 	"encoding/json"
 	"github.com/json-iterator/go"
+	"reflect"
 )
 
 // ConfigCompatibleWithStandardLibrary tries to be 100% compatible with standard library behavior.
@@ -38,16 +39,38 @@ var (
 )
 
 func Marshal(v interface{}) ([]byte, error) {
-	switch v := v.(type) {
-	case string:
-		buf := make([]byte, 0, 4+len(v))
-		buf = AppendString(buf, v)
-		return buf, nil
-	case map[string]string:
-		return MarshalStringMap(v)
+	ok, buf, err := marshalNilOrMarshaler(v)
+	if ok {
+		return buf, err
+	}
+	typ := reflect.TypeOf(v)
+	switch {
+	case isIntSlice(typ):
+		return marshalIntSlice(v)
+	case isStringSlice(typ):
+		slice := castStringSlice(v)
+		return marshalStringSlice(slice)
+	case isStringMap(typ):
+		strMap := castStringMap(v)
+		return marshalStringMap(strMap)
+	case isStringInterfaceMap(typ):
+		strMap := castStringInterfaceMap(v)
+		return marshalStringInterfaceMap(strMap)
 	default:
 		return _Marshal(v)
 	}
+}
+
+func Unmarshal(data []byte, v interface{}) error {
+	if isUnmarshaler(v) {
+		return _Unmarshal(data, v)
+	}
+	typ := reflect.TypeOf(v)
+	if isStringMapPtr(typ) {
+		ptr := castStringMapPtr(v)
+		return unmarshalStringMap(data, ptr)
+	}
+	return _Unmarshal(data, v)
 }
 
 func MarshalToString(v interface{}) (string, error) {

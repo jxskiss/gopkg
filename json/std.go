@@ -12,7 +12,7 @@ type (
 var (
 	_Marshal      = json.Marshal
 	MarshalIndent = json.MarshalIndent
-	Unmarshal     = json.Unmarshal
+	_Unmarshal    = json.Unmarshal
 	Valid         = json.Valid
 
 	NewEncoder = json.NewEncoder

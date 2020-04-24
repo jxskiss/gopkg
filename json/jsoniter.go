@@ -12,7 +12,7 @@ type (
 var (
 	_Marshal      = cfg.Marshal
 	MarshalIndent = cfg.MarshalIndent
-	Unmarshal     = cfg.Unmarshal
+	_Unmarshal    = cfg.Unmarshal
 	Valid         = cfg.Valid
 
 	NewEncoder = cfg.NewEncoder
