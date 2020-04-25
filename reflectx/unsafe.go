@@ -74,6 +74,13 @@ func UnpackSlice(slice interface{}) SliceHeader {
 	return *(*SliceHeader)(EFaceOf(&slice).Word)
 }
 
+func CastSlice(slice interface{}, typ reflect.Type) interface{} {
+	rtyp := RTypeOf(typ)
+	eface := *EFaceOf(&slice)
+	eface.RType = rtyp
+	return *(*interface{})(unsafe.Pointer(&eface))
+}
+
 func MakeSlice(elemTyp reflect.Type, length, capacity int) (
 	iface interface{}, slice SliceHeader, elemRType unsafe.Pointer,
 ) {

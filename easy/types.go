@@ -61,6 +61,10 @@ func (p Int32s) Uints_() []uint {
 	return out
 }
 
+func (p Int32s) castType(typ reflect.Type) interface{} {
+	return reflectx.CastSlice(p, typ)
+}
+
 func (p Int32s) Copy() Int32s {
 	out := make([]int32, len(p))
 	copy(out, p)
@@ -211,6 +215,10 @@ func (p Int64s) Uints_() []uint {
 		out[i] = uint(p[i])
 	}
 	return out
+}
+
+func (p Int64s) castType(typ reflect.Type) interface{} {
+	return reflectx.CastSlice(p, typ)
 }
 
 func (p Int64s) Copy() Int64s {
@@ -383,6 +391,10 @@ func ToStrings_(slice interface{}) Strings {
 		out[i] = str
 	}
 	return out
+}
+
+func (p Strings) castType(typ reflect.Type) interface{} {
+	return reflectx.CastSlice(p, typ)
 }
 
 func (p Strings) Copy() Strings {

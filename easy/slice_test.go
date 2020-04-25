@@ -123,7 +123,7 @@ var insertSliceTests = []map[string]interface{}{
 		"slice": []int64{1, 2, 3, 4},
 		"elem":  int64(9),
 		"index": 3,
-		"want":  Int64s{1, 2, 3, 9, 4},
+		"want":  []int64{1, 2, 3, 9, 4},
 	},
 	{
 		"func":  InsertSlice,
@@ -137,14 +137,14 @@ var insertSliceTests = []map[string]interface{}{
 		"slice": []int{1, 2, 3, 4},
 		"elem":  9,
 		"index": 10,
-		"want":  Int64s{1, 2, 3, 4, 9},
+		"want":  []int{1, 2, 3, 4, 9},
 	},
 	{
 		"func":  InsertSlice,
 		"slice": []string{"1", "2", "3", "4"},
 		"elem":  "9",
 		"index": 3,
-		"want":  Strings{"1", "2", "3", "9", "4"},
+		"want":  []string{"1", "2", "3", "9", "4"},
 	},
 	{
 		"func":  InsertSlice,
@@ -452,7 +452,7 @@ func TestLastIndex(t *testing.T) {
 var reverseSliceTests = []map[string]interface{}{
 	{
 		"slice": []uint64{1, 2, 3},
-		"want":  Int64s{3, 2, 1},
+		"want":  []uint64{3, 2, 1},
 	},
 	{
 		"slice": []int8{1, 2, 3},
@@ -460,7 +460,7 @@ var reverseSliceTests = []map[string]interface{}{
 	},
 	{
 		"slice": []string{"1", "2", "3"},
-		"want":  Strings{"3", "2", "1"},
+		"want":  []string{"3", "2", "1"},
 	},
 	{
 		"slice": []simple{{"a"}, {"b"}, {"c"}},
@@ -484,7 +484,7 @@ func TestReverseSlice(t *testing.T) {
 var uniqueSliceTests = []map[string]interface{}{
 	{
 		"slice": []uint64{2, 2, 1, 3, 2, 3, 1, 3},
-		"want":  Int64s{2, 1, 3},
+		"want":  []uint64{2, 1, 3},
 	},
 	{
 		"slice": []int8{2, 2, 1, 3, 2, 3, 1, 3},
@@ -492,7 +492,7 @@ var uniqueSliceTests = []map[string]interface{}{
 	},
 	{
 		"slice": []string{"2", "2", "1", "3", "2", "3", "1", "3"},
-		"want":  Strings{"2", "1", "3"},
+		"want":  []string{"2", "1", "3"},
 	},
 	{
 		"slice": []simple{{"2"}, {"2"}, {"1"}, {"3"}, {"2"}, {"3"}, {"1"}, {"3"}},

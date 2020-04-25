@@ -286,13 +286,13 @@ func InsertSlice(slice interface{}, index int, elem interface{}) (out interface{
 	elemKind := elemTyp.Kind()
 	if sliceTyp.Kind() == reflect.Slice && sliceTyp.Elem().Kind() == elemKind {
 		if reflectx.Is64bitInt(elemKind) {
-			return InsertInt64s(ToInt64s_(slice), index, _int64(elem))
+			return InsertInt64s(ToInt64s_(slice), index, _int64(elem)).castType(sliceTyp)
 		}
 		if reflectx.Is32bitInt(elemKind) {
-			return InsertInt32s(ToInt32s_(slice), index, _int32(elem))
+			return InsertInt32s(ToInt32s_(slice), index, _int32(elem)).castType(sliceTyp)
 		}
 		if elemKind == reflect.String {
-			return InsertStrings(ToStrings_(slice), index, _string(elem))
+			return InsertStrings(ToStrings_(slice), index, _string(elem)).castType(sliceTyp)
 		}
 	}
 
@@ -381,20 +381,21 @@ func ReverseSlice(slice interface{}) interface{} {
 	if slice == nil {
 		panicNilParams("ReverseSlice", "slice", slice)
 	}
+	sliceTyp := reflect.TypeOf(slice)
 	switch slice := slice.(type) {
 	case Int64s, []int64, []uint64:
-		return ReverseInt64s(ToInt64s_(slice))
+		return ReverseInt64s(ToInt64s_(slice)).castType(sliceTyp)
 	case Int32s, []int32, []uint32:
-		return ReverseInt32s(ToInt32s_(slice))
+		return ReverseInt32s(ToInt32s_(slice)).castType(sliceTyp)
 	case Strings, []string:
-		return ReverseStrings(ToStrings_(slice))
+		return ReverseStrings(ToStrings_(slice)).castType(sliceTyp)
 	}
 
-	sliceVal := reflect.ValueOf(slice)
-	if sliceVal.Kind() != reflect.Slice {
+	if sliceTyp.Kind() != reflect.Slice {
 		panic("ReverseSlice: " + errNotSliceType)
 	}
-	outVal := reflect.MakeSlice(sliceVal.Type(), 0, sliceVal.Len())
+	sliceVal := reflect.ValueOf(slice)
+	outVal := reflect.MakeSlice(sliceTyp, 0, sliceVal.Len())
 	for i := sliceVal.Len() - 1; i >= 0; i-- {
 		outVal = reflect.Append(outVal, sliceVal.Index(i))
 	}
@@ -434,23 +435,23 @@ func UniqueSlice(slice interface{}) interface{} {
 	if slice == nil {
 		panicNilParams("UniqueSlice", "slice", slice)
 	}
+	sliceTyp := reflect.TypeOf(slice)
 	switch slice := slice.(type) {
 	case Int64s, []int64, []uint64:
-		return UniqueInt64s(ToInt64s_(slice))
+		return UniqueInt64s(ToInt64s_(slice)).castType(sliceTyp)
 	case Int32s, []int32, []uint32:
-		return UniqueInt32s(ToInt32s_(slice))
+		return UniqueInt32s(ToInt32s_(slice)).castType(sliceTyp)
 	case Strings, []string:
-		return UniqueStrings(ToStrings_(slice))
+		return UniqueStrings(ToStrings_(slice)).castType(sliceTyp)
 	}
 
-	sliceVal := reflect.ValueOf(slice)
-	if sliceVal.Kind() != reflect.Slice {
+	if sliceTyp.Kind() != reflect.Slice {
 		panicNilParams("UniqueSlice: " + errNotSliceType)
 	}
-	sliceTyp := sliceVal.Type()
 	setTyp := reflect.MapOf(sliceTyp.Elem(), emptyStructTyp)
 	seen := reflect.MakeMap(setTyp)
-	outVal := reflect.MakeSlice(sliceVal.Type(), 0, 8)
+	sliceVal := reflect.ValueOf(slice)
+	outVal := reflect.MakeSlice(sliceTyp, 0, 8)
 	sliceLen := sliceVal.Len()
 	for i := 0; i < sliceLen; i++ {
 		elem := sliceVal.Index(i)
