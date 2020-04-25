@@ -14,7 +14,7 @@ func BenchmarkMarshalStringMap(b *testing.B) {
 	}
 }
 
-func BenchmarkJSONIterMarshal(b *testing.B) {
+func BenchmarkMarshalStringMap_JSONIter(b *testing.B) {
 	strMap := testStringMap
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -23,7 +23,7 @@ func BenchmarkJSONIterMarshal(b *testing.B) {
 	}
 }
 
-func BenchmarkStdJSONMarshal(b *testing.B) {
+func BenchmarkMarshalStringMap_Standard(b *testing.B) {
 	strMap := testStringMap
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -41,7 +41,7 @@ func BenchmarkMarshalStringInterfaceMap(b *testing.B) {
 	}
 }
 
-func BenchmarkJSONIterStringInterfaceMap(b *testing.B) {
+func BenchmarkMarshalStringInterfaceMap_JSONIter(b *testing.B) {
 	strMap := testStringInterfaceMap
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -50,7 +50,7 @@ func BenchmarkJSONIterStringInterfaceMap(b *testing.B) {
 	}
 }
 
-func BenchmarkStdJSONStringInterfaceMap(b *testing.B) {
+func BenchmarkMarshalStringInterfaceMap_Standard(b *testing.B) {
 	strMap := testStringInterfaceMap
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -70,7 +70,7 @@ func BenchmarkUnmarshalStringMap(b *testing.B) {
 	}
 }
 
-func BenchmarkJSONIterUnmarshal(b *testing.B) {
+func BenchmarkUnmarshalStringMap_JSONIter(b *testing.B) {
 	strMap := testStringMap
 	data, _ := json.Marshal(strMap)
 	b.ReportAllocs()
@@ -81,7 +81,7 @@ func BenchmarkJSONIterUnmarshal(b *testing.B) {
 	}
 }
 
-func BenchmarkStdJSONUnmarshal(b *testing.B) {
+func BenchmarkUnmarshalStringMap_Standard(b *testing.B) {
 	strMap := testStringMap
 	data, _ := json.Marshal(strMap)
 	b.ReportAllocs()
