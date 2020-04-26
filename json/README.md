@@ -28,7 +28,35 @@ And choose `jsoniter` will always give you better performance than the standard 
 
 ## Extension
 
-`UnmarshalExt` and `ExtDecoder` extends the json syntax with following features:
+### Utilities
+
+String operation avoiding unnecessary memory allocation:
+
+1. `MarshalToString(v interface{}) (string, error)`
+1. `UnmarshalFromString(str string, v interface{}) error`
+
+Get data of specific path without defining the struct:
+
+1. `Get(data []byte, path ...interface{}) Any`
+1. `GetByDot(data []byte, path string) Any`
+
+Handy shortcuts to load and dump JSON data from/to file:
+
+1. `Load(path string, v interface{}) error`
+1. `Dump(path string, v interface{}) error`
+
+High performance functions to append json data to existing byte slice buffer
+in case you are doing some custom marshaling work:
+
+1. `AppendIntSlice(buf []byte, slice interface{}) ([]byte, error)`
+1. `AppendString(buf []byte, s string) ([]byte, error)`
+1. `AppendStringSlice(buf []byte, slice []string) ([]byte, error)`
+1. `AppendStringMap(buf []byte, strMap map[string]string) ([]byte, error)`
+1. `AppendStringInterfaceMap(buf []byte, strMap map[string]interface{}) ([]byte, error)`
+
+### Extended syntax
+
+`UnmarshalExt`, `ExtDecoder` and `LoadExt` extends the json syntax with following features:
 
 1. trailing comma of Object and Array
 1. traditional, end of line, or pragma comments
@@ -47,15 +75,15 @@ goos: darwin
 goarch: amd64
 pkg: github.com/jxskiss/gopkg/json
 
-BenchmarkMarshalStringMap-12                             2070658               548 ns/op             256 B/op          1 allocs/op
-BenchmarkMarshalStringMap_JSONIter-12                     464418              2617 ns/op            1791 B/op         21 allocs/op
-BenchmarkMarshalStringMap_Standard-12                     384398              3218 ns/op            1376 B/op         25 allocs/op
+BenchmarkMarshalStringMap-12                             2076801               550 ns/op             256 B/op          1 allocs/op
+BenchmarkMarshalStringMap_JSONIter-12                     469203              2574 ns/op            1785 B/op         21 allocs/op
+BenchmarkMarshalStringMap_Standard-12                     387316              3123 ns/op            1376 B/op         25 allocs/op
 
-BenchmarkMarshalStringInterfaceMap-12                     249194              4241 ns/op            1223 B/op          6 allocs/op
-BenchmarkMarshalStringInterfaceMap_JSONIter-12             87182             13939 ns/op            5427 B/op         73 allocs/op
-BenchmarkMarshalStringInterfaceMap_Standard-12             73864             16422 ns/op            5474 B/op         97 allocs/op
+BenchmarkMarshalStringInterfaceMap-12                     260229              4194 ns/op             984 B/op          6 allocs/op
+BenchmarkMarshalStringInterfaceMap_JSONIter-12             87493             13790 ns/op            5428 B/op         73 allocs/op
+BenchmarkMarshalStringInterfaceMap_Standard-12             74056             16359 ns/op            5474 B/op         97 allocs/op
 
-BenchmarkUnmarshalStringMap-12                            581343              2108 ns/op            1201 B/op          7 allocs/op
-BenchmarkUnmarshalStringMap_JSONIter-12                   460382              2644 ns/op            1505 B/op         46 allocs/op
-BenchmarkUnmarshalStringMap_Standard-12                   191655              6259 ns/op            2057 B/op         55 allocs/op
+BenchmarkUnmarshalStringMap-12                            580996              2044 ns/op            1201 B/op          7 allocs/op
+BenchmarkUnmarshalStringMap_JSONIter-12                   445468              2971 ns/op            1505 B/op         46 allocs/op
+BenchmarkUnmarshalStringMap_Standard-12                   186709              6660 ns/op            2057 B/op         55 allocs/op
 ```

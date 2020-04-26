@@ -90,7 +90,7 @@ func appendByType(buf []byte, v interface{}) ([]byte, error) {
 	switch {
 	case kind == reflect.String:
 		str := reflectx.CastString(v)
-		buf = AppendString(buf, str)
+		buf, _ = AppendString(buf, str)
 	case reflectx.IsIntType(kind):
 		vi := reflectx.CastInt(v)
 		if isUnsignedInt(kind) {
@@ -100,21 +100,15 @@ func appendByType(buf []byte, v interface{}) ([]byte, error) {
 		}
 	case isIntSlice(typ):
 		buf, err = AppendIntSlice(buf, v)
-		if err != nil {
-			return nil, err
-		}
 	case isStringSlice(typ):
 		slice := castStringSlice(v)
-		buf = AppendStringSlice(buf, slice)
+		buf, err = AppendStringSlice(buf, slice)
 	case isStringMap(typ):
 		strMap := castStringMap(v)
-		buf = AppendStringMap(buf, strMap)
+		buf, err = AppendStringMap(buf, strMap)
 	case isStringInterfaceMap(typ):
 		strMap := castStringInterfaceMap(v)
-		buf, err = appendStringInterfaceMap(buf, strMap)
-		if err != nil {
-			return nil, err
-		}
+		buf, err = AppendStringInterfaceMap(buf, strMap)
 	default:
 		vbuf, err := _Marshal(v)
 		if err != nil {
@@ -122,7 +116,7 @@ func appendByType(buf []byte, v interface{}) ([]byte, error) {
 		}
 		buf = append(buf, vbuf...)
 	}
-	return buf, nil
+	return buf, err
 }
 
 func marshalIntSlice(slice interface{}) ([]byte, error) {
@@ -212,7 +206,7 @@ func marshalStringInterfaceMap(strMap map[string]interface{}) ([]byte, error) {
 	defer pool.Put(buf)
 
 	var err error
-	buf.B, err = appendStringInterfaceMap(buf.B, strMap)
+	buf.B, err = AppendStringInterfaceMap(buf.B, strMap)
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +215,7 @@ func marshalStringInterfaceMap(strMap map[string]interface{}) ([]byte, error) {
 	return out, nil
 }
 
-func appendStringInterfaceMap(buf []byte, strMap map[string]interface{}) ([]byte, error) {
+func AppendStringInterfaceMap(buf []byte, strMap map[string]interface{}) ([]byte, error) {
 	if strMap == nil {
 		return append(buf, nullJSON...), nil
 	}
@@ -232,7 +226,7 @@ func appendStringInterfaceMap(buf []byte, strMap map[string]interface{}) ([]byte
 	idx := 0
 	buf = append(buf, leftWING)
 	for k, v := range strMap {
-		buf = AppendString(buf, k)
+		buf, _ = AppendString(buf, k)
 		buf = append(buf, colon)
 
 		ok, vbuf, err := marshalNilOrMarshaler(v)
@@ -267,32 +261,36 @@ func marshalStringMap(strMap map[string]string) ([]byte, error) {
 	buf := pool.Get()
 	defer pool.Put(buf)
 
-	buf.B = AppendStringMap(buf.B, strMap)
+	var err error
+	buf.B, err = AppendStringMap(buf.B, strMap)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]byte, buf.Len())
 	copy(out, buf.B)
 	return out, nil
 }
 
-func AppendStringMap(buf []byte, strMap map[string]string) []byte {
+func AppendStringMap(buf []byte, strMap map[string]string) ([]byte, error) {
 	if strMap == nil {
-		return append(buf, nullJSON...)
+		return append(buf, nullJSON...), nil
 	}
 	size := len(strMap)
 	if size == 0 {
-		return append(buf, emptyObject...)
+		return append(buf, emptyObject...), nil
 	}
 	idx := 0
 	buf = append(buf, leftWING)
 	for k, v := range strMap {
-		buf = AppendString(buf, k)
+		buf, _ = AppendString(buf, k)
 		buf = append(buf, colon)
-		buf = AppendString(buf, v)
+		buf, _ = AppendString(buf, v)
 		if idx++; idx < size {
 			buf = append(buf, comma)
 		}
 	}
 	buf = append(buf, rightWING)
-	return buf
+	return buf, nil
 }
 
 func marshalStringSlice(slice []string) ([]byte, error) {
@@ -306,31 +304,35 @@ func marshalStringSlice(slice []string) ([]byte, error) {
 	buf := pool.Get()
 	defer pool.Put(buf)
 
-	buf.B = AppendStringSlice(buf.B, slice)
+	var err error
+	buf.B, err = AppendStringSlice(buf.B, slice)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]byte, buf.Len())
 	copy(out, buf.B)
 	return out, nil
 }
 
-func AppendStringSlice(buf []byte, slice []string) []byte {
+func AppendStringSlice(buf []byte, slice []string) ([]byte, error) {
 	if slice == nil {
-		return append(buf, nullJSON...)
+		return append(buf, nullJSON...), nil
 	}
 	if len(slice) == 0 {
-		return append(buf, emptyArray...)
+		return append(buf, emptyArray...), nil
 	}
 	buf = append(buf, leftBRK)
 	for i, size := 0, len(slice); i < size; i++ {
-		buf = AppendString(buf, slice[i])
+		buf, _ = AppendString(buf, slice[i])
 		if i < size-1 {
 			buf = append(buf, comma)
 		}
 	}
 	buf = append(buf, rightBRK)
-	return buf
+	return buf, nil
 }
 
-func AppendString(buf []byte, s string) []byte {
+func AppendString(buf []byte, s string) ([]byte, error) {
 	valLen := len(s)
 	buf = append(buf, quotation)
 	// write string, the fast path, without utf8 and escape
@@ -345,9 +347,9 @@ func AppendString(buf []byte, s string) []byte {
 	}
 	if i == valLen {
 		buf = append(buf, quotation)
-		return buf
+		return buf, nil
 	}
-	return appendStringSlowPath(buf, i, s, valLen)
+	return appendStringSlowPath(buf, i, s, valLen), nil
 }
 
 func appendStringSlowPath(buf []byte, i int, s string, valLen int) []byte {

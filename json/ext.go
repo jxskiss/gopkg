@@ -55,3 +55,13 @@ func UnmarshalExt(data []byte, v interface{}) error {
 	}
 	return Unmarshal(data, v)
 }
+
+func LoadExt(path string, v interface{}) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	err = NewExtDecoder(file).Decode(v)
+	return err
+}
