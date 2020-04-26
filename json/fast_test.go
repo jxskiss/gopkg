@@ -66,6 +66,17 @@ var testStringInterfaceMap = map[string]interface{}{
 	"typ_slice5": testStrSlice{"a", "b", "c"},
 	"typ_gin_h":  ginH{"a": 1, "b": 2.34, "c": "foobar"},
 	"typ_ss_map": testSSMap{"a": "1", "b": "2", "c": "3"},
+
+	"typ_struct_slice": []struct {
+		A string `json:"a"`
+		B int    `json:"b"`
+		C bool   `json:"c"`
+	}{
+		{"1", 1, true},
+		{"2", 2, false},
+		{"3", 3, true},
+		{"4", 4, false},
+	},
 }
 
 func TestMarshalStringMap(t *testing.T) {
