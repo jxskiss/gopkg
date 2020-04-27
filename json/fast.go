@@ -52,6 +52,8 @@ const (
 
 var (
 	nullJSON    = []byte("null")
+	trueJSON    = []byte("true")
+	falseJSON   = []byte("false")
 	emptyObject = []byte("{}")
 	emptyArray  = []byte("[]")
 )
@@ -83,21 +85,71 @@ func marshalNilOrMarshaler(v interface{}) (bool, []byte, error) {
 	}
 }
 
+func marshalOptimized(v interface{}, appendfunc func(buf []byte, v interface{}) ([]byte, error)) ([]byte, error) {
+	buf := pool.Get()
+	defer pool.Put(buf)
+
+	var err error
+	buf.B, err = appendfunc(buf.B, v)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]byte, buf.Len())
+	copy(out, buf.B)
+	return out, nil
+}
+
 func appendByType(buf []byte, v interface{}) ([]byte, error) {
 	var err error
 	var typ = reflect.TypeOf(v)
 	var kind = typ.Kind()
+
+	var (
+		isBoolean bool
+		boolValue bool
+		isInteger bool
+		intValue  int64
+		intKind   reflect.Kind
+	)
+	if kind == reflect.Ptr {
+		eface := reflectx.EFaceOf(&v)
+		if eface.Word == nil {
+			buf = append(buf, nullJSON...)
+			return buf, nil
+		}
+		elemKind := typ.Elem().Kind()
+		if elemKind == reflect.Bool {
+			isBoolean, boolValue = true, *v.(*bool)
+		} else if reflectx.IsIntType(elemKind) {
+			caster := reflectx.GetIntCaster(elemKind)
+			isInteger, intKind = true, elemKind
+			intValue = caster.Cast(eface.Word)
+		}
+	} else if kind == reflect.Bool {
+		isBoolean, boolValue = true, v.(bool)
+	} else if reflectx.IsIntType(kind) {
+		eface := reflectx.EFaceOf(&v)
+		caster := reflectx.GetIntCaster(kind)
+		isInteger, intKind = true, kind
+		intValue = caster.Cast(eface.Word)
+	}
+
 	switch {
+	case isBoolean:
+		if boolValue {
+			buf = append(buf, trueJSON...)
+		} else {
+			buf = append(buf, falseJSON...)
+		}
+	case isInteger:
+		if isUnsignedInt(intKind) {
+			buf = strconv.AppendUint(buf, uint64(intValue), 10)
+		} else {
+			buf = strconv.AppendInt(buf, intValue, 10)
+		}
 	case kind == reflect.String:
 		str := reflectx.CastString(v)
 		buf, _ = AppendString(buf, str)
-	case reflectx.IsIntType(kind):
-		vi := reflectx.CastInt(v)
-		if isUnsignedInt(kind) {
-			buf = strconv.AppendUint(buf, uint64(vi), 10)
-		} else {
-			buf = strconv.AppendInt(buf, vi, 10)
-		}
 	case isIntSlice(typ):
 		buf, err = AppendIntSlice(buf, v)
 	case isStringSlice(typ):
@@ -109,6 +161,8 @@ func appendByType(buf []byte, v interface{}) ([]byte, error) {
 	case isStringInterfaceMap(typ):
 		strMap := castStringInterfaceMap(v)
 		buf, err = AppendStringInterfaceMap(buf, strMap)
+	case isSliceOfOptimized(typ):
+		buf, err = appendSliceOfOptimized(buf, v)
 	default:
 		vbuf, err := _Marshal(v)
 		if err != nil {
@@ -116,25 +170,47 @@ func appendByType(buf []byte, v interface{}) ([]byte, error) {
 		}
 		buf = append(buf, vbuf...)
 	}
+
 	return buf, err
 }
 
-func marshalIntSlice(slice interface{}) ([]byte, error) {
-	if slice == nil {
-		return nullJSON, nil
-	}
+func marshalSliceOfOptimized(slice interface{}) ([]byte, error) {
+	return marshalOptimized(slice, appendSliceOfOptimized)
+}
 
-	buf := pool.Get()
-	defer pool.Put(buf)
+// NOTE
+// - caller must ensure slice is not nil interface and is a slice, or it will panic
+func appendSliceOfOptimized(buf []byte, slice interface{}) ([]byte, error) {
+	header := reflectx.UnpackSlice(slice)
+	if header.Data == nil {
+		return append(buf, nullJSON...), nil
+	}
+	size := header.Len
+	if size == 0 {
+		return append(buf, emptyArray...), nil
+	}
 
 	var err error
-	buf.B, err = AppendIntSlice(buf.B, slice)
-	if err != nil {
-		return nil, err
+	buf = append(buf, leftBRK)
+	elemTyp := reflect.TypeOf(slice).Elem()
+	elemSize := elemTyp.Size()
+	for i := 0; i < size; i++ {
+		ptr := reflectx.ArrayAt(header.Data, i, elemSize)
+		elem := packInterfaceFromSlice(elemTyp, ptr)
+		buf, err = appendByType(buf, elem)
+		if err != nil {
+			return nil, err
+		}
+		if i < size-1 {
+			buf = append(buf, comma)
+		}
 	}
-	out := make([]byte, buf.Len())
-	copy(out, buf.B)
-	return out, nil
+	buf = append(buf, rightBRK)
+	return buf, nil
+}
+
+func marshalIntSlice(slice interface{}) ([]byte, error) {
+	return marshalOptimized(slice, AppendIntSlice)
 }
 
 func AppendIntSlice(buf []byte, slice interface{}) ([]byte, error) {
@@ -193,26 +269,12 @@ func appendBytes(buf []byte, slice []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func marshalStringInterfaceMap(strMap map[string]interface{}) ([]byte, error) {
-	if strMap == nil {
-		return nullJSON, nil
+func marshalStringInterfaceMap(strMap interface{}) ([]byte, error) {
+	appendfunc := func(buf []byte, v interface{}) ([]byte, error) {
+		strMap := castStringInterfaceMap(v)
+		return AppendStringInterfaceMap(buf, strMap)
 	}
-	size := len(strMap)
-	if size == 0 {
-		return emptyObject, nil
-	}
-
-	buf := pool.Get()
-	defer pool.Put(buf)
-
-	var err error
-	buf.B, err = AppendStringInterfaceMap(buf.B, strMap)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]byte, buf.Len())
-	copy(out, buf.B)
-	return out, nil
+	return marshalOptimized(strMap, appendfunc)
 }
 
 func AppendStringInterfaceMap(buf []byte, strMap map[string]interface{}) ([]byte, error) {
@@ -249,26 +311,12 @@ func AppendStringInterfaceMap(buf []byte, strMap map[string]interface{}) ([]byte
 	return buf, nil
 }
 
-func marshalStringMap(strMap map[string]string) ([]byte, error) {
-	if strMap == nil {
-		return nullJSON, nil
+func marshalStringMap(strMap interface{}) ([]byte, error) {
+	appendfunc := func(buf []byte, v interface{}) ([]byte, error) {
+		strMap := castStringMap(v)
+		return AppendStringMap(buf, strMap)
 	}
-	size := len(strMap)
-	if size == 0 {
-		return emptyObject, nil
-	}
-
-	buf := pool.Get()
-	defer pool.Put(buf)
-
-	var err error
-	buf.B, err = AppendStringMap(buf.B, strMap)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]byte, buf.Len())
-	copy(out, buf.B)
-	return out, nil
+	return marshalOptimized(strMap, appendfunc)
 }
 
 func AppendStringMap(buf []byte, strMap map[string]string) ([]byte, error) {
@@ -293,25 +341,12 @@ func AppendStringMap(buf []byte, strMap map[string]string) ([]byte, error) {
 	return buf, nil
 }
 
-func marshalStringSlice(slice []string) ([]byte, error) {
-	if slice == nil {
-		return nullJSON, nil
+func marshalStringSlice(slice interface{}) ([]byte, error) {
+	appendfunc := func(buf []byte, v interface{}) ([]byte, error) {
+		slice := castStringSlice(v)
+		return AppendStringSlice(buf, slice)
 	}
-	if len(slice) == 0 {
-		return emptyArray, nil
-	}
-
-	buf := pool.Get()
-	defer pool.Put(buf)
-
-	var err error
-	buf.B, err = AppendStringSlice(buf.B, slice)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]byte, buf.Len())
-	copy(out, buf.B)
-	return out, nil
+	return marshalOptimized(slice, appendfunc)
 }
 
 func AppendStringSlice(buf []byte, slice []string) ([]byte, error) {

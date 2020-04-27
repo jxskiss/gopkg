@@ -36,6 +36,15 @@ func EFaceOf(ep *interface{}) *eface {
 	return (*eface)(unsafe.Pointer(ep))
 }
 
+func PackInterface(typ reflect.Type, word unsafe.Pointer) interface{} {
+	var i interface{} = typ
+	rtype := EFaceOf(&i).Word
+	return *(*interface{})(unsafe.Pointer(&eface{
+		RType: rtype,
+		Word:  word,
+	}))
+}
+
 func RTypeOf(v interface{}) unsafe.Pointer {
 	switch v := v.(type) {
 	case reflect.Type:

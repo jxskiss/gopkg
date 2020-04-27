@@ -1,8 +1,10 @@
 package json
 
 import (
+	"encoding"
 	"github.com/jxskiss/gopkg/reflectx"
 	"reflect"
+	"sync"
 	"unsafe"
 )
 
@@ -89,4 +91,53 @@ func isNilPointer(v interface{}) bool {
 	}
 	eface := reflectx.EFaceOf(&v)
 	return eface.Word == nil
+}
+
+var (
+	optimizedTypeMap sync.Map
+	jsonMarshalerTyp = reflect.TypeOf((*Marshaler)(nil)).Elem()
+	textMarshalerTyp = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
+)
+
+func isSliceOfOptimized(typ reflect.Type) bool {
+	if typ.Kind() != reflect.Slice {
+		return false
+	}
+	if result, ok := optimizedTypeMap.Load(typ); ok {
+		return result.(bool)
+	}
+
+	var result bool
+	elemTyp := typ.Elem()
+	elemKind := elemTyp.Kind()
+	if elemTyp.Implements(jsonMarshalerTyp) ||
+		elemTyp.Implements(textMarshalerTyp) {
+		result = false
+	} else
+	// pointer of bool/integer
+	if elemKind == reflect.Ptr {
+		pkind := elemTyp.Elem().Kind()
+		result = pkind == reflect.Bool || reflectx.IsIntType(pkind)
+	} else
+	// optimized types
+	if elemKind == reflect.Bool ||
+		reflectx.IsIntType(elemKind) ||
+		isIntSlice(elemTyp) ||
+		isStringSlice(elemTyp) ||
+		isStringMap(elemTyp) ||
+		isStringInterfaceMap(elemTyp) ||
+		isSliceOfOptimized(elemTyp) {
+		result = true
+	}
+	optimizedTypeMap.Store(typ, result)
+	return result
+}
+
+func packInterfaceFromSlice(typ reflect.Type, arrayElemPtr unsafe.Pointer) interface{} {
+	word := arrayElemPtr
+	if typ.Kind() == reflect.Ptr ||
+		typ.Kind() == reflect.Map {
+		word = *(*unsafe.Pointer)(word)
+	}
+	return reflectx.PackInterface(typ, word)
 }

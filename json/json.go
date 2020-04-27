@@ -51,14 +51,13 @@ func Marshal(v interface{}) ([]byte, error) {
 	case isIntSlice(typ):
 		return marshalIntSlice(v)
 	case isStringSlice(typ):
-		slice := castStringSlice(v)
-		return marshalStringSlice(slice)
+		return marshalStringSlice(v)
 	case isStringMap(typ):
-		strMap := castStringMap(v)
-		return marshalStringMap(strMap)
+		return marshalStringMap(v)
 	case isStringInterfaceMap(typ):
-		strMap := castStringInterfaceMap(v)
-		return marshalStringInterfaceMap(strMap)
+		return marshalStringInterfaceMap(v)
+	case isSliceOfOptimized(typ):
+		return marshalSliceOfOptimized(v)
 	default:
 		return _Marshal(v)
 	}

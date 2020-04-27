@@ -3,6 +3,7 @@ package json
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/jxskiss/gopkg/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"math"
@@ -77,6 +78,44 @@ var testStringInterfaceMap = map[string]interface{}{
 		{"3", 3, true},
 		{"4", 4, false},
 	},
+
+	"bool1": true,
+	"bool2": ptr.Bool(false),
+	"bool3": (*bool)(nil),
+
+	"integer1": int32(1234),
+	"integer2": ptr.Int32(1234),
+	"integer3": (*int16)(nil),
+
+	"slice_fast_nil0": [][]int32(nil),
+	"slice_fast_nil1": [][]string(nil),
+	"slice_fast_nil2": []map[string]string(nil),
+	"slice_fast_nil3": []map[string]interface{}(nil),
+
+	"slice_fast_typ0": [][]int32{
+		{1, 2, 3},
+		{4, 5, 6},
+	},
+	"slice_fast_typ1": [][]string{
+		{"a", "b", "c"},
+		{"foo", "bar"},
+	},
+	"slice_fast_typ2": []map[string]string{
+		{"a": "1"},
+		{"b": "2"},
+	},
+	"slice_fast_typ3": []map[string]interface{}{
+		{"a": "1", "b": 1},
+		{"c": "2", "d": 2},
+		{"e": int64(3), "d": ptr.Uint64(3)},
+		{"f": true, "g": ptr.Bool(false)},
+	},
+	"slice_fast_typ4": []map[string]interface{}{},
+
+	"slice_fast_typ5": []bool{true, false},
+	"slice_fast_typ6": []*bool{ptr.Bool(true), ptr.Bool(false), nil},
+	"slice_fast_typ7": []int16{7, 8},
+	"slice_fast_typ8": []*int16{ptr.Int16(8), ptr.Int16(9), nil},
 }
 
 func TestMarshalStringMap(t *testing.T) {
@@ -110,9 +149,30 @@ func TestMarshalStringInterfaceMap(t *testing.T) {
 	require.Nil(t, err)
 
 	var got1 map[string]interface{}
-	err = json.Unmarshal(buf1, &got1)
+	err = Unmarshal(buf1, &got1)
 	require.Nil(t, err)
 	var got2 map[string]interface{}
+	err = json.Unmarshal(buf2, &got2)
+	require.Nil(t, err)
+	assert.Equal(t, got1, got2)
+}
+
+func TestMarshalSliceOfOptimized(t *testing.T) {
+	tmp1 := []map[string]interface{}{
+		{"a": 1, "b": 2},
+		{"c": 3, "d": 4},
+	}
+
+	buf1, err := json.Marshal(tmp1)
+	require.Nil(t, err)
+
+	buf2, err := Marshal(tmp1)
+	require.Nil(t, err)
+
+	var got1 []interface{}
+	err = Unmarshal(buf1, &got1)
+	require.Nil(t, err)
+	var got2 []interface{}
 	err = json.Unmarshal(buf2, &got2)
 	require.Nil(t, err)
 	assert.Equal(t, got1, got2)
