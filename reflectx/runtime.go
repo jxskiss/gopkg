@@ -47,9 +47,9 @@ type eface struct {
 // value is the reflection data to a Go value.
 // See reflect/value.go#Value for more details.
 type value struct {
-	_    unsafe.Pointer // this type may be not the rtype we want
-	Ptr  unsafe.Pointer
-	Flag uintptr
+	typ  unsafe.Pointer
+	ptr  unsafe.Pointer
+	flag uintptr
 }
 
 const (

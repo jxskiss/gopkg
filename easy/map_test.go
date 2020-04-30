@@ -8,8 +8,7 @@ import (
 
 func TestNewSafeMaps(t *testing.T) {
 	var _ *SafeMap = NewSafeMap()
-	var _ *SafeInt64Map = NewSafeInt64sMap()
-	var _ *SafeStringMap = NewSafeStringMap()
+	var _ *SafeInt64Map = NewSafeInt64Map()
 }
 
 var mapKeyValueTests = []map[string]interface{}{

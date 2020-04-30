@@ -5,35 +5,9 @@ import (
 	"github.com/jxskiss/gopkg/reflectx"
 	"reflect"
 	"sync"
+	"time"
 	"unsafe"
 )
-
-type SafeMap struct {
-	sync.RWMutex
-	Map map[interface{}]interface{}
-}
-
-func NewSafeMap() *SafeMap {
-	return &SafeMap{Map: make(map[interface{}]interface{})}
-}
-
-type SafeInt64Map struct {
-	sync.RWMutex
-	Map map[int64]interface{}
-}
-
-func NewSafeInt64sMap() *SafeInt64Map {
-	return &SafeInt64Map{Map: make(map[int64]interface{})}
-}
-
-type SafeStringMap struct {
-	sync.RWMutex
-	Map map[string]interface{}
-}
-
-func NewSafeStringMap() *SafeStringMap {
-	return &SafeStringMap{Map: make(map[string]interface{})}
-}
 
 func MapKeys(m interface{}) (keys interface{}) {
 	mTyp := reflect.TypeOf(m)
@@ -131,4 +105,192 @@ func StringValues(m interface{}) (values Strings) {
 		out = append(out, x)
 	})
 	return out
+}
+
+type SafeMap struct {
+	sync.RWMutex
+	Map Map
+}
+
+func NewSafeMap() *SafeMap {
+	return &SafeMap{Map: make(Map)}
+}
+
+type SafeInt64Map struct {
+	sync.RWMutex
+	Map Int64Map
+}
+
+func NewSafeInt64Map() *SafeInt64Map {
+	return &SafeInt64Map{Map: make(Int64Map)}
+}
+
+type Int64Map map[int64]interface{}
+
+type Map map[string]interface{}
+
+// Set is used to store a new key/value pair exclusively in the map.
+// It also lazy initializes the map if it was not used previously.
+func (p *Map) Set(key string, value interface{}) {
+	if *p == nil {
+		*p = make(Map)
+	}
+	(*p)[key] = value
+}
+
+// Get returns the value for the given key, ie: (value, true).
+// If the value does not exists it returns (nil, false)
+func (p Map) Get(key string) (value interface{}, exists bool) {
+	value, exists = p[key]
+	return
+}
+
+// MustGet returns the value for the given key if it exists, otherwise it panics.
+func (p Map) MustGet(key string) interface{} {
+	if val, ok := p[key]; ok {
+		return val
+	}
+	panic(fmt.Sprintf("key %q not exists", key))
+}
+
+// GetString returns the value associated with the key as a string.
+func (p Map) GetString(key string) string {
+	if val, ok := p[key].(string); ok {
+		return val
+	}
+	return ""
+}
+
+// GetBool returns the value associated with the key as a boolean.
+func (p Map) GetBool(key string) bool {
+	if val, ok := p[key].(bool); ok {
+		return val
+	}
+	return false
+}
+
+// GetInt returns the value associated with the key as an integer.
+func (p Map) GetInt(key string) int {
+	if val, ok := p[key].(int); ok {
+		return val
+	}
+	return 0
+}
+
+// GetInt64 returns the value associated with the key as an int64.
+func (p Map) GetInt64(key string) int64 {
+	if val, ok := p[key].(int64); ok {
+		return val
+	}
+	return 0
+}
+
+// GetInt32 returns the value associated with the key as an int32.
+func (p Map) GetInt32(key string) int32 {
+	if val, ok := p[key].(int32); ok {
+		return val
+	}
+	return 0
+}
+
+// GetFloat64 returns the value associated with the key as a float64.
+func (p Map) GetFloat64(key string) float64 {
+	if val, ok := p[key].(float64); ok {
+		return val
+	}
+	return 0
+}
+
+// GetTime returns the value associated with the key as time.
+func (p Map) GetTime(key string) time.Time {
+	if val, ok := p[key].(time.Time); ok {
+		return val
+	}
+	return time.Time{}
+}
+
+// GetDuration returns the value associated with the key as a duration.
+func (p Map) GetDuration(key string) time.Duration {
+	if val, ok := p[key].(time.Duration); ok {
+		return val
+	}
+	return 0
+}
+
+// GetInt64s returns the value associated with the key as a slice of int64.
+func (p Map) GetInt64s(key string) Int64s {
+	val, ok := p[key]
+	if ok {
+		switch val := val.(type) {
+		case Int64s:
+			return val
+		case []int64:
+			return val
+		}
+	}
+	return nil
+}
+
+// GetInt32s returns the value associated with the key as a slice of int32.
+func (p Map) GetInt32s(key string) Int32s {
+	val, ok := p[key]
+	if ok {
+		switch val := val.(type) {
+		case Int32s:
+			return val
+		case []int32:
+			return val
+		}
+	}
+	return nil
+}
+
+// GetStrings returns the value associated with the key as a slice of strings.
+func (p Map) GetStrings(key string) Strings {
+	val, ok := p[key]
+	if ok {
+		switch val := val.(type) {
+		case Strings:
+			return val
+		case []string:
+			return val
+		}
+	}
+	return nil
+}
+
+// GetMap returns the value associated with the key as a Map (map[string]interface{}).
+func (p Map) GetMap(key string) Map {
+	val, ok := p[key]
+	if ok {
+		switch val := val.(type) {
+		case Map:
+			return val
+		case map[string]interface{}:
+			return val
+		}
+	}
+	return nil
+}
+
+// GetInt64Map returns the value associated with the key as an Int64Map (map[int64]interface{}).
+func (p Map) GetInt64Map(key string) Int64Map {
+	val, ok := p[key]
+	if ok {
+		switch val := val.(type) {
+		case Int64Map:
+			return val
+		case map[int64]interface{}:
+			return val
+		}
+	}
+	return nil
+}
+
+// GetStringMap returns the value associated with the key as a map of strings (map[string]string).
+func (p Map) GetStringMap(key string) map[string]string {
+	if val, ok := p[key].(map[string]string); ok {
+		return val
+	}
+	return nil
 }

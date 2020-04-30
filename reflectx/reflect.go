@@ -5,6 +5,15 @@ import (
 	"unsafe"
 )
 
+// IsPrivateField returns whether the field is private by checking PkgPath.
+//
+// PkgPath is the package path that qualifies a lower case (unexported)
+// field name. It is empty for upper case (exported) field names.
+// See https://golang.org/ref/spec#Uniqueness_of_identifiers
+func IsPrivateField(field *reflect.StructField) bool {
+	return field.PkgPath != ""
+}
+
 func IsStringTypeOrPtr(typ reflect.Type) bool {
 	kind := typ.Kind()
 	if kind == reflect.Ptr {
