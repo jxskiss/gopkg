@@ -4,11 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/jxskiss/gopkg/reflectx"
+	"github.com/jxskiss/gopkg/structtag"
 	"github.com/jxskiss/gopkg/strutil"
 	"reflect"
 	"strings"
 	"sync"
-	"unsafe"
 )
 
 type InsertOptions struct {
@@ -197,29 +198,25 @@ func parseType(rows interface{}) *typeInfo {
 
 		// be compatible with sqlx column name tag
 		dbTag := field.Tag.Get("db")
-		if dbTag == "-" {
-			continue
-		}
-		if parts := strings.Split(dbTag, ","); len(parts) > 0 {
-			if x := strings.TrimSpace(parts[0]); x != "" {
-				col = x
+		opts := structtag.ParseOptions(dbTag, ",", "")
+		if len(opts) > 0 {
+			if opts[0].Value == "-" {
+				continue
 			}
+			col = opts[0].Value
 		}
 
 		// be compatible with gorm column name tag
 		if col == "" {
 			gormTag := field.Tag.Get("gorm")
-			if gormTag == "-" {
-				continue
-			}
-			tags := strings.Split(gormTag, ";")
-			for _, value := range tags {
-				kv := strings.Split(value, ":")
-				if len(kv) >= 2 && kv[0] == "column" {
-					if x := strings.TrimSpace(kv[1]); x != "" {
-						col = x
-					}
-					break
+			opts = structtag.ParseOptions(gormTag, ";", ":")
+			if len(opts) > 0 {
+				if opts[0].K == "-" {
+					continue
+				}
+				colopt, found := opts.Get("column")
+				if found && colopt != "" {
+					col = colopt
 				}
 			}
 		}
@@ -258,13 +255,10 @@ func assertSliceOfStructAndLength(where string, rows interface{}) {
 		panic(where + ": param is nil or not a slice")
 	}
 	elemTyp := sliceTyp.Elem()
-	elemIsPtr := elemTyp.Kind() == reflect.Ptr
-	if !(elemTyp.Kind() == reflect.Struct ||
-		(elemIsPtr && elemTyp.Elem().Kind() == reflect.Struct)) {
-		panic(where + ": slice element is not struct of pointer to struct")
+	if indirectType(elemTyp).Kind() != reflect.Struct {
+		panic(where + ": slice element is not struct or pointer to struct")
 	}
-	eface := *(*[2]unsafe.Pointer)(unsafe.Pointer(&rows))
-	sh := (*reflect.SliceHeader)(eface[1])
+	sh := reflectx.UnpackSlice(rows)
 	if sh.Len == 0 {
 		panic(where + ": slice length is zero")
 	}
