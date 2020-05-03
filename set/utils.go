@@ -161,6 +161,11 @@ func Int64Keys(m interface{}) (keys []int64) {
 	return keys
 }
 
+// Uint64Keys returns uint64 key slice of a map, the given map's key type
+// must be uint64, or it will panic.
+//
+// For many frequently used types, type assertion is used to get best perf,
+// else reflect is used to support any map type with uint64 keys.
 func Uint64Keys(m interface{}) (keys []uint64) {
 	switch v := m.(type) {
 	case map[uint64]string:

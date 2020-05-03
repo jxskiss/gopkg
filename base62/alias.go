@@ -1,4 +1,11 @@
-// package base62 has been moved to github.com/jxskiss/base62.
+// Package base62 implements a compact and fast implementation of base62
+// encoding/decoding algorithm, which is inspired by the java implementation
+// by glowfall at https://github.com/glowfall/base62. This implementation
+// is much faster than big.Int based implementation, and is not much slower
+// than typical base64 implementations.
+//
+// The package has been moved to github.com/jxskiss/base62 as a standalone
+// repository. Check the new repository for more details.
 package base62
 
 import "github.com/jxskiss/base62"

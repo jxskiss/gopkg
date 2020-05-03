@@ -595,6 +595,9 @@ func unmarshalStringMap(data []byte, dst *map[string]string) error {
 		return nil
 	}
 	for ; c == comma || c == leftWING; c, idx, err = nextToken(buf, idx, lastIdx) {
+		if err != nil {
+			return fmt.Errorf("json: unmarshalStringMap: %v", err)
+		}
 		var key, val string
 		key, idx, err = readString(buf, idx, lastIdx)
 		if err != nil {
@@ -693,6 +696,9 @@ func readString(buf []byte, idx int, lastIdx int) (string, int, error) {
 	var c byte
 	var isNull bool
 	c, idx, err = nextToken(buf, idx, lastIdx)
+	if err != nil {
+		return "", idx, err
+	}
 	var str []byte
 	if c == '"' {
 		start := idx
@@ -725,6 +731,9 @@ func readString(buf []byte, idx int, lastIdx int) (string, int, error) {
 					return "", idx, err
 				}
 				str, idx, err = readEscapedChar(c, buf, idx, str, lastIdx)
+				if err != nil {
+					return "", idx, err
+				}
 				start = idx
 				noESC = false
 			}

@@ -23,7 +23,7 @@ func TestInt64Keys(t *testing.T) {
 		map[int64][]int64{1: {}},
 		map[int64][]string{1: {}},
 		map[int64]*T1{1: nil},
-		map[int64]*T2{1: &T2{}},
+		map[int64]*T2{1: {}},
 		map[int64][]*T1{1: {}},
 	}
 
@@ -46,7 +46,7 @@ func TestStringKeys(t *testing.T) {
 		map[string][]int64{"a": {}},
 		map[string][]string{"a": {}},
 		map[string]*T1{"a": nil},
-		map[string]*T2{"a": &T2{}},
+		map[string]*T2{"a": {}},
 		map[string][]*T1{"a": {}},
 	}
 
@@ -59,9 +59,9 @@ func TestStringKeys(t *testing.T) {
 
 func TestSet_Add(t *testing.T) {
 	t1 := map[interface{}]struct{}{
-		1: struct{}{},
-		2: struct{}{},
-		3: struct{}{},
+		1: {},
+		2: {},
+		3: {},
 	}
 	set1 := NewSet(1, 2, 3)
 	set2 := NewSet([]int{1, 2, 3})
