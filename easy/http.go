@@ -151,55 +151,24 @@ func (p *Request) prepareRequest(method string) (err error) {
 	if method == "" {
 		method = p.Method
 	}
-	if method == "GET" {
+	if method == "" || method == "GET" {
 		p.Req, err = http.NewRequest(method, p.URL, nil)
 		return
 	}
 
-	// make JSON body
-	if p.JSON != nil {
-		body, err := p.makeBody(p.JSON, json.Marshal)
-		if err != nil {
-			return err
-		}
-		p.Req, err = http.NewRequest(method, p.URL, body)
-		if err != nil {
-			return err
-		}
-		p.Req.Header.Set(hdrContentTypeKey, contentTypeJSON)
-		return nil
-	}
+	var body io.Reader
+	var contentType string
 
-	// make XML body
-	if p.XML != nil {
-		body, err := p.makeBody(p.XML, xml.Marshal)
-		if err != nil {
-			return err
-		}
-		p.Req, err = http.NewRequest(method, p.URL, body)
-		if err != nil {
-			return err
-		}
-		p.Req.Header.Set(hdrContentTypeKey, contentTypeXML)
-		return nil
-	}
-
-	// make FORM body
-	if p.Form != nil {
-		body, err := p.makeBody(p.Form, marshalForm)
-		if err != nil {
-			return err
-		}
-		p.Req, err = http.NewRequest(method, p.URL, body)
-		if err != nil {
-			return err
-		}
-		p.Req.Header.Set(hdrContentTypeKey, contentTypeForm)
-		return nil
-	}
-
-	// guess the Body data
-	if p.Body != nil {
+	if p.JSON != nil { // JSON
+		body, err = p.makeBody(p.JSON, json.Marshal)
+		contentType = contentTypeJSON
+	} else if p.XML != nil { // XML
+		body, err = p.makeBody(p.XML, xml.Marshal)
+		contentType = contentTypeXML
+	} else if p.Form != nil { // urlencoded form
+		body, err = p.makeBody(p.Form, marshalForm)
+		contentType = contentTypeForm
+	} else if p.Body != nil { // detect content-type from the body data
 		var bodyBuf []byte
 		switch data := p.Body.(type) {
 		case io.Reader:
@@ -215,22 +184,21 @@ func (p *Request) prepareRequest(method string) (err error) {
 			err = fmt.Errorf("unsupported body data type: %T", data)
 			return err
 		}
-		body := bytes.NewReader(bodyBuf)
-		p.Req, err = http.NewRequest(method, p.URL, body)
-		if err != nil {
-			return err
+		body = bytes.NewReader(bodyBuf)
+		if p.Headers[hdrContentTypeKey] == "" {
+			contentType = http.DetectContentType(bodyBuf)
 		}
-		contentType := http.DetectContentType(bodyBuf)
-		if contentType != "" {
-			p.Req.Header.Set(hdrContentTypeKey, contentType)
-		}
-		return nil
-	}
+	} // else no body data
 
-	// no body data
-	p.Req, err = http.NewRequest(method, p.URL, nil)
 	if err != nil {
 		return err
+	}
+	p.Req, err = http.NewRequest(method, p.URL, body)
+	if err != nil {
+		return err
+	}
+	if contentType != "" {
+		p.Req.Header.Set(hdrContentTypeKey, contentType)
 	}
 	return
 }
