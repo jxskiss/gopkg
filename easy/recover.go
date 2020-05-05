@@ -99,7 +99,12 @@ func IdentifyPanic() string {
 	return fmt.Sprintf("pc:%x", pc)
 }
 
+// EnsureError ensures the given value (should be non-nil) is an error.
+// If it's not an error, `fmt.Errorf("%v", v)` will be used to convert it.
 func EnsureError(v interface{}) error {
+	if v == nil {
+		return nil
+	}
 	err, ok := v.(error)
 	if !ok {
 		err = fmt.Errorf("%v", v)
@@ -107,6 +112,7 @@ func EnsureError(v interface{}) error {
 	return err
 }
 
+// PanicOnError panics the program if any of the args is non-nil error.
 func PanicOnError(args ...interface{}) {
 	for _, arg := range args {
 		if err, ok := arg.(error); ok && err != nil {
@@ -115,4 +121,7 @@ func PanicOnError(args ...interface{}) {
 	}
 }
 
-var Must = PanicOnError
+// Must is an alias function of PanicOnError.
+func Must(args ...interface{}) {
+	PanicOnError(args...)
+}

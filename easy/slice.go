@@ -848,7 +848,9 @@ func JoinInt64s(slice []int64, sep string) string {
 
 type IJ struct{ I, J int }
 
-// SplitBatch
+// SplitBatch splits a large number to batches, it's mainly designed to
+// help operations with large slice, such as inserting lots of records
+// into database, or logging lots of identifiers, etc.
 func SplitBatch(total, batch int) []IJ {
 	if total <= 0 {
 		return nil

@@ -96,35 +96,108 @@ func IsXMLType(contentType string) bool {
 // Request represents a request and options to send with the DoRequest function.
 type Request struct {
 	// Req should be a fully prepared http Request to sent, if not nil,
-	// the following `URL`, `Method`, `JSON`, `XML`, `Form`, `Body`
+	// the following `Method`, `URL`, `Params`, `JSON`, `XML`, `Form`, `Body`
 	// will be ignored.
+	//
+	// If Req is nil, it will be filled using the following data `Method`,
+	// `URL`, `Params`, `JSON`, `XML`, `Form`, `Body` to construct the `http.Request`.
+	//
+	// When building http body, the priority is JSON > XML > Form > Body.
 	Req *http.Request
 
-	// If Req is nil, it will be filled using the following data `URL`,
-	// `Method`, `JSON`, `XML`, `Form`, `Body` to construct the `http.Request`.
-	//
-	// For building http body, the priority is JSON > XML > Form > Body.
-	URL    string
+	// Method specifies the verb for the http request, it's optional,
+	// default is "GET".
 	Method string
-	JSON   interface{}
-	XML    interface{}
-	Form   interface{}
-	Body   interface{}
+
+	// URL specifies the url to make the http request.
+	// It's required if Req is nil.
+	URL string
+
+	// Params specifies optional params to merge with URL, it must be one of
+	// the following types:
+	// - map[string]string
+	// - map[string][]string
+	// - map[string]interface{}
+	// - url.Values
+	Params interface{}
+
+	// JSON specifies optional body data for request which can take body,
+	// the content-type will be "application/json", it must be one of
+	// the following types:
+	// - io.Reader
+	// - []byte (will be wrapped with bytes.NewReader)
+	// - string (will be wrapped with strings.NewReader)
+	// - interface{} (will be marshaled with json.Marshal)
+	JSON interface{}
+
+	// XML specifies optional body data for request which can take body,
+	// the content-type will be "application/xml", it must be one of
+	// the following types:
+	// - io.Reader
+	// - []byte (will be wrapped with bytes.NewReader)
+	// - string (will be wrapped with strings.NewReader)
+	// - interface{} (will be marshaled with xml.Marshal)
+	XML interface{}
+
+	// Form specifies optional body data for request which can take body,
+	// the content-type will be "application/x-www-form-urlencoded",
+	// it must be one of the following types:
+	// - io.Reader
+	// - []byte (will be wrapped with bytes.NewReader)
+	// - string (will be wrapped with strings.NewReader)
+	// - url.Values (will be encoded and wrapped as io.Reader)
+	// - map[string]string (will be converted to url.Values)
+	// - map[string][]string (will be converted to url.Values)
+	// - map[string]interface{} (will be converted to url.Values)
+	Form interface{}
+
+	// Body specifies optional body data for request which can take body,
+	// the content-type will be detected from the content (may be incorrect),
+	// it should be one of the following types:
+	// - io.Reader
+	// - []byte (will be wrapped with bytes.NewReader)
+	// - string (will be wrapped with strings.NewReader)
+	Body interface{}
 
 	// Headers will be copied to the request before sent.
+	//
+	// If "Content-Type" presents, it will replace the default value
+	// set by `JSON`, `XML`, `Form`, or `Body`.
 	Headers map[string]string
 
-	Resp      interface{}
+	// Resp specifies an optional destination to unmarshal the response data.
+	// if `Unmarshal` is not provided, the header "Content-Type" will be used to
+	// detect XML content, else `json.Unmarshal` will be used.
+	Resp interface{}
+
+	// Unmarshal specifies an optional function to unmarshal the response data.
 	Unmarshal func([]byte, interface{}) error
 
+	// Context specifies an optional context.Context to use with http request.
 	Context context.Context
-	Timeout time.Duration
-	Client  *http.Client
 
+	// Timeout specifies an optional timeout of the http request, if
+	// timeout > 0, the request will be attached an timeout context.Context.
+	// `Timeout` takes higher priority than `Context`, it both available, only
+	// `Timeout` takes effect.
+	Timeout time.Duration
+
+	// Client specifies an optional http.Client to do the request, instead of
+	// the default http.DefaultClient.
+	Client *http.Client
+
+	// DisableRedirect tells the http client don't follow response redirection.
 	DisableRedirect bool
-	DumpRequest     bool
-	DumpResponse    bool
-	RaiseForStatus  bool
+
+	// DumpRequest makes the http request being logged before sent.
+	DumpRequest bool
+
+	// DumpResponse makes the http response being logged after received.
+	DumpResponse bool
+
+	// RaiseForStatus tells `DoRequest` to report an error if the response
+	// status code >= 400. The error will be formatted as "unexpected status: <STATUS>".
+	RaiseForStatus bool
 }
 
 func (p *Request) buildClient() *http.Client {
@@ -148,11 +221,18 @@ func (p *Request) prepareRequest(method string) (err error) {
 	if p.Req != nil {
 		return nil
 	}
+	reqURL := p.URL
+	if p.Params != nil {
+		reqURL, err = mergeQuery(reqURL, p.Params)
+		if err != nil {
+			return err
+		}
+	}
 	if method == "" {
 		method = p.Method
 	}
 	if method == "" || method == "GET" {
-		p.Req, err = http.NewRequest(method, p.URL, nil)
+		p.Req, err = http.NewRequest(method, reqURL, nil)
 		return
 	}
 
@@ -203,6 +283,53 @@ func (p *Request) prepareRequest(method string) (err error) {
 	return
 }
 
+func mergeQuery(reqURL string, params interface{}) (string, error) {
+	parsed, err := url.Parse(reqURL)
+	if err != nil {
+		return "", err
+	}
+	query, err := url.ParseQuery(parsed.RawQuery)
+	if err != nil {
+		return "", err
+	}
+	switch params := params.(type) {
+	case map[string]string:
+		for k, v := range params {
+			query.Add(k, v)
+		}
+	case map[string][]string:
+		for k, values := range params {
+			for _, v := range values {
+				query.Add(k, v)
+			}
+		}
+	case map[string]interface{}:
+		for k, v := range params {
+			switch value := v.(type) {
+			case string:
+				query.Add(k, fmt.Sprintf(value))
+			case []string:
+				for _, v := range value {
+					query.Add(k, v)
+				}
+			default:
+				query.Add(k, fmt.Sprint(v))
+			}
+		}
+	case url.Values:
+		for k, values := range params {
+			for _, v := range values {
+				query.Add(k, v)
+			}
+		}
+	default:
+		err = fmt.Errorf("unsupported params type: %T", params)
+		return "", err
+	}
+	parsed.RawQuery = query.Encode()
+	return parsed.String(), nil
+}
+
 func marshalForm(v interface{}) ([]byte, error) {
 	var form url.Values
 	switch data := v.(type) {
@@ -214,6 +341,18 @@ func marshalForm(v interface{}) ([]byte, error) {
 		form = make(url.Values, len(data))
 		for k, v := range data {
 			form[k] = []string{v}
+		}
+	case map[string]interface{}:
+		form = make(url.Values, len(data))
+		for k, v := range data {
+			switch value := v.(type) {
+			case string:
+				form[k] = []string{value}
+			case []string:
+				form[k] = value
+			default:
+				form[k] = []string{fmt.Sprint(v)}
+			}
 		}
 	}
 	if form == nil {
