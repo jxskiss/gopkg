@@ -10,7 +10,7 @@ func BenchmarkMarshalStringMap(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = Marshal(strMap)
+		_, _ = MarshalFast(strMap)
 	}
 }
 
@@ -37,7 +37,7 @@ func BenchmarkMarshalStringInterfaceMap(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = Marshal(strMap)
+		_, _ = MarshalFast(strMap)
 	}
 }
 

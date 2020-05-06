@@ -10,10 +10,11 @@ type (
 )
 
 var (
-	_Marshal      = json.Marshal
-	MarshalIndent = json.MarshalIndent
-	_Unmarshal    = json.Unmarshal
-	Valid         = json.Valid
+	_Marshal       = json.Marshal
+	_MarshalFast   = json.Marshal
+	_MarshalIndent = json.MarshalIndent
+	_Unmarshal     = json.Unmarshal
+	Valid          = json.Valid
 
 	NewEncoder = json.NewEncoder
 	NewDecoder = json.NewDecoder

@@ -124,14 +124,14 @@ func TestMarshalStringMap(t *testing.T) {
 	_, err := json.Marshal(strMap)
 	require.Nil(t, err)
 
-	buf2, err := Marshal(strMap)
+	buf2, err := MarshalFast(strMap)
 	require.Nil(t, err)
 	var got2 map[string]string
 	err = json.Unmarshal(buf2, &got2)
 	require.Nil(t, err)
 	assert.Equal(t, strMap, got2)
 
-	buf3, err := Marshal(strMap)
+	buf3, err := MarshalFast(strMap)
 	require.Nil(t, err)
 	var got3 map[string]string
 	err = json.Unmarshal(buf3, &got3)
@@ -145,7 +145,7 @@ func TestMarshalStringInterfaceMap(t *testing.T) {
 	buf1, err := json.Marshal(strMap)
 	require.Nil(t, err)
 
-	buf2, err := Marshal(strMap)
+	buf2, err := MarshalFast(strMap)
 	require.Nil(t, err)
 
 	var got1 map[string]interface{}
@@ -166,7 +166,7 @@ func TestMarshalSliceOfOptimized(t *testing.T) {
 	buf1, err := json.Marshal(tmp1)
 	require.Nil(t, err)
 
-	buf2, err := Marshal(tmp1)
+	buf2, err := MarshalFast(tmp1)
 	require.Nil(t, err)
 
 	var got1 []interface{}
@@ -201,7 +201,7 @@ func TestNilPointer(t *testing.T) {
 	} {
 		want, err := json.Marshal(test)
 		assert.Nil(t, err)
-		got, err := Marshal(test)
+		got, err := MarshalFast(test)
 		assert.Nil(t, err)
 		assert.Equal(t, want, got)
 	}
@@ -243,35 +243,35 @@ func TestTypeAssertion(t *testing.T) {
 
 func TestMarshalIntSlice(t *testing.T) {
 	var x1 = testI32Slice{1, 2, 3}
-	got1, _ := Marshal(x1)
+	got1, _ := MarshalFast(x1)
 	assert.Equal(t, "[1,2,3]", string(got1))
 }
 
 func TestMarshalStringSlice(t *testing.T) {
 	var x1 = testStrSlice{"a", "b", `"c`}
-	got1, _ := Marshal(x1)
+	got1, _ := MarshalFast(x1)
 	assert.Equal(t, `["a","b","\"c"]`, string(got1))
 }
 
 func TestMarshalNilValues(t *testing.T) {
-	got, _ := Marshal(nil)
+	got, _ := MarshalFast(nil)
 	assert.Equal(t, "null", string(got))
 
-	got, _ = Marshal((testI32Slice)(nil))
+	got, _ = MarshalFast((testI32Slice)(nil))
 	assert.Equal(t, "null", string(got))
-	got, _ = Marshal(testStrSlice(nil))
+	got, _ = MarshalFast(testStrSlice(nil))
 	assert.Equal(t, "null", string(got))
-	got, _ = Marshal([]int64{})
+	got, _ = MarshalFast([]int64{})
 	assert.Equal(t, "[]", string(got))
 
-	got, _ = Marshal((ginH)(nil))
+	got, _ = MarshalFast((ginH)(nil))
 	assert.Equal(t, "null", string(got))
-	got, _ = Marshal(ginH{})
+	got, _ = MarshalFast(ginH{})
 	assert.Equal(t, "{}", string(got))
 
-	got, _ = Marshal((testSSMap)(nil))
+	got, _ = MarshalFast((testSSMap)(nil))
 	assert.Equal(t, "null", string(got))
-	got, _ = Marshal(testSSMap{})
+	got, _ = MarshalFast(testSSMap{})
 	assert.Equal(t, "{}", string(got))
 }
 
@@ -345,7 +345,7 @@ func TestMarshaler(t *testing.T) {
 	got1, err := x1.MarshalJSON()
 	assert.Nil(t, err)
 	assert.Equal(t, want, string(got1))
-	got2, err := Marshal(x1)
+	got2, err := MarshalFast(x1)
 	assert.Nil(t, err)
 	assert.Equal(t, want, string(got2))
 
@@ -357,7 +357,7 @@ func TestMarshaler(t *testing.T) {
 	got3, err := x2.MarshalText()
 	assert.Nil(t, err)
 	assert.Equal(t, want[1:len(want)-1], string(got3))
-	got4, err := Marshal(x2)
+	got4, err := MarshalFast(x2)
 	assert.Nil(t, err)
 	assert.Equal(t, want, string(got4))
 }
