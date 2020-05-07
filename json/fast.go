@@ -8,6 +8,7 @@ import (
 	"github.com/valyala/bytebufferpool"
 	"reflect"
 	"strconv"
+	"sync"
 	"unicode/utf16"
 	"unicode/utf8"
 )
@@ -99,83 +100,97 @@ func marshalOptimized(v interface{}, appendfunc func(buf []byte, v interface{}) 
 	return out, nil
 }
 
-func appendByType(buf []byte, v interface{}) ([]byte, error) {
-	var err error
-	var typ = reflect.TypeOf(v)
-	var kind = typ.Kind()
+var appendFuncMap sync.Map
 
-	var (
-		isBoolean bool
-		boolValue bool
-		isInteger bool
-		intValue  int64
-		intKind   reflect.Kind
-	)
+func getAppendFunc(typ reflect.Type) func(buf []byte, v interface{}) ([]byte, error) {
+	if result, ok := appendFuncMap.Load(typ); ok {
+		return result.(func(buf []byte, v interface{}) ([]byte, error))
+	}
+
+	var result = _fallbackAppendFunc
+	var kind = typ.Kind()
 	if kind == reflect.Ptr {
-		eface := reflectx.EFaceOf(&v)
-		if eface.Word == nil {
-			buf = append(buf, nullJSON...)
-			return buf, nil
-		}
 		elemKind := typ.Elem().Kind()
 		if elemKind == reflect.Bool {
-			isBoolean, boolValue = true, *v.(*bool)
+			result = func(buf []byte, v interface{}) ([]byte, error) {
+				boolVal := v.(*bool)
+				if boolVal == nil {
+					return append(buf, nullJSON...), nil
+				}
+				return _appendBool(buf, *boolVal), nil
+			}
 		} else if reflectx.IsIntType(elemKind) {
 			caster := reflectx.GetIntCaster(elemKind)
-			isInteger, intKind = true, elemKind
-			intValue = caster.Cast(eface.Word)
+			f := _appendInt
+			if isUnsignedInt(elemKind) {
+				f = _appendUnsignedInt
+			}
+			result = func(buf []byte, v interface{}) ([]byte, error) {
+				eface := reflectx.EFaceOf(&v)
+				if eface.Word == nil {
+					return append(buf, nullJSON...), nil
+				}
+				intVal := caster.Cast(eface.Word)
+				return f(buf, intVal), nil
+			}
 		}
 	} else if kind == reflect.Bool {
-		isBoolean, boolValue = true, v.(bool)
+		result = func(buf []byte, v interface{}) ([]byte, error) {
+			return _appendBool(buf, v.(bool)), nil
+		}
 	} else if reflectx.IsIntType(kind) {
-		eface := reflectx.EFaceOf(&v)
 		caster := reflectx.GetIntCaster(kind)
-		isInteger, intKind = true, kind
-		intValue = caster.Cast(eface.Word)
+		f := _appendInt
+		if isUnsignedInt(kind) {
+			f = _appendUnsignedInt
+		}
+		result = func(buf []byte, v interface{}) ([]byte, error) {
+			eface := reflectx.EFaceOf(&v)
+			intVal := caster.Cast(eface.Word)
+			return f(buf, intVal), nil
+		}
+	} else if kind == reflect.String {
+		result = func(buf []byte, v interface{}) ([]byte, error) {
+			str := reflectx.CastString(v)
+			return AppendString(buf, str)
+		}
+	} else if isIntSlice(typ) {
+		result = AppendIntSlice
+	} else if isStringSlice(typ) {
+		result = appendStringSlice
+	} else if isStringMap(typ) {
+		result = appendStringMap
+	} else if isStringInterfaceMap(typ) {
+		result = appendStringInterfaceMap
+	} else if isSliceOfOptimized(typ) {
+		result = appendSliceOfOptimized
 	}
 
-	switch {
-	case isBoolean:
-		if boolValue {
-			buf = append(buf, trueJSON...)
-		} else {
-			buf = append(buf, falseJSON...)
-		}
-	case isInteger:
-		if isUnsignedInt(intKind) {
-			buf = strconv.AppendUint(buf, uint64(intValue), 10)
-		} else {
-			buf = strconv.AppendInt(buf, intValue, 10)
-		}
-	case kind == reflect.String:
-		str := reflectx.CastString(v)
-		buf, _ = AppendString(buf, str)
-	case isIntSlice(typ):
-		buf, err = AppendIntSlice(buf, v)
-	case isStringSlice(typ):
-		slice := castStringSlice(v)
-		buf, err = AppendStringSlice(buf, slice)
-	case isStringMap(typ):
-		strMap := castStringMap(v)
-		buf, err = AppendStringMap(buf, strMap)
-	case isStringInterfaceMap(typ):
-		strMap := castStringInterfaceMap(v)
-		buf, err = AppendStringInterfaceMap(buf, strMap)
-	case isSliceOfOptimized(typ):
-		buf, err = appendSliceOfOptimized(buf, v)
-	default:
-		vbuf, err := _Marshal(v)
-		if err != nil {
-			return nil, err
-		}
-		buf = append(buf, vbuf...)
-	}
-
-	return buf, err
+	appendFuncMap.Store(typ, result)
+	return result
 }
 
-func marshalSliceOfOptimized(slice interface{}) ([]byte, error) {
-	return marshalOptimized(slice, appendSliceOfOptimized)
+func _fallbackAppendFunc(buf []byte, v interface{}) ([]byte, error) {
+	vbuf, err := _MarshalFast(v)
+	if err != nil {
+		return nil, err
+	}
+	return append(buf, vbuf...), nil
+}
+
+func _appendBool(buf []byte, v bool) []byte {
+	if v {
+		return append(buf, trueJSON...)
+	}
+	return append(buf, falseJSON...)
+}
+
+func _appendInt(buf []byte, v int64) []byte {
+	return strconv.AppendInt(buf, v, 10)
+}
+
+func _appendUnsignedInt(buf []byte, v int64) []byte {
+	return strconv.AppendUint(buf, uint64(v), 10)
 }
 
 // NOTE
@@ -194,10 +209,11 @@ func appendSliceOfOptimized(buf []byte, slice interface{}) ([]byte, error) {
 	buf = append(buf, leftBRK)
 	elemTyp := reflect.TypeOf(slice).Elem()
 	elemSize := elemTyp.Size()
+	appendFunc := getAppendFunc(elemTyp)
 	for i := 0; i < size; i++ {
 		ptr := reflectx.ArrayAt(header.Data, i, elemSize)
 		elem := packInterfaceFromSlice(elemTyp, ptr)
-		buf, err = appendByType(buf, elem)
+		buf, err = appendFunc(buf, elem)
 		if err != nil {
 			return nil, err
 		}
@@ -207,10 +223,6 @@ func appendSliceOfOptimized(buf []byte, slice interface{}) ([]byte, error) {
 	}
 	buf = append(buf, rightBRK)
 	return buf, nil
-}
-
-func marshalIntSlice(slice interface{}) ([]byte, error) {
-	return marshalOptimized(slice, AppendIntSlice)
 }
 
 func AppendIntSlice(buf []byte, slice interface{}) ([]byte, error) {
@@ -241,15 +253,14 @@ func AppendIntSlice(buf []byte, slice interface{}) ([]byte, error) {
 	}
 	caster := reflectx.GetIntCaster(elemKind)
 	buf = append(buf, leftBRK)
-	isUnsigned := isUnsignedInt(elemKind)
+	appendFunc := _appendInt
+	if isUnsignedInt(elemKind) {
+		appendFunc = _appendUnsignedInt
+	}
 	for i := 0; i < size; i++ {
 		ptr := reflectx.ArrayAt(header.Data, i, caster.Size)
 		x := caster.Cast(ptr)
-		if isUnsigned {
-			buf = strconv.AppendUint(buf, uint64(x), 10)
-		} else {
-			buf = strconv.AppendInt(buf, x, 10)
-		}
+		buf = appendFunc(buf, x)
 		if i < size-1 {
 			buf = append(buf, comma)
 		}
@@ -269,12 +280,9 @@ func appendBytes(buf []byte, slice []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func marshalStringInterfaceMap(strMap interface{}) ([]byte, error) {
-	appendfunc := func(buf []byte, v interface{}) ([]byte, error) {
-		strMap := castStringInterfaceMap(v)
-		return AppendStringInterfaceMap(buf, strMap)
-	}
-	return marshalOptimized(strMap, appendfunc)
+func appendStringInterfaceMap(buf []byte, v interface{}) ([]byte, error) {
+	strMap := castStringInterfaceMap(v)
+	return AppendStringInterfaceMap(buf, strMap)
 }
 
 func AppendStringInterfaceMap(buf []byte, strMap map[string]interface{}) ([]byte, error) {
@@ -298,7 +306,8 @@ func AppendStringInterfaceMap(buf []byte, strMap map[string]interface{}) ([]byte
 			}
 			buf = append(buf, vbuf...)
 		} else {
-			buf, err = appendByType(buf, v)
+			appendFunc := getAppendFunc(reflect.TypeOf(v))
+			buf, err = appendFunc(buf, v)
 			if err != nil {
 				return nil, err
 			}
@@ -311,12 +320,9 @@ func AppendStringInterfaceMap(buf []byte, strMap map[string]interface{}) ([]byte
 	return buf, nil
 }
 
-func marshalStringMap(strMap interface{}) ([]byte, error) {
-	appendfunc := func(buf []byte, v interface{}) ([]byte, error) {
-		strMap := castStringMap(v)
-		return AppendStringMap(buf, strMap)
-	}
-	return marshalOptimized(strMap, appendfunc)
+func appendStringMap(buf []byte, v interface{}) ([]byte, error) {
+	strMap := castStringMap(v)
+	return AppendStringMap(buf, strMap)
 }
 
 func AppendStringMap(buf []byte, strMap map[string]string) ([]byte, error) {
@@ -341,12 +347,9 @@ func AppendStringMap(buf []byte, strMap map[string]string) ([]byte, error) {
 	return buf, nil
 }
 
-func marshalStringSlice(slice interface{}) ([]byte, error) {
-	appendfunc := func(buf []byte, v interface{}) ([]byte, error) {
-		slice := castStringSlice(v)
-		return AppendStringSlice(buf, slice)
-	}
-	return marshalOptimized(slice, appendfunc)
+func appendStringSlice(buf []byte, v interface{}) ([]byte, error) {
+	slice := castStringSlice(v)
+	return AppendStringSlice(buf, slice)
 }
 
 func AppendStringSlice(buf []byte, slice []string) ([]byte, error) {

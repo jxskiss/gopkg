@@ -49,9 +49,9 @@ func Marshal(v interface{}) ([]byte, error) {
 	typ := reflect.TypeOf(v)
 	switch {
 	case isIntSlice(typ):
-		return marshalIntSlice(v)
+		return marshalOptimized(v, AppendIntSlice)
 	case isStringSlice(typ):
-		return marshalStringSlice(v)
+		return marshalOptimized(v, appendStringSlice)
 	default:
 		return _Marshal(v)
 	}
@@ -63,20 +63,15 @@ func MarshalFast(v interface{}) ([]byte, error) {
 		return buf, err
 	}
 	typ := reflect.TypeOf(v)
-	switch {
-	case isIntSlice(typ):
-		return marshalIntSlice(v)
-	case isStringSlice(typ):
-		return marshalStringSlice(v)
-	case isStringMap(typ):
-		return marshalStringMap(v)
-	case isStringInterfaceMap(typ):
-		return marshalStringInterfaceMap(v)
-	case isSliceOfOptimized(typ):
-		return marshalSliceOfOptimized(v)
-	default:
-		return _MarshalFast(v)
+	if isIntSlice(typ) ||
+		isStringSlice(typ) ||
+		isStringMap(typ) ||
+		isStringInterfaceMap(typ) ||
+		isSliceOfOptimized(typ) {
+		appendFunc := getAppendFunc(typ)
+		return marshalOptimized(v, appendFunc)
 	}
+	return _MarshalFast(v)
 }
 
 func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
