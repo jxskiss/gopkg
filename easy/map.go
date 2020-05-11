@@ -9,6 +9,10 @@ import (
 	"unsafe"
 )
 
+const (
+	errNotSameTypeOrNotMap = "not same type or not map"
+)
+
 func MapKeys(m interface{}) (keys interface{}) {
 	mTyp := reflect.TypeOf(m)
 	if mTyp.Kind() != reflect.Map {
@@ -105,6 +109,22 @@ func StringValues(m interface{}) (values Strings) {
 		out = append(out, x)
 	})
 	return out
+}
+
+func MergeMap(map1, map2 interface{}) interface{} {
+	if map1 == nil || map2 == nil {
+		panicNilParams("MergeMap", "map1", map1, "map2", map2)
+	}
+	m1Val := reflect.ValueOf(map1)
+	m2Val := reflect.ValueOf(map2)
+	if m1Val.Type() != m2Val.Type() || m1Val.Kind() != reflect.Map {
+		panic("MergeMap: " + errNotSameTypeOrNotMap)
+	}
+
+	for iter := m2Val.MapRange(); iter.Next(); {
+		m1Val.SetMapIndex(iter.Key(), iter.Value())
+	}
+	return m1Val.Interface()
 }
 
 type SafeMap struct {

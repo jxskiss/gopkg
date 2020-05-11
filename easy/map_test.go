@@ -158,6 +158,16 @@ func TestStringKeysValues(t *testing.T) {
 	assert.ElementsMatch(t, []string{"11", "12", "13"}, StringValues(m))
 }
 
+func TestMergeMap(t *testing.T) {
+	m1 := map[int64]int64{1: 2, 3: 4, 5: 6}
+	m2 := map[int64]int64{7: 8, 9: 10}
+	m1 = MergeMap(m1, m2).(map[int64]int64)
+	assert.Equal(t, 5, len(m1))
+	assert.Equal(t, 2, len(m2))
+	assert.Equal(t, int64(8), m1[7])
+	assert.Equal(t, int64(10), m1[9])
+}
+
 var benchmarkMapData = map[int]*simple{
 	1:  {"abc"},
 	2:  {"bcd"},
