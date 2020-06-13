@@ -101,8 +101,10 @@ func Pretty(v interface{}) string {
 }
 
 // Caller returns function name, filename, and the line number of the caller.
+// The argument skip is the number of stack frames to ascend, with 0
+// identifying the caller of Caller.
 func Caller(skip int) (name, file string, line int) {
-	pc, file, line, _ := runtime.Caller(skip)
+	pc, file, line, _ := runtime.Caller(skip + 1)
 	name = runtime.FuncForPC(pc).Name()
 	for i := len(name) - 1; i >= 0; i-- {
 		if name[i] == '/' {

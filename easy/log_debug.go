@@ -83,7 +83,7 @@ DEBUG accepts very flexible arguments to help development, see the following exa
 */
 func DEBUG(args ...interface{}) {
 	stringer := JSON
-	logdebug(0, stringer, args...)
+	logdebug(1, stringer, args...)
 }
 
 // DEBUGSkip is similar to DEBUG, but it has an extra skip param to skip stacktrace
@@ -91,19 +91,19 @@ func DEBUG(args ...interface{}) {
 // you should use this function instead of `DEBUG`.
 func DEBUGSkip(skip int, args ...interface{}) {
 	stringer := JSON
-	logdebug(skip, stringer, args...)
+	logdebug(skip+1, stringer, args...)
 }
 
 // SPEW is similar to DEBUG, but it calls spew.Sprintf to format non-basic-type data.
 func SPEW(args ...interface{}) {
 	stringer := func(v interface{}) string { return spew.Sprintf("%#v", v) }
-	logdebug(0, stringer, args...)
+	logdebug(1, stringer, args...)
 }
 
 // DUMP is similar to DEBUG, but it calls spew.Sdump to format non-basic-type data.
 func DUMP(args ...interface{}) {
 	stringer := func(v interface{}) string { return spew.Sdump(v) }
-	logdebug(0, stringer, args...)
+	logdebug(1, stringer, args...)
 }
 
 func logdebug(skip int, stringer stringer, args ...interface{}) {
@@ -121,7 +121,7 @@ func logdebug(skip int, stringer stringer, args ...interface{}) {
 	if logger == nil {
 		logger = debugcfg.logger
 	}
-	outputDebugLog(skip, logger, stringer, args)
+	outputDebugLog(skip+1, logger, stringer, args)
 }
 
 func outputDebugLog(skip int, logger DebugLogger, stringer stringer, args []interface{}) {
@@ -133,7 +133,7 @@ func outputDebugLog(skip int, logger DebugLogger, stringer stringer, args []inte
 		format := "%v" + strings.Repeat(" %v", len(args)-1)
 		logger.Debugf(format, formatArgs(stringer, args)...)
 	} else {
-		name, file, line := Caller(4 + skip)
+		name, file, line := Caller(skip + 1)
 		logger.Debugf("========  DEBUG: %s#L%d - %s  ========", file, line, name)
 	}
 }

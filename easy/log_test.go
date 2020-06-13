@@ -68,7 +68,7 @@ func TestPretty(t *testing.T) {
 }
 
 func TestCaller(t *testing.T) {
-	name, file, line := Caller(1)
+	name, file, line := Caller(0)
 	assert.Equal(t, "easy.TestCaller", name)
 	assert.Equal(t, "easy/log_test.go", file)
 	assert.Equal(t, 71, line)
