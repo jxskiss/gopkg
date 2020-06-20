@@ -158,10 +158,15 @@ func getKeywordArgFunc(kwArgs interface{}) func(key string) (interface{}, bool) 
 			return val, ok
 		}
 	}
-	if kwMap, ok := kwArgs.(map[string]string); ok {
+	kwTyp := reflect.TypeOf(kwArgs)
+	if kwTyp.Kind() == reflect.Map && kwTyp.Key().Kind() == reflect.String {
+		kwValue := reflect.ValueOf(kwArgs)
 		return func(key string) (interface{}, bool) {
-			val, ok := kwMap[key]
-			return val, ok
+			val := kwValue.MapIndex(reflect.ValueOf(key))
+			if val.IsValid() {
+				return val.Interface(), true
+			}
+			return nil, false
 		}
 	}
 

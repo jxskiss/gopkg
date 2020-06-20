@@ -858,14 +858,35 @@ func SplitBatch(total, batch int) []IJ {
 	if batch <= 0 {
 		return []IJ{{0, total}}
 	}
-	ret := make([]IJ, 0, total/batch+1)
-	for i, j := 0, batch; i < total; i, j = i+batch, j+batch {
+	n := total/batch + 1
+	ret := make([]IJ, n)
+	idx := 0
+	for i, j := 0, batch; idx < n && i < total; i, j = i+batch, j+batch {
 		if j > total {
 			j = total
 		}
-		ret = append(ret, IJ{i, j})
+		ret[idx] = IJ{i, j}
+		idx++
 	}
-	return ret
+	return ret[:idx]
+}
+
+func SplitSlice(slice interface{}, batch int) interface{} {
+	if slice == nil {
+		panicNilParams("SplitSlice", "slice", slice)
+	}
+	sliceVal := reflect.ValueOf(slice)
+	sliceTyp := sliceVal.Type()
+	if sliceTyp.Kind() != reflect.Slice {
+		panic("SplitSlice: " + errNotSliceType)
+	}
+
+	indexes := SplitBatch(sliceVal.Len(), batch)
+	out := reflect.MakeSlice(reflect.SliceOf(sliceTyp), 0, len(indexes))
+	for _, idx := range indexes {
+		out = reflect.Append(out, sliceVal.Slice(idx.I, idx.J))
+	}
+	return out.Interface()
 }
 
 func indirect(value reflect.Value) reflect.Value {

@@ -14,23 +14,23 @@ func TestParseOptions_Gorm(t *testing.T) {
 			tag: `type:varchar(100);unique_index`,
 			options: Options{
 				{Value: "type:varchar(100)", K: "type", V: "varchar(100)"},
-				{Value: "unique_index", K: "unique_index"},
+				{Value: "unique_index", K: "unique_index", V: ""},
 			},
 		},
 		{
 			tag: `unique;not null`,
 			options: Options{
-				{Value: "unique", K: "unique"},
-				{Value: "not null", K: "not null"},
+				{Value: "unique", K: "unique", V: ""},
+				{Value: "not null", K: "not null", V: ""},
 			},
 		},
 		{
 			tag:     `AUTO_INCREMENT`,
-			options: Options{{Value: "AUTO_INCREMENT", K: "AUTO_INCREMENT"}},
+			options: Options{{Value: "AUTO_INCREMENT", K: "AUTO_INCREMENT", V: ""}},
 		},
 		{
 			tag:     `-`,
-			options: Options{{Value: "-", K: "-"}},
+			options: Options{{Value: "-", K: "-", V: ""}},
 		},
 		{
 			tag:     "",
@@ -45,7 +45,7 @@ func TestParseOptions_Gorm(t *testing.T) {
 }
 
 func TestOptions_Get(t *testing.T) {
-	options := Options{{K: "type", V: "varchar(100)"}, {K: "unique_index"}}
+	options := Options{{K: "type", V: "varchar(100)"}, {K: "unique_index", V: ""}}
 	tests := []struct {
 		opt   string
 		exp   string

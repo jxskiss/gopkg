@@ -714,3 +714,10 @@ func TestSplitBatch(t *testing.T) {
 		assert.Equal(t, test["want"], got)
 	}
 }
+
+func TestSplitSlice(t *testing.T) {
+	slice := []int{1, 2, 3, 4, 5, 6, 7}
+	want := [][]int{{1, 2, 3}, {4, 5, 6}, {7}}
+	got := SplitSlice(slice, 3)
+	assert.Equal(t, want, got)
+}
