@@ -9,14 +9,10 @@ import (
 	"unsafe"
 )
 
-const (
-	errNotSameTypeOrNotMap = "not same type or not map"
-)
-
 func MapKeys(m interface{}) (keys interface{}) {
 	mTyp := reflect.TypeOf(m)
 	if mTyp.Kind() != reflect.Map {
-		panic(fmt.Sprintf("MapKeys: invalid type %T", m))
+		panic(invalidType("MapKeys", "map", m))
 	}
 
 	length := reflectx.MapLen(m)
@@ -36,7 +32,7 @@ func MapKeys(m interface{}) (keys interface{}) {
 func MapValues(m interface{}) (values interface{}) {
 	mTyp := reflect.TypeOf(m)
 	if mTyp.Kind() != reflect.Map {
-		panic(fmt.Sprintf("MapValues: invalid type %T", m))
+		panic(invalidType("MapValues", "map", m))
 	}
 
 	length := reflectx.MapLen(m)
@@ -57,7 +53,7 @@ func IntKeys(m interface{}) (keys Int64s) {
 	mTyp := reflect.TypeOf(m)
 	if mTyp.Kind() != reflect.Map ||
 		!reflectx.IsIntType(mTyp.Key().Kind()) {
-		panic(fmt.Sprintf("IntKeys: invalid type %T", m))
+		panic(invalidType("IntKeys", "map with integer keys", m))
 	}
 
 	out := make([]int64, 0, reflectx.MapLen(m))
@@ -72,7 +68,7 @@ func IntValues(m interface{}) (values Int64s) {
 	mTyp := reflect.TypeOf(m)
 	if mTyp.Kind() != reflect.Map ||
 		!reflectx.IsIntType(mTyp.Elem().Kind()) {
-		panic(fmt.Sprintf("IntValues: invalid type %T", m))
+		panic(invalidType("IntValues", "map with integer values", m))
 	}
 
 	out := make([]int64, 0, reflectx.MapLen(m))
@@ -86,7 +82,7 @@ func IntValues(m interface{}) (values Int64s) {
 func StringKeys(m interface{}) (keys Strings) {
 	mTyp := reflect.TypeOf(m)
 	if mTyp.Kind() != reflect.Map || mTyp.Key().Kind() != reflect.String {
-		panic(fmt.Sprintf("StringKeys: invalid type %T", m))
+		panic(invalidType("StringKeys", "map with string keys", m))
 	}
 
 	out := make([]string, 0, reflectx.MapLen(m))
@@ -100,7 +96,7 @@ func StringKeys(m interface{}) (keys Strings) {
 func StringValues(m interface{}) (values Strings) {
 	mTyp := reflect.TypeOf(m)
 	if mTyp.Kind() != reflect.Map || mTyp.Elem().Kind() != reflect.String {
-		panic(fmt.Sprintf("StringValues: invalid type %T", m))
+		panic(invalidType("StringValues", "map with string values", m))
 	}
 
 	out := make([]string, 0, reflectx.MapLen(m))

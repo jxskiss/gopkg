@@ -162,10 +162,7 @@ func ToInt32s_(intSlice interface{}) Int32s {
 	}
 
 	sliceTyp := reflect.TypeOf(intSlice)
-	if sliceTyp.Kind() != reflect.Slice ||
-		!reflectx.IsIntType(sliceTyp.Elem().Kind()) {
-		panic("ToInt32s_: not a slice of integers")
-	}
+	assertSliceOfIntegers("ToInt32s_", sliceTyp)
 
 	if reflectx.Is32bitInt(sliceTyp.Elem().Kind()) {
 		return reflectx.CastInt32Slice(intSlice)
@@ -354,10 +351,7 @@ func ToInt64s_(intSlice interface{}) Int64s {
 	}
 
 	sliceTyp := reflect.TypeOf(intSlice)
-	if sliceTyp.Kind() != reflect.Slice ||
-		!reflectx.IsIntType(sliceTyp.Elem().Kind()) {
-		panic("ToInt64s_: not a slice of integers")
-	}
+	assertSliceOfIntegers("ToInt64s_", sliceTyp)
 
 	if reflectx.Is64bitInt(sliceTyp.Elem().Kind()) {
 		return reflectx.CastInt64Slice(intSlice)
