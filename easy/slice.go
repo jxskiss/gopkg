@@ -6,11 +6,15 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"unsafe"
 )
 
 const (
 	errNotSliceType           = "not slice type"
 	errNotSliceOrPointer      = "not a slice or pointer to slice"
+	errNotSliceOfInt          = "not a slice of integers"
+	errNotMapOfSlice          = "not a map of slice"
+	errNotMapOfIntSlice       = "not a map of integer slice"
 	errElemTypeNotMatchSlice  = "elem type does not match slice"
 	errElemNotStructOrPointer = "elem is not struct or pointer to struct"
 	errStructFieldNotProvided = "struct field is not provided"
@@ -749,6 +753,67 @@ func Filter(slice interface{}, predicate interface{}) interface{} {
 		}
 	}
 	return outVal.Interface()
+}
+
+func SumSlice(slice interface{}) int64 {
+	if slice == nil {
+		panicNilParams("SumSlice", "slice", slice)
+	}
+	sliceTyp := reflect.TypeOf(slice)
+	if sliceTyp.Kind() != reflect.Slice || !reflectx.IsIntType(sliceTyp.Elem().Kind()) {
+		panic("SumSlice: " + errNotSliceOfInt)
+	}
+
+	var sum int64
+	elemSize := sliceTyp.Elem().Size()
+	caster := reflectx.GetIntCaster(sliceTyp.Elem().Kind())
+	header := reflectx.UnpackSlice(slice)
+	for i := 0; i < header.Len; i++ {
+		ptr := reflectx.ArrayAt(header.Data, i, elemSize)
+		sum += caster.Cast(ptr)
+	}
+	return sum
+}
+
+func SumMapSlice(mapOfSlice interface{}) int64 {
+	if mapOfSlice == nil {
+		panicNilParams("SumMapSlice", "mapOfSlice", mapOfSlice)
+	}
+	mTyp := reflect.TypeOf(mapOfSlice)
+	if mTyp.Kind() != reflect.Map || mTyp.Elem().Kind() != reflect.Slice ||
+		!reflectx.IsIntType(mTyp.Elem().Elem().Kind()) {
+		panic("SumMapSlice: " + errNotMapOfIntSlice)
+	}
+
+	var sum int64
+	elemTyp := mTyp.Elem().Elem()
+	elemSize := elemTyp.Size()
+	caster := reflectx.GetIntCaster(elemTyp.Kind())
+	reflectx.MapIter(mapOfSlice, func(_, v unsafe.Pointer) {
+		header := *(*reflectx.SliceHeader)(v)
+		for i := 0; i < header.Len; i++ {
+			ptr := reflectx.ArrayAt(header.Data, i, elemSize)
+			sum += caster.Cast(ptr)
+		}
+	})
+	return sum
+}
+
+func SumMapSliceLength(mapOfSlice interface{}) int {
+	if mapOfSlice == nil {
+		panicNilParams("SumMapSliceLength", "mapOfSlice", mapOfSlice)
+	}
+	mTyp := reflect.TypeOf(mapOfSlice)
+	if mTyp.Kind() != reflect.Map || mTyp.Elem().Kind() != reflect.Slice {
+		panic("SumMapSliceLength: " + errNotMapOfSlice)
+	}
+
+	var sumLen int
+	reflectx.MapIter(mapOfSlice, func(_, v unsafe.Pointer) {
+		header := *(*reflectx.SliceHeader)(v)
+		sumLen += header.Len
+	})
+	return sumLen
 }
 
 func assertSliceAndElemType(where string, sliceVal reflect.Value, elemTyp reflect.Type) (reflect.Value, bool) {

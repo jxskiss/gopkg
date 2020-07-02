@@ -721,3 +721,35 @@ func TestSplitSlice(t *testing.T) {
 	got := SplitSlice(slice, 3)
 	assert.Equal(t, want, got)
 }
+
+func TestSumSlice(t *testing.T) {
+	tests := []map[string]interface{}{
+		{"slice": []int(nil), "sum": 0},
+		{"slice": []int32{1, 2, 3}, "sum": 6},
+		{"slice": []uint64{4, 5, 6}, "sum": 15},
+	}
+	for _, test := range tests {
+		got := SumSlice(test["slice"])
+		assert.Equal(t, test["sum"], int(got))
+	}
+}
+
+func TestSumMapSlice(t *testing.T) {
+	mSlice := map[string][]int{
+		"a": {1, 2, 3},
+		"b": {4, 5, 6},
+	}
+	got := SumMapSlice(mSlice)
+	want := int64(21)
+	assert.Equal(t, want, got)
+}
+
+func TestSumMapSliceLength(t *testing.T) {
+	mSlice := map[string][]int{
+		"a": {1, 2, 3},
+		"b": {4, 5},
+	}
+	got := SumMapSliceLength(mSlice)
+	want := 5
+	assert.Equal(t, want, got)
+}
