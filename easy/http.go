@@ -27,17 +27,17 @@ var (
 	xmlCheck  = regexp.MustCompile(`(?i:(application|text)/(xml|.*\+xml)(;|$))`)
 )
 
-func SingleJoin(sep string, path ...string) string {
-	if len(path) == 0 {
+func SingleJoin(sep string, text ...string) string {
+	if len(text) == 0 {
 		return ""
 	}
-	result := path[0]
-	for _, next := range path[1:] {
+	result := text[0]
+	for _, next := range text[1:] {
 		asep := strings.HasSuffix(result, sep)
 		bsep := strings.HasPrefix(next, sep)
 		switch {
 		case asep && bsep:
-			result += next[1:]
+			result += next[len(sep):]
 		case !asep && !bsep:
 			result += sep + next
 		default:

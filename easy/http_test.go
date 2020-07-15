@@ -13,6 +13,13 @@ import (
 	"time"
 )
 
+func TestSingleJoin(t *testing.T) {
+	text := []string{"a","b..", "..c"}
+	got := SingleJoin("..", text...)
+	want := "a..b..c"
+	assert.Equal(t, want, got)
+}
+
 func TestSlashJoin(t *testing.T) {
 	got0 := SlashJoin()
 	assert.Equal(t, "", got0)
