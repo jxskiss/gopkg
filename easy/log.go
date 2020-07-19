@@ -2,6 +2,7 @@ package easy
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"github.com/json-iterator/go"
 	"github.com/jxskiss/gopkg/json"
@@ -12,6 +13,35 @@ import (
 	"sync"
 	"unicode/utf8"
 )
+
+func ConfigLog(
+	enableDebug bool,
+	defaultLogger ErrDebugLogger,
+	ctxFunc func(ctx context.Context) ErrDebugLogger,
+) {
+	logcfg.EnableDebug = enableDebug
+	if defaultLogger != nil {
+		logcfg.DefaultLogger = defaultLogger
+	}
+	if ctxFunc != nil {
+		logcfg.CtxFunc = ctxFunc
+	}
+}
+
+var logcfg = struct {
+	EnableDebug   bool
+	DefaultLogger ErrDebugLogger
+	// CtxFunc retrieves logger from context.Context.
+	CtxFunc func(ctx context.Context) ErrDebugLogger
+}{
+	EnableDebug:   false,
+	DefaultLogger: stdLogger{},
+}
+
+type stdLogger struct{}
+
+func (p stdLogger) Debugf(format string, args ...interface{}) { log.Printf("DEBUG: "+format, args...) }
+func (p stdLogger) Errorf(format string, args ...interface{}) { log.Printf("ERROR: "+format, args...) }
 
 // ErrLogger is an interface which log an message at ERROR level.
 // It's implemented by *logrus.Logger, *logrus.Entry, *zap.SugaredLogger,
@@ -27,8 +57,16 @@ type DebugLogger interface {
 	Debugf(format string, args ...interface{})
 }
 
+// ErrDebugLogger is an interface which log messages at ERROR and DEBUG level.
+// It's implemented by *logrus.Logger, *logrus.Entry, *zap.SugaredLogger,
+// and many other logging packages.
+type ErrDebugLogger interface {
+	ErrLogger
+	DebugLogger
+}
+
 // PrintFunc is a function to print the given arguments in format to somewhere.
-// It implements both `ErrLogger` and `DebugLogger`.
+// It implements the interface `ErrDebugLogger`.
 type PrintFunc func(format string, args ...interface{})
 
 func (f PrintFunc) Errorf(format string, args ...interface{}) { f(format, args...) }
@@ -40,21 +78,6 @@ func (f PrintFunc) Debugf(format string, args ...interface{}) { f(format, args..
 // logging packages.
 type Printer interface {
 	Printf(format string, args ...interface{})
-}
-
-func logError(logger interface{}, format string, args ...interface{}) {
-	switch logger := logger.(type) {
-	case ErrLogger:
-		logger.Errorf(format, args...)
-	case Printer:
-		logger.Printf(format, args...)
-	case PrintFunc:
-		logger(format, args...)
-	case func(string, ...interface{}):
-		logger(format, args...)
-	default:
-		log.Printf(format, args...)
-	}
 }
 
 var logjson = jsoniter.Config{

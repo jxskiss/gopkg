@@ -1,6 +1,7 @@
 package easy
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 	"runtime/debug"
@@ -14,32 +15,37 @@ type PanicError struct {
 }
 
 func (p *PanicError) Error() string {
-	return fmt.Sprintf("catch panic: %v, location: %v", p.Err, p.Loc)
+	return fmt.Sprintf("panic: %v, location: %v", p.Err, p.Loc)
 }
 
-func Go(f func(), logger ...interface{}) {
+// Go calls the given function with panic recover, in case of panic happens,
+// the panic message, location and the calling stack will be logged using
+// the default logger configured by `ConfigLog`.
+func Go(f func()) {
 	go func() {
-		err := Safe(f)()
-		if err != nil && len(logger) > 0 {
-			perr := err.(*PanicError)
-			logError(logger[0], "%s\n%s", perr.Error(), perr.Stack)
+		defer Recover(nil, nil)
+		f()
+	}()
+}
+
+// Go1 calls the given function with panic recover, in case an error is returned,
+// or panic happens, the error message or panic information will be logged
+// using the default logger configured by `ConfigLog`.
+func Go1(f func() error) {
+	go func() {
+		defer Recover(nil, nil)
+		err := f()
+		if err != nil {
+			logcfg.DefaultLogger.Errorf("catch error: %v\n", err)
 		}
 	}()
 }
 
-func Go1(f func() error, logger ...interface{}) {
-	go func() {
-		err := Safe1(f)()
-		if err != nil && len(logger) > 0 {
-			if perr, ok := err.(*PanicError); ok {
-				logError(logger[0], "%s\n%s", perr.Error(), perr.Stack)
-			} else {
-				logError(logger[0], "catch error: %v", err)
-			}
-		}
-	}()
-}
-
+// Safe returns an wrapped function with panic recover.
+//
+// Note that if panic happens, the wrapped function does not log messages,
+// instead it will be returned as a `PanicError`, the caller take
+// responsibility to log the panic messages.
 func Safe(f func()) func() error {
 	return func() (err error) {
 		defer func() {
@@ -48,14 +54,20 @@ func Safe(f func()) func() error {
 				return
 			}
 			panicLoc := IdentifyPanic()
+			stack := debug.Stack()
 			err = EnsureError(e)
-			err = &PanicError{Err: err, Loc: panicLoc, Stack: debug.Stack()}
+			err = &PanicError{Err: err, Loc: panicLoc, Stack: stack}
 		}()
 		f()
 		return nil
 	}
 }
 
+// Safe1 returns an wrapped function with panic recover.
+//
+// Note that if panic or error happens, the wrapped function does not log
+// messages, instead it will be returned as an error, the caller take
+// responsibility to log the panic or error messages.
 func Safe1(f func() error) func() error {
 	return func() (err error) {
 		defer func() {
@@ -64,12 +76,38 @@ func Safe1(f func() error) func() error {
 				return
 			}
 			panicLoc := IdentifyPanic()
+			stack := debug.Stack()
 			err = EnsureError(e)
-			err = &PanicError{Err: err, Loc: panicLoc, Stack: debug.Stack()}
+			err = &PanicError{Err: err, Loc: panicLoc, Stack: stack}
 		}()
 		err = f()
 		return
 	}
+}
+
+// Recover recovers unexpected panic, and log error messages using
+// logger associated with the given context, if `err` is not nil,
+// an wrapped `PanicError` will be assigned to it.
+//
+// Note that this function should not be wrapped be another function,
+// instead it should be called directly by the `defer` statement,
+// or it won't work as you may expect.
+func Recover(ctx context.Context, err *error) {
+	e := recover()
+	if e == nil {
+		return
+	}
+	panicLoc := IdentifyPanic()
+	stack := debug.Stack()
+	if err != nil {
+		tmp := EnsureError(e)
+		*err = &PanicError{Err: tmp, Loc: panicLoc, Stack: stack}
+	}
+	logger := logcfg.DefaultLogger
+	if ctx != nil && logcfg.CtxFunc != nil {
+		logger = logcfg.CtxFunc(ctx)
+	}
+	logger.Errorf("catch panic: %v, location: %s\n%s", err, panicLoc, stack)
 }
 
 func IdentifyPanic() string {

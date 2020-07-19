@@ -92,7 +92,7 @@ func TestCopyStdLog(t *testing.T) {
 
 func TestDEBUG_bare_func(t *testing.T) {
 	// test func()
-	ConfigDebugLog(true, nil, nil)
+	ConfigLog(true, nil, nil)
 	msg := "test DEBUG_bare_func"
 	got := CopyStdLog(func() {
 		DEBUG(func() {
@@ -105,10 +105,10 @@ func TestDEBUG_bare_func(t *testing.T) {
 
 func TestDEBUG_logger_interface(t *testing.T) {
 	logbuf := bytes.NewBuffer(nil)
-	logger := &bufDebugLogger{buf: logbuf}
+	logger := &bufLogger{buf: logbuf}
 
 	// test logger interface
-	ConfigDebugLog(true, nil, nil)
+	ConfigLog(true, nil, nil)
 	msg := "test DEBUG_logger_interface"
 	DEBUG(logger, msg, 1, 2, 3)
 	got := logbuf.String()
@@ -118,7 +118,7 @@ func TestDEBUG_logger_interface(t *testing.T) {
 
 func TestDEBUG_logger_func(t *testing.T) {
 	// test logger function
-	ConfigDebugLog(true, nil, nil)
+	ConfigLog(true, nil, nil)
 	logger := func() *stdLogger {
 		return &stdLogger{}
 	}
@@ -132,7 +132,7 @@ func TestDEBUG_logger_func(t *testing.T) {
 
 func TestDEBUG_print_func(t *testing.T) {
 	// test print function
-	ConfigDebugLog(true, nil, nil)
+	ConfigLog(true, nil, nil)
 	msg := "test DEBUG_print_func"
 	prefix := "PREFIX: "
 	logger := func(format string, args ...interface{}) {
@@ -149,13 +149,13 @@ func TestDEBUG_print_func(t *testing.T) {
 
 func TestDEBUG_ctx_logger(t *testing.T) {
 	logbuf := bytes.NewBuffer(nil)
-	ctx := context.WithValue(context.Background(), "TEST_LOGGER", &bufDebugLogger{buf: logbuf})
-	getCtxLogger := func(ctx context.Context) DebugLogger {
-		return ctx.Value("TEST_LOGGER").(*bufDebugLogger)
+	ctx := context.WithValue(context.Background(), "TEST_LOGGER", &bufLogger{buf: logbuf})
+	getCtxLogger := func(ctx context.Context) ErrDebugLogger {
+		return ctx.Value("TEST_LOGGER").(*bufLogger)
 	}
 
 	// test ctx logger
-	ConfigDebugLog(true, nil, getCtxLogger)
+	ConfigLog(true, nil, getCtxLogger)
 	msg := "test DEBUG_ctx_logger"
 	DEBUG(ctx, msg, 1, 2, 3)
 	got := logbuf.String()
@@ -164,7 +164,7 @@ func TestDEBUG_ctx_logger(t *testing.T) {
 }
 
 func TestDEBUG_simple(t *testing.T) {
-	ConfigDebugLog(true, nil, nil)
+	ConfigLog(true, nil, nil)
 
 	// test format
 	got1 := CopyStdLog(func() {
@@ -182,14 +182,14 @@ func TestDEBUG_simple(t *testing.T) {
 }
 
 func TestDEBUG_empty(t *testing.T) {
-	ConfigDebugLog(true, nil, nil)
+	ConfigLog(true, nil, nil)
 	got := CopyStdLog(func() { DEBUG() }).String_()
 	want := regexp.MustCompile(`DEBUG: easy/log_test.go#L\d+ - easy.TestDEBUG_empty`)
 	assert.Regexp(t, want, got)
 }
 
 func TestDEBUGSkip(t *testing.T) {
-	ConfigDebugLog(true, nil, nil)
+	ConfigLog(true, nil, nil)
 
 	got := CopyStdLog(func() { DEBUGWrap() }).String_()
 	want := regexp.MustCompile(`DEBUG: easy/log_test.go#L\d+ - easy.TestDEBUGSkip`)
@@ -200,19 +200,29 @@ func TestDEBUGSkip(t *testing.T) {
 	assert.Regexp(t, want, got)
 }
 
-func TestConfigDebugLog(t *testing.T) {
-	defaultLogger := &bufDebugLogger{}
-	getCtxLogger := func(ctx context.Context) DebugLogger {
-		return ctx.Value("TEST_LOGGER").(*bufDebugLogger)
+func TestConfigLog(t *testing.T) {
+	defaultLogger := &bufLogger{}
+	getCtxLogger := func(ctx context.Context) ErrDebugLogger {
+		return ctx.Value("TEST_LOGGER").(*bufLogger)
 	}
-	ConfigDebugLog(true, defaultLogger, getCtxLogger)
+	ConfigLog(true, defaultLogger, getCtxLogger)
 }
 
-type bufDebugLogger struct {
+type bufLogger struct {
 	buf *bytes.Buffer
 }
 
-func (p *bufDebugLogger) Debugf(format string, args ...interface{}) {
+func (p *bufLogger) Debugf(format string, args ...interface{}) {
+	if p.buf == nil {
+		p.buf = bytes.NewBuffer(nil)
+	}
+	fmt.Fprintf(p.buf, format, args...)
+}
+
+func (p *bufLogger) Errorf(format string, args ...interface{}) {
+	if p.buf == nil {
+		p.buf = bytes.NewBuffer(nil)
+	}
 	fmt.Fprintf(p.buf, format, args...)
 }
 

@@ -5,33 +5,10 @@ package easy
 import (
 	"context"
 	"github.com/davecgh/go-spew/spew"
-	"log"
 	"reflect"
 	"strings"
 	"unicode/utf8"
 )
-
-var debugcfg = struct {
-	enable  bool
-	logger  DebugLogger
-	ctxFunc func(context.Context) DebugLogger
-}{
-	logger: stdLogger{},
-}
-
-func ConfigDebugLog(
-	enableDebug bool,
-	defaultLogger DebugLogger,
-	ctxLoggerFunc func(context.Context) DebugLogger,
-) {
-	debugcfg.enable = enableDebug
-	if defaultLogger != nil {
-		debugcfg.logger = defaultLogger
-	}
-	if ctxLoggerFunc != nil {
-		debugcfg.ctxFunc = ctxLoggerFunc
-	}
-}
 
 type stringer func(v interface{}) string
 
@@ -107,7 +84,7 @@ func DUMP(args ...interface{}) {
 }
 
 func logdebug(skip int, stringer stringer, args ...interface{}) {
-	if !debugcfg.enable {
+	if !logcfg.EnableDebug {
 		return
 	}
 	var logger DebugLogger
@@ -119,7 +96,7 @@ func logdebug(skip int, stringer stringer, args ...interface{}) {
 		logger, args = parseArg0Logger(args)
 	}
 	if logger == nil {
-		logger = debugcfg.logger
+		logger = logcfg.DefaultLogger
 	}
 	outputDebugLog(skip+1, logger, stringer, args)
 }
@@ -172,10 +149,6 @@ func isBasicType(typ reflect.Type) bool {
 	return false
 }
 
-type stdLogger struct{}
-
-func (p stdLogger) Debugf(format string, args ...interface{}) { log.Printf(format, args...) }
-
 var debugLoggerTyp = reflect.TypeOf((*DebugLogger)(nil)).Elem()
 
 func parseArg0Logger(args []interface{}) (DebugLogger, []interface{}) {
@@ -188,8 +161,8 @@ func parseArg0Logger(args []interface{}) (DebugLogger, []interface{}) {
 
 	switch arg0 := args[0].(type) {
 	case context.Context:
-		if debugcfg.ctxFunc != nil {
-			logger = debugcfg.ctxFunc(arg0)
+		if logcfg.CtxFunc != nil {
+			logger = logcfg.CtxFunc(arg0)
 		}
 		args = args[1:]
 	case func(string, ...interface{}):
