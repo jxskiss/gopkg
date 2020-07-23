@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/jxskiss/gopkg/reflectx"
 	"reflect"
+	"sort"
 	"strconv"
 	"unsafe"
 )
@@ -18,6 +19,13 @@ var (
 )
 
 type Int32s []int32
+
+func (p Int32s) Len() int           { return len(p) }
+func (p Int32s) Less(i, j int) bool { return p[i] < p[j] }
+func (p Int32s) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
+// Sort is a convenient method.
+func (p Int32s) Sort() { sort.Sort(p) }
 
 func (p Int32s) Uint32s_() []uint32 {
 	return *(*[]uint32)(unsafe.Pointer(&p))
@@ -171,6 +179,13 @@ func ToInt32s_(intSlice interface{}) Int32s {
 }
 
 type Int64s []int64
+
+func (p Int64s) Len() int           { return len(p) }
+func (p Int64s) Less(i, j int) bool { return p[i] < p[j] }
+func (p Int64s) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
+// Sort is a convenience method.
+func (p Int64s) Sort() { sort.Sort(p) }
 
 func (p Int64s) Uint64s_() []uint64 {
 	return *(*[]uint64)(unsafe.Pointer(&p))
@@ -360,6 +375,13 @@ func ToInt64s_(intSlice interface{}) Int64s {
 }
 
 type Strings []string
+
+func (p Strings) Len() int           { return len(p) }
+func (p Strings) Less(i, j int) bool { return p[i] < p[j] }
+func (p Strings) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
+// Sort is a convenience method.
+func (p Strings) Sort() { sort.Sort(p) }
 
 func ToStrings_(slice interface{}) Strings {
 	switch slice := slice.(type) {
