@@ -2,7 +2,9 @@ package strutil
 
 import (
 	"fmt"
+	"os"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -181,4 +183,46 @@ func getKeywordArgFunc(kwArgs interface{}) func(key string) (interface{}, bool) 
 		}
 		return nil, false
 	}
+}
+
+var envPlaceholderRegex = regexp.MustCompile(`\\?\${\w+}`)
+
+// FormatENV formats string by replacing syntax ${VAR_NAME}.
+// Optionally defaultValues can be provided as VER_NAME, VAR_VALUE sequence
+// to find variables from when it's missing from the environment.
+//
+// Some notes:
+// - for a special case, if the matched variable has a leading backslash,
+//   the variable won't be replaced and the leading backslash will be stripped;
+// - for variables missing from both environment and default values, it
+//   will be replaced to empty string, as the same behavior in shell;
+// - this function panics if given an odd number of defaultValues;
+//
+// Example:
+//   // returns: "${MY_VAR} = my_variable"
+//   os.Setenv("MY_VAR", "my_variable")
+//   FormatENV(`\${MY_VAR} = ${MY_VAR}`)
+//
+func FormatENV(src string, defaultValues ...string) string {
+	if len(defaultValues)%2 == 1 {
+		panic("FormatENV: odd default values count")
+	}
+
+	out := envPlaceholderRegex.ReplaceAllStringFunc(src, func(s string) string {
+		if s[0] == '\\' {
+			return s[1:]
+		}
+		name := s[2:len(s)-1]
+		value := os.Getenv(name)
+		if value == "" {
+			for i := 0; i < len(defaultValues); i += 2 {
+				if name == defaultValues[i] {
+					value = defaultValues[i+1]
+					break
+				}
+			}
+		}
+		return value
+	})
+	return out
 }

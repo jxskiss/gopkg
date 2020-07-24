@@ -2,6 +2,7 @@ package strutil
 
 import (
 	"github.com/stretchr/testify/assert"
+	"os"
 	"testing"
 )
 
@@ -65,4 +66,14 @@ type testObject struct {
 	Field1  string
 	Field2  int64
 	private int32
+}
+
+func TestFormatENV(t *testing.T) {
+	defaultEnv := []string{
+		"DEFAULT_A", "abc",
+	}
+	os.Setenv("EXISTS", "exists")
+	got := FormatENV(`env \${EXISTS} = ${EXISTS}, and ${DEFAULT_A} and ${NOT_EXISTS}`, defaultEnv...)
+	want := "env ${EXISTS} = exists, and abc and "
+	assert.Equal(t, want, got)
 }
