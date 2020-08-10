@@ -6,7 +6,7 @@ import (
 )
 
 func TestFilter(t *testing.T) {
-	want1 := "a = ? AND b = ? AND (c = ? AND d = 4 OR (e = ? OR f = 6))"
+	want1 := "a = ? AND b = ? AND ((c = ? AND d = 4) OR (e = ? OR f = 6))"
 	builder1 := And(
 		Cond("a = ?", 1),
 		Cond("b = ?", 2),
@@ -33,4 +33,22 @@ func TestFilter(t *testing.T) {
 	assert.Equal(t, want2, clause2)
 	assert.Equal(t, want2, builder2.String())
 	assert.Equal(t, []interface{}{1, 2, 3, 5}, args2)
+}
+
+func TestMisuseOfBrackets(t *testing.T) {
+	want1 := "a = 1 AND (b = 2 Or c = 3)"
+	cond1 := And(
+		Cond("a = 1"),
+		Cond("b = 2 Or c = 3"),
+	)
+	got1, _ := cond1.Build()
+	assert.Equal(t, want1, got1)
+
+	want2 := "(a = 1 OR (b = 2 AnD c = 3))"
+	cond2 := Or(
+		Cond("a = 1"),
+		Cond("b = 2 AnD c = 3"),
+	)
+	got2, _ := cond2.Build()
+	assert.Equal(t, want2, got2)
 }

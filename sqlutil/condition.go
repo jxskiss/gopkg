@@ -34,6 +34,13 @@ type Condition struct {
 }
 
 func (p *Condition) And(clause string, args ...interface{}) *Condition {
+	// encapsulate with brackets to avoid misuse
+	clause = strings.TrimSpace(clause)
+	if containsOr(clause) &&
+		!(clause[0] == '(' && clause[len(clause)-1] == ')') {
+		clause = "(" + clause + ")"
+	}
+
 	if p.builder.Len() == 0 {
 		p.builder.WriteString(clause)
 	} else {
@@ -45,6 +52,13 @@ func (p *Condition) And(clause string, args ...interface{}) *Condition {
 }
 
 func (p *Condition) Or(clause string, args ...interface{}) *Condition {
+	// encapsulate with brackets to avoid misuse
+	clause = strings.TrimSpace(clause)
+	if containsAnd(clause) &&
+		!(clause[0] == '(' && clause[len(clause)-1] == ')') {
+		clause = "(" + clause + ")"
+	}
+
 	if p.builder.Len() == 0 {
 		p.builder.WriteString(clause)
 	} else {
@@ -56,11 +70,6 @@ func (p *Condition) Or(clause string, args ...interface{}) *Condition {
 	p.args = append(p.args, args...)
 	return p
 }
-
-//func (p *Condition) shouldAddBrackets(clause string) bool {
-//	return (clause[0] != '(' || clause[len(clause)-1] != ')') &&
-//		strings.Contains(strings.ToLower(clause), " or ")
-//}
 
 func (p *Condition) IfAnd(cond bool, clause string, args ...interface{}) *Condition {
 	if cond {
@@ -87,4 +96,34 @@ func (p *Condition) Build() (string, []interface{}) {
 func (p *Condition) String() string {
 	clause, _ := p.Build()
 	return clause
+}
+
+func containsAnd(clause string) bool {
+	lower := strings.ToLower(clause)
+	idx := strings.Index(lower, "and")
+	if idx > 0 && len(clause) > idx+3 {
+		if isWhitespace(clause[idx-1]) && isWhitespace(clause[idx+3]) {
+			return true
+		}
+	}
+	return false
+}
+
+func containsOr(clause string) bool {
+	lower := strings.ToLower(clause)
+	idx := strings.Index(lower, "or")
+	if idx > 0 && len(clause) > idx+3 {
+		if isWhitespace(clause[idx-1]) && isWhitespace(clause[idx+2]) {
+			return true
+		}
+	}
+	return false
+}
+
+func isWhitespace(b byte) bool {
+	switch b {
+	case '\t', '\n', '\v', '\f', '\r', ' ':
+		return true
+	}
+	return false
 }
