@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/jxskiss/gopkg/ptr"
 	"github.com/stretchr/testify/assert"
 	"log"
 	"math/rand"
@@ -11,6 +12,13 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestCaller(t *testing.T) {
+	name, file, line := Caller(0)
+	assert.Equal(t, "easy.TestCaller", name)
+	assert.Equal(t, "easy/log_test.go", file)
+	assert.Equal(t, 17, line)
+}
 
 func TestJSON(t *testing.T) {
 	tests := []map[string]interface{}{
@@ -34,6 +42,47 @@ func TestJSON(t *testing.T) {
 	for _, test := range tests {
 		x := JSON(test["value"])
 		assert.Equal(t, test["want"], x)
+	}
+}
+
+func TestLogfmt(t *testing.T) {
+	tests := []map[string]interface{}{
+		{
+			"value": 123,
+			"want": "123",
+		},
+		{
+			"value": (*string)(nil),
+			"want": "null",
+		},
+		{
+			"value": comptyp{
+				I32:      32,
+				I32_p:    ptr.Int32(32),
+				I64:      64,
+				I64_p:    nil,
+				Str:      "str",
+				Str_p:    ptr.String("str with space"),
+				Simple:   simple{A: "simple.A"},
+				Simple_p: nil,
+			},
+			"want": `i32=32 i32_p=32 i64=64 str=str str_p="str with space"`,
+		},
+		{
+			"value": map[string]interface{}{
+				"a": 1234,
+				"b": "bcde",
+				"c": 123.456,
+				"d": simple{A: "simple.A"},
+				"e": nil,
+				"f": []byte("I'm bytes"),
+			},
+			"want": `a=1234 b=bcde c=123.456 f="I'm bytes"`,
+		},
+	}
+	for _, test := range tests {
+		got := Logfmt(test["value"])
+		assert.Equal(t, test["want"], got)
 	}
 }
 
@@ -65,13 +114,6 @@ func TestPretty(t *testing.T) {
 	rand.Read(test4)
 	got4 := Pretty(test4)
 	assert.Equal(t, "<pretty: non-printable bytes>", got4)
-}
-
-func TestCaller(t *testing.T) {
-	name, file, line := Caller(0)
-	assert.Equal(t, "easy.TestCaller", name)
-	assert.Equal(t, "easy/log_test.go", file)
-	assert.Equal(t, 71, line)
 }
 
 func TestCopyStdout(t *testing.T) {

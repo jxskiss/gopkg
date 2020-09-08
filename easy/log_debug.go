@@ -7,7 +7,6 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"reflect"
 	"strings"
-	"unicode/utf8"
 )
 
 type stringer func(v interface{}) string
@@ -113,40 +112,6 @@ func outputDebugLog(skip int, logger DebugLogger, stringer stringer, args []inte
 		name, file, line := Caller(skip + 1)
 		logger.Debugf("========  DEBUG: %s#L%d - %s  ========", file, line, name)
 	}
-}
-
-func formatArgs(stringer stringer, args []interface{}) []interface{} {
-	retArgs := make([]interface{}, 0, len(args))
-	for _, v := range args {
-		x := v
-		if v != nil {
-			typ := reflect.TypeOf(v)
-			for typ.Kind() == reflect.Ptr && isBasicType(typ.Elem()) {
-				typ = typ.Elem()
-				v = reflect.ValueOf(v).Elem().Interface()
-			}
-			if isBasicType(typ) {
-				x = v
-			} else if bv, ok := v.([]byte); ok && utf8.Valid(bv) {
-				x = string(bv)
-			} else {
-				x = stringer(v)
-			}
-		}
-		retArgs = append(retArgs, x)
-	}
-	return retArgs
-}
-
-func isBasicType(typ reflect.Type) bool {
-	switch typ.Kind() {
-	case reflect.Bool, reflect.String,
-		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
-		reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
-		return true
-	}
-	return false
 }
 
 var debugLoggerTyp = reflect.TypeOf((*DebugLogger)(nil)).Elem()

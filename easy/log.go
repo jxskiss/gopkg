@@ -6,10 +6,14 @@ import (
 	"fmt"
 	"github.com/json-iterator/go"
 	"github.com/jxskiss/gopkg/json"
+	"github.com/jxskiss/gopkg/strutil"
 	"io"
 	"log"
 	"os"
+	"reflect"
 	"runtime"
+	"sort"
+	"strings"
 	"sync"
 	"unicode/utf8"
 )
@@ -96,6 +100,135 @@ func JSON(v interface{}) string {
 		return fmt.Sprintf("<error: %v>", err)
 	}
 	return String_(b)
+}
+
+// Logfmt converts given object to a string in logfmt format, it never
+// returns error. Note that only struct and map of basic types are
+// supported, non-basic types are simply ignored.
+func Logfmt(v interface{}) string {
+	switch v.(type) {
+	case []byte, string:
+		src := ToBytes_(v)
+		if utf8.Valid(src) {
+			srcstr := src.String_()
+			if strings.IndexFunc(srcstr, needsQuoteValueRune) != -1 {
+				return JSON(srcstr)
+			}
+			return srcstr
+		}
+	}
+
+	// simple values
+	val := reflect.Indirect(reflect.ValueOf(v))
+	if !val.IsValid() {
+		return "null"
+	}
+	if isBasicType(val.Type()) {
+		return fmt.Sprint(val)
+	}
+	if val.Kind() != reflect.Struct && val.Kind() != reflect.Map {
+		return "<error: unsupported logfmt type>"
+	}
+
+	keyValues := make([]interface{}, 0)
+	if val.Kind() == reflect.Map {
+		keys := make([]string, 0, val.Len())
+		values := make(map[string]interface{}, val.Len())
+		for iter := val.MapRange(); iter.Next(); {
+			k, v := iter.Key(), reflect.Indirect(iter.Value())
+			if !isBasicType(k.Type()) || !v.IsValid() {
+				continue
+			}
+			v = reflect.ValueOf(v.Interface())
+			if !v.IsValid() {
+				continue
+			}
+			kstr := fmt.Sprint(k.Interface())
+			if isBasicType(v.Type()) {
+				keys = append(keys, kstr)
+				values[kstr] = v.Interface()
+				continue
+			}
+			if bv, ok := v.Interface().([]byte); ok {
+				if len(bv) > 0 && utf8.Valid(bv) {
+					keys = append(keys, kstr)
+					values[kstr] = String_(bv)
+				}
+				continue
+			}
+			if v.Kind() == reflect.Slice && isBasicType(v.Elem().Type()) {
+				keys = append(keys, kstr)
+				values[kstr] = JSON(v.Interface())
+				continue
+			}
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			v := values[k]
+			keyValues = append(keyValues, k, v)
+		}
+	} else { // reflect.Struct
+		typ := val.Type()
+		fieldNum := val.NumField()
+		for i := 0; i < fieldNum; i++ {
+			field := typ.Field(i)
+			// ignore unexported fields which we can't take interface
+			if len(field.PkgPath) != 0 {
+				continue
+			}
+			k := strutil.ToSnake(field.Name)
+			v := reflect.Indirect(val.Field(i))
+			if !v.IsValid() {
+				continue
+			}
+			v = reflect.ValueOf(v.Interface())
+			if !v.IsValid() {
+				continue
+			}
+			if isBasicType(v.Type()) {
+				keyValues = append(keyValues, k, v.Interface())
+				continue
+			}
+			if bv, ok := v.Interface().([]byte); ok {
+				if len(bv) > 0 && utf8.Valid(bv) {
+					keyValues = append(keyValues, k, String_(bv))
+				}
+				continue
+			}
+			if v.Kind() == reflect.Slice && isBasicType(v.Elem().Type()) {
+				keyValues = append(keyValues, k, JSON(v.Interface()))
+				continue
+			}
+		}
+	}
+	if len(keyValues) == 0 {
+		return ""
+	}
+
+	buf := strings.Builder{}
+	needSpace := false
+	for i := 0; i < len(keyValues); i += 2 {
+		k, v := keyValues[i], keyValues[i+1]
+		if needSpace {
+			buf.WriteByte(' ')
+		}
+		buf.WriteString(fmt.Sprint(k))
+		buf.WriteString("=")
+		vstr, ok := v.(string)
+		if !ok {
+			vstr = fmt.Sprint(v)
+		}
+		if strings.IndexFunc(vstr, needsQuoteValueRune) != -1 {
+			vstr = JSON(vstr)
+		}
+		buf.WriteString(vstr)
+		needSpace = true
+	}
+	return buf.String()
+}
+
+func needsQuoteValueRune(r rune) bool {
+	return r <= ' ' || r == '=' || r == '"' || r == utf8.RuneError
 }
 
 // Pretty converts given object to a pretty formatted json string.
@@ -208,4 +341,38 @@ func CopyStdLog(f func()) Bytes {
 	log.SetOutput(multi)
 	f()
 	return buf.Bytes()
+}
+
+func formatArgs(stringer stringer, args []interface{}) []interface{} {
+	retArgs := make([]interface{}, 0, len(args))
+	for _, v := range args {
+		x := v
+		if v != nil {
+			typ := reflect.TypeOf(v)
+			for typ.Kind() == reflect.Ptr && isBasicType(typ.Elem()) {
+				typ = typ.Elem()
+				v = reflect.ValueOf(v).Elem().Interface()
+			}
+			if isBasicType(typ) {
+				x = v
+			} else if bv, ok := v.([]byte); ok && utf8.Valid(bv) {
+				x = string(bv)
+			} else {
+				x = stringer(v)
+			}
+		}
+		retArgs = append(retArgs, x)
+	}
+	return retArgs
+}
+
+func isBasicType(typ reflect.Type) bool {
+	switch typ.Kind() {
+	case reflect.Bool, reflect.String,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
+		reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
+		return true
+	}
+	return false
 }
