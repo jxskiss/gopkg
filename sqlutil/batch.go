@@ -15,6 +15,7 @@ import (
 type InsertOptions struct {
 	Context   context.Context
 	TableName string
+	Quote     string
 
 	Ignore         bool
 	OnDuplicateKey string
@@ -26,6 +27,13 @@ func (p *InsertOptions) apply(opts ...InsertOpt) *InsertOptions {
 		f(p)
 	}
 	return p
+}
+
+func (p *InsertOptions) quote(name string) string {
+	if p.Quote == "" {
+		return name
+	}
+	return p.Quote + name + p.Quote
 }
 
 type InsertOpt func(*InsertOptions)
@@ -41,6 +49,13 @@ func WithContext(ctx context.Context) InsertOpt {
 func WithTable(tableName string) InsertOpt {
 	return func(opts *InsertOptions) {
 		opts.TableName = tableName
+	}
+}
+
+// WithQuote quotes the table name and column names with the given string.
+func WithQuote(quote string) InsertOpt {
+	return func(opts *InsertOptions) {
+		opts.Quote = quote
 	}
 }
 
@@ -130,11 +145,22 @@ func makeBatchInsertSQL(where string, rows interface{}, opts *InsertOptions) (sq
 	} else {
 		buf.WriteString("INSERT INTO ")
 	}
-	buf.WriteString(opts.TableName)
-	buf.WriteByte(' ')
-	buf.WriteString(typInfo.colNames)
-	buf.WriteString(" VALUES ")
 
+	// table name
+	buf.WriteString(opts.quote(opts.TableName))
+
+	// column names
+	buf.WriteString(" (")
+	for i, col := range typInfo.colNames {
+		buf.WriteString(opts.quote(col))
+		if i < len(typInfo.colNames)-1 {
+			buf.WriteByte(',')
+		}
+	}
+	buf.WriteByte(')')
+
+	// value placeholders
+	buf.WriteString(" VALUES ")
 	rowsVal := reflect.ValueOf(rows)
 	length := rowsVal.Len()
 	fieldNum := len(typInfo.fieldIndex)
@@ -170,7 +196,7 @@ var typeCache sync.Map
 
 type typeInfo struct {
 	tableName    string
-	colNames     string
+	colNames     []string
 	placeholders string
 	fieldIndex   []int
 }
@@ -234,7 +260,7 @@ func parseType(rows interface{}) *typeInfo {
 	placeholders = strings.TrimSuffix(placeholders, ",")
 	info := &typeInfo{
 		tableName:    tableName,
-		colNames:     "(" + strings.Join(colNames, ",") + ")",
+		colNames:     colNames,
 		placeholders: "(" + placeholders + ")",
 		fieldIndex:   fieldIndex,
 	}

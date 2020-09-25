@@ -28,7 +28,6 @@ func TestMakeBatchInsertSQL(t *testing.T) {
 		rows1 = append(rows1, TestObject{})
 	}
 	got1, args1 := MakeBatchInsertSQL(rows1)
-	_, _ = MakeBatchInsertSQL(rows1)
 	want1 := "INSERT INTO test_object (id,column_1,column2,column_3_abc,bling4,bling5,column_7) VALUES "
 	varCount := 50 * 7
 
@@ -41,12 +40,22 @@ func TestMakeBatchInsertSQL(t *testing.T) {
 		rows2 = append(rows2, &TestObject{})
 	}
 	got2, args2 := MakeBatchInsertSQL(rows2, WithContext(context.Background()), WithTable("dummy_table"), WithIgnore())
-	_, _ = MakeBatchInsertSQL(rows2)
 	want2 := "INSERT IGNORE INTO dummy_table (id,column_1,column2,column_3_abc,bling4,bling5,column_7) VALUES "
 
 	assert.Contains(t, got2, want2)
 	assert.Len(t, args2, varCount)
 	assert.Equal(t, varCount, countPlaceholder(got2))
+
+	var rows3 []*TestObject
+	for i := 0; i < 50; i++ {
+		rows3 = append(rows3, &TestObject{})
+	}
+	got3, args3 := MakeBatchInsertSQL(rows3, WithQuote("`"))
+	want3 := "INSERT INTO `test_object` (`id`,`column_1`,`column2`,`column_3_abc`,`bling4`,`bling5`,`column_7`) VALUES "
+
+	assert.Contains(t, got3, want3)
+	assert.Len(t, args3, varCount)
+	assert.Equal(t, varCount, countPlaceholder(got3))
 }
 
 func TestMakeBatchInsertSQL_Panic(t *testing.T) {
