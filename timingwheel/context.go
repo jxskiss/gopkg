@@ -64,7 +64,7 @@ func WithTimeout(parent context.Context, timeout time.Duration) (context.Context
 
 	ctxInitOnce.Do(initTimeoutWheel)
 
-	bucketIdx := fastrand.Uint32() % ctxBucketShard
+	bucketIdx := fastrand.Fastrand() % ctxBucketShard
 	wheelIdx := int(timeout / ctxTickInterval)
 	if 0 < wheelIdx {
 		wheelIdx--
