@@ -22,13 +22,13 @@ func NewCache(capacity int) *Cache {
 	if capacity > maxCapacity {
 		panic("invalid too large capacity")
 	}
+	list := newList(capacity)
 	c := &Cache{
-		m:     make(map[interface{}]uint32, capacity),
-		elems: make([]element, capacity),
-		buf:   unsafe.Pointer(&walbuf{}),
-		_buf:  unsafe.Pointer(&walbuf{}),
+		list: list,
+		m:    make(map[interface{}]uint32, capacity),
+		buf:  unsafe.Pointer(&walbuf{}),
+		_buf: unsafe.Pointer(&walbuf{}),
 	}
-	c.list = newList(c.elems)
 	return c
 }
 
@@ -40,7 +40,6 @@ type Cache struct {
 	buf  unsafe.Pointer // *walbuf
 	_buf unsafe.Pointer // *walbuf
 
-	elems []element
 	flush int32
 }
 
@@ -109,7 +108,7 @@ func (c *Cache) GetNotStale(key interface{}) (v interface{}, exists bool) {
 func (c *Cache) get(key interface{}) (idx uint32, elem *element, exists bool) {
 	idx, exists = c.m[key]
 	if exists {
-		elem = &c.elems[idx]
+		elem = c.list.get(idx)
 	}
 	return
 }
@@ -362,7 +361,7 @@ func (c *Cache) MSet(kvmap interface{}, ttl time.Duration) {
 func (c *Cache) set(k, v interface{}, expires int64) {
 	idx, exists := c.m[k]
 	if exists {
-		e := &c.elems[idx]
+		e := c.list.get(idx)
 		e.value = v
 		e.expires = expires
 		c.list.MoveToFront(e)
@@ -446,7 +445,7 @@ func (c *Cache) del(key interface{}) {
 	idx, exists := c.m[key]
 	if exists {
 		delete(c.m, key)
-		elem := &c.elems[idx]
+		elem := c.list.get(idx)
 		elem.key = nil
 		elem.value = nil
 		c.list.MoveToBack(elem)
@@ -481,7 +480,7 @@ func (c *Cache) flushBuf(buf *walbuf) {
 	// promote elements by their access order
 	for i := p + 1; i < l1; i++ {
 		idx := b[i]
-		elem := &c.elems[idx]
+		elem := c.list.get(idx)
 		c.list.MoveToFront(elem)
 	}
 
