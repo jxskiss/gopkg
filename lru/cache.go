@@ -57,6 +57,18 @@ func (c *Cache) Len() (n int) {
 	return
 }
 
+// Has checks if a key is in the cache and whether it is expired,
+// without updating it's LRU score.
+func (c *Cache) Has(key interface{}) (exists, expired bool) {
+	c.mu.RLock()
+	_, elem, exists := c.get(key)
+	if exists {
+		expired = elem.expires > 0 && elem.expires < time.Now().UnixNano()
+	}
+	c.mu.RUnlock()
+	return
+}
+
 // Get returns the cached value for the given key and updates its LRU score.
 // The returned value may be expired, caller can check the returned value
 // "expired" to check whether the value is expired.
@@ -464,9 +476,12 @@ func (c *Cache) flushBuf(buf *walbuf) {
 	if l1 > walBufSize {
 		l1 = walBufSize
 	}
+	if l1 == 0 {
+		return
+	}
 
 	// remove duplicate idx in-place
-	m := make(map[uint32]struct{}, l1/4)
+	m := make(map[uint32]struct{}, l1/2)
 	b, p := buf.b, l1-1
 	for i := l1 - 1; i >= 0; i-- {
 		idx := buf.b[i]

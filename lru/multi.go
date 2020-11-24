@@ -34,6 +34,11 @@ func (c *MultiCache) Len() (n int) {
 	return
 }
 
+func (c *MultiCache) Has(key interface{}) (exists, expired bool) {
+	h := fasthash.Hash(key)
+	return c.cache[h%c.buckets].Has(key)
+}
+
 func (c *MultiCache) Get(key interface{}) (v interface{}, exists, expired bool) {
 	h := fasthash.Hash(key)
 	return c.cache[h%c.buckets].Get(key)
