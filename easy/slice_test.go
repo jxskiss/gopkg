@@ -278,8 +278,9 @@ func TestPluck(t *testing.T) {
 
 	assert.Equal(t, want, Pluck(slice1, "A"))
 	assert.Equal(t, want, Pluck(slice2, "A"))
-	assert.Equal(t, want, Pluck(&slice1, "A"))
-	assert.Equal(t, want, Pluck(&slice2, "A"))
+
+	assert.Panics(t, func() { Pluck(&slice1, "A") })
+	assert.Panics(t, func() { Pluck(&slice2, "A") })
 
 	assert.Panics(t, func() { Pluck(nil, "A") })
 	assert.Panics(t, func() { Pluck(slice1, "") })
@@ -292,8 +293,9 @@ func TestPluckStrings(t *testing.T) {
 
 	assert.Equal(t, want, PluckStrings(slice1, "A"))
 	assert.Equal(t, want, PluckStrings(slice2, "A"))
-	assert.Equal(t, want, PluckStrings(&slice1, "A"))
-	assert.Equal(t, want, PluckStrings(&slice2, "A"))
+
+	assert.Panics(t, func() { PluckStrings(&slice1, "A") })
+	assert.Panics(t, func() { PluckStrings(&slice2, "A") })
 
 	assert.Panics(t, func() { PluckStrings(nil, "A") })
 	assert.Panics(t, func() { PluckStrings(slice1, "") })
@@ -305,22 +307,18 @@ func TestPluckInt64s(t *testing.T) {
 	got1 := PluckInt64s(slice, "I32")
 	want1 := Int64s{32, 33, 34, 35}
 	assert.Equal(t, want1, got1)
-	assert.Equal(t, want1, PluckInt64s(&slice, "I32"))
 
 	got2 := PluckInt64s(slice, "I32_p")
 	want2 := Int64s{32, 33, 34}
 	assert.Equal(t, want2, got2)
-	assert.Equal(t, want2, PluckInt64s(&slice, "I32_p"))
 
 	got3 := PluckInt64s(slice, "I64")
 	want3 := Int64s{64, 65, 66, 67}
 	assert.Equal(t, want3, got3)
-	assert.Equal(t, want3, PluckInt64s(&slice, "I64"))
 
 	got4 := PluckInt64s(slice, "I64_p")
 	want4 := Int64s{64, 65, 66}
 	assert.Equal(t, want4, got4)
-	assert.Equal(t, want4, PluckInt64s(&slice, "I64_p"))
 
 	assert.Panics(t, func() { PluckInt64s(nil, "I32") })
 	assert.Panics(t, func() { PluckInt64s(slice, "") })
@@ -635,29 +633,19 @@ func TestFindAndFilter(t *testing.T) {
 	c := &comptyp{I64_p: ptr.Int64(3), Str_p: ptr.String("c")}
 	slice := []*comptyp{a, b, c}
 
-	f1 := func(x *comptyp) bool { return x.Str_p == nil }
+	f1 := func(i int) bool { return slice[i].Str_p == nil }
 	got1 := Find(slice, f1)
 	all1 := Filter(slice, f1)
 
-	assert.Nil(t, got1)
-	assert.NotEqual(t, nil, got1)
+	assert.Equal(t, -1, got1)
 	assert.NotNil(t, all1)
 	assert.Len(t, all1, 0)
 
-	f2 := func(x interface{}) bool { return x.(*comptyp).Str_p != nil }
-	got2 := Find(slice, f2)
-	all2 := Filter(slice, f2)
-	assert.NotNil(t, got2)
-	assert.Len(t, all2, 3)
-	assert.Equal(t, got2, a)
-	assert.Equal(t, slice, all2)
-
-	f3 := func(x *comptyp) bool { return ptr.DerefInt64(x.I64_p) == 3 }
+	f3 := func(i int) bool { return ptr.DerefInt64(slice[i].I64_p) == 3 }
 	got3 := Find(slice, f3)
 	all3 := Filter(slice, f3)
-	assert.NotNil(t, got3)
+	assert.Equal(t, 2, got3)
 	assert.Len(t, all3, 1)
-	assert.Equal(t, c, got3)
 
 	assert.Panics(t, func() { Find(nil, f3) })
 	assert.Panics(t, func() { Find(slice, nil) })

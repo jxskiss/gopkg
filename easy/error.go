@@ -8,7 +8,6 @@ import (
 
 const (
 	errNotSliceType           = "not slice type"
-	errNotSliceOrPointer      = "not a slice or pointer to slice"
 	errNotSliceOfInt          = "not a slice of integers"
 	errNotMapOfSlice          = "not a map of slice"
 	errNotMapOfIntSlice       = "not a map of integer slice"
@@ -19,7 +18,6 @@ const (
 	errStructFieldNotExists   = "struct field not exists"
 	errStructFieldIsNotInt    = "struct field is not integer or pointer"
 	errStructFieldIsNotStr    = "struct field is not string or pointer"
-	errPredicateFuncSig       = "predicate func signature not match"
 )
 
 func panicNilParams(where string, params ...interface{}) {
@@ -47,9 +45,8 @@ func assertSliceOfIntegers(where string, sliceTyp reflect.Type) {
 }
 
 func assertSliceAndElemType(where string, sliceVal reflect.Value, elemTyp reflect.Type) (reflect.Value, bool) {
-	sliceVal = indirect(sliceVal)
 	if sliceVal.Kind() != reflect.Slice {
-		panic(where + ": " + errNotSliceOrPointer)
+		panic(where + ": " + errNotSliceType)
 	}
 	intTypeNotMatch := false
 	sliceTyp := sliceVal.Type()
@@ -70,7 +67,7 @@ func assertSliceElemStructAndField(where string, sliceTyp reflect.Type, field st
 		panic(where + ": " + errStructFieldNotProvided)
 	}
 	if sliceTyp.Kind() != reflect.Slice {
-		panic(where + ": " + errNotSliceOrPointer)
+		panic(where + ": " + errNotSliceType)
 	}
 	elemTyp := sliceTyp.Elem()
 	elemIsPtr := elemTyp.Kind() == reflect.Ptr
@@ -89,19 +86,4 @@ func assertSliceElemStructAndField(where string, sliceTyp reflect.Type, field st
 		panic(where + ": " + errStructFieldNotExists)
 	}
 	return fieldInfo
-}
-
-func assertSliceAndPredicateFunc(where string, sliceVal reflect.Value, fnTyp reflect.Type) reflect.Value {
-	sliceVal = indirect(sliceVal)
-	if sliceVal.Kind() != reflect.Slice {
-		panic(where + ": " + errNotSliceOrPointer)
-	}
-	elemTyp := sliceVal.Type().Elem()
-	if !(fnTyp.Kind() == reflect.Func &&
-		fnTyp.NumIn() == 1 && fnTyp.NumOut() == 1 &&
-		(fnTyp.In(0).Kind() == reflect.Interface || fnTyp.In(0) == elemTyp) &&
-		fnTyp.Out(0).Kind() == reflect.Bool) {
-		panic(where + ": " + errPredicateFuncSig)
-	}
-	return sliceVal
 }

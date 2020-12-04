@@ -524,7 +524,7 @@ func Pluck(slice interface{}, field string) interface{} {
 	if slice == nil {
 		panicNilParams("Pluck", "slice", slice)
 	}
-	sliceVal := indirect(reflect.ValueOf(slice))
+	sliceVal := reflect.ValueOf(slice)
 	sliceTyp := sliceVal.Type()
 	fieldInfo := assertSliceElemStructAndField("Pluck", sliceTyp, field)
 
@@ -541,7 +541,7 @@ func PluckInt32s(slice interface{}, field string) Int32s {
 	if slice == nil {
 		panicNilParams("PluckInt32s", "slice", slice)
 	}
-	sliceVal := indirect(reflect.ValueOf(slice))
+	sliceVal := reflect.ValueOf(slice)
 	sliceTyp := sliceVal.Type()
 	fieldInfo := assertSliceElemStructAndField("PluckInt32s", sliceTyp, field)
 	if !reflectx.IsIntTypeOrPtr(fieldInfo.Type) {
@@ -563,7 +563,7 @@ func PluckInt64s(slice interface{}, field string) Int64s {
 	if slice == nil {
 		panicNilParams("PluckInt64s", "slice", slice)
 	}
-	sliceVal := indirect(reflect.ValueOf(slice))
+	sliceVal := reflect.ValueOf(slice)
 	sliceTyp := sliceVal.Type()
 	fieldInfo := assertSliceElemStructAndField("PluckInt64s", sliceTyp, field)
 	if !reflectx.IsIntTypeOrPtr(fieldInfo.Type) {
@@ -585,7 +585,7 @@ func PluckStrings(slice interface{}, field string) Strings {
 	if slice == nil {
 		panicNilParams("PluckStrings", "slice", slice)
 	}
-	sliceVal := indirect(reflect.ValueOf(slice))
+	sliceVal := reflect.ValueOf(slice)
 	sliceTyp := sliceVal.Type()
 	fieldInfo := assertSliceElemStructAndField("PluckStrings", sliceTyp, field)
 	if !reflectx.IsStringTypeOrPtr(fieldInfo.Type) {
@@ -607,7 +607,7 @@ func ToMap(slice interface{}, keyField string) interface{} {
 	if slice == nil {
 		panicNilParams("ToMap", "slice", slice)
 	}
-	sliceVal := indirect(reflect.ValueOf(slice))
+	sliceVal := reflect.ValueOf(slice)
 	sliceTyp := sliceVal.Type()
 	fieldInfo := assertSliceElemStructAndField("ToMap", sliceTyp, keyField)
 	keyTyp := fieldInfo.Type
@@ -629,7 +629,7 @@ func ToSliceMap(slice interface{}, keyField string) interface{} {
 	if slice == nil {
 		panicNilParams("ToSliceMap", "slice", slice)
 	}
-	sliceVal := indirect(reflect.ValueOf(slice))
+	sliceVal := reflect.ValueOf(slice)
 	sliceTyp := sliceVal.Type()
 	fieldInfo := assertSliceElemStructAndField("ToSliceMap", sliceTyp, keyField)
 	keyTyp := fieldInfo.Type
@@ -657,7 +657,7 @@ func ToMapMap(slice interface{}, keyField, subKeyField string) interface{} {
 	if slice == nil {
 		panicNilParams("ToMapMap", "slice", slice)
 	}
-	sliceVal := indirect(reflect.ValueOf(slice))
+	sliceVal := reflect.ValueOf(slice)
 	sliceTyp := sliceVal.Type()
 	fieldInfo1 := assertSliceElemStructAndField("ToMapMap", sliceTyp, keyField)
 	fieldInfo2 := assertSliceElemStructAndField("ToMapMap", sliceTyp, subKeyField)
@@ -687,43 +687,85 @@ func ToMapMap(slice interface{}, keyField, subKeyField string) interface{} {
 	return outVal.Interface()
 }
 
-func Find(slice interface{}, predicate interface{}) interface{} {
+func Find(slice interface{}, predicate func(i int) bool) int {
 	if slice == nil || predicate == nil {
 		panicNilParams("Find", "slice", slice, "predicate", predicate)
 	}
-	sliceVal := reflect.ValueOf(slice)
-	fnVal := reflect.ValueOf(predicate)
-	sliceVal = assertSliceAndPredicateFunc("Find", sliceVal, fnVal.Type())
-
-	outVal := reflect.New(sliceVal.Type().Elem())
-	for i := 0; i < sliceVal.Len(); i++ {
-		elem := sliceVal.Index(i)
-		match := fnVal.Call([]reflect.Value{elem})[0].Interface().(bool)
-		if match {
-			outVal.Elem().Set(elem)
-			break
+	sliceTyp := reflect.TypeOf(slice)
+	if sliceTyp.Kind() != reflect.Slice {
+		panic("Find: " + errNotSliceType)
+	}
+	header := reflectx.UnpackSlice(slice)
+	for i := 0; i < header.Len; i++ {
+		if predicate(i) {
+			return i
 		}
 	}
-	return outVal.Elem().Interface()
+	return -1
 }
 
-func Filter(slice interface{}, predicate interface{}) interface{} {
+func Filter(slice interface{}, predicate func(i int) bool) interface{} {
 	if slice == nil || predicate == nil {
 		panicNilParams("Filter", "slice", slice, "predicate", predicate)
 	}
 	sliceVal := reflect.ValueOf(slice)
-	fnVal := reflect.ValueOf(predicate)
-	sliceVal = assertSliceAndPredicateFunc("Filter", sliceVal, fnVal.Type())
+	sliceTyp := sliceVal.Type()
+	if sliceTyp.Kind() != reflect.Slice {
+		panic("Filter: " + errNotSliceType)
+	}
+	elemKind := sliceTyp.Elem().Kind()
+	if reflectx.Is64bitInt(elemKind) {
+		return FilterInt64s(ToInt64s_(slice), predicate).castType(sliceTyp)
+	}
+	if reflectx.Is32bitInt(elemKind) {
+		return FilterInt32s(ToInt32s_(slice), predicate).castType(sliceTyp)
+	}
+	if elemKind == reflect.String {
+		return FilterStrings(ToStrings_(slice), predicate).castType(sliceTyp)
+	}
 
-	outVal := reflect.MakeSlice(sliceVal.Type(), 0, 1)
-	for i := 0; i < sliceVal.Len(); i++ {
-		elem := sliceVal.Index(i)
-		match := fnVal.Call([]reflect.Value{elem})[0].Interface().(bool)
-		if match {
+	length := sliceVal.Len()
+	outVal := reflect.MakeSlice(sliceVal.Type(), 0, max(length/4+1, 4))
+	for i := 0; i < length; i++ {
+		if predicate(i) {
+			elem := sliceVal.Index(i)
 			outVal = reflect.Append(outVal, elem)
 		}
 	}
 	return outVal.Interface()
+}
+
+func FilterInt32s(slice []int32, predicate func(i int) bool) Int32s {
+	length := len(slice)
+	out := make([]int32, 0, max(length/4+1, 4))
+	for i := 0; i < length; i++ {
+		if predicate(i) {
+			out = append(out, slice[i])
+		}
+	}
+	return out
+}
+
+func FilterInt64s(slice []int64, predicate func(i int) bool) Int64s {
+	length := len(slice)
+	out := make([]int64, 0, max(length/4+1, 4))
+	for i := 0; i < length; i++ {
+		if predicate(i) {
+			out = append(out, slice[i])
+		}
+	}
+	return out
+}
+
+func FilterStrings(slice []string, predicate func(i int) bool) Strings {
+	length := len(slice)
+	out := make([]string, 0, max(length/4+1, 4))
+	for i := 0; i < length; i++ {
+		if predicate(i) {
+			out = append(out, slice[i])
+		}
+	}
+	return out
 }
 
 func SumSlice(slice interface{}) int64 {
