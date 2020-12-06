@@ -171,7 +171,7 @@ func getAppendFunc(typ reflect.Type) func(buf []byte, v interface{}) ([]byte, er
 }
 
 func _fallbackAppendFunc(buf []byte, v interface{}) ([]byte, error) {
-	vbuf, err := _MarshalFast(v)
+	vbuf, err := _Marshal(v)
 	if err != nil {
 		return nil, err
 	}

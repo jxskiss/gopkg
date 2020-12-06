@@ -99,6 +99,19 @@ var (
 	textMarshalerTyp = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
 )
 
+func isOptimizedType(typ reflect.Type) bool {
+	if result, ok := optimizedTypeMap.Load(typ); ok {
+		return result.(bool)
+	}
+	result := isIntSlice(typ) ||
+		isStringSlice(typ) ||
+		isStringMap(typ) ||
+		isStringInterfaceMap(typ) ||
+		isSliceOfOptimized(typ)
+	optimizedTypeMap.Store(typ, result)
+	return result
+}
+
 func isSliceOfOptimized(typ reflect.Type) bool {
 	if typ.Kind() != reflect.Slice {
 		return false
@@ -122,11 +135,7 @@ func isSliceOfOptimized(typ reflect.Type) bool {
 	// optimized types
 	if elemKind == reflect.Bool ||
 		reflectx.IsIntType(elemKind) ||
-		isIntSlice(elemTyp) ||
-		isStringSlice(elemTyp) ||
-		isStringMap(elemTyp) ||
-		isStringInterfaceMap(elemTyp) ||
-		isSliceOfOptimized(elemTyp) {
+		isOptimizedType(elemTyp) {
 		result = true
 	}
 	optimizedTypeMap.Store(typ, result)

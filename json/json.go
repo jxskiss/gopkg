@@ -63,11 +63,7 @@ func MarshalFast(v interface{}) ([]byte, error) {
 		return buf, err
 	}
 	typ := reflect.TypeOf(v)
-	if isIntSlice(typ) ||
-		isStringSlice(typ) ||
-		isStringMap(typ) ||
-		isStringInterfaceMap(typ) ||
-		isSliceOfOptimized(typ) {
+	if isOptimizedType(typ) {
 		appendFunc := getAppendFunc(typ)
 		return marshalOptimized(v, appendFunc)
 	}
