@@ -53,3 +53,15 @@ func TestUnmarshalExt_UnicodeEscape(t *testing.T) {
 		t.Errorf("failed unmarshal unicode escape char: %v", err)
 	}
 }
+
+func TestUnmarshalExt_SingleQuote(t *testing.T) {
+	jsonData := `{'key\'': 'value"'}`
+	got := make(map[string]string)
+	err := UnmarshalExt([]byte(jsonData), &got)
+	if err != nil {
+		t.Errorf("failed unmarshal single quoted string: %v", err)
+	}
+	if got["key'"] != "value\"" {
+		t.Errorf("unmarshal single quoted string: incorrect key value")
+	}
+}

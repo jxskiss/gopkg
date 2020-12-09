@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 	"unsafe"
 )
 
@@ -154,11 +155,15 @@ func (p *parser) parseArray(n *node32) (err error) {
 	return nil
 }
 
+var singleQuoteReplacer = strings.NewReplacer(`\'`, `'`, `"`, `\"`)
+
 func (p *parser) parseString(n *node32) string {
 	n = n.up
 	switch n.pegRule {
 	case ruleSingleQuoteLiteral:
-		return "\"" + string(p.doc.buffer[n.begin+1:n.end-1]) + "\""
+		text := string(p.doc.buffer[n.begin+1 : n.end-1])
+		text = singleQuoteReplacer.Replace(text)
+		return `"` + text + `"`
 	case ruleDoubleQuoteLiteral:
 		return p.text(n)
 	}

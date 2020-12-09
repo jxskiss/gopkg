@@ -59,6 +59,8 @@ var (
 	emptyArray  = []byte("[]")
 )
 
+type _appendFunc func(buf []byte, v interface{}) ([]byte, error)
+
 // grow copies the buffer to a new, larger buffer so that there are at least n
 // bytes of capacity beyond len(b.buf).
 func grow(buf []byte, n int) []byte {
@@ -86,7 +88,7 @@ func marshalNilOrMarshaler(v interface{}) (bool, []byte, error) {
 	}
 }
 
-func marshalOptimized(v interface{}, appendfunc func(buf []byte, v interface{}) ([]byte, error)) ([]byte, error) {
+func marshalOptimized(v interface{}, appendfunc _appendFunc) ([]byte, error) {
 	buf := pool.Get()
 	defer pool.Put(buf)
 
@@ -102,9 +104,9 @@ func marshalOptimized(v interface{}, appendfunc func(buf []byte, v interface{}) 
 
 var appendFuncMap sync.Map
 
-func getAppendFunc(typ reflect.Type) func(buf []byte, v interface{}) ([]byte, error) {
+func getAppendFunc(typ reflect.Type) _appendFunc {
 	if result, ok := appendFuncMap.Load(typ); ok {
-		return result.(func(buf []byte, v interface{}) ([]byte, error))
+		return result.(_appendFunc)
 	}
 
 	var result = _fallbackAppendFunc
@@ -166,7 +168,7 @@ func getAppendFunc(typ reflect.Type) func(buf []byte, v interface{}) ([]byte, er
 		result = appendSliceOfOptimized
 	}
 
-	appendFuncMap.Store(typ, result)
+	appendFuncMap.Store(typ, _appendFunc(result))
 	return result
 }
 
