@@ -24,6 +24,7 @@ type options struct {
 	Jitter    strategy
 	MaxErrors int
 	Hook      func(attempts int, err error)
+	Window    *window
 }
 
 type Option func(options) options
@@ -85,4 +86,57 @@ func L(step time.Duration) Option {
 		opt.Strategy = l.next
 		return opt
 	}
+}
+
+// Breaker uses sliding window algorithm to protect system from overload.
+//
+// To prevent overload, Google SRE has some recommendations:
+//
+// First, we implement a per-request retry budget of up to three attempts.
+// If a request has already failed three times, we let the failure bubble
+// up to the caller. The rationale is that if a request has already landed
+// on overloaded tasks three times, it's relatively unlikely that attempting
+// it again will help because the whole datacenter is likely overloaded.
+//
+// Secondly, we implement a per-client retry budget. Each client keeps track
+// of the ratio of requests that correspond to retries. A request will only
+// be retried as long as this ratio is below 10%. The rationale is that if
+// only a small subset of tasks are overloaded, there will be relatively
+// little need to retry.
+//
+// A third approach has clients include a counter of how many times the
+// request has already been tried in the request metadata. For instance,
+// the counter starts at 0 in the first attempt and is incremented on every
+// retry until it reaches 2, at which point the per-request budget causes
+// it to stop being retried. Backends keep histograms of these values in
+// recent history. When a backend needs to reject a request, it consults
+// these histograms to determine the likelihood that other backend tasks
+// are also overloaded. If these histograms reveal a significant amount of
+// retries (indicating that other backend tasks are likely also overloaded),
+// they return an "overloaded; don't retry" error response instead of the
+// standard "task overloaded" error that triggers retries.
+func Breaker(name string) Option {
+	return BreakerWithOverloadRatio(name, 0.1)
+}
+
+// BreakerWithOverloadRatio is similar to Breaker, excepts that it
+// accepts an additional param `overloadRatio` to specify the overload
+// ratio to control the retry behavior, the value should be in range
+// [0.1, 0.5], if zero or negative, the default value 0.1 will be used.
+func BreakerWithOverloadRatio(name string, overloadRatio float64) Option {
+	overloadRatio = limitFloat64(overloadRatio, 0.1, 0.5)
+	return func(opt options) options {
+		opt.Window = getWindow(name, overloadRatio)
+		return opt
+	}
+}
+
+func limitFloat64(value, min, max float64) float64 {
+	if value <= min {
+		return min
+	}
+	if value >= max {
+		return max
+	}
+	return value
 }

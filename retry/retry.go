@@ -71,21 +71,33 @@ func retry(opt options, f func() error, opts ...Option) (r Result) {
 	r.Attempts++
 	if err = f(); err == nil {
 		r.Ok = true
+		if opt.Window != nil {
+			opt.Window.succ.incr(time.Now().Unix(), 1)
+		}
 		return
 	}
 
 	var merr = NewSizedError(opt.MaxErrors)
 	var sleep = opt.Sleep
 	for {
+		if _, ok := err.(Stop); ok {
+			break
+		}
 		// attempts <= 0 means retry forever.
 		if opt.Attempts > 0 && r.Attempts >= opt.Attempts {
 			break
 		}
-		if _, ok := err.(Stop); ok {
+		// check sliding window
+		if opt.Window != nil && !opt.Window.shouldRetry() {
 			break
 		}
+
 		merr.Append(err)
 		opt.Hook(r.Attempts, err)
+		if opt.Window != nil {
+			opt.Window.fail.incr(time.Now().Unix(), 1)
+		}
+
 		if opt.MaxSleep > 0 && sleep > opt.MaxSleep {
 			sleep = opt.MaxSleep
 		}
@@ -97,6 +109,9 @@ func retry(opt options, f func() error, opts ...Option) (r Result) {
 		r.Attempts++
 		if err = f(); err == nil {
 			r.Ok = true
+			if opt.Window != nil {
+				opt.Window.succ.incr(time.Now().Unix(), 1)
+			}
 			break
 		}
 		sleep = opt.Strategy(sleep)
@@ -106,9 +121,15 @@ func retry(opt options, f func() error, opts ...Option) (r Result) {
 			// Return the original error for later checking.
 			merr.Append(s.Err)
 			opt.Hook(r.Attempts, s.Err)
+
+			// Stop error from caller don't count for circuit breaker.
+
 		} else {
 			merr.Append(err)
 			opt.Hook(r.Attempts, err)
+			if opt.Window != nil {
+				opt.Window.fail.incr(time.Now().Unix(), 1)
+			}
 		}
 	}
 	r.Error = merr.ErrOrNil()
