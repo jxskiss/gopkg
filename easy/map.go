@@ -310,3 +310,185 @@ func (p Map) GetStringMap(key string) map[string]string {
 	}
 	return nil
 }
+
+// Iterate iterates the map in unspecified order, the given function fn
+// will be called for each key value pair.
+func (p Map) Iterate(fn func(k string, v interface{})) {
+	for k, v := range p {
+		fn(k, v)
+	}
+}
+
+// Set is used to store a new key/value pair exclusively in the map.
+// It also lazy initializes the map if it was not used previously.
+func (p *Int64Map) Set(key int64, value interface{}) {
+	if *p == nil {
+		*p = make(Int64Map)
+	}
+	(*p)[key] = value
+}
+
+// Get returns the value for the given key, ie: (value, true).
+// If the value does not exists it returns (nil, false)
+func (p Int64Map) Get(key int64) (value interface{}, exists bool) {
+	value, exists = p[key]
+	return
+}
+
+// MustGet returns the value for the given key if it exists, otherwise it panics.
+func (p Int64Map) MustGet(key int64) interface{} {
+	if val, ok := p[key]; ok {
+		return val
+	}
+	panic(fmt.Sprintf("key %q not exists", key))
+}
+
+// GetString returns the value associated with the key as a string.
+func (p Int64Map) GetString(key int64) string {
+	if val, ok := p[key].(string); ok {
+		return val
+	}
+	return ""
+}
+
+// GetBool returns the value associated with the key as a boolean.
+func (p Int64Map) GetBool(key int64) bool {
+	if val, ok := p[key].(bool); ok {
+		return val
+	}
+	return false
+}
+
+// GetInt returns the value associated with the key as an integer.
+func (p Int64Map) GetInt(key int64) int {
+	if val, ok := p[key].(int); ok {
+		return val
+	}
+	return 0
+}
+
+// GetInt64 returns the value associated with the key as an int64.
+func (p Int64Map) GetInt64(key int64) int64 {
+	if val, ok := p[key].(int64); ok {
+		return val
+	}
+	return 0
+}
+
+// GetInt32 returns the value associated with the key as an int32.
+func (p Int64Map) GetInt32(key int64) int32 {
+	if val, ok := p[key].(int32); ok {
+		return val
+	}
+	return 0
+}
+
+// GetFloat64 returns the value associated with the key as a float64.
+func (p Int64Map) GetFloat64(key int64) float64 {
+	if val, ok := p[key].(float64); ok {
+		return val
+	}
+	return 0
+}
+
+// GetTime returns the value associated with the key as time.
+func (p Int64Map) GetTime(key int64) time.Time {
+	if val, ok := p[key].(time.Time); ok {
+		return val
+	}
+	return time.Time{}
+}
+
+// GetDuration returns the value associated with the key as a duration.
+func (p Int64Map) GetDuration(key int64) time.Duration {
+	if val, ok := p[key].(time.Duration); ok {
+		return val
+	}
+	return 0
+}
+
+// GetInt64s returns the value associated with the key as a slice of int64.
+func (p Int64Map) GetInt64s(key int64) Int64s {
+	val, ok := p[key]
+	if ok {
+		switch val := val.(type) {
+		case Int64s:
+			return val
+		case []int64:
+			return val
+		}
+	}
+	return nil
+}
+
+// GetInt32s returns the value associated with the key as a slice of int32.
+func (p Int64Map) GetInt32s(key int64) Int32s {
+	val, ok := p[key]
+	if ok {
+		switch val := val.(type) {
+		case Int32s:
+			return val
+		case []int32:
+			return val
+		}
+	}
+	return nil
+}
+
+// GetStrings returns the value associated with the key as a slice of strings.
+func (p Int64Map) GetStrings(key int64) Strings {
+	val, ok := p[key]
+	if ok {
+		switch val := val.(type) {
+		case Strings:
+			return val
+		case []string:
+			return val
+		}
+	}
+	return nil
+}
+
+// GetMap returns the value associated with the key as a Map (map[string]interface{}).
+func (p Int64Map) GetMap(key int64) Map {
+	val, ok := p[key]
+	if ok {
+		switch val := val.(type) {
+		case Map:
+			return val
+		case map[string]interface{}:
+			return val
+		}
+	}
+	return nil
+}
+
+// GetInt64Map returns the value associated with the key as an Int64Map (map[int64]interface{}).
+func (p Int64Map) GetInt64Map(key int64) Int64Map {
+	val, ok := p[key]
+	if ok {
+		switch val := val.(type) {
+		case Int64Map:
+			return val
+		case map[int64]interface{}:
+			return val
+		}
+	}
+	return nil
+}
+
+// GetStringMap returns the value associated with the key as a map of strings (map[string]string).
+func (p Int64Map) GetStringMap(key int64) map[string]string {
+	if val, ok := p[key].(map[string]string); ok {
+		return val
+	}
+	return nil
+}
+
+// Iterate iterates the map in unspecified order, the given function fn
+// will be called for each key value pair.
+func (p Int64Map) Iterate(fn func(k int64, v interface{})) {
+	for k, v := range p {
+		fn(k, v)
+	}
+}
