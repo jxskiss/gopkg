@@ -1,6 +1,4 @@
-package reflectx
-
-// This file is modified from https://github.com/alangpierce/go-forceexport.
+package forceexport
 
 import (
 	"fmt"
@@ -30,7 +28,7 @@ type Func struct {
 	codePtr uintptr
 }
 
-// CreateFuncForCodePtr is given a code pointer and creates a function
+// CreateFuncForCodePtr accepts a code pointer and creates a function
 // value that uses the pointer. The outFuncPtr argument should be a pointer
 // to a function of the proper type (e.g. the address of a local variable),
 // and will be set to the result function value.
