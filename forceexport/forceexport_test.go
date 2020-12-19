@@ -1,7 +1,5 @@
 package forceexport
 
-// This file is modified from https://github.com/alangpierce/go-forceexport.
-
 import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
@@ -29,14 +27,14 @@ func TestAddOne(t *testing.T) {
 	assert.Equal(t, 4, addOne(3))
 
 	var addOneFunc func(x int) int
-	err := GetFunc(&addOneFunc, "github.com/jxskiss/gopkg/reflectx.addOne")
+	err := GetFunc(&addOneFunc, "github.com/jxskiss/gopkg/forceexport.addOne")
 	assert.Nil(t, err)
 	assert.Equal(t, 4, addOneFunc(3))
 }
 
 func TestGetSelf(t *testing.T) {
 	var getFunc func(interface{}, string) error
-	err := GetFunc(&getFunc, "github.com/jxskiss/gopkg/reflectx.GetFunc")
+	err := GetFunc(&getFunc, "github.com/jxskiss/gopkg/forceexport.GetFunc")
 	assert.Nil(t, err)
 
 	_p := func(fn interface{}) string { return fmt.Sprintf("%p", fn) }
@@ -46,7 +44,7 @@ func TestGetSelf(t *testing.T) {
 	assert.Equal(t, _p(getFunc), _p(GetFunc))
 
 	// Call it again on itself!
-	err = getFunc(&getFunc, "github.com/jxskiss/gopkg/reflectx.GetFunc")
+	err = getFunc(&getFunc, "github.com/jxskiss/gopkg/forceexport.GetFunc")
 	assert.Nil(t, err)
 	assert.Equal(t, _p(getFunc), _p(GetFunc))
 }

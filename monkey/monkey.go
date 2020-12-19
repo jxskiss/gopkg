@@ -93,7 +93,7 @@ func UnpatchAll() {
 		if !patch.patched {
 			continue
 		}
-		_replace_code(target, patch.origBytes)
+		replaceCode(target, patch.origBytes)
 		patch.patched = false
 	}
 	runtime_startTheWorld()
@@ -125,7 +125,7 @@ func patchValue(target, replacement reflect.Value) *PatchGuard {
 		patch.replBytes = replBytes
 		patchTable[targetPtr] = patch
 	}
-	_replace_code(targetPtr, patch.replBytes)
+	replaceCode(targetPtr, patch.replBytes)
 	patch.patched = true
 	runtime_startTheWorld()
 	return patch
@@ -138,8 +138,15 @@ func unpatchValue(target uintptr) bool {
 	}
 
 	runtime_stopTheWorld()
-	_replace_code(target, patch.origBytes)
+	replaceCode(target, patch.origBytes)
 	patch.patched = false
 	runtime_startTheWorld()
 	return true
+}
+
+// this function is super unsafe
+// aww yeah
+// It copies a slice to a raw memory location, disabling all memory protection before doing so.
+func replaceCode(target uintptr, code []byte) {
+	_replace_code(target, code)
 }
