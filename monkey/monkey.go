@@ -114,16 +114,19 @@ func patchValue(target, replacement reflect.Value) *PatchGuard {
 	targetPtr := target.Pointer()
 	patch, ok := patchTable[targetPtr]
 	if !ok {
+		patch = &PatchGuard{}
+		patchTable[targetPtr] = patch
+	}
+	if !patch.replacement.IsValid() || patch.replacement != replacement {
 		replPtr := uintptr(getPtr(replacement))
 		replBytes := buildJmpDirective(replPtr)
-		patchSize := len(replBytes)
-
-		patch = &PatchGuard{}
-		patch.target = target
 		patch.replacement = replacement
-		patch.origBytes = copy_(getCode(targetPtr, patchSize))
 		patch.replBytes = replBytes
-		patchTable[targetPtr] = patch
+	}
+	if len(patch.origBytes) == 0 {
+		patchSize := len(patch.replBytes)
+		patch.target = target
+		patch.origBytes = copy_(getCode(targetPtr, patchSize))
 	}
 	replaceCode(targetPtr, patch.replBytes)
 	patch.patched = true

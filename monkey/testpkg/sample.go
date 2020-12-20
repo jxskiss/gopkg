@@ -1,5 +1,6 @@
 package testpkg
 
+//go:noinline
 func A() string {
 	return a()
 }

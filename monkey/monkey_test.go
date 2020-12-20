@@ -30,6 +30,23 @@ func TestTimePatch(t *testing.T) {
 	assert.NotEqual(t, during, after)
 }
 
+func TestPatchMultipleTimes(t *testing.T) {
+	monkey.Unpatch(testpkg.A)
+	assert.Equal(t, "testpkg.a", testpkg.A())
+
+	fn1 := func() string { return "fn1" }
+	monkey.Patch(testpkg.A, fn1)
+	assert.Equal(t, "fn1", testpkg.A())
+
+	fn2 := func() string { return "fn2" }
+	monkey.Patch(testpkg.A, fn2)
+	assert.Equal(t, "fn2", testpkg.A())
+
+	fn3 := func() string { return "fn3" }
+	monkey.Patch(testpkg.A, fn3)
+	assert.Equal(t, "fn3", testpkg.A())
+}
+
 func TestGC(t *testing.T) {
 	value := true
 	monkey.Patch(no, func() bool {
@@ -119,7 +136,10 @@ func TestNotCompatible(t *testing.T) {
 
 func TestPatchByTargetName(t *testing.T) {
 	testpkg_a := "github.com/jxskiss/gopkg/monkey/testpkg.a"
+
+	monkey.UnpatchByName(testpkg_a)
 	assert.Equal(t, "testpkg.a", testpkg.A())
+
 	monkey.PatchByName(testpkg_a, func() string { return "TestPatchByTargetName" })
 	assert.Equal(t, "TestPatchByTargetName", testpkg.A())
 
