@@ -50,10 +50,7 @@ func PatchMethod(target interface{}, methodName string, replacement interface{})
 // TargetName should be the fully-qualified name of the target function or method.
 // If the target cannot be found or the replacement type does not match, it panics.
 func PatchByName(targetName string, replacement interface{}) *PatchGuard {
-	targetPtr, err := forceexport.FindFuncWithName(targetName)
-	if err != nil {
-		panic(fmt.Sprintf("monkey: %v", err))
-	}
+	targetPtr := forceexport.FindFuncWithName(targetName)
 	targetVal := reflect.New(reflect.TypeOf(replacement))
 	forceexport.CreateFuncForCodePtr(targetVal.Interface(), targetPtr)
 	return patchValue(targetVal.Elem(), reflect.ValueOf(replacement))
@@ -79,10 +76,7 @@ func UnpatchMethod(target interface{}, methodName string) bool {
 // UnpatchByName removes any monkey patch applied to the target by it's name.
 // TargetName should be the fully-qualified name of the target function or method.
 func UnpatchByName(targetName string) bool {
-	targetPtr, err := forceexport.FindFuncWithName(targetName)
-	if err != nil {
-		panic(fmt.Sprintf("monkey: %v", err))
-	}
+	targetPtr := forceexport.FindFuncWithName(targetName)
 	return unpatchValue(targetPtr)
 }
 

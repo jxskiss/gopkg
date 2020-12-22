@@ -8,8 +8,9 @@ import (
 
 func TestTimeNow(t *testing.T) {
 	var timeNowFunc func() (int64, int32)
-	err := GetFunc(&timeNowFunc, "time.now")
-	assert.Nil(t, err)
+	assert.NotPanics(t, func() {
+		GetFunc(&timeNowFunc, "time.now")
+	})
 	sec, nsec := timeNowFunc()
 	assert.Greater(t, sec, int64(0))
 	assert.Greater(t, nsec, int32(0))
@@ -27,15 +28,17 @@ func TestAddOne(t *testing.T) {
 	assert.Equal(t, 4, addOne(3))
 
 	var addOneFunc func(x int) int
-	err := GetFunc(&addOneFunc, "github.com/jxskiss/gopkg/forceexport.addOne")
-	assert.Nil(t, err)
+	assert.NotPanics(t, func() {
+		GetFunc(&addOneFunc, "github.com/jxskiss/gopkg/forceexport.addOne")
+	})
 	assert.Equal(t, 4, addOneFunc(3))
 }
 
 func TestGetSelf(t *testing.T) {
-	var getFunc func(interface{}, string) error
-	err := GetFunc(&getFunc, "github.com/jxskiss/gopkg/forceexport.GetFunc")
-	assert.Nil(t, err)
+	var getFunc func(interface{}, string)
+	assert.NotPanics(t, func() {
+		GetFunc(&getFunc, "github.com/jxskiss/gopkg/forceexport.GetFunc")
+	})
 
 	_p := func(fn interface{}) string { return fmt.Sprintf("%p", fn) }
 
@@ -44,14 +47,16 @@ func TestGetSelf(t *testing.T) {
 	assert.Equal(t, _p(getFunc), _p(GetFunc))
 
 	// Call it again on itself!
-	err = getFunc(&getFunc, "github.com/jxskiss/gopkg/forceexport.GetFunc")
-	assert.Nil(t, err)
+	assert.NotPanics(t, func() {
+		getFunc(&getFunc, "github.com/jxskiss/gopkg/forceexport.GetFunc")
+	})
 	assert.Equal(t, _p(getFunc), _p(GetFunc))
 }
 
 func TestInvalidFunc(t *testing.T) {
 	var invalidFunc func()
-	err := GetFunc(&invalidFunc, "invalidpackage.invalidfunction")
-	assert.Error(t, err)
+	assert.Panics(t, func() {
+		GetFunc(&invalidFunc, "invalidpackage.invalidfunction")
+	})
 	assert.Nil(t, invalidFunc)
 }

@@ -12,13 +12,9 @@ import (
 // appropriate type (e.g. the address of a local variable), and is set to
 // a new function value that calls the specified function. If the specified
 // function does not exist, outFuncPtr is not set and an error is returned.
-func GetFunc(outFuncPtr interface{}, name string) error {
-	codePtr, err := FindFuncWithName(name)
-	if err != nil {
-		return err
-	}
+func GetFunc(outFuncPtr interface{}, name string) {
+	codePtr := FindFuncWithName(name)
 	CreateFuncForCodePtr(outFuncPtr, codePtr)
-	return nil
 }
 
 // Func is a convenience struct for modifying the underlying code pointer
@@ -55,16 +51,16 @@ func CreateFuncForCodePtr(outFuncPtr interface{}, codePtr uintptr) {
 // linker and returns the function's code pointer. If the function was not
 // found, it returns an error. Since the data structures here are not
 // exported, we copy them below (and need to be consistent with the runtime).
-func FindFuncWithName(name string) (uintptr, error) {
+func FindFuncWithName(name string) uintptr {
 	for _, moduleData := range activeModules() {
 		for _, ftab := range moduleData.ftab {
 			f := (*runtime.Func)(unsafe.Pointer(&moduleData.pclntable[ftab.funcoff]))
 			if getName(f) == name {
-				return f.Entry(), nil
+				return f.Entry()
 			}
 		}
 	}
-	return 0, fmt.Errorf("invalid function name: %s", name)
+	panic(fmt.Sprintf("forceexport: cannot find function %s, may be inlined or inactive", name))
 }
 
 func getName(f *runtime.Func) string {
@@ -92,15 +88,16 @@ type functab struct {
 }
 
 func init() {
-	// Make sure moduledata is consistent with runtime.moduledata.
-	pclntableField, _ := reflect.TypeOf(moduledata{}).FieldByName("pclntable")
-	ftabField, _ := reflect.TypeOf(moduledata{}).FieldByName("ftab")
-	rtModuledataTyp := reflect.TypeOf(activeModules()[0]).Elem()
-	rt_pclntableField, ok1 := rtModuledataTyp.FieldByName("pclntable")
-	rt_ftabField, ok2 := rtModuledataTyp.FieldByName("ftab")
-	if !ok1 || !ok2 ||
-		pclntableField.Offset != rt_pclntableField.Offset ||
-		ftabField.Offset != rt_ftabField.Offset {
-		panic("forceexport: moduledata structure not match")
+	rtmdtype := GetType("runtime.moduledata")
+	thismdtype := reflect.TypeOf(moduledata{})
+	assertOffset(rtmdtype, thismdtype, "pclntable", "forceexport: moduledata.pclntable not match")
+	assertOffset(rtmdtype, thismdtype, "ftab", "forceexport: moduledata.ftab not match")
+}
+
+func assertOffset(t1, t2 reflect.Type, fieldname string, msg string) {
+	f1, ok1 := t1.FieldByName(fieldname)
+	f2, ok2 := t2.FieldByName(fieldname)
+	if !ok1 || !ok2 || f1.Offset != f2.Offset {
+		panic(msg)
 	}
 }
