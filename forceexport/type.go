@@ -13,8 +13,8 @@ var _itab_reflectType = func() unsafe.Pointer {
 }()
 
 // GetType gets the type defined by the given fully-qualified name.
-// If the specified type does not exist, or inactive (won't be compiled
-// into the binary), it panics.
+// If the specified type does not exist, or inactive (haven't been
+// compiled into the binary), it panics.
 func GetType(name string) reflect.Type {
 	sections, offsets := typelinks()
 	for i, base := range sections {

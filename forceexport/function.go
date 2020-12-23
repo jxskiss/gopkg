@@ -11,7 +11,7 @@ import (
 // The outFuncPtr parameter should be a pointer to a function with the
 // appropriate type (e.g. the address of a local variable), and is set to
 // a new function value that calls the specified function.
-// If the function does not exist, or is inlined, or inactive (won't be
+// If the function does not exist, or is inlined, or inactive (haven't been
 // compiled into the binary), it panics.
 func GetFunc(outFuncPtr interface{}, name string) {
 	codePtr := FindFuncWithName(name)
@@ -50,7 +50,7 @@ func CreateFuncForCodePtr(outFuncPtr interface{}, codePtr uintptr) {
 
 // FindFuncWithName searches through the moduledata table created by the
 // linker and returns the function's code pointer.
-// If the function does not exist, or is inlined, or inactive (won't be
+// If the function does not exist, or is inlined, or inactive (haven't been
 // compiled into the binary), it panics.
 func FindFuncWithName(name string) uintptr {
 	for _, moduleData := range activeModules() {
