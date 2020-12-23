@@ -13,14 +13,19 @@ func TestNewRand(t *testing.T) {
 
 func TestRandFunctions(t *testing.T) {
 	Seed(time.Now().UnixNano())
-	tmp := Int63()
+	var tmp64 int64
+	var tmp32 int32
+	for tmp64 <= 0 || tmp32 <= 0 {
+		tmp64 = Int63()
+		tmp32 = int32(tmp64)
+	}
 	_ = Uint32()
 	_ = Uint64()
 	_ = Int31()
 	_ = Int()
-	_ = Int63n(tmp)
-	_ = Int31n(int32(tmp))
-	_ = Intn(int(tmp))
+	_ = Int63n(tmp64)
+	_ = Int31n(tmp32)
+	_ = Intn(int(tmp32))
 	_ = Float64()
 	_ = Float32()
 	_ = Perm(16)
