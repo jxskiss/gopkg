@@ -10,8 +10,9 @@ import (
 // GetFunc gets the function defined by the given fully-qualified name.
 // The outFuncPtr parameter should be a pointer to a function with the
 // appropriate type (e.g. the address of a local variable), and is set to
-// a new function value that calls the specified function. If the specified
-// function does not exist, outFuncPtr is not set and an error is returned.
+// a new function value that calls the specified function.
+// If the function does not exist, or is inlined, or inactive (won't be
+// compiled into the binary), it panics.
 func GetFunc(outFuncPtr interface{}, name string) {
 	codePtr := FindFuncWithName(name)
 	CreateFuncForCodePtr(outFuncPtr, codePtr)
@@ -48,9 +49,9 @@ func CreateFuncForCodePtr(outFuncPtr interface{}, codePtr uintptr) {
 }
 
 // FindFuncWithName searches through the moduledata table created by the
-// linker and returns the function's code pointer. If the function was not
-// found, it returns an error. Since the data structures here are not
-// exported, we copy them below (and need to be consistent with the runtime).
+// linker and returns the function's code pointer.
+// If the function does not exist, or is inlined, or inactive (won't be
+// compiled into the binary), it panics.
 func FindFuncWithName(name string) uintptr {
 	for _, moduleData := range activeModules() {
 		for _, ftab := range moduleData.ftab {
@@ -60,7 +61,7 @@ func FindFuncWithName(name string) uintptr {
 			}
 		}
 	}
-	panic(fmt.Sprintf("forceexport: cannot find function %s, may be inlined or inactive", name))
+	panic(fmt.Sprintf("forceexport: cannot find function %s, maybe inlined or inactive", name))
 }
 
 func getName(f *runtime.Func) string {
@@ -73,6 +74,8 @@ func getName(f *runtime.Func) string {
 //go:linkname activeModules runtime.activeModules
 func activeModules() []*moduledata
 
+// Since the runtime.moduledata related data structures are not exported,
+// we copy them below (and need to be consistent with the runtime).
 type moduledata struct {
 	pclntable []byte
 	ftab      []functab

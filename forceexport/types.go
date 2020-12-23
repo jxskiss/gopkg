@@ -12,33 +12,32 @@ var _itab_reflectType = func() unsafe.Pointer {
 	return (*iface)(unsafe.Pointer(&typ)).tab
 }()
 
+// GetType gets the type defined by the given fully-qualified name.
+// If the specified type does not exist, or inactive (won't be compiled
+// into the binary), it panics.
 func GetType(name string) reflect.Type {
 	sections, offsets := typelinks()
 	for i, base := range sections {
-
-	LoopOffset:
 		for _, offset := range offsets[i] {
 			_type := resolveTypeOff(base, offset)
 			typ := *(*reflect.Type)(unsafe.Pointer(&iface{
 				tab:  _itab_reflectType,
 				data: _type,
 			}))
-			for typ.Name() == "" {
-				if typ.Kind() != reflect.Ptr {
-					continue LoopOffset
-				}
+			for typ.Name() == "" && typ.Kind() == reflect.Ptr {
 				typ = typ.Elem()
 			}
-			pkgPath := removeVendorPrefix(typ.PkgPath())
-			if !strings.HasPrefix(name, pkgPath) {
+			typName := typ.Name()
+			if typName == "" || !strings.HasSuffix(name, typName) {
 				continue
 			}
-			if name == pkgPath+"."+typ.Name() {
+			pkgPath := removeVendorPrefix(typ.PkgPath())
+			if name == pkgPath+"."+typName {
 				return typ
 			}
 		}
 	}
-	panic(fmt.Sprintf("forceexprt: cannot find type %s, may be inactive", name))
+	panic(fmt.Sprintf("forceexprt: cannot find type %s, maybe inactive", name))
 }
 
 func removeVendorPrefix(path string) string {
