@@ -35,9 +35,10 @@ func Go1(f func() error) {
 	go func() {
 		defer Recover(nil, nil)
 		err := f()
-		if err != nil {
-			logcfg.DefaultLogger.Errorf("catch error: %v\n", err)
+		if err == nil {
+			return
 		}
+		_logcfg.getLogger(nil).Errorf("catch error: %v", err)
 	}()
 }
 
@@ -97,17 +98,18 @@ func Recover(ctx context.Context, err *error) {
 	if e == nil {
 		return
 	}
+
 	panicLoc := IdentifyPanic()
 	stack := debug.Stack()
+	pErr := &PanicError{Err: EnsureError(e), Loc: panicLoc, Stack: stack}
+
+	// If the caller receives the error, we don't log it here,
+	// else we log the panic error with stack information.
 	if err != nil {
-		tmp := EnsureError(e)
-		*err = &PanicError{Err: tmp, Loc: panicLoc, Stack: stack}
+		*err = pErr
+		return
 	}
-	logger := logcfg.DefaultLogger
-	if ctx != nil && logcfg.CtxFunc != nil {
-		logger = logcfg.CtxFunc(ctx)
-	}
-	logger.Errorf("catch panic: %v, location: %s\n%s", err, panicLoc, stack)
+	_logcfg.getLogger(&ctx).Errorf("catch %v\n%s", pErr, stack)
 }
 
 func IdentifyPanic() string {

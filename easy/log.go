@@ -18,28 +18,30 @@ import (
 	"unicode/utf8"
 )
 
-func ConfigLog(
-	enableDebug bool,
-	defaultLogger ErrDebugLogger,
-	ctxFunc func(ctx context.Context) ErrDebugLogger,
-) {
-	logcfg.EnableDebug = enableDebug
-	if defaultLogger != nil {
-		logcfg.DefaultLogger = defaultLogger
-	}
-	if ctxFunc != nil {
-		logcfg.CtxFunc = ctxFunc
-	}
+func ConfigLog(cfg LogCfg) {
+	_logcfg = cfg
 }
 
-var logcfg = struct {
-	EnableDebug   bool
-	DefaultLogger ErrDebugLogger
-	// CtxFunc retrieves logger from context.Context.
-	CtxFunc func(ctx context.Context) ErrDebugLogger
-}{
-	EnableDebug:   false,
-	DefaultLogger: stdLogger{},
+var _logcfg LogCfg
+
+type LogCfg struct {
+	EnableDebug func() bool
+	Logger      func() ErrDebugLogger
+	CtxLogger   func(context.Context) ErrDebugLogger
+}
+
+func (p LogCfg) getLogger(ctxp *context.Context) ErrDebugLogger {
+	if p.CtxLogger != nil && ctxp != nil {
+		if lg := p.CtxLogger(*ctxp); lg != nil {
+			return lg
+		}
+	}
+	if p.Logger != nil {
+		if lg := p.Logger(); lg != nil {
+			return lg
+		}
+	}
+	return stdLogger{}
 }
 
 type stdLogger struct{}

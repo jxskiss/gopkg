@@ -56,7 +56,7 @@ func (p *syncLogger) Errorf(format string, args ...interface{}) {
 
 func TestGoroutineRecover(t *testing.T) {
 	var logger = &syncLogger{}
-	ConfigLog(false, logger, nil)
+	configTestLog(false, logger, nil)
 
 	logger.wg.Add(1)
 	Go(func() { willPanic() })

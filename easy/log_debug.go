@@ -83,19 +83,16 @@ func DUMP(args ...interface{}) {
 }
 
 func logdebug(skip int, stringer stringer, args ...interface{}) {
-	if !logcfg.EnableDebug {
+	if !_logcfg.EnableDebug() {
 		return
 	}
-	var logger DebugLogger
+	var logger DebugLogger = stdLogger{}
 	if len(args) > 0 {
 		if arg0, ok := args[0].(func()); ok {
 			arg0()
 			return
 		}
-		logger, args = parseArg0Logger(args)
-	}
-	if logger == nil {
-		logger = logcfg.DefaultLogger
+		logger, args = parseLogger(args)
 	}
 	outputDebugLog(skip+1, logger, stringer, args)
 }
@@ -116,7 +113,7 @@ func outputDebugLog(skip int, logger DebugLogger, stringer stringer, args []inte
 
 var debugLoggerTyp = reflect.TypeOf((*DebugLogger)(nil)).Elem()
 
-func parseArg0Logger(args []interface{}) (DebugLogger, []interface{}) {
+func parseLogger(args []interface{}) (DebugLogger, []interface{}) {
 	var logger DebugLogger
 	if arg0, ok := args[0].(DebugLogger); ok {
 		logger = arg0
@@ -126,9 +123,7 @@ func parseArg0Logger(args []interface{}) (DebugLogger, []interface{}) {
 
 	switch arg0 := args[0].(type) {
 	case context.Context:
-		if logcfg.CtxFunc != nil {
-			logger = logcfg.CtxFunc(arg0)
-		}
+		logger = _logcfg.getLogger(&arg0)
 		args = args[1:]
 	case func(string, ...interface{}):
 		logger = PrintFunc(arg0)
@@ -143,6 +138,9 @@ func parseArg0Logger(args []interface{}) (DebugLogger, []interface{}) {
 			}
 			args = args[1:]
 		}
+	}
+	if logger == nil {
+		logger = stdLogger{}
 	}
 	return logger, args
 }
