@@ -209,7 +209,7 @@ func parseType(rows interface{}) *typeInfo {
 	}
 
 	elemTyp := indirectType(indirectType(typ).Elem())
-	tableName := strutil.ToSnake(elemTyp.Name())
+	tableName := strutil.ToSnakeCase(elemTyp.Name())
 	fieldNum := elemTyp.NumField()
 	colNames := make([]string, 0, fieldNum)
 	fieldIndex := make([]int, 0)
@@ -249,7 +249,7 @@ func parseType(rows interface{}) *typeInfo {
 
 		// default
 		if col == "" {
-			col = strutil.ToSnake(field.Name)
+			col = strutil.ToSnakeCase(field.Name)
 		}
 
 		colNames = append(colNames, col)

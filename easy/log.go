@@ -178,7 +178,7 @@ func Logfmt(v interface{}) string {
 			if len(field.PkgPath) != 0 {
 				continue
 			}
-			k := strutil.ToSnake(field.Name)
+			k := strutil.ToSnakeCase(field.Name)
 			v := reflect.Indirect(val.Field(i))
 			if !v.IsValid() {
 				continue

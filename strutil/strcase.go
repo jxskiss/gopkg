@@ -1,10 +1,12 @@
 package strutil
 
-import "unicode"
+import (
+	"unicode"
+)
 
-// ToSnake convert the given string to snake case following the Golang format:
+// ToSnakeCase convert the given string to snake case following the Golang format:
 // acronyms are converted to lower-case and preceded by an underscore.
-func ToSnake(in string) string {
+func ToSnakeCase(in string) string {
 	runes := []rune(in)
 	length := len(runes)
 
@@ -17,4 +19,45 @@ func ToSnake(in string) string {
 	}
 
 	return string(out)
+}
+
+// ToCamelCase converts the given string to CamelCase.
+func ToCamelCase(in string) string {
+	return string(toCamelCase([]rune(in)))
+}
+
+// ToLowerCamelCase converts the given string to lowerCamelCase.
+func ToLowerCamelCase(in string) string {
+	out := toCamelCase([]rune(in))
+	length := len(out)
+	for i := 0; i < length; i++ {
+		isUpper := unicode.IsUpper(out[i])
+		if isUpper && (i == 0 || i+1 == length || unicode.IsUpper(out[i+1])) {
+			out[i] -= 'A' - 'a'
+			continue
+		}
+		break
+	}
+	return string(out)
+}
+
+func toCamelCase(runes []rune) []rune {
+	var out []rune
+	var capNext = true
+	for _, v := range runes {
+		isUpper, isLower := unicode.IsUpper(v), unicode.IsLower(v)
+		if capNext && isLower {
+			v += 'A' - 'a'
+		}
+		if isUpper || isLower {
+			out = append(out, v)
+			capNext = false
+		} else if unicode.IsNumber(v) {
+			out = append(out, v)
+			capNext = true
+		} else {
+			capNext = v == '_' || v == ' ' || v == '-' || v == '.'
+		}
+	}
+	return out
 }
