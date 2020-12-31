@@ -83,7 +83,7 @@ func DUMP(args ...interface{}) {
 }
 
 func logdebug(skip int, stringer stringer, args ...interface{}) {
-	if !_logcfg.EnableDebug() {
+	if _logcfg.EnableDebug == nil || !_logcfg.EnableDebug() {
 		return
 	}
 	var logger DebugLogger = stdLogger{}
