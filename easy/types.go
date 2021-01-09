@@ -1,21 +1,12 @@
 package easy
 
 import (
-	"bytes"
-	"encoding/binary"
-	"errors"
 	"fmt"
 	"github.com/jxskiss/gopkg/reflectx"
 	"reflect"
 	"sort"
 	"strconv"
 	"unsafe"
-)
-
-var (
-	binEncoding = binary.LittleEndian
-	binMagic32  = []byte("EZY0")
-	binMagic64  = []byte("EZY1")
 )
 
 type Int32s []int32
@@ -115,40 +106,6 @@ func (p Int32s) Drop(x int32, inPlace bool) Int32s {
 		}
 	}
 	return out
-}
-
-func (p Int32s) Marshal() []byte {
-	bufLen := 4 + 4*len(p)
-	out := make([]byte, bufLen)
-	copy(out, binMagic32)
-	buf := out[4:]
-	for i, x := range p {
-		binEncoding.PutUint32(buf[4*i:4*(i+1)], uint32(x))
-	}
-	return out
-}
-
-func (p *Int32s) Unmarshal(buf []byte) error {
-	if len(buf) == 0 {
-		return nil
-	}
-	if len(buf) < 4 || !bytes.Equal(buf[:4], binMagic32) {
-		return errors.New("invalid bytes format")
-	}
-	buf = buf[4:]
-	if len(buf)%4 != 0 {
-		return fmt.Errorf("invalid bytes with length=%d", len(buf))
-	}
-	slice := *p
-	if cap(slice)-len(slice) < len(buf)/4 {
-		slice = make([]int32, 0, len(buf)/4)
-	}
-	for i := 0; i < len(buf); i += 4 {
-		x := binEncoding.Uint32(buf[i : i+4])
-		slice = append(slice, int32(x))
-	}
-	*p = slice
-	return nil
 }
 
 func ToInt32s_(intSlice interface{}) Int32s {
@@ -275,76 +232,6 @@ func (p Int64s) Drop(x int64, inPlace bool) Int64s {
 		}
 	}
 	return out
-}
-
-func (p Int64s) Marshal32() []byte {
-	bufLen := 4 + 4*len(p)
-	out := make([]byte, bufLen)
-	copy(out, binMagic32)
-	buf := out[4:]
-	for i, x := range p {
-		binEncoding.PutUint32(buf[4*i:4*(i+1)], uint32(x))
-	}
-	return out
-}
-
-func (p Int64s) Marshal64() []byte {
-	bufLen := 4 + 8*len(p)
-	out := make([]byte, bufLen)
-	copy(out, binMagic64)
-	buf := out[4:]
-	for i, x := range p {
-		binEncoding.PutUint64(buf[8*i:8*(i+1)], uint64(x))
-	}
-	return out
-}
-
-func (p *Int64s) Unmarshal(buf []byte) error {
-	if len(buf) == 0 {
-		return nil
-	}
-	if len(buf) < 4 {
-		return errors.New("invalid bytes format")
-	}
-	switch {
-	case bytes.Equal(buf[:4], binMagic32):
-		return p.unmarshal32(buf[4:])
-	case bytes.Equal(buf[:4], binMagic64):
-		return p.unmarshal64(buf[4:])
-	}
-	return errors.New("invalid bytes format")
-}
-
-func (p *Int64s) unmarshal32(buf []byte) error {
-	if len(buf)%4 != 0 {
-		return fmt.Errorf("invalid bytes with length=%d", len(buf))
-	}
-	slice := *p
-	if cap(slice)-len(slice) < len(buf)/4 {
-		slice = make([]int64, 0, len(buf)/4)
-	}
-	for i := 0; i < len(buf); i += 4 {
-		x := binEncoding.Uint32(buf[i : i+4])
-		slice = append(slice, int64(x))
-	}
-	*p = slice
-	return nil
-}
-
-func (p *Int64s) unmarshal64(buf []byte) error {
-	if len(buf)%8 != 0 {
-		return fmt.Errorf("invalid bytes with length=%d", len(buf))
-	}
-	slice := *p
-	if cap(slice)-len(slice) < len(buf)/8 {
-		slice = make([]int64, 0, len(buf)/8)
-	}
-	for i := 0; i < len(buf); i += 8 {
-		x := binEncoding.Uint64(buf[i : i+8])
-		slice = append(slice, int64(x))
-	}
-	*p = slice
-	return nil
 }
 
 func ToInt64s_(intSlice interface{}) Int64s {

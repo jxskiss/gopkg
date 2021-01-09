@@ -70,18 +70,6 @@ func TestInt32s_Drop(t *testing.T) {
 	assert.Len(t, slice, length)
 }
 
-func TestInt32s_Serialization(t *testing.T) {
-	slice := Int32s{1, 2, 3, 4, 5}
-	buf := slice.Marshal()
-	assert.Len(t, buf, len(binMagic32)+4*len(slice))
-	assert.Equal(t, binMagic32, buf[:len(binMagic32)])
-
-	var got Int32s
-	err := got.Unmarshal(buf)
-	assert.Nil(t, err)
-	assert.Equal(t, slice, got)
-}
-
 func TestToInt32s(t *testing.T) {
 	type I32 int32
 	type UI64 uint64
@@ -175,30 +163,6 @@ func TestInt64s_Drop(t *testing.T) {
 	assert.Equal(t, want, got2)
 	assert.Equal(t, want, slice[:len(got2)])
 	assert.Len(t, slice, length)
-}
-
-func TestInt64s_Serialization32(t *testing.T) {
-	slice := Int64s{1, 2, 3, 4, 5}
-	buf := slice.Marshal32()
-	assert.Len(t, buf, len(binMagic32)+4*len(slice))
-	assert.Equal(t, binMagic32, buf[:len(binMagic32)])
-
-	var got Int64s
-	err := got.Unmarshal(buf)
-	assert.Nil(t, err)
-	assert.Equal(t, slice, got)
-}
-
-func TestInt64s_Serialization64(t *testing.T) {
-	slice := Int64s{1, 2, 3, 4, 5}
-	buf := slice.Marshal64()
-	assert.Len(t, buf, len(binMagic64)+8*len(slice))
-	assert.Equal(t, binMagic64, buf[:len(binMagic64)])
-
-	var got Int64s
-	err := got.Unmarshal(buf)
-	assert.Nil(t, err)
-	assert.Equal(t, slice, got)
 }
 
 func TestToInt64s(t *testing.T) {
