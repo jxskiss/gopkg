@@ -106,3 +106,10 @@ func DerefTime(p *time.Time) time.Time {
 	}
 	return time.Time{}
 }
+
+func DerefDuration(p *time.Duration) time.Duration {
+	if p != nil {
+		return *p
+	}
+	return 0
+}

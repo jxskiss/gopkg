@@ -61,3 +61,7 @@ func Float64(v float64) *float64 {
 func Time(v time.Time) *time.Time {
 	return &v
 }
+
+func Duration(v time.Duration) *time.Duration {
+	return &v
+}

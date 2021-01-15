@@ -2,11 +2,13 @@ package strutil
 
 import (
 	"fmt"
+	"github.com/jxskiss/gopkg/reflectx"
 	"os"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
+	"unsafe"
 )
 
 // Replace builds a strings.Replacer with the old, new string pairs,
@@ -150,17 +152,32 @@ func Format(format string, kwArgs interface{}, posArgs ...interface{}) string {
 	return fmt.Sprintf(string(newFormat), newFormatArgs...)
 }
 
+var strInterfaceMapTyp = reflect.TypeOf(map[string]interface{}(nil))
+
+func isStringInterfaceMap(typ reflect.Type) bool {
+	return typ.Kind() == reflect.Map &&
+		typ.Key().Kind() == reflect.String &&
+		typ.Elem() == strInterfaceMapTyp.Elem()
+}
+
+func castStringInterfaceMap(v interface{}) map[string]interface{} {
+	eface := reflectx.EFaceOf(&v)
+	strMap := *(*map[string]interface{})(unsafe.Pointer(&eface.Word))
+	return strMap
+}
+
 func getKeywordArgFunc(kwArgs interface{}) func(key string) (interface{}, bool) {
 	if kwArgs == nil {
 		return func(string) (interface{}, bool) { return nil, false }
 	}
-	if kwMap, ok := kwArgs.(map[string]interface{}); ok {
+	kwTyp := reflect.TypeOf(kwArgs)
+	if isStringInterfaceMap(kwTyp) {
+		kwMap := castStringInterfaceMap(kwArgs)
 		return func(key string) (interface{}, bool) {
 			val, ok := kwMap[key]
 			return val, ok
 		}
 	}
-	kwTyp := reflect.TypeOf(kwArgs)
 	if kwTyp.Kind() == reflect.Map && kwTyp.Key().Kind() == reflect.String {
 		kwValue := reflect.ValueOf(kwArgs)
 		return func(key string) (interface{}, bool) {
@@ -171,18 +188,17 @@ func getKeywordArgFunc(kwArgs interface{}) func(key string) (interface{}, bool) 
 			return nil, false
 		}
 	}
-
 	value := reflect.Indirect(reflect.ValueOf(kwArgs))
-	if value.Kind() != reflect.Struct {
-		return func(string) (interface{}, bool) { return nil, false }
-	}
-	return func(field string) (interface{}, bool) {
-		x := value.FieldByName(field)
-		if x.IsValid() {
-			return x, true
+	if value.Kind() == reflect.Struct {
+		return func(field string) (interface{}, bool) {
+			x := value.FieldByName(field)
+			if x.IsValid() {
+				return x, true
+			}
+			return nil, false
 		}
-		return nil, false
 	}
+	return func(string) (interface{}, bool) { return nil, false }
 }
 
 var envPlaceholderRegex = regexp.MustCompile(`\\?\${\w+}`)
@@ -212,7 +228,7 @@ func FormatENV(src string, defaultValues ...string) string {
 		if s[0] == '\\' {
 			return s[1:]
 		}
-		name := s[2:len(s)-1]
+		name := s[2 : len(s)-1]
 		value := os.Getenv(name)
 		if value == "" {
 			for i := 0; i < len(defaultValues); i += 2 {

@@ -33,11 +33,11 @@ type cmpresult struct {
 }
 
 type typecmp struct {
-	seen map[typ1typ2]cmpresult
+	seen map[typ1typ2]*cmpresult
 }
 
 func newTypecmp() *typecmp {
-	return &typecmp{seen: make(map[typ1typ2]cmpresult)}
+	return &typecmp{seen: make(map[typ1typ2]*cmpresult)}
 }
 
 func (p *typecmp) isEqualType(typ1, typ2 reflect.Type) (bool, string) {
@@ -72,13 +72,17 @@ func (p *typecmp) isEqualStruct(typ1, typ2 reflect.Type) (bool, string) {
 		return false, fmt.Sprintf("type is not struct: %s, %s", _t(typ1), _t(typ2))
 	}
 	typidx := typ1typ2{typ1, typ2}
-	if cmpr := p.seen[typidx]; cmpr.result > 0 {
-		return cmpr.result > notequal, cmpr.diff
+	if cmpr := p.seen[typidx]; cmpr != nil {
+
+		// In case of recursive type, cmpr.result will be checking here,
+		// we treat it as equal, the final result will be updated below.
+		return cmpr.result != notequal, cmpr.diff
 	}
-	p.seen[typidx] = cmpresult{checking, ""}
+
+	p.seen[typidx] = &cmpresult{checking, ""}
 	if typ1.NumField() != typ2.NumField() {
 		diff := fmt.Sprintf("struct field num not match: %s, %s", _t(typ1), _t(typ2))
-		p.seen[typidx] = cmpresult{notequal, diff}
+		p.seen[typidx] = &cmpresult{notequal, diff}
 		return false, diff
 	}
 	fnum := typ1.NumField()
@@ -87,11 +91,11 @@ func (p *typecmp) isEqualStruct(typ1, typ2 reflect.Type) (bool, string) {
 		f2 := typ2.Field(i)
 		if equal, diff := p.isEqualField(typ1, f1, f2); !equal {
 			diff = fmt.Sprintf("struct field not equal: %s", diff)
-			p.seen[typidx] = cmpresult{notequal, diff}
+			p.seen[typidx] = &cmpresult{notequal, diff}
 			return false, diff
 		}
 	}
-	p.seen[typidx] = cmpresult{isequal, ""}
+	p.seen[typidx] = &cmpresult{isequal, ""}
 	return true, ""
 }
 

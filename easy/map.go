@@ -177,6 +177,14 @@ func (p Map) GetString(key string) string {
 	return ""
 }
 
+// GetBytes returns the value associated with the key as bytes.
+func (p Map) GetBytes(key string) []byte {
+	if val, ok := p[key].([]byte); ok {
+		return val
+	}
+	return nil
+}
+
 // GetBool returns the value associated with the key as a boolean.
 func (p Map) GetBool(key string) bool {
 	if val, ok := p[key].(bool); ok {
@@ -349,6 +357,14 @@ func (p Int64Map) GetString(key int64) string {
 		return val
 	}
 	return ""
+}
+
+// GetBytes returns the value associated with the key as bytes.
+func (p Int64Map) GetBytes(key int64) []byte {
+	if val, ok := p[key].([]byte); ok {
+		return val
+	}
+	return nil
 }
 
 // GetBool returns the value associated with the key as a boolean.

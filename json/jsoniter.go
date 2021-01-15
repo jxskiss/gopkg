@@ -4,18 +4,24 @@ package json
 
 import "github.com/json-iterator/go"
 
+var fastcfg = jsoniter.Config{
+	EscapeHTML:                    false,
+	SortMapKeys:                   false,
+	ObjectFieldMustBeSimpleString: true,
+}.Froze()
+
 type (
 	Encoder = jsoniter.Encoder
 	Decoder = jsoniter.Decoder
 )
 
 var (
-	_Marshal       = cfg.Marshal
-	_MarshalFast   = jsoniter.ConfigDefault.Marshal
-	_MarshalIndent = cfg.MarshalIndent
-	_Unmarshal     = cfg.Unmarshal
-	Valid          = cfg.Valid
+	_Marshal       = stdcfg.Marshal
+	_MarshalFast   = fastcfg.Marshal
+	_MarshalIndent = stdcfg.MarshalIndent
+	_Unmarshal     = stdcfg.Unmarshal
+	Valid          = stdcfg.Valid
 
-	NewEncoder = cfg.NewEncoder
-	NewDecoder = cfg.NewDecoder
+	NewEncoder = stdcfg.NewEncoder
+	NewDecoder = stdcfg.NewDecoder
 )

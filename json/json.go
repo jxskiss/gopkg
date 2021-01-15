@@ -5,12 +5,10 @@ import (
 	"github.com/json-iterator/go"
 	"os"
 	"reflect"
-	"strconv"
-	"strings"
 )
 
 // ConfigCompatibleWithStandardLibrary tries to be 100% compatible with standard library behavior.
-var cfg = jsoniter.ConfigCompatibleWithStandardLibrary
+var stdcfg = jsoniter.ConfigCompatibleWithStandardLibrary
 
 type (
 	Delim      = json.Delim
@@ -26,8 +24,6 @@ type (
 	UnmarshalTypeError    = json.UnmarshalTypeError
 	UnsupportedTypeError  = json.UnmarshalTypeError
 	UnsupportedValueError = json.UnsupportedValueError
-
-	Any = jsoniter.Any
 )
 
 type (
@@ -97,40 +93,6 @@ func MarshalToString(v interface{}) (string, error) {
 func UnmarshalFromString(str string, v interface{}) error {
 	data := s2b(str)
 	return Unmarshal(data, v)
-}
-
-func Get(data []byte, path ...interface{}) Any {
-	return cfg.Get(data, path...)
-}
-
-func GetByDot(data []byte, path string) Any {
-	return cfg.Get(data, splitDotPath(path)...)
-}
-
-func splitDotPath(path string) []interface{} {
-	parts := strings.Split(path, ".")
-	out := make([]interface{}, 0, len(parts))
-	for _, s := range parts {
-		switch {
-		case isDigits(s):
-			idx, _ := strconv.ParseInt(s, 10, 64)
-			out = append(out, int(idx))
-		case s == "*":
-			out = append(out, '*')
-		default:
-			out = append(out, s)
-		}
-	}
-	return out
-}
-
-func isDigits(s string) bool {
-	for _, x := range s {
-		if !('0' <= x && x <= '9') {
-			return false
-		}
-	}
-	return true
 }
 
 func Load(path string, v interface{}) error {

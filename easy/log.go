@@ -79,13 +79,6 @@ func (f PrintFunc) Errorf(format string, args ...interface{}) { f(format, args..
 
 func (f PrintFunc) Debugf(format string, args ...interface{}) { f(format, args...) }
 
-// Printer is an interface which writes log messages to somewhere.
-// It's implemented by *logrus.Logger, *logrus.Entry, and many other
-// logging packages.
-type Printer interface {
-	Printf(format string, args ...interface{})
-}
-
 var logjson = jsoniter.Config{
 	// compatible with standard library behavior
 	SortMapKeys:            true,

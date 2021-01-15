@@ -12,53 +12,22 @@ const (
 	maxInsertGrowth = 1024
 )
 
-func InSlice(slice interface{}, elem interface{}) bool {
+// InSlice iterates the given slice, it calls predicate(i) for i in range [0, n)
+// where n is the length of the slice.
+// When predicate(i) returns true, it stops and returns true.
+//
+// The parameter predicate must be not nil, otherwise it panics.
+func InSlice(slice interface{}, predicate func(i int) bool) bool {
 	if slice == nil {
 		return false
 	}
-	if elem == nil {
-		sliceVal := indirect(reflect.ValueOf(slice))
-		sliceTyp := sliceVal.Type()
-		if sliceTyp.Kind() == reflect.Slice && isNillableKind(sliceTyp.Elem().Kind()) {
-			for i := 0; i < sliceVal.Len(); i++ {
-				if sliceVal.Index(i).IsNil() {
-					return true
-				}
-			}
-		}
-		return false
-	}
-
 	sliceTyp := reflect.TypeOf(slice)
-	elemTyp := reflect.TypeOf(elem)
-	elemKind := elemTyp.Kind()
-	if sliceTyp.Kind() == reflect.Slice && sliceTyp.Elem().Kind() == elemKind {
-		if reflectx.Is64bitInt(elemKind) {
-			return InInt64s(ToInt64s_(slice), _int64(elem))
-		}
-		if reflectx.Is32bitInt(elemKind) {
-			return InInt32s(ToInt32s_(slice), _int32(elem))
-		}
-		if elemKind == reflect.String {
-			return InStrings(ToStrings_(slice), _string(elem))
-		}
+	if sliceTyp.Kind() != reflect.Slice {
+		panic("Find: " + errNotSliceType)
 	}
-
-	sliceVal, intTypeNotMatch := assertSliceAndElemType("InSlice", reflect.ValueOf(slice), elemTyp)
-
-	if intTypeNotMatch {
-		_elemInt := _int64(elem)
-		for i := 0; i < sliceVal.Len(); i++ {
-			_sliceInt := reflectInt(sliceVal.Index(i))
-			if _elemInt == _sliceInt {
-				return true
-			}
-		}
-		return false
-	}
-
-	for i := 0; i < sliceVal.Len(); i++ {
-		if elem == sliceVal.Index(i).Interface() {
+	header := reflectx.UnpackSlice(slice)
+	for i := 0; i < header.Len; i++ {
+		if predicate(i) {
 			return true
 		}
 	}
@@ -92,53 +61,22 @@ func InStrings(slice []string, elem string) bool {
 	return false
 }
 
-func Index(slice interface{}, elem interface{}) int {
+// Index iterates the given slice, it calls predicate(i) for i in range [0, n)
+// where n is the length of the slice.
+// When predicate(i) returns true, it stops and returns the index i.
+//
+// The parameter predicate must be not nil, otherwise it panics.
+func Index(slice interface{}, predicate func(i int) bool) int {
 	if slice == nil {
 		return -1
 	}
-	if elem == nil {
-		sliceVal := indirect(reflect.ValueOf(slice))
-		sliceTyp := sliceVal.Type()
-		if sliceTyp.Kind() == reflect.Slice && isNillableKind(sliceTyp.Elem().Kind()) {
-			for i := 0; i < sliceVal.Len(); i++ {
-				if sliceVal.Index(i).IsNil() {
-					return i
-				}
-			}
-		}
-		return -1
-	}
-
 	sliceTyp := reflect.TypeOf(slice)
-	elemTyp := reflect.TypeOf(elem)
-	elemKind := elemTyp.Kind()
-	if sliceTyp.Kind() == reflect.Slice && sliceTyp.Elem().Kind() == elemKind {
-		if reflectx.Is64bitInt(elemKind) {
-			return IndexInt64s(ToInt64s_(slice), _int64(elem))
-		}
-		if reflectx.Is32bitInt(elemKind) {
-			return IndexInt32s(ToInt32s_(slice), _int32(elem))
-		}
-		if elemKind == reflect.String {
-			return IndexStrings(ToStrings_(slice), _string(elem))
-		}
+	if sliceTyp.Kind() != reflect.Slice {
+		panic("Index: " + errNotSliceType)
 	}
-
-	sliceVal, intTypeNotMatch := assertSliceAndElemType("Index", reflect.ValueOf(slice), elemTyp)
-
-	if intTypeNotMatch {
-		_elemInt := _int64(elem)
-		for i := 0; i < sliceVal.Len(); i++ {
-			_sliceInt := reflectInt(sliceVal.Index(i))
-			if _elemInt == _sliceInt {
-				return i
-			}
-		}
-		return -1
-	}
-
-	for i := 0; i < sliceVal.Len(); i++ {
-		if elem == sliceVal.Index(i).Interface() {
+	header := reflectx.UnpackSlice(slice)
+	for i := 0; i < header.Len; i++ {
+		if predicate(i) {
 			return i
 		}
 	}
@@ -172,53 +110,22 @@ func IndexStrings(slice []string, elem string) int {
 	return -1
 }
 
-func LastIndex(slice interface{}, elem interface{}) int {
+// LastIndex iterates the given slice, it calls predicate(i) for i in range [0, n)
+// in descending order, where n is the length of the slice.
+// When predicate(i) returns true, it stops and returns the index i.
+//
+// The parameter predicate must be not nil, otherwise it panics.
+func LastIndex(slice interface{}, predicate func(i int) bool) int {
 	if slice == nil {
 		return -1
 	}
-	if elem == nil {
-		sliceVal := indirect(reflect.ValueOf(slice))
-		sliceTyp := sliceVal.Type()
-		if sliceTyp.Kind() == reflect.Slice && isNillableKind(sliceTyp.Elem().Kind()) {
-			for i := sliceVal.Len() - 1; i >= 0; i-- {
-				if sliceVal.Index(i).IsNil() {
-					return i
-				}
-			}
-		}
-		return -1
-	}
-
 	sliceTyp := reflect.TypeOf(slice)
-	elemTyp := reflect.TypeOf(elem)
-	elemKind := elemTyp.Kind()
-	if sliceTyp.Kind() == reflect.Slice && sliceTyp.Elem().Kind() == elemKind {
-		if reflectx.Is64bitInt(elemKind) {
-			return LastIndexInt64s(ToInt64s_(slice), _int64(elem))
-		}
-		if reflectx.Is32bitInt(elemKind) {
-			return LastIndexInt32s(ToInt32s_(slice), _int32(elem))
-		}
-		if elemKind == reflect.String {
-			return LastIndexStrings(ToStrings_(slice), _string(elem))
-		}
+	if sliceTyp.Kind() != reflect.Slice {
+		panic("LastIndex: " + errNotSliceType)
 	}
-
-	sliceVal, intTypeNotMatch := assertSliceAndElemType("LastIndex", reflect.ValueOf(slice), elemTyp)
-
-	if intTypeNotMatch {
-		_elemInt := _int64(elem)
-		for i := sliceVal.Len() - 1; i >= 0; i-- {
-			_sliceInt := reflectInt(sliceVal.Index(i))
-			if _elemInt == _sliceInt {
-				return i
-			}
-		}
-		return -1
-	}
-
-	for i := sliceVal.Len() - 1; i >= 0; i-- {
-		if elem == sliceVal.Index(i).Interface() {
+	header := reflectx.UnpackSlice(slice)
+	for i := header.Len - 1; i >= 0; i-- {
+		if predicate(i) {
 			return i
 		}
 	}
@@ -252,6 +159,13 @@ func LastIndexStrings(slice []string, elem string) int {
 	return -1
 }
 
+// InsertSlice inserts the given elem into the slice at index position.
+// If index is equal or greater than the length of slice, the elem will be
+// appended to the end of the slice. In case the slice is full of it's
+// capacity, a new slice will be created and returned.
+//
+// The parameter slice must a slice, index must be a positive number and
+// elem must be same type of the slice element, otherwise it panics.
 func InsertSlice(slice interface{}, index int, elem interface{}) (out interface{}) {
 	if slice == nil || elem == nil {
 		panicNilParams("InsertSlice", "slice", slice, "elem", elem)
@@ -352,6 +266,10 @@ func InsertStrings(slice []string, index int, elem string) (out Strings) {
 	return
 }
 
+// ReverseSlice returns a new slice containing the elements of the given
+// slice in reversed order.
+//
+// The given slice must be not nil, otherwise it panics.
 func ReverseSlice(slice interface{}) interface{} {
 	if slice == nil {
 		panicNilParams("ReverseSlice", "slice", slice)
@@ -406,6 +324,11 @@ var (
 	emptyStructTyp = reflect.TypeOf(struct{}{})
 )
 
+// UniqueSlice returns a new slice containing the elements of the given
+// slice in same order, but filter out duplicate values.
+//
+// The given slice must be not nil and element must be hashable (can be
+// used as map key), otherwise it panics.
 func UniqueSlice(slice interface{}) interface{} {
 	if slice == nil {
 		panicNilParams("UniqueSlice", "slice", slice)
@@ -478,6 +401,8 @@ func UniqueStrings(slice []string) Strings {
 	return out
 }
 
+// DiffInt32s returns a new int32 slice containing the values which present
+// in slice a but not present in slice b.
 func DiffInt32s(a []int32, b []int32) Int32s {
 	bset := make(map[int32]struct{}, len(b))
 	for _, x := range b {
@@ -492,6 +417,8 @@ func DiffInt32s(a []int32, b []int32) Int32s {
 	return out
 }
 
+// DiffInt64s returns a new int64 slice containing the values which present
+// in slice a but not present in slice b.
 func DiffInt64s(a []int64, b []int64) Int64s {
 	bset := make(map[int64]struct{}, len(b))
 	for _, x := range b {
@@ -506,6 +433,8 @@ func DiffInt64s(a []int64, b []int64) Int64s {
 	return out
 }
 
+// DiffStrings returns a new string slice containing the values which
+// present in slice a but not present in slice b.
 func DiffStrings(a []string, b []string) Strings {
 	bset := make(map[string]struct{}, len(b))
 	for _, x := range b {
@@ -520,6 +449,8 @@ func DiffStrings(a []string, b []string) Strings {
 	return out
 }
 
+// Pluck accepts a slice of struct or pointer to struct, and returns a
+// new slice with field values specified by field of the struct elements.
 func Pluck(slice interface{}, field string) interface{} {
 	if slice == nil {
 		panicNilParams("Pluck", "slice", slice)
@@ -603,6 +534,11 @@ func PluckStrings(slice interface{}, field string) Strings {
 	return out
 }
 
+// ToMap converts the given slice of struct (or pointer to struct) to a map,
+// with the field specified by keyField as key and the slice element as value.
+//
+// If slice is nil, keyField does not exists or the element of slice is not
+// struct or pointer to struct, it panics.
 func ToMap(slice interface{}, keyField string) interface{} {
 	if slice == nil {
 		panicNilParams("ToMap", "slice", slice)
@@ -625,6 +561,12 @@ func ToMap(slice interface{}, keyField string) interface{} {
 	return outVal.Interface()
 }
 
+// ToSliceMap converts the given slice of struct (or pointer to struct) to a map,
+// with the field specified by keyField as key and a slice of elements which have
+// same key as value.
+//
+// If slice is nil, keyField does not exists or the element of slice is not
+// struct or pointer to struct, it panics.
 func ToSliceMap(slice interface{}, keyField string) interface{} {
 	if slice == nil {
 		panicNilParams("ToSliceMap", "slice", slice)
@@ -653,6 +595,13 @@ func ToSliceMap(slice interface{}, keyField string) interface{} {
 	return outVal.Interface()
 }
 
+// ToMapMap converts the given slice of struct (or pointer to struct) to a map,
+// with the field specified by keyField as key.
+// The returned map's value is another map with the field specified by
+// subKeyField as key and thee slice element as value.
+//
+// If slice is nil, keyField or subKeyField does not exists or the element of
+// slice is not struct or pointer to struct, it panics.
 func ToMapMap(slice interface{}, keyField, subKeyField string) interface{} {
 	if slice == nil {
 		panicNilParams("ToMapMap", "slice", slice)
@@ -687,26 +636,19 @@ func ToMapMap(slice interface{}, keyField, subKeyField string) interface{} {
 	return outVal.Interface()
 }
 
+// Find is an alias of function Index.
 func Find(slice interface{}, predicate func(i int) bool) int {
-	if slice == nil || predicate == nil {
-		panicNilParams("Find", "slice", slice, "predicate", predicate)
-	}
-	sliceTyp := reflect.TypeOf(slice)
-	if sliceTyp.Kind() != reflect.Slice {
-		panic("Find: " + errNotSliceType)
-	}
-	header := reflectx.UnpackSlice(slice)
-	for i := 0; i < header.Len; i++ {
-		if predicate(i) {
-			return i
-		}
-	}
-	return -1
+	return Index(slice, predicate)
 }
 
+// Filter iterates the given slice, it calls predicate(i) for i in range [0, n)
+// where n is the length of the slice.
+// It returns a new slice of elements for which predicate(i) returns true.
+//
+// The parameter slice and predicate must not be nil, otherwise it panics.
 func Filter(slice interface{}, predicate func(i int) bool) interface{} {
-	if slice == nil || predicate == nil {
-		panicNilParams("Filter", "slice", slice, "predicate", predicate)
+	if slice == nil {
+		panicNilParams("Filter", "slice", slice)
 	}
 	sliceVal := reflect.ValueOf(slice)
 	sliceTyp := sliceVal.Type()
@@ -768,6 +710,8 @@ func FilterStrings(slice []string, predicate func(i int) bool) Strings {
 	return out
 }
 
+// SumSlice returns the sum value of the elements in the given slice.
+// If slice is nil or it's elements are not integers, it panics.
 func SumSlice(slice interface{}) int64 {
 	if slice == nil {
 		panicNilParams("SumSlice", "slice", slice)
@@ -785,6 +729,10 @@ func SumSlice(slice interface{}) int64 {
 	return sum
 }
 
+// SumMapSlice returns the sum value of the slice elements in the given map.
+//
+// The given map must not be nil and the map's value must be slice of integers,
+// otherwise it panics.
 func SumMapSlice(mapOfSlice interface{}) int64 {
 	if mapOfSlice == nil {
 		panicNilParams("SumMapSlice", "mapOfSlice", mapOfSlice)
@@ -808,6 +756,10 @@ func SumMapSlice(mapOfSlice interface{}) int64 {
 	return sum
 }
 
+// SumMapSliceLength returns the sum length of the slice values in the give map.
+//
+// The given map must not be nil and the map's value must be slice (of any type),
+// otherwise it panics.
 func SumMapSliceLength(mapOfSlice interface{}) int {
 	if mapOfSlice == nil {
 		panicNilParams("SumMapSliceLength", "mapOfSlice", mapOfSlice)
@@ -825,7 +777,7 @@ func SumMapSliceLength(mapOfSlice interface{}) int {
 	return sumLen
 }
 
-func ParseInt64s(values, sep string, ignoreZero bool) (slice Int64s, isMalformed bool) {
+func ParseInt64s(values, sep string, ignoreZero bool) (slice Int64s, malformed bool) {
 	values = strings.TrimSpace(values)
 	values = strings.Trim(values, sep)
 	segments := strings.Split(values, sep)
@@ -833,7 +785,7 @@ func ParseInt64s(values, sep string, ignoreZero bool) (slice Int64s, isMalformed
 	for _, x := range segments {
 		id, err := strconv.ParseInt(x, 10, 64)
 		if err != nil {
-			isMalformed = true
+			malformed = true
 			continue
 		}
 		if id == 0 && ignoreZero {
@@ -885,6 +837,10 @@ func SplitBatch(total, batch int) []IJ {
 	return ret[:idx]
 }
 
+// SplitSlice splits a large slice []T to batches, it returns a slice
+// of slice of type [][]T.
+//
+// The given slice must not be nil, otherwise it panics.
 func SplitSlice(slice interface{}, batch int) interface{} {
 	if slice == nil {
 		panicNilParams("SplitSlice", "slice", slice)

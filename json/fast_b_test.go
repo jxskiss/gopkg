@@ -19,7 +19,7 @@ func BenchmarkMarshalStringMap_JSONIter(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = cfg.Marshal(strMap)
+		_, _ = stdcfg.Marshal(strMap)
 	}
 }
 
@@ -46,7 +46,7 @@ func BenchmarkMarshalStringInterfaceMap_JSONIter(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = cfg.Marshal(strMap)
+		_, _ = stdcfg.Marshal(strMap)
 	}
 }
 
@@ -77,7 +77,7 @@ func BenchmarkUnmarshalStringMap_JSONIter(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var tmp map[string]string
-		_ = cfg.Unmarshal(data, &tmp)
+		_ = stdcfg.Unmarshal(data, &tmp)
 	}
 }
 

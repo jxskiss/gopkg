@@ -125,6 +125,14 @@ func CopyTime(p *time.Time) *time.Time {
 	return &r
 }
 
+func CopyDuration(p *time.Duration) *time.Duration {
+	if p == nil {
+		return nil
+	}
+	r := *p
+	return &r
+}
+
 // CopyAny return a shallow copy of the given pointer of any type.
 func CopyAny(v interface{}) interface{} {
 	val := reflect.Indirect(reflect.ValueOf(v))

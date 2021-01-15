@@ -1,24 +1,6 @@
 package easy
 
-import (
-	"sort"
-)
-
-func SearchSortedInts(slice []int, elem int) int {
-	return sort.Search(len(slice), func(i int) bool { return slice[i] >= elem })
-}
-
-func SearchSortedInt32s(slice []int32, elem int32) int {
-	return sort.Search(len(slice), func(i int) bool { return slice[i] >= elem })
-}
-
-func SearchSortedInt64s(slice []int64, elem int64) int {
-	return sort.Search(len(slice), func(i int) bool { return slice[i] >= elem })
-}
-
-func SearchSortedStrings(slice []string, elem string) int {
-	return sort.Search(len(slice), func(i int) bool { return slice[i] >= elem })
-}
+import "sort"
 
 func InSortedInts(slice []int, elem int) bool {
 	length := len(slice)
