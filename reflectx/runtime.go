@@ -38,8 +38,8 @@ type hiter struct {
 	// rest fields are ignored
 }
 
-// eface is the header for an interface{} value.
-type eface struct {
+// emptyInterface is the header for an interface{} value.
+type emptyInterface struct {
 	RType unsafe.Pointer
 	Word  unsafe.Pointer
 }
