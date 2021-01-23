@@ -5,6 +5,7 @@ import (
 	"github.com/json-iterator/go"
 	"os"
 	"reflect"
+	"unsafe"
 )
 
 // ConfigCompatibleWithStandardLibrary tries to be 100% compatible with standard library behavior.
@@ -22,7 +23,7 @@ type (
 	SyntaxError           = json.SyntaxError
 	UnmarshalFieldError   = json.UnmarshalFieldError
 	UnmarshalTypeError    = json.UnmarshalTypeError
-	UnsupportedTypeError  = json.UnmarshalTypeError
+	UnsupportedTypeError  = json.UnsupportedTypeError
 	UnsupportedValueError = json.UnsupportedValueError
 )
 
@@ -38,32 +39,7 @@ var (
 )
 
 func Marshal(v interface{}) ([]byte, error) {
-	ok, buf, err := marshalNilOrMarshaler(v)
-	if ok {
-		return buf, err
-	}
-	typ := reflect.TypeOf(v)
-	switch {
-	case isIntSlice(typ):
-		return marshalOptimized(v, AppendIntSlice)
-	case isStringSlice(typ):
-		return marshalOptimized(v, appendStringSlice)
-	default:
-		return _Marshal(v)
-	}
-}
-
-func MarshalFast(v interface{}) ([]byte, error) {
-	ok, buf, err := marshalNilOrMarshaler(v)
-	if ok {
-		return buf, err
-	}
-	typ := reflect.TypeOf(v)
-	if isOptimizedType(typ) {
-		appendFunc := getAppendFunc(typ)
-		return marshalOptimized(v, appendFunc)
-	}
-	return _MarshalFast(v)
+	return _Marshal(v)
 }
 
 func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
@@ -71,13 +47,8 @@ func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
 }
 
 func Unmarshal(data []byte, v interface{}) error {
-	if isUnmarshaler(v) {
-		return _Unmarshal(data, v)
-	}
-	typ := reflect.TypeOf(v)
-	if isStringMapPtr(typ) {
-		ptr := castStringMapPtr(v)
-		return unmarshalStringMap(data, ptr)
+	if ptr, ok := v.(*map[string]string); ok {
+		return UnmarshalStringMap(data, ptr)
 	}
 	return _Unmarshal(data, v)
 }
@@ -113,4 +84,18 @@ func Dump(path string, v interface{}) error {
 	defer file.Close()
 	err = NewEncoder(file).Encode(v)
 	return err
+}
+
+func b2s(b []byte) string {
+	return *(*string)(unsafe.Pointer(&b))
+}
+
+func s2b(s string) []byte {
+	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
+	bh := &reflect.SliceHeader{
+		Data: sh.Data,
+		Len:  sh.Len,
+		Cap:  sh.Len,
+	}
+	return *(*[]byte)(unsafe.Pointer(bh))
 }

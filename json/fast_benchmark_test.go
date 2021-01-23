@@ -5,12 +5,12 @@ import (
 	"testing"
 )
 
-func BenchmarkMarshalStringMap(b *testing.B) {
+func BenchmarkMarshalStringMapUnordered(b *testing.B) {
 	strMap := testStringMap
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = MarshalFast(strMap)
+		_, _ = MarshalStringMapUnordered(strMap)
 	}
 }
 
@@ -25,33 +25,6 @@ func BenchmarkMarshalStringMap_JSONIter(b *testing.B) {
 
 func BenchmarkMarshalStringMap_Standard(b *testing.B) {
 	strMap := testStringMap
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, _ = json.Marshal(strMap)
-	}
-}
-
-func BenchmarkMarshalStringInterfaceMap(b *testing.B) {
-	strMap := testStringInterfaceMap
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, _ = MarshalFast(strMap)
-	}
-}
-
-func BenchmarkMarshalStringInterfaceMap_JSONIter(b *testing.B) {
-	strMap := testStringInterfaceMap
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, _ = stdcfg.Marshal(strMap)
-	}
-}
-
-func BenchmarkMarshalStringInterfaceMap_Standard(b *testing.B) {
-	strMap := testStringInterfaceMap
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

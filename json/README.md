@@ -14,17 +14,13 @@ of `encoding/json` and is tested by a lot of projects.
 
 ## High performance
 
-For some frequently used types, hand-written code and unsafe features are used to
-achieve super high performance and reduce memory allocation, see the following benchmark.
+For `map[string]string` type, hand-written code is used to get the best performance:
 
-Optimized types are:
+1. `MarshalStringMapUnordered(strMap map[string]string) ([]byte, error)`
+1. `AppendStringMapUnordered(buf []byte, strMap map[string]string) ([]byte, error)`
+1. `UnmarshalStringMap(data []byte, dst *map[string]string) error`
 
-- slice of integers (eg. []int, []uint32, []int64 ...)
-- slice of strings
-- map with string keys and string values
-- map with string keys and interface values
-
-And choose `jsoniter` will always give you better performance than the standard library.
+Also choose `jsoniter` will always give you better performance than the standard library.
 
 ## Extension
 
@@ -44,15 +40,6 @@ Handy shortcuts to load and dump JSON data from/to file:
 
 1. `Load(path string, v interface{}) error`
 1. `Dump(path string, v interface{}) error`
-
-High performance functions to append json data to existing byte slice buffer
-in case you are doing some custom marshaling work:
-
-1. `AppendIntSlice(buf []byte, slice interface{}) ([]byte, error)`
-1. `AppendString(buf []byte, s string) ([]byte, error)`
-1. `AppendStringSlice(buf []byte, slice []string) ([]byte, error)`
-1. `AppendStringMap(buf []byte, strMap map[string]string) ([]byte, error)`
-1. `AppendStringInterfaceMap(buf []byte, strMap map[string]interface{}) ([]byte, error)`
 
 ### Extended syntax
 

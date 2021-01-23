@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"math"
 	"net"
-	"reflect"
 	"sort"
 	"testing"
 )
@@ -54,18 +53,11 @@ var testStringInterfaceMap = map[string]interface{}{
 
 	"nil_value1": []int(nil),
 	"nil_value2": []uint16(nil),
-	"nil_value3": testStrSlice(nil),
-	"nil_value4": ginH(nil),
 	"nil_value5": testSSMap(nil),
 
 	"empty_value1": []int64{},
-	"empty_value2": testStrSlice{},
-	"empty_value3": ginH{},
 	"empty_value4": testSSMap{},
 
-	"typ_slice4": testI32Slice{1, 2, 3},
-	"typ_slice5": testStrSlice{"a", "b", "c"},
-	"typ_gin_h":  ginH{"a": 1, "b": 2.34, "c": "foobar"},
 	"typ_ss_map": testSSMap{"a": "1", "b": "2", "c": "3"},
 
 	"typ_struct_slice": []struct {
@@ -118,161 +110,27 @@ var testStringInterfaceMap = map[string]interface{}{
 	"slice_fast_typ8": []*int16{ptr.Int16(8), ptr.Int16(9), nil},
 }
 
+type testSSMap map[string]string
+
 func TestMarshalStringMap(t *testing.T) {
 	strMap := testStringMap
 
 	_, err := json.Marshal(strMap)
 	require.Nil(t, err)
 
-	buf2, err := MarshalFast(strMap)
+	buf2, err := MarshalStringMapUnordered(strMap)
 	require.Nil(t, err)
 	var got2 map[string]string
 	err = json.Unmarshal(buf2, &got2)
 	require.Nil(t, err)
 	assert.Equal(t, strMap, got2)
 
-	buf3, err := MarshalFast(strMap)
+	buf3, err := MarshalStringMapUnordered(strMap)
 	require.Nil(t, err)
 	var got3 map[string]string
 	err = json.Unmarshal(buf3, &got3)
 	require.Nil(t, err)
 	assert.Equal(t, strMap, got3)
-}
-
-func TestMarshalStringInterfaceMap(t *testing.T) {
-	strMap := testStringInterfaceMap
-
-	buf1, err := json.Marshal(strMap)
-	require.Nil(t, err)
-
-	buf2, err := MarshalFast(strMap)
-	require.Nil(t, err)
-
-	var got1 map[string]interface{}
-	err = Unmarshal(buf1, &got1)
-	require.Nil(t, err)
-	var got2 map[string]interface{}
-	err = json.Unmarshal(buf2, &got2)
-	require.Nil(t, err)
-	assert.Equal(t, got1, got2)
-}
-
-func TestMarshalSliceOfOptimized(t *testing.T) {
-	tmp1 := []map[string]interface{}{
-		{"a": 1, "b": 2},
-		{"c": 3, "d": 4},
-	}
-
-	buf1, err := json.Marshal(tmp1)
-	require.Nil(t, err)
-
-	buf2, err := MarshalFast(tmp1)
-	require.Nil(t, err)
-
-	var got1 []interface{}
-	err = Unmarshal(buf1, &got1)
-	require.Nil(t, err)
-	var got2 []interface{}
-	err = json.Unmarshal(buf2, &got2)
-	require.Nil(t, err)
-	assert.Equal(t, got1, got2)
-}
-
-type jsonMarshalerStruct struct {
-}
-
-func (p *jsonMarshalerStruct) MarshalJSON() ([]byte, error) {
-	return []byte(`"foo"`), nil
-}
-
-type textMarshalerStruct struct {
-}
-
-func (p *textMarshalerStruct) MarshalText() ([]byte, error) {
-	return []byte("bar"), nil
-}
-
-func TestNilPointer(t *testing.T) {
-	for _, test := range []interface{}{
-		(*jsonMarshalerStruct)(nil),
-		(*textMarshalerStruct)(nil),
-		jsonMarshalerStruct{},
-		textMarshalerStruct{},
-	} {
-		want, err := json.Marshal(test)
-		assert.Nil(t, err)
-		got, err := MarshalFast(test)
-		assert.Nil(t, err)
-		assert.Equal(t, want, got)
-	}
-}
-
-type testI32Slice []int32
-
-type testStrSlice []string
-
-type ginH map[string]interface{}
-
-type logrusFields map[string]interface{}
-
-type testSSMap map[string]string
-
-func TestTypeAssertion(t *testing.T) {
-	strMap := testStringInterfaceMap
-
-	var x1 testI32Slice
-	assert.True(t, isIntSlice(reflect.TypeOf(x1)))
-	assert.True(t, isIntSlice(reflect.TypeOf(strMap["int_slice1"])))
-	assert.True(t, isIntSlice(reflect.TypeOf(strMap["int_slice2"])))
-	assert.True(t, isIntSlice(reflect.TypeOf(strMap["int_slice3"])))
-
-	var x2 testStrSlice
-	assert.True(t, isStringSlice(reflect.TypeOf(x2)))
-	assert.True(t, isStringSlice(reflect.TypeOf(strMap["typ_slice5"])))
-
-	var x3 ginH
-	var x4 logrusFields
-	assert.True(t, isStringInterfaceMap(reflect.TypeOf(x3)))
-	assert.True(t, isStringInterfaceMap(reflect.TypeOf(x4)))
-	assert.True(t, isStringInterfaceMap(reflect.TypeOf(strMap["typ_gin_h"])))
-
-	var x5 testSSMap
-	assert.True(t, isStringMap(reflect.TypeOf(x5)))
-	assert.True(t, isStringMap(reflect.TypeOf(strMap["typ_ss_map"])))
-}
-
-func TestMarshalIntSlice(t *testing.T) {
-	var x1 = testI32Slice{1, 2, 3}
-	got1, _ := MarshalFast(x1)
-	assert.Equal(t, "[1,2,3]", string(got1))
-}
-
-func TestMarshalStringSlice(t *testing.T) {
-	var x1 = testStrSlice{"a", "b", `"c`}
-	got1, _ := MarshalFast(x1)
-	assert.Equal(t, `["a","b","\"c"]`, string(got1))
-}
-
-func TestMarshalNilValues(t *testing.T) {
-	got, _ := MarshalFast(nil)
-	assert.Equal(t, "null", string(got))
-
-	got, _ = MarshalFast((testI32Slice)(nil))
-	assert.Equal(t, "null", string(got))
-	got, _ = MarshalFast(testStrSlice(nil))
-	assert.Equal(t, "null", string(got))
-	got, _ = MarshalFast([]int64{})
-	assert.Equal(t, "[]", string(got))
-
-	got, _ = MarshalFast((ginH)(nil))
-	assert.Equal(t, "null", string(got))
-	got, _ = MarshalFast(ginH{})
-	assert.Equal(t, "{}", string(got))
-
-	got, _ = MarshalFast((testSSMap)(nil))
-	assert.Equal(t, "null", string(got))
-	got, _ = MarshalFast(testSSMap{})
-	assert.Equal(t, "{}", string(got))
 }
 
 func TestUnmarshalStringMap(t *testing.T) {
@@ -281,7 +139,7 @@ func TestUnmarshalStringMap(t *testing.T) {
 	require.Nil(t, err)
 
 	var got1 map[string]string
-	err = unmarshalStringMap(stdstr, &got1)
+	err = UnmarshalStringMap(stdstr, &got1)
 	assert.Nil(t, err)
 	assert.Equal(t, strMap, got1)
 
@@ -291,8 +149,7 @@ func TestUnmarshalStringMap(t *testing.T) {
 	assert.Equal(t, strMap, got2)
 
 	var got3 testSSMap
-	assert.True(t, isStringMapPtr(reflect.TypeOf(&got3)))
-	err = Unmarshal(stdstr, &got3)
+	err = UnmarshalStringMap(stdstr, (*map[string]string)(&got3))
 	assert.Nil(t, err)
 	assert.Equal(t, testSSMap(strMap), got3)
 }
@@ -333,33 +190,6 @@ func (p customTextMarshaler) MarshalText() ([]byte, error) {
 		buf = append(buf, tmp...)
 	}
 	return buf, nil
-}
-
-func TestMarshaler(t *testing.T) {
-	want := `"a:1 b:2 c:3 "`
-	var x1 = customJSONMarshaler{
-		"a": "1",
-		"b": "2",
-		"c": "3",
-	}
-	got1, err := x1.MarshalJSON()
-	assert.Nil(t, err)
-	assert.Equal(t, want, string(got1))
-	got2, err := MarshalFast(x1)
-	assert.Nil(t, err)
-	assert.Equal(t, want, string(got2))
-
-	var x2 = customTextMarshaler{
-		"a": "1",
-		"b": int16(2),
-		"c": float64(3),
-	}
-	got3, err := x2.MarshalText()
-	assert.Nil(t, err)
-	assert.Equal(t, want[1:len(want)-1], string(got3))
-	got4, err := MarshalFast(x2)
-	assert.Nil(t, err)
-	assert.Equal(t, want, string(got4))
 }
 
 func getSortedStringKeys(m interface{}) []string {
