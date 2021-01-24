@@ -101,16 +101,22 @@ func JSON(v interface{}) string {
 // returns error. Note that only struct and map of basic types are
 // supported, non-basic types are simply ignored.
 func Logfmt(v interface{}) string {
-	switch v.(type) {
-	case []byte, string:
-		src := ToBytes_(v)
-		if utf8.Valid(src) {
-			srcstr := src.String_()
-			if strings.IndexFunc(srcstr, needsQuoteValueRune) != -1 {
-				return JSON(srcstr)
-			}
-			return srcstr
+	if IsNil(v) {
+		return "null"
+	}
+	var src Bytes
+	switch v := v.(type) {
+	case []byte:
+		src = v
+	case string:
+		src = ToBytes_(v)
+	}
+	if src != nil && utf8.Valid(src) {
+		srcstr := src.String_()
+		if strings.IndexFunc(srcstr, needsQuoteValueRune) != -1 {
+			return JSON(srcstr)
 		}
+		return srcstr
 	}
 
 	// simple values
@@ -230,9 +236,14 @@ func needsQuoteValueRune(r rune) bool {
 // If the input is an json string, it will be formatted using json.Indent
 // with four space characters as indent.
 func Pretty(v interface{}) string {
-	switch v.(type) {
-	case []byte, string:
-		src := ToBytes_(v)
+	var src Bytes
+	switch v := v.(type) {
+	case []byte:
+		src = v
+	case string:
+		src = ToBytes_(v)
+	}
+	if src != nil {
 		if json.Valid(src) {
 			buf := bytes.NewBuffer(nil)
 			_ = json.Indent(buf, src, "", "    ")
@@ -242,13 +253,12 @@ func Pretty(v interface{}) string {
 			return src.String_()
 		}
 		return "<pretty: non-printable bytes>"
-	default:
-		buf, err := logjson.MarshalIndent(v, "", "    ")
-		if err != nil {
-			return fmt.Sprintf("<error: %v>", err)
-		}
-		return String_(buf)
 	}
+	buf, err := logjson.MarshalIndent(v, "", "    ")
+	if err != nil {
+		return fmt.Sprintf("<error: %v>", err)
+	}
+	return String_(buf)
 }
 
 // Caller returns function name, filename, and the line number of the caller.

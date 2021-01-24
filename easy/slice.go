@@ -34,6 +34,7 @@ func InSlice(slice interface{}, predicate func(i int) bool) bool {
 	return false
 }
 
+// InInt32s tells whether the int32 value elem is in the slice.
 func InInt32s(slice []int32, elem int32) bool {
 	for _, x := range slice {
 		if x == elem {
@@ -43,6 +44,7 @@ func InInt32s(slice []int32, elem int32) bool {
 	return false
 }
 
+// Int64s tells whether the int64 value elem is in the slice.
 func InInt64s(slice []int64, elem int64) bool {
 	for _, x := range slice {
 		if x == elem {
@@ -52,6 +54,7 @@ func InInt64s(slice []int64, elem int64) bool {
 	return false
 }
 
+// InStrings tells whether the string value elem is in the slice.
 func InStrings(slice []string, elem string) bool {
 	for _, x := range slice {
 		if elem == x {
@@ -83,6 +86,8 @@ func Index(slice interface{}, predicate func(i int) bool) int {
 	return -1
 }
 
+// IndexInt32s returns the index of the first instance of elem slice,
+// or -1 if elem is not present in slice.
 func IndexInt32s(slice []int32, elem int32) int {
 	for i := 0; i < len(slice); i++ {
 		if elem == slice[i] {
@@ -92,6 +97,8 @@ func IndexInt32s(slice []int32, elem int32) int {
 	return -1
 }
 
+// IndexInt64s returns the index of the first instance of elem in slice,
+// or -1 if elem is not present in slice.
 func IndexInt64s(slice []int64, elem int64) int {
 	for i := 0; i < len(slice); i++ {
 		if elem == slice[i] {
@@ -101,6 +108,8 @@ func IndexInt64s(slice []int64, elem int64) int {
 	return -1
 }
 
+// IndexStrings returns the index of the first instance of elem in slice,
+// or -1 if elem is not present in slice.
 func IndexStrings(slice []string, elem string) int {
 	for i := 0; i < len(slice); i++ {
 		if elem == slice[i] {
@@ -132,6 +141,8 @@ func LastIndex(slice interface{}, predicate func(i int) bool) int {
 	return -1
 }
 
+// LastIndexInt32s returns the index of the last instance of elem in slice,
+// or -1 if elem is not present in slice.
 func LastIndexInt32s(slice []int32, elem int32) int {
 	for i := len(slice) - 1; i >= 0; i-- {
 		if elem == slice[i] {
@@ -141,6 +152,8 @@ func LastIndexInt32s(slice []int32, elem int32) int {
 	return -1
 }
 
+// LastIndexInt64s returns the index of the last instance of elem in slice,
+// or -1 if elem is not present in slice.
 func LastIndexInt64s(slice []int64, elem int64) int {
 	for i := len(slice) - 1; i >= 0; i-- {
 		if elem == slice[i] {
@@ -150,6 +163,8 @@ func LastIndexInt64s(slice []int64, elem int64) int {
 	return -1
 }
 
+// LastIndexStrings returns the index of the last instance of elem in slice,
+// or -1 if elem is not present in slice.
 func LastIndexStrings(slice []string, elem string) int {
 	for i := len(slice) - 1; i >= 0; i-- {
 		if elem == slice[i] {
@@ -164,8 +179,8 @@ func LastIndexStrings(slice []string, elem string) int {
 // appended to the end of the slice. In case the slice is full of it's
 // capacity, a new slice will be created and returned.
 //
-// The parameter slice must a slice, index must be a positive number and
-// elem must be same type of the slice element, otherwise it panics.
+// The parameter slice must be a slice, index must be a positive number
+// and elem must be same type of the slice element, otherwise it panics.
 func InsertSlice(slice interface{}, index int, elem interface{}) (out interface{}) {
 	if slice == nil || elem == nil {
 		panicNilParams("InsertSlice", "slice", slice, "elem", elem)
@@ -212,6 +227,10 @@ func InsertSlice(slice interface{}, index int, elem interface{}) (out interface{
 	return outVal.Interface()
 }
 
+// InsertInt32s inserts the given int32 elem into the slice at index position.
+// If index is equal or greater than the length of slice, the elem will be
+// appended to the end of the slice. In case the slice is full of it's
+// capacity, a new slice will be created and returned.
 func InsertInt32s(slice []int32, index int, elem int32) (out Int32s) {
 	if index >= len(slice) {
 		return append(slice, elem)
@@ -230,6 +249,10 @@ func InsertInt32s(slice []int32, index int, elem int32) (out Int32s) {
 	return
 }
 
+// InsertInt64s inserts the given int64 elem into the slice at index position.
+// If index is equal or greater than the length of slice, the elem will be
+// appended to the end of the slice. In case the slice is full of it's
+// capacity, a new slice will be created and returned.
 func InsertInt64s(slice []int64, index int, elem int64) (out Int64s) {
 	if index >= len(slice) {
 		return append(slice, elem)
@@ -248,6 +271,10 @@ func InsertInt64s(slice []int64, index int, elem int64) (out Int64s) {
 	return
 }
 
+// InsertStrings inserts the given string elem into the slice at index position.
+// If index is equal or greater than the length of slice, the elem will be
+// appended to the end of the slice. In case the slice is full of it's
+// capacity, a new slice will be created and returned.
 func InsertStrings(slice []string, index int, elem string) (out Strings) {
 	if index >= len(slice) {
 		return append(slice, elem)
@@ -295,6 +322,7 @@ func ReverseSlice(slice interface{}) interface{} {
 	return outVal.Interface()
 }
 
+// ReverseInt32s returns a new slice of the elements in reversed order.
 func ReverseInt32s(slice []int32) Int32s {
 	out := make([]int32, 0, len(slice))
 	for i := len(slice) - 1; i >= 0; i-- {
@@ -303,6 +331,7 @@ func ReverseInt32s(slice []int32) Int32s {
 	return out
 }
 
+// ReverseInt64s returns a new slice of the elements in reversed order.
 func ReverseInt64s(slice []int64) Int64s {
 	out := make([]int64, 0, len(slice))
 	for i := len(slice) - 1; i >= 0; i-- {
@@ -311,6 +340,7 @@ func ReverseInt64s(slice []int64) Int64s {
 	return out
 }
 
+// ReverseStrings returns a new slice of the elements in reversed order.
 func ReverseStrings(slice []string) Strings {
 	out := make([]string, 0, len(slice))
 	for i := len(slice) - 1; i >= 0; i-- {
@@ -362,6 +392,8 @@ func UniqueSlice(slice interface{}) interface{} {
 	return outVal.Interface()
 }
 
+// UniqueInt32s returns a new slice containing the elements of the given
+// slice in same order, but filter out duplicate values.
 func UniqueInt32s(slice []int32) Int32s {
 	seen := make(map[int32]struct{})
 	out := make([]int32, 0)
@@ -375,6 +407,8 @@ func UniqueInt32s(slice []int32) Int32s {
 	return out
 }
 
+// UniqueInt64s returns a new slice containing the elements of the given
+// slice in same order, but filter out duplicate values.
 func UniqueInt64s(slice []int64) Int64s {
 	seen := make(map[int64]struct{})
 	out := make([]int64, 0)
@@ -388,6 +422,8 @@ func UniqueInt64s(slice []int64) Int64s {
 	return out
 }
 
+// UniqueStrings returns a new slice containing the elements of the given
+// slice in same order, but filter out duplicate values.
 func UniqueStrings(slice []string) Strings {
 	seen := make(map[string]struct{})
 	out := make([]string, 0)
@@ -468,6 +504,8 @@ func Pluck(slice interface{}, field string) interface{} {
 	return outVal.Interface()
 }
 
+// PluckInt32s accepts a slice of struct or pointer to struct, and returns a
+// new int32 slice with field values specified by field of the struct elements.
 func PluckInt32s(slice interface{}, field string) Int32s {
 	if slice == nil {
 		panicNilParams("PluckInt32s", "slice", slice)
@@ -490,6 +528,8 @@ func PluckInt32s(slice interface{}, field string) Int32s {
 	return out
 }
 
+// PluckInt64s accepts a slice of struct or pointer to struct, and returns a
+// new int64 slice with field values specified by field of the struct elements.
 func PluckInt64s(slice interface{}, field string) Int64s {
 	if slice == nil {
 		panicNilParams("PluckInt64s", "slice", slice)
@@ -512,6 +552,8 @@ func PluckInt64s(slice interface{}, field string) Int64s {
 	return out
 }
 
+// PluckStrings accepts a slice of struct or pointer to struct, and returns a
+// new string slice with field values specified by field of the struct elements.
 func PluckStrings(slice interface{}, field string) Strings {
 	if slice == nil {
 		panicNilParams("PluckStrings", "slice", slice)
@@ -636,9 +678,22 @@ func ToMapMap(slice interface{}, keyField, subKeyField string) interface{} {
 	return outVal.Interface()
 }
 
-// Find is an alias of function Index.
-func Find(slice interface{}, predicate func(i int) bool) int {
-	return Index(slice, predicate)
+// Find returns the first element in the slice for which predicate returns true.
+func Find(slice interface{}, predicate func(i int) bool) interface{} {
+	if slice == nil {
+		return nil
+	}
+	sliceTyp := reflect.TypeOf(slice)
+	if sliceTyp.Kind() != reflect.Slice {
+		panic("Find: " + errNotSliceType)
+	}
+	header := reflectx.UnpackSlice(slice)
+	for i := 0; i < header.Len; i++ {
+		if predicate(i) {
+			return reflect.ValueOf(slice).Index(i).Interface()
+		}
+	}
+	return nil
 }
 
 // Filter iterates the given slice, it calls predicate(i) for i in range [0, n)

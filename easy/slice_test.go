@@ -420,14 +420,14 @@ func TestFindAndFilter(t *testing.T) {
 	got1 := Find(slice, f1)
 	all1 := Filter(slice, f1)
 
-	assert.Equal(t, -1, got1)
+	assert.Equal(t, nil, got1)
 	assert.NotNil(t, all1)
 	assert.Len(t, all1, 0)
 
 	f3 := func(i int) bool { return ptr.DerefInt64(slice[i].I64_p) == 3 }
 	got3 := Find(slice, f3)
 	all3 := Filter(slice, f3)
-	assert.Equal(t, 2, got3)
+	assert.Equal(t, c, got3)
 	assert.Len(t, all3, 1)
 
 	assert.Panics(t, func() { Find(slice, nil) })

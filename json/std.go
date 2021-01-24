@@ -11,7 +11,6 @@ type (
 
 var (
 	_Marshal       = json.Marshal
-	_MarshalFast   = json.Marshal
 	_MarshalIndent = json.MarshalIndent
 	_Unmarshal     = json.Unmarshal
 	Valid          = json.Valid

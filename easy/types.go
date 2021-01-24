@@ -351,8 +351,8 @@ func (p Strings) Drop(x string, inPlace bool) Strings {
 
 type Bytes = reflectx.Bytes
 
-func ToBytes_(b interface{}) Bytes {
-	return reflectx.ToBytes_(b)
+func ToBytes_(s string) Bytes {
+	return reflectx.ToBytes_(s)
 }
 
 func String_(b []byte) string {

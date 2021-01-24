@@ -302,23 +302,6 @@ func TestStrings_Drop(t *testing.T) {
 	assert.Len(t, slice, length)
 }
 
-func TestBytes(t *testing.T) {
-	text := "Hello, 世界"
-	assertEqual := func(buf Bytes) {
-		assert.Equal(t, text, buf.String_())
-		assert.Equal(t, []byte(text), []byte(buf))
-	}
-
-	for _, buf := range []interface{}{
-		text,
-		[]byte(text),
-	} {
-		assertEqual(ToBytes_(buf))
-	}
-
-	assert.Panics(t, func() { ToBytes_(12345) })
-}
-
 func TestString_(t *testing.T) {
 	text := []byte("Hello, 世界")
 	str := String_(text)

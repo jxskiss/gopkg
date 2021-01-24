@@ -57,13 +57,6 @@ func (e Code) WithDetails(details ...interface{}) (code Code) {
 	return
 }
 
-func (e Code) Is(err error) bool {
-	if code, ok := err.(ErrCode); ok {
-		return e.Code() == code.Code()
-	}
-	return false
-}
-
 func (e Code) MarshalJSON() ([]byte, error) {
 	out := struct {
 		Code    int32  `json:"code"`
@@ -99,9 +92,6 @@ func unwrapErrCode(err error) ErrCode {
 }
 
 func Is(err error, target ErrCode) bool {
-	if target == nil {
-		return err == nil
-	}
 	errCode := unwrapErrCode(err)
 	if errCode != nil && errCode.Code() == target.Code() {
 		return true

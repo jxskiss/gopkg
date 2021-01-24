@@ -32,12 +32,13 @@ func AppendStringMapUnordered(buf []byte, strMap map[string]string) ([]byte, err
 	idx := 0
 	buf = append(buf, leftWING)
 	for k, v := range strMap {
+		buf = grow(buf, 2+len(k)+len(v))
+		if idx++; idx > 1 {
+			buf = append(buf, comma)
+		}
 		buf, _ = appendString(buf, k)
 		buf = append(buf, colon)
 		buf, _ = appendString(buf, v)
-		if idx++; idx < size {
-			buf = append(buf, comma)
-		}
 	}
 	buf = append(buf, rightWING)
 	return buf, nil
@@ -91,4 +92,20 @@ func UnmarshalStringMap(data []byte, dst *map[string]string) error {
 		(*dst)[key] = val
 	}
 	return nil
+}
+
+// grow copies the buffer to a new, larger buffer so that there are at least n
+// bytes of capacity beyond len(buf).
+func grow(buf []byte, n int) []byte {
+	c, l := cap(buf), len(buf)
+	if c-l >= n {
+		return buf
+	}
+	c1 := 2 * c
+	for x := l + n; c1 < x; {
+		c1 *= 2
+	}
+	newbuf := make([]byte, l, c1)
+	copy(newbuf, buf)
+	return newbuf
 }

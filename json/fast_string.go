@@ -47,17 +47,6 @@ var (
 	emptyObject = []byte("{}")
 )
 
-// grow copies the buffer to a new, larger buffer so that there are at least n
-// bytes of capacity beyond len(b.buf).
-func grow(buf []byte, n int) []byte {
-	if cap(buf)-len(buf) >= n {
-		return buf
-	}
-	newbuf := make([]byte, len(buf), 2*cap(buf)+n)
-	copy(newbuf, buf)
-	return newbuf
-}
-
 func appendString(buf []byte, s string) ([]byte, error) {
 	valLen := len(s)
 	buf = append(buf, quotation)

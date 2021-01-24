@@ -60,15 +60,6 @@ func BenchmarkStringMapMarshalJSON(b *testing.B) {
 	}
 }
 
-func BenchmarkStringMapMarshalJSONFast(b *testing.B) {
-	var data = genRandomStrings()
-	b.ResetTimer()
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		_, _ = json.MarshalFast(data)
-	}
-}
-
 func BenchmarkStringMapMarshalProtobuf(b *testing.B) {
 	var data = genRandomStrings()
 	_x := StringMap(data)

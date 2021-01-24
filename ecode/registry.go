@@ -52,7 +52,7 @@ func (p *Registry) SetMessages(messages map[int32]string) {
 
 func (p *Registry) AddMessages(messages map[int32]string) {
 	oldMsgs, _ := p.messages.Load().(map[int32]string)
-	newMsgs := make(map[int32]string, len(oldMsgs))
+	newMsgs := make(map[int32]string, len(oldMsgs)+len(messages))
 	for code, msg := range oldMsgs {
 		newMsgs[code] = msg
 	}

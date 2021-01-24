@@ -10,16 +10,8 @@ func (p Bytes) Reader() *bytes.Reader {
 	return bytes.NewReader(p)
 }
 
-func ToBytes_(b interface{}) Bytes {
-	switch b := b.(type) {
-	case string:
-		return s2b(b)
-	case []byte:
-		return b
-	case Bytes:
-		return b
-	}
-	panic("ToBytes_: invalid type (must be string/[]byte)")
+func ToBytes_(s string) Bytes {
+	return s2b(s)
 }
 
 func String_(b []byte) string {

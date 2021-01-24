@@ -22,7 +22,6 @@ const (
 	OctDigits   = "01234567"
 	AlphaDigits = Digits + Letters
 	Punctuation = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
-	Symbols     = "~!@#$%^&*()_+`-={}|[]\\:\"<>?,./"
 	Whitespace  = " \t\n\r\x0b\x0c"
 	Printable   = Digits + Letters + Punctuation + Whitespace
 
