@@ -17,11 +17,14 @@ var (
 	ErrUnexpectedEOF        = io.ErrUnexpectedEOF
 )
 
-var (
-	binEncoding = binary.LittleEndian
-	binMagic32  = []byte("EZY0")
-	binMagic64  = []byte("EZY1")
+const (
+	binMagic32 byte = '0'
+	binMagic64 byte = '1'
 )
+
+const maxUint32 = 1<<32 - 1
+
+var binEncoding = binary.LittleEndian
 
 func encodeVarint(dAtA []byte, offset int, v uint64) int {
 	offset -= sov(v)

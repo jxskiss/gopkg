@@ -1,7 +1,5 @@
 package serialize
 
-import "bytes"
-
 type Int32List []int32
 
 // MarshalProto marshals the integer array in format of the following
@@ -177,10 +175,10 @@ func (m *Int32List) UnmarshalProto(dAtA []byte) error {
 }
 
 func (m Int32List) MarshalBinary() ([]byte, error) {
-	bufLen := 4 + 4*len(m)
+	bufLen := 1 + 4*len(m)
 	out := make([]byte, bufLen)
-	copy(out, binMagic32)
-	buf := out[4:]
+	out[0] = binMagic32
+	buf := out[1:]
 	for i, x := range m {
 		binEncoding.PutUint32(buf[4*i:4*(i+1)], uint32(x))
 	}
@@ -191,10 +189,10 @@ func (m *Int32List) UnmarshalBinary(buf []byte) error {
 	if len(buf) == 0 {
 		return nil
 	}
-	if len(buf) < 4 || !bytes.Equal(buf[:4], binMagic32) {
+	if len(buf) < 1 || buf[0] != binMagic32 {
 		return ErrBinaryInvalidFormat
 	}
-	buf = buf[4:]
+	buf = buf[1:]
 	if len(buf)%4 != 0 {
 		return ErrBinaryInvalidLength
 	}

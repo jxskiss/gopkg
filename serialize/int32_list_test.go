@@ -8,8 +8,8 @@ import (
 func TestInt32s_Binary(t *testing.T) {
 	slice := Int32List{1, 2, 3, 4, 5}
 	buf, _ := slice.MarshalBinary()
-	assert.Len(t, buf, len(binMagic32)+4*len(slice))
-	assert.Equal(t, binMagic32, buf[:len(binMagic32)])
+	assert.Len(t, buf, 1+4*len(slice))
+	assert.Equal(t, binMagic32, buf[0])
 
 	var got Int32List
 	err := got.UnmarshalBinary(buf)

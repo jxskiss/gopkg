@@ -1,10 +1,5 @@
 package serialize
 
-import (
-	"bytes"
-	"math"
-)
-
 type Int64List []int64
 
 // MarshalProto marshals the integer array in format of the following
@@ -182,7 +177,7 @@ func (m *Int64List) UnmarshalProto(dAtA []byte) error {
 func (m Int64List) MarshalBinary() ([]byte, error) {
 	bigint := false
 	for _, x := range m {
-		if uint64(x) > math.MaxUint32 {
+		if uint64(x) > maxUint32 {
 			bigint = true
 			break
 		}
@@ -195,10 +190,10 @@ func (m Int64List) MarshalBinary() ([]byte, error) {
 }
 
 func (m Int64List) marshalBinary32() ([]byte, error) {
-	bufLen := 4 + 4*len(m)
+	bufLen := 1 + 4*len(m)
 	out := make([]byte, bufLen)
-	copy(out, binMagic32)
-	i := 4
+	out[0] = binMagic32
+	i := 1
 	for _, x := range m {
 		binEncoding.PutUint32(out[i:i+4], uint32(x))
 		i += 4
@@ -207,10 +202,10 @@ func (m Int64List) marshalBinary32() ([]byte, error) {
 }
 
 func (m Int64List) marshalBinary64() ([]byte, error) {
-	bufLen := 4 + 8*len(m)
+	bufLen := 1 + 8*len(m)
 	out := make([]byte, bufLen)
-	copy(out, binMagic64)
-	i := 4
+	out[0] = binMagic64
+	i := 1
 	for _, x := range m {
 		binEncoding.PutUint64(out[i:i+8], uint64(x))
 		i += 8
@@ -222,14 +217,14 @@ func (m *Int64List) UnmarshalBinary(buf []byte) error {
 	if len(buf) == 0 {
 		return nil
 	}
-	if len(buf) < 4 {
+	if len(buf) < 1 {
 		return ErrBinaryInvalidFormat
 	}
-	switch {
-	case bytes.Equal(buf[:4], binMagic32):
-		return m.unmarshalBinary32(buf[4:])
-	case bytes.Equal(buf[:4], binMagic64):
-		return m.unmarshalBinary64(buf[4:])
+	switch buf[0] {
+	case binMagic32:
+		return m.unmarshalBinary32(buf[1:])
+	case binMagic64:
+		return m.unmarshalBinary64(buf[1:])
 	}
 	return ErrBinaryInvalidFormat
 }
