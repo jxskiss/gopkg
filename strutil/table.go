@@ -2,17 +2,6 @@ package strutil
 
 import "unicode"
 
-// Unicode byte order mark (BOM) constants. Reference:
-// - https://en.wikipedia.org/wiki/Byte_order_mark
-// - https://www.unicode.org/faq/utf_bom.html
-const (
-	BOM_UTF8               = "\xEF\xBB\xBF"
-	BOM_UTF16_BigEndian    = "\xFE\xFF"
-	BOM_UTF16_LittleEndian = "\xFF\xFE"
-	BOM_UTF32_BigEndian    = "\x00\x00\xFE\xFF"
-	BOM_UTF32_LittleEndian = "\xFF\xFE\x00\x00"
-)
-
 const (
 	AlphaLower  = "abcdefghijklmnopqrstuvwxyz"
 	AlphaUpper  = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
