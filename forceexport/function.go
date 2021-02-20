@@ -54,8 +54,9 @@ func CreateFuncForCodePtr(outFuncPtr interface{}, codePtr uintptr) {
 // compiled into the binary), it panics.
 func FindFuncWithName(name string) uintptr {
 	for _, moduleData := range activeModules() {
-		for _, ftab := range moduleData.ftab {
-			f := (*runtime.Func)(unsafe.Pointer(&moduleData.pclntable[ftab.funcoff]))
+		pclntable := moduleData.pclntable()
+		for _, ftab := range moduleData.ftab() {
+			f := (*runtime.Func)(unsafe.Pointer(&pclntable[ftab.funcoff]))
 			if getName(f) == name {
 				return f.Entry()
 			}
@@ -71,18 +72,25 @@ func getName(f *runtime.Func) string {
 	return f.Name()
 }
 
-//go:linkname activeModules runtime.activeModules
-func activeModules() []*moduledata
+func activeModules() []moduledata {
+	mdptrs := runtime_activeModules()
+	out := make([]moduledata, len(mdptrs))
+	for i, ptr := range mdptrs {
+		out[i] = moduledata{ptr}
+	}
+	return out
+}
 
-// Since the runtime.moduledata related data structures are not exported,
-// we copy them below (and need to be consistent with the runtime).
 type moduledata struct {
-	pclntable []byte
-	ftab      []functab
+	p unsafe.Pointer
+}
 
-	// For usage in this package, we just need to ensure that
-	// pclntable and ftab are consistent with runtime.moduledata.
-	// ...
+func (p *moduledata) pclntable() []byte {
+	return *(*[]byte)(unsafe.Pointer(uintptr(p.p) + moduledata_pclntableOffset))
+}
+
+func (p *moduledata) ftab() []functab {
+	return *(*[]functab)(unsafe.Pointer(uintptr(p.p) + moduledata_ftabOffset))
 }
 
 type functab struct {
@@ -90,17 +98,24 @@ type functab struct {
 	funcoff uintptr
 }
 
+var (
+	moduledata_pclntableOffset uintptr
+	moduledata_ftabOffset      uintptr
+)
+
 func init() {
 	rtmdtype := GetType("runtime.moduledata")
-	thismdtype := reflect.TypeOf(moduledata{})
-	assertOffset(rtmdtype, thismdtype, "pclntable", "forceexport: moduledata.pclntable not match")
-	assertOffset(rtmdtype, thismdtype, "ftab", "forceexport: moduledata.ftab not match")
+	moduledata_pclntableOffset = getOffset(rtmdtype, "pclntable", "forceexport: moduledata.pclntable not found")
+	moduledata_ftabOffset = getOffset(rtmdtype, "ftab", "foceexport: moduledata.ftab not found")
 }
 
-func assertOffset(t1, t2 reflect.Type, fieldname string, msg string) {
-	f1, ok1 := t1.FieldByName(fieldname)
-	f2, ok2 := t2.FieldByName(fieldname)
-	if !ok1 || !ok2 || f1.Offset != f2.Offset {
+func getOffset(t reflect.Type, fieldname string, msg string) uintptr {
+	f, ok := t.FieldByName(fieldname)
+	if !ok {
 		panic(msg)
 	}
+	return f.Offset
 }
+
+//go:linkname runtime_activeModules runtime.activeModules
+func runtime_activeModules() []unsafe.Pointer
