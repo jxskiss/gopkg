@@ -58,6 +58,20 @@ func TestMakeBatchInsertSQL(t *testing.T) {
 	assert.Equal(t, varCount, countPlaceholder(got3))
 }
 
+func TestMakeBatchInsertSQL_OmitCols(t *testing.T) {
+	var rows1 []*TestObject
+	for i := 0; i < 50; i++ {
+		rows1 = append(rows1, &TestObject{})
+	}
+	got1, args1 := MakeBatchInsertSQL(rows1, OmitColumns("id", "column_1", "bling4"))
+	want1 := "INSERT INTO test_object (column2,column_3_abc,bling5,column_7) VALUES "
+	varCount := 50 * 4
+
+	assert.Contains(t, got1, want1)
+	assert.Len(t, args1, varCount)
+	assert.Equal(t, varCount, countPlaceholder(got1))
+}
+
 func TestMakeBatchInsertSQL_Panic(t *testing.T) {
 	for _, test := range []interface{}{
 		nil,

@@ -16,6 +16,7 @@ type InsertOptions struct {
 	Context   context.Context
 	TableName string
 	Quote     string
+	OmitCols  []string
 
 	Ignore         bool
 	OnDuplicateKey string
@@ -56,6 +57,13 @@ func WithTable(tableName string) InsertOpt {
 func WithQuote(quote string) InsertOpt {
 	return func(opts *InsertOptions) {
 		opts.Quote = quote
+	}
+}
+
+// OmitColumns exclude given columns from the generated query.
+func OmitColumns(cols ...string) InsertOpt {
+	return func(opts *InsertOptions) {
+		opts.OmitCols = cols
 	}
 }
 
@@ -150,8 +158,13 @@ func makeBatchInsertSQL(where string, rows interface{}, opts *InsertOptions) (sq
 	buf.WriteString(opts.quote(opts.TableName))
 
 	// column names
+	var omitFieldIndex []int
 	buf.WriteString(" (")
 	for i, col := range typInfo.colNames {
+		if inStrings(opts.OmitCols, col) {
+			omitFieldIndex = append(omitFieldIndex, typInfo.fieldIndex[i])
+			continue
+		}
 		buf.WriteString(opts.quote(col))
 		if i < len(typInfo.colNames)-1 {
 			buf.WriteByte(',')
@@ -160,6 +173,12 @@ func makeBatchInsertSQL(where string, rows interface{}, opts *InsertOptions) (sq
 	buf.WriteByte(')')
 
 	// value placeholders
+	placeholders := typInfo.placeholders
+	fieldIndex := typInfo.fieldIndex
+	if len(omitFieldIndex) > 0 {
+		fieldIndex = diffInts(fieldIndex, omitFieldIndex)
+		placeholders = makePlaceholders(len(fieldIndex))
+	}
 	buf.WriteString(" VALUES ")
 	rowsVal := reflect.ValueOf(rows)
 	length := rowsVal.Len()
@@ -169,9 +188,9 @@ func makeBatchInsertSQL(where string, rows interface{}, opts *InsertOptions) (sq
 		if i > 0 {
 			buf.WriteByte(',')
 		}
-		buf.WriteString(typInfo.placeholders)
+		buf.WriteString(placeholders)
 		elem := reflect.Indirect(rowsVal.Index(i))
-		for _, j := range typInfo.fieldIndex {
+		for _, j := range fieldIndex {
 			args = append(args, elem.Field(j).Interface())
 		}
 	}
@@ -256,16 +275,21 @@ func parseType(rows interface{}) *typeInfo {
 		fieldIndex = append(fieldIndex, i)
 	}
 
-	placeholders := strings.Repeat("?,", len(fieldIndex))
-	placeholders = strings.TrimSuffix(placeholders, ",")
+	placeholders := makePlaceholders(len(fieldIndex))
 	info := &typeInfo{
 		tableName:    tableName,
 		colNames:     colNames,
-		placeholders: "(" + placeholders + ")",
+		placeholders: placeholders,
 		fieldIndex:   fieldIndex,
 	}
 	typeCache.Store(typ, info)
 	return info
+}
+
+func makePlaceholders(n int) string {
+	marks := strings.Repeat("?,", n)
+	marks = strings.TrimSuffix(marks, ",")
+	return "(" + marks + ")"
 }
 
 func indirectType(typ reflect.Type) reflect.Type {
@@ -273,6 +297,35 @@ func indirectType(typ reflect.Type) reflect.Type {
 		return typ
 	}
 	return typ.Elem()
+}
+
+func inStrings(slice []string, elem string) bool {
+	for _, x := range slice {
+		if x == elem {
+			return true
+		}
+	}
+	return false
+}
+
+func inInts(slice []int, elem int) bool {
+	for _, x := range slice {
+		if x == elem {
+			return true
+		}
+	}
+	return false
+}
+
+func diffInts(a, b []int) []int {
+	out := make([]int, 0, len(a))
+	for _, x := range a {
+		if inInts(b, x) {
+			continue
+		}
+		out = append(out, x)
+	}
+	return out
 }
 
 func assertSliceOfStructAndLength(where string, rows interface{}) {
