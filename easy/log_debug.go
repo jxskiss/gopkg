@@ -98,16 +98,17 @@ func logdebug(skip int, stringer stringer, args ...interface{}) {
 }
 
 func outputDebugLog(skip int, logger DebugLogger, stringer stringer, args []interface{}) {
+	caller, file, line := Caller(skip + 1)
+	callerPrefix := "[" + caller + "] "
 	if len(args) > 0 {
 		if format, ok := args[0].(string); ok && strings.IndexByte(format, '%') >= 0 {
-			logger.Debugf(format, formatArgs(stringer, args[1:])...)
+			logger.Debugf(callerPrefix+format, formatArgs(stringer, args[1:])...)
 			return
 		}
-		format := "%v" + strings.Repeat(" %v", len(args)-1)
+		format := callerPrefix + "%v" + strings.Repeat(" %v", len(args)-1)
 		logger.Debugf(format, formatArgs(stringer, args)...)
 	} else {
-		name, file, line := Caller(skip + 1)
-		logger.Debugf("========  DEBUG: %s#L%d - %s  ========", file, line, name)
+		logger.Debugf("========  %s#L%d - %s  ========", file, line, caller)
 	}
 }
 

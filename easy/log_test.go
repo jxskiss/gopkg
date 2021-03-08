@@ -226,7 +226,7 @@ func TestDEBUG_simple(t *testing.T) {
 func TestDEBUG_empty(t *testing.T) {
 	configTestLog(true, nil, nil)
 	got := CopyStdLog(func() { DEBUG() }).String_()
-	want := regexp.MustCompile(`DEBUG: easy/log_test.go#L\d+ - easy.TestDEBUG_empty`)
+	want := regexp.MustCompile(`easy/log_test.go#L\d+ - easy.TestDEBUG_empty`)
 	assert.Regexp(t, want, got)
 }
 
@@ -234,11 +234,11 @@ func TestDEBUGSkip(t *testing.T) {
 	configTestLog(true, nil, nil)
 
 	got := CopyStdLog(func() { DEBUGWrap() }).String_()
-	want := regexp.MustCompile(`DEBUG: easy/log_test.go#L\d+ - easy.TestDEBUGSkip`)
+	want := regexp.MustCompile(`easy/log_test.go#L\d+ - easy.TestDEBUGSkip`)
 	assert.Regexp(t, want, got)
 
 	got = CopyStdLog(func() { DEBUGWrapSkip2() }).String_()
-	want = regexp.MustCompile(`DEBUG: easy/log_test.go#L\d+ - easy.TestDEBUGSkip`)
+	want = regexp.MustCompile(`easy/log_test.go#L\d+ - easy.TestDEBUGSkip`)
 	assert.Regexp(t, want, got)
 }
 
