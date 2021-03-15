@@ -34,6 +34,10 @@ type Condition struct {
 }
 
 func (p *Condition) And(clause string, args ...interface{}) *Condition {
+	if clause == "" {
+		return p
+	}
+
 	// encapsulate with brackets to avoid misuse
 	clause = strings.TrimSpace(clause)
 	if containsOr(clause) &&
@@ -52,6 +56,10 @@ func (p *Condition) And(clause string, args ...interface{}) *Condition {
 }
 
 func (p *Condition) Or(clause string, args ...interface{}) *Condition {
+	if clause == "" {
+		return p
+	}
+
 	// encapsulate with brackets to avoid misuse
 	clause = strings.TrimSpace(clause)
 	if containsAnd(clause) &&
