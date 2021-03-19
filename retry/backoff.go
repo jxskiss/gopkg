@@ -14,6 +14,9 @@ func AddJitter(duration time.Duration, jitter float64) time.Duration {
 	return time.Duration(float64(duration) * (1 + multiplier))
 }
 
+// Backoff doubles the given duration. If max is given larger than 0, and
+// the doubled value is greater than max, it will be limited to max. The
+// param jitter can be used to add random jitter to the doubled duration.
 func Backoff(duration, max time.Duration, jitter float64) (double, withJitter time.Duration) {
 	double = duration * 2
 	if max > 0 && double > max {

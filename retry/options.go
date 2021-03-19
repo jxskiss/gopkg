@@ -24,7 +24,7 @@ type options struct {
 	Jitter    strategy
 	MaxErrors int
 	Hook      func(attempts int, err error)
-	Window    *window
+	Breaker   *breaker
 }
 
 type Option func(options) options
@@ -88,7 +88,8 @@ func L(step time.Duration) Option {
 	}
 }
 
-// Breaker uses sliding window algorithm to protect system from overload.
+// Breaker uses sliding window algorithm to protect system from overload
+// with default overload ratio 0.1 (10%).
 //
 // To prevent overload, Google SRE has some recommendations:
 //
@@ -115,28 +116,28 @@ func L(step time.Duration) Option {
 // retries (indicating that other backend tasks are likely also overloaded),
 // they return an "overloaded; don't retry" error response instead of the
 // standard "task overloaded" error that triggers retries.
+//
+// Reference: https://sre.google/sre-book/handling-overload/
 func Breaker(name string) Option {
 	return BreakerWithOverloadRatio(name, 0.1)
 }
 
 // BreakerWithOverloadRatio is similar to Breaker, excepts that it
 // accepts an additional param `overloadRatio` to specify the overload
-// ratio to control the retry behavior, the value should be in range
-// [0.1, 0.5], if zero or negative, the default value 0.1 will be used.
+// ratio to control the retry behavior, it's value should be greater
+// than zero, else the default value 0.1 will be used.
+//
+// NOTE: generally, the default overload ratio 0.1 or even smaller value
+//       should be used, a big overload ratio will not really protect
+//       the backend system.
+//
+// Reference: https://sre.google/sre-book/handling-overload/
 func BreakerWithOverloadRatio(name string, overloadRatio float64) Option {
-	overloadRatio = limitFloat64(overloadRatio, 0.1, 0.5)
+	if overloadRatio <= 0 {
+		overloadRatio = 0.1
+	}
 	return func(opt options) options {
-		opt.Window = getWindow(name, overloadRatio)
+		opt.Breaker = getBreaker(name, overloadRatio)
 		return opt
 	}
-}
-
-func limitFloat64(value, min, max float64) float64 {
-	if value <= min {
-		return min
-	}
-	if value >= max {
-		return max
-	}
-	return value
 }
