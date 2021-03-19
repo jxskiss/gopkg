@@ -2,6 +2,7 @@ package lru
 
 import (
 	"math/rand"
+	"reflect"
 	"runtime"
 	"testing"
 	"time"
@@ -28,7 +29,7 @@ func TestBasicEviction(t *testing.T) {
 	t.Parallel()
 	c := NewCache(3)
 	if _, ok, _ := c.Get("a"); ok {
-		t.Error("")
+		t.Error("a")
 	}
 
 	c.Set("b", "vb", 2*time.Second)
@@ -257,5 +258,27 @@ func BenchmarkConcurrentSetNXLRUCache(bb *testing.B) {
 	}
 	for i := 0; i < cpu; i++ {
 		_ = <-ch
+	}
+}
+
+func TestWalbuf(t *testing.T) {
+	wb := &walbuf{}
+
+	copy(wb.b[:8], []uint32{3, 1, 3, 4, 9, 1, 10, 10})
+	wb.p = 8
+	got := wb.deduplicate()
+	want := []uint32{3, 4, 9, 1, 10}
+	if equal := reflect.DeepEqual(want, got); !equal {
+		t.Log(got)
+		t.Log(want)
+		t.Error("walbuf deduplicate fast path")
+	}
+
+	copy(wb.b[:12], []uint32{3, 1, 3, 4, 9, 1, 10, 10, 6, 9, 5, 10})
+	wb.p = 12
+	got = wb.deduplicate()
+	want = []uint32{3, 4, 1, 6, 9, 5, 10}
+	if equal := reflect.DeepEqual(want, got); !equal {
+		t.Error("walbuf deduplicate slow path")
 	}
 }

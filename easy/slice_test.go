@@ -3,6 +3,7 @@ package easy
 import (
 	"github.com/jxskiss/gopkg/ptr"
 	"github.com/stretchr/testify/assert"
+	"reflect"
 	"testing"
 )
 
@@ -236,16 +237,16 @@ var reverseSliceTests = []map[string]interface{}{
 		"want":  []uint64{3, 2, 1},
 	},
 	{
-		"slice": []int8{1, 2, 3},
-		"want":  []int8{3, 2, 1},
+		"slice": []int8{1, 2, 3, 4},
+		"want":  []int8{4, 3, 2, 1},
 	},
 	{
 		"slice": []string{"1", "2", "3"},
 		"want":  []string{"3", "2", "1"},
 	},
 	{
-		"slice": []simple{{"a"}, {"b"}, {"c"}},
-		"want":  []simple{{"c"}, {"b"}, {"a"}},
+		"slice": []simple{{"a"}, {"b"}, {"c"}, {"d"}},
+		"want":  []simple{{"d"}, {"c"}, {"b"}, {"a"}},
 	},
 	{
 		"slice": []int(nil),
@@ -260,6 +261,40 @@ func TestReverseSlice(t *testing.T) {
 	}
 
 	assert.Panics(t, func() { ReverseSlice(nil) })
+}
+
+var reverseSliceInplaceTests = []map[string]interface{}{
+	{
+		"slice": []uint64{1, 2, 3},
+		"want":  []uint64{3, 2, 1},
+	},
+	{
+		"slice": []int32{1, 2, 3},
+		"want":  []int32{3, 2, 1},
+	},
+	{
+		"slice": []int8{1, 2, 3, 4},
+		"want":  []int8{4, 3, 2, 1},
+	},
+	{
+		"slice": []string{"1", "2", "3"},
+		"want":  []string{"3", "2", "1"},
+	},
+	{
+		"slice": []simple{{"a"}, {"b"}, {"c"}, {"d"}},
+		"want":  []simple{{"d"}, {"c"}, {"b"}, {"a"}},
+	},
+	{
+		"slice": []int(nil),
+		"want":  []int(nil),
+	},
+}
+
+func TestReverseSliceInplace(t *testing.T) {
+	for _, test := range reverseSliceInplaceTests {
+		ReverseSliceInplace(test["slice"])
+		assert.Equal(t, test["want"], test["slice"])
+	}
 }
 
 var uniqueSliceTests = []map[string]interface{}{
@@ -522,4 +557,47 @@ func TestSumMapSliceLength(t *testing.T) {
 	got := SumMapSliceLength(mSlice)
 	want := 5
 	assert.Equal(t, want, got)
+}
+
+var simpleSlice = make([]simple, 5000)
+
+func reverseSlice_reflect(slice interface{}) interface{} {
+	if slice == nil {
+		panicNilParams("ReverseSlice", "slice", slice)
+	}
+	sliceTyp := reflect.TypeOf(slice)
+	switch slice := slice.(type) {
+	case Int64s, []int64, []uint64:
+		return ReverseInt64s(ToInt64s_(slice)).castType(sliceTyp)
+	case Int32s, []int32, []uint32:
+		return ReverseInt32s(ToInt32s_(slice)).castType(sliceTyp)
+	case Strings, []string:
+		return ReverseStrings(ToStrings_(slice)).castType(sliceTyp)
+	}
+
+	if sliceTyp.Kind() != reflect.Slice {
+		panic("ReverseSlice: " + errNotSliceType)
+	}
+	sliceVal := reflect.ValueOf(slice)
+	outVal := reflect.MakeSlice(sliceTyp, 0, sliceVal.Len())
+	for i := sliceVal.Len() - 1; i >= 0; i-- {
+		outVal = reflect.Append(outVal, sliceVal.Index(i))
+	}
+	return outVal.Interface()
+}
+
+func BenchmarkReverseSlice_reflect(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = reverseSlice_reflect(simpleSlice)
+	}
+}
+
+func BenchmarkReverseSlice(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = ReverseSlice(simpleSlice)
+	}
 }

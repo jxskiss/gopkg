@@ -268,7 +268,7 @@ func (p *LazyBinary) GetBytes() []byte {
 // Get returns the underlying data wrapped by the LazyBinary wrapper,
 // if the data has not been unmarshalled, it will be unmarshalled using
 // the provided unmarshalFunc.
-// The marshalling work will do only once, the result data and error
+// The unmarshalling work will do only once, the result data and error
 // will be cached and reused for further calling.
 func (p *LazyBinary) Get(unmarshalFunc Unmarshaler) (interface{}, error) {
 	obj, created := p.getobj()

@@ -314,39 +314,126 @@ func ReverseSlice(slice interface{}) interface{} {
 	if sliceTyp.Kind() != reflect.Slice {
 		panic("ReverseSlice: " + errNotSliceType)
 	}
-	sliceVal := reflect.ValueOf(slice)
-	outVal := reflect.MakeSlice(sliceTyp, 0, sliceVal.Len())
-	for i := sliceVal.Len() - 1; i >= 0; i-- {
-		outVal = reflect.Append(outVal, sliceVal.Index(i))
+
+	srcHeader := reflectx.UnpackSlice(slice)
+	length := srcHeader.Len
+	elemTyp := sliceTyp.Elem()
+	elemSize := elemTyp.Size()
+	outSlice, outHeader, elemRType := reflectx.MakeSlice(elemTyp, length, length)
+	reflectx.TypedSliceCopy(elemRType, *outHeader, srcHeader)
+
+	tmp := reflect.New(elemTyp).Elem().Interface()
+	swap := reflectx.EFaceOf(&tmp).Word
+	for i, mid := 0, length/2; i < mid; i++ {
+		j := length - i - 1
+		pi := reflectx.ArrayAt(outHeader.Data, i, elemSize)
+		pj := reflectx.ArrayAt(outHeader.Data, j, elemSize)
+		reflectx.TypedMemMove(elemRType, swap, pi)
+		reflectx.TypedMemMove(elemRType, pi, pj)
+		reflectx.TypedMemMove(elemRType, pj, swap)
 	}
-	return outVal.Interface()
+	return outSlice
+}
+
+// ReverseSliceInplace reverse the given slice inplace.
+// The given slice must be not nil, otherwise it panics.
+func ReverseSliceInplace(slice interface{}) {
+	if slice == nil {
+		panicNilParams("ReverseSliceInplace", "slice", slice)
+	}
+	sliceTyp := reflect.TypeOf(slice)
+	if sliceTyp.Kind() != reflect.Slice {
+		panic("ReverseSliceInplace: " + errNotSliceType)
+	}
+	elemTyp := sliceTyp.Elem()
+
+	switch elemTyp.Kind() {
+	case reflect.Int64, reflect.Uint64:
+		values := *(*[]int64)(reflectx.EFaceOf(&slice).Word)
+		ReverseInt64sInplace(values)
+		return
+	case reflect.Int32, reflect.Uint32:
+		values := *(*[]int32)(reflectx.EFaceOf(&slice).Word)
+		ReverseInt32sInplace(values)
+		return
+	case reflect.String:
+		values := *(*[]string)(reflectx.EFaceOf(&slice).Word)
+		ReverseStringsInplace(values)
+		return
+	}
+
+	header := reflectx.UnpackSlice(slice)
+	length := header.Len
+	elemSize := elemTyp.Size()
+	elemRType := reflectx.RTypeOf(elemTyp)
+
+	tmp := reflect.New(elemTyp).Elem().Interface()
+	swap := reflectx.EFaceOf(&tmp).Word
+	for i, mid := 0, length/2; i < mid; i++ {
+		j := length - 1 - i
+		pi := reflectx.ArrayAt(header.Data, i, elemSize)
+		pj := reflectx.ArrayAt(header.Data, j, elemSize)
+		reflectx.TypedMemMove(elemRType, swap, pi)
+		reflectx.TypedMemMove(elemRType, pi, pj)
+		reflectx.TypedMemMove(elemRType, pj, swap)
+	}
 }
 
 // ReverseInt32s returns a new slice of the elements in reversed order.
 func ReverseInt32s(slice []int32) Int32s {
-	out := make([]int32, 0, len(slice))
-	for i := len(slice) - 1; i >= 0; i-- {
-		out = append(out, slice[i])
+	length := len(slice)
+	out := make([]int32, length)
+	for i, x := range slice {
+		out[length-1-i] = x
 	}
 	return out
+}
+
+// ReverseInt32sInplace reverse the in32 slice inplace.
+func ReverseInt32sInplace(slice []int32) {
+	length := len(slice)
+	for i, mid := 0, length/2; i < mid; i++ {
+		j := length - 1 - i
+		slice[i], slice[j] = slice[j], slice[i]
+	}
 }
 
 // ReverseInt64s returns a new slice of the elements in reversed order.
 func ReverseInt64s(slice []int64) Int64s {
-	out := make([]int64, 0, len(slice))
-	for i := len(slice) - 1; i >= 0; i-- {
-		out = append(out, slice[i])
+	length := len(slice)
+	out := make([]int64, length)
+	for i, x := range slice {
+		out[length-1-i] = x
 	}
 	return out
 }
 
+// ReverseInt64sInplace reverse the int64 slice inplace.
+func ReverseInt64sInplace(slice []int64) {
+	length := len(slice)
+	for i, mid := 0, length/2; i < mid; i++ {
+		j := length - 1 - i
+		slice[i], slice[j] = slice[j], slice[i]
+	}
+}
+
 // ReverseStrings returns a new slice of the elements in reversed order.
 func ReverseStrings(slice []string) Strings {
-	out := make([]string, 0, len(slice))
-	for i := len(slice) - 1; i >= 0; i-- {
-		out = append(out, slice[i])
+	length := len(slice)
+	out := make([]string, length)
+	for i, x := range slice {
+		out[length-1-i] = x
 	}
 	return out
+}
+
+// ReverseStringsInplace reverse the string slice inplace.
+func ReverseStringsInplace(slice []string) {
+	length := len(slice)
+	for i, mid := 0, length/2; i < mid; i++ {
+		j := length - 1 - i
+		slice[i], slice[j] = slice[j], slice[i]
+	}
 }
 
 var (

@@ -1,7 +1,6 @@
 package reflectx
 
 import (
-	"github.com/jxskiss/gopkg/ptr"
 	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
@@ -12,15 +11,21 @@ type simple struct {
 }
 
 func Test_rtype(t *testing.T) {
+	var (
+		oneI8    int8  = 1
+		twoI32   int32 = 2
+		threeInt int   = 3
+		strA           = "a"
+	)
 	types := []interface{}{
 		int8(1),
-		ptr.Int8(1),
+		&oneI8,
 		int32(2),
-		ptr.Int32(2),
+		&twoI32,
 		int(3),
-		ptr.Int(3),
+		&threeInt,
 		"a",
-		ptr.String("a"),
+		&strA,
 		simple{"b"},
 		&simple{"b"},
 	}

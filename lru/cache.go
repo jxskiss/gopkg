@@ -43,12 +43,6 @@ type Cache struct {
 	flush int32
 }
 
-// walbuf helps to reduce lock-contention of read requests from the cache.
-type walbuf struct {
-	b [walBufSize]uint32
-	p int32
-}
-
 // Len returns the number of cached values.
 func (c *Cache) Len() (n int) {
 	c.mu.RLock()
@@ -472,32 +466,66 @@ func (c *Cache) checkAndFlushBuf() {
 }
 
 func (c *Cache) flushBuf(buf *walbuf) {
-	l1 := buf.p
-	if l1 > walBufSize {
-		l1 = walBufSize
-	}
-	if l1 == 0 {
+	if buf.p == 0 {
 		return
 	}
 
-	// remove duplicate idx in-place
-	m := make(map[uint32]struct{}, l1/2)
-	b, p := buf.b, l1-1
-	for i := l1 - 1; i >= 0; i-- {
-		idx := buf.b[i]
+	// remove duplicate elements
+	b := buf.deduplicate()
+
+	// promote elements by their access order
+	for _, idx := range b {
+		elem := c.list.get(idx)
+		c.list.MoveToFront(elem)
+	}
+
+	buf.p = 0
+}
+
+// walbuf helps to reduce lock-contention of read requests from the cache.
+type walbuf struct {
+	b [walBufSize]uint32
+	p int32
+}
+
+func (wbuf *walbuf) deduplicate() []uint32 {
+	// we have already checked wbuf.p > 0
+	ln := wbuf.p
+	if ln > walBufSize {
+		ln = walBufSize
+	}
+
+	const fastThreshold = 10
+	if ln > fastThreshold {
+		return wbuf.deduplicateSlowPath(ln)
+	}
+
+	// Fast path? (not benchmarked)
+	b, p := wbuf.b[:], ln-2
+LOOP:
+	for i := ln - 2; i >= 0; i-- {
+		idx := b[i]
+		for j := ln - 1; j > p; j-- {
+			if b[j] == idx {
+				continue LOOP
+			}
+		}
+		b[p] = idx
+		p--
+	}
+	return b[p+1 : ln]
+}
+
+func (wbuf *walbuf) deduplicateSlowPath(ln int32) []uint32 {
+	m := make(map[uint32]struct{}, ln/2)
+	b, p := wbuf.b[:], ln-1
+	for i := ln - 1; i >= 0; i-- {
+		idx := b[i]
 		if _, ok := m[idx]; !ok {
 			m[idx] = struct{}{}
 			b[p] = idx
 			p--
 		}
 	}
-
-	// promote elements by their access order
-	for i := p + 1; i < l1; i++ {
-		idx := b[i]
-		elem := c.list.get(idx)
-		c.list.MoveToFront(elem)
-	}
-
-	buf.p = 0
+	return b[p+1 : ln]
 }

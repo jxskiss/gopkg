@@ -144,6 +144,10 @@ func TypedMemMove(rtype unsafe.Pointer, dst, src unsafe.Pointer) {
 	typedmemmove(rtype, dst, src)
 }
 
+func TypedSliceCopy(elemRType unsafe.Pointer, dst, src SliceHeader) int {
+	return typedslicecopy(elemRType, dst, src)
+}
+
 // ------------------------------------------------------------ //
 
 //go:linkname unsafe_New reflect.unsafe_New
@@ -156,6 +160,12 @@ func unsafe_NewArray(unsafe.Pointer, int) unsafe.Pointer
 //go:noescape
 //go:linkname typedmemmove reflect.typedmemmove
 func typedmemmove(t unsafe.Pointer, dst, src unsafe.Pointer)
+
+// typedslicecopy copies a slice of elemType values from src to dst,
+// returning the number of elements copied.
+//go:noescape
+//go:linkname typedslicecopy reflect.typedslicecopy
+func typedslicecopy(elemRType unsafe.Pointer, dst, src SliceHeader) int
 
 //go:noescape
 //go:linkname maplen reflect.maplen
