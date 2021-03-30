@@ -118,6 +118,21 @@ func TestContainsFold(t *testing.T) {
 	}
 }
 
+func TestReverse(t *testing.T) {
+	tests := []struct {
+		s, result string
+	}{
+		{"ABCDE", "EDCBA"},
+		{"Hello, 世界", "界世 ,olleH"},
+	}
+	for _, tt := range tests {
+		r := Reverse(tt.s)
+		if r != tt.result {
+			t.Errorf("Reverse(%q) returned %v", tt.s, r)
+		}
+	}
+}
+
 func BenchmarkHasSuffixFoldToLower(tb *testing.B) {
 	a, b := "camlik", "AMLI\u212A"
 	for i := 0; i < tb.N; i++ {

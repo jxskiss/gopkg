@@ -107,3 +107,16 @@ func ContainsFold(s, substr string) bool {
 	}
 	return false
 }
+
+// Reverse returns a new string of the rune characters from the given string
+// in reverse order.
+func Reverse(s string) string {
+	runes := []rune(s)
+	length := len(runes)
+	out := make([]rune, length)
+	for i, c := range runes {
+		j := length - 1 - i
+		out[j] = c
+	}
+	return string(out)
+}
