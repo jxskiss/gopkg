@@ -16,14 +16,22 @@ type Set struct {
 	m map[interface{}]struct{}
 }
 
-// NewSet creates Set instance.
+// NewSet creates a Set instance and add the given values into the set.
+// If given only one param which is a slice, the elements of the slice
+// will be added into the set using reflection.
 func NewSet(vals ...interface{}) Set {
 	size := max(len(vals), minSize)
 	set := Set{
 		m: make(map[interface{}]struct{}, size),
 	}
-
-	set.Add(vals...)
+	if len(vals) == 1 && reflect.TypeOf(vals[0]).Kind() == reflect.Slice {
+		values := reflect.ValueOf(vals[0])
+		for i := 0; i < values.Len(); i++ {
+			set.m[values.Index(i).Interface()] = struct{}{}
+		}
+	} else {
+		set.Add(vals...)
+	}
 	return set
 }
 
@@ -38,7 +46,9 @@ func NewSetWithSize(size int) Set {
 // Size returns the size of the set.
 func (s *Set) Size() int { return len(s.m) }
 
-// Add adds values into set.
+// Add adds the given values into the set.
+// If given only on param and which is a slice, the elements of the slice
+// will be added into the set using reflection.
 func (s *Set) Add(vals ...interface{}) {
 	if s.m == nil {
 		size := max(len(vals), minSize)

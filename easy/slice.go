@@ -987,18 +987,32 @@ func SplitSlice(slice interface{}, batch int) interface{} {
 	if slice == nil {
 		panicNilParams("SplitSlice", "slice", slice)
 	}
-	sliceVal := reflect.ValueOf(slice)
-	sliceTyp := sliceVal.Type()
+	sliceTyp := reflect.TypeOf(slice)
 	if sliceTyp.Kind() != reflect.Slice {
 		panic("SplitSlice: " + errNotSliceType)
 	}
 
-	indexes := SplitBatch(sliceVal.Len(), batch)
-	out := reflect.MakeSlice(reflect.SliceOf(sliceTyp), 0, len(indexes))
-	for _, idx := range indexes {
-		out = reflect.Append(out, sliceVal.Slice(idx.I, idx.J))
+	sliceHeader := reflectx.UnpackSlice(slice)
+	indexes := SplitBatch(sliceHeader.Len, batch)
+	elemTyp := sliceTyp.Elem()
+	elemSize := elemTyp.Size()
+	out := make([]reflectx.SliceHeader, len(indexes))
+	for i, idx := range indexes {
+		subSlice := _takeSlice(sliceHeader.Data, elemSize, idx.I, idx.J)
+		out[i] = subSlice
 	}
-	return out.Interface()
+
+	outType := reflect.SliceOf(sliceTyp)
+	return reflectx.CastSlice(out, outType)
+}
+
+func _takeSlice(base unsafe.Pointer, elemSize uintptr, i, j int) (slice reflectx.SliceHeader) {
+	if length := j - i; length > 0 {
+		slice.Data = reflectx.ArrayAt(base, i, elemSize)
+		slice.Len = length
+		slice.Cap = length
+	}
+	return
 }
 
 func indirect(value reflect.Value) reflect.Value {
