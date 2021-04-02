@@ -1,7 +1,7 @@
 package retry
 
 import (
-	"github.com/jxskiss/gopkg/fastrand"
+	"math/rand"
 	"time"
 )
 
@@ -10,7 +10,7 @@ import (
 // This adds or subtracts time from the duration within a given jitter fraction.
 // For example for 10s and jitter 0.1, it will return a time within [9s, 11s])
 func AddJitter(duration time.Duration, jitter float64) time.Duration {
-	multiplier := jitter * (fastrand.Float64()*2 - 1)
+	multiplier := jitter * (rand.Float64()*2 - 1)
 	return time.Duration(float64(duration) * (1 + multiplier))
 }
 

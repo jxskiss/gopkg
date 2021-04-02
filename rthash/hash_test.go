@@ -1,4 +1,4 @@
-package fasthash
+package rthash
 
 import (
 	"fmt"
@@ -9,7 +9,6 @@ import (
 func Test_Hash(t *testing.T) {
 	cases := []interface{}{
 		"abc",
-		[]byte("abc"),
 		int8(19),
 		uint8(19),
 		int16(12345),
@@ -28,10 +27,10 @@ func Test_Hash(t *testing.T) {
 		hashable{1234, "1234"},
 	}
 
-	var h uintptr
+	var h = New()
 	for _, x := range cases {
-		h = Hash(x)
-		log.Println(fmt.Sprintf("%T: %v, hash: %d", x, x, h))
+		hash := h.Hash(x)
+		log.Println(fmt.Sprintf("%T: %v, hash: %d", x, x, hash))
 	}
 }
 

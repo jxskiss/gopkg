@@ -1,10 +1,12 @@
 package lru
 
 import (
-	"github.com/jxskiss/gopkg/fasthash"
+	"github.com/jxskiss/gopkg/rthash"
 	"reflect"
 	"time"
 )
+
+var shardingHash = rthash.New()
 
 // NewMultiCache returns a hash-shared lru cache instance which is suitable
 // to use for heavy lock contention use-case. It keeps same interface with
@@ -35,22 +37,22 @@ func (c *MultiCache) Len() (n int) {
 }
 
 func (c *MultiCache) Has(key interface{}) (exists, expired bool) {
-	h := fasthash.Hash(key)
+	h := shardingHash.Hash(key)
 	return c.cache[h%c.buckets].Has(key)
 }
 
 func (c *MultiCache) Get(key interface{}) (v interface{}, exists, expired bool) {
-	h := fasthash.Hash(key)
+	h := shardingHash.Hash(key)
 	return c.cache[h%c.buckets].Get(key)
 }
 
 func (c *MultiCache) GetQuiet(key interface{}) (v interface{}, exists, expired bool) {
-	h := fasthash.Hash(key)
+	h := shardingHash.Hash(key)
 	return c.cache[h%c.buckets].GetQuiet(key)
 }
 
 func (c *MultiCache) GetNotStale(key interface{}) (v interface{}, exists bool) {
-	h := fasthash.Hash(key)
+	h := shardingHash.Hash(key)
 	return c.cache[h%c.buckets].GetNotStale(key)
 }
 
@@ -185,7 +187,7 @@ func (c *MultiCache) mgetString(notStale bool, keys ...string) map[string]interf
 }
 
 func (c *MultiCache) Set(key, value interface{}, ttl time.Duration) {
-	h := fasthash.Hash(key)
+	h := shardingHash.Hash(key)
 	c.cache[h%c.buckets].Set(key, value, ttl)
 }
 
@@ -200,7 +202,7 @@ func (c *MultiCache) MSet(kvmap interface{}, ttl time.Duration) {
 }
 
 func (c *MultiCache) Del(key interface{}) {
-	h := fasthash.Hash(key)
+	h := shardingHash.Hash(key)
 	c.cache[h%c.buckets].Del(key)
 }
 
@@ -247,7 +249,7 @@ func (c *MultiCache) MDelString(keys ...string) {
 func (c *MultiCache) groupKeys(keys []interface{}) map[uintptr][]interface{} {
 	grpKeys := make(map[uintptr][]interface{})
 	for _, key := range keys {
-		idx := fasthash.Interface(key) % c.buckets
+		idx := shardingHash.Interface(key) % c.buckets
 		grpKeys[idx] = append(grpKeys[idx], key)
 	}
 	return grpKeys
@@ -256,7 +258,7 @@ func (c *MultiCache) groupKeys(keys []interface{}) map[uintptr][]interface{} {
 func (c *MultiCache) groupIntKeys(keys []int) map[uintptr][]int {
 	grpKeys := make(map[uintptr][]int)
 	for _, key := range keys {
-		idx := fasthash.Int(key) % c.buckets
+		idx := shardingHash.Int(key) % c.buckets
 		grpKeys[idx] = append(grpKeys[idx], key)
 	}
 	return grpKeys
@@ -265,7 +267,7 @@ func (c *MultiCache) groupIntKeys(keys []int) map[uintptr][]int {
 func (c *MultiCache) groupInt64Keys(keys []int64) map[uintptr][]int64 {
 	grpKeys := make(map[uintptr][]int64)
 	for _, key := range keys {
-		idx := fasthash.Int64(key) % c.buckets
+		idx := shardingHash.Int64(key) % c.buckets
 		grpKeys[idx] = append(grpKeys[idx], key)
 	}
 	return grpKeys
@@ -274,7 +276,7 @@ func (c *MultiCache) groupInt64Keys(keys []int64) map[uintptr][]int64 {
 func (c *MultiCache) groupUint64Keys(keys []uint64) map[uintptr][]uint64 {
 	grpKeys := make(map[uintptr][]uint64)
 	for _, key := range keys {
-		idx := fasthash.Uint64(key) % c.buckets
+		idx := shardingHash.Uint64(key) % c.buckets
 		grpKeys[idx] = append(grpKeys[idx], key)
 	}
 	return grpKeys
@@ -283,7 +285,7 @@ func (c *MultiCache) groupUint64Keys(keys []uint64) map[uintptr][]uint64 {
 func (c *MultiCache) groupStringKeys(keys []string) map[uintptr][]string {
 	grpKeys := make(map[uintptr][]string)
 	for _, key := range keys {
-		idx := fasthash.String(key) % c.buckets
+		idx := shardingHash.String(key) % c.buckets
 		grpKeys[idx] = append(grpKeys[idx], key)
 	}
 	return grpKeys
