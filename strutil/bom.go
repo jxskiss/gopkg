@@ -49,9 +49,9 @@ func TrimBOM(b []byte) []byte {
 	return b[len(bom):]
 }
 
-// SkipBOM detects and skips BOM prefix from the given io.Reader.
-// It returns *bufio.Reader.
-func SkipBOM(rd io.Reader) io.Reader {
+// SkipBOMReader detects and skips BOM prefix from the given io.Reader.
+// It returns a *bufio.Reader.
+func SkipBOMReader(rd io.Reader) io.Reader {
 	buf := bufio.NewReader(rd)
 	first, err := buf.Peek(4)
 	if err != nil {

@@ -51,7 +51,7 @@ func TestSkipBOM(t *testing.T) {
 	want := []byte{'a', 'b', 'c'}
 	for _, x := range tests {
 		rd := bytes.NewBuffer(x)
-		tmp := SkipBOM(rd)
+		tmp := SkipBOMReader(rd)
 		got, err := ioutil.ReadAll(tmp)
 		assert.Nil(t, err)
 		assert.Equal(t, want, got)
@@ -67,7 +67,7 @@ func TestSkipBOM(t *testing.T) {
 	want = []byte{}
 	for _, x := range tests {
 		rd := bytes.NewBuffer(x)
-		tmp := SkipBOM(rd)
+		tmp := SkipBOMReader(rd)
 		got, err := ioutil.ReadAll(tmp)
 		assert.Nil(t, err)
 		assert.Equal(t, want, got)
