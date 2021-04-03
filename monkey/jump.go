@@ -5,7 +5,7 @@ import (
 )
 
 func buildJmpDirective(to uintptr) []byte {
-	if reflectx.IntBitSize == 32 {
+	if reflectx.PtrBitSize == 32 {
 		return _buildJmpDirective_x86(to)
 	}
 	return _buildJmpDirective_amd64(to)

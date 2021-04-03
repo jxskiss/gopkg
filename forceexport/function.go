@@ -2,6 +2,7 @@ package forceexport
 
 import (
 	"fmt"
+	"github.com/jxskiss/gopkg/reflectx"
 	"reflect"
 	"runtime"
 	"unsafe"
@@ -104,12 +105,12 @@ var (
 )
 
 func init() {
-	rtmdtype := GetType("runtime.moduledata")
+	rtmdtype := reflectx.GetType("runtime.moduledata")
 	moduledata_pclntableOffset = getOffset(rtmdtype, "pclntable", "forceexport: moduledata.pclntable not found")
 	moduledata_ftabOffset = getOffset(rtmdtype, "ftab", "foceexport: moduledata.ftab not found")
 }
 
-func getOffset(t reflect.Type, fieldname string, msg string) uintptr {
+func getOffset(t *reflectx.RType, fieldname string, msg string) uintptr {
 	f, ok := t.FieldByName(fieldname)
 	if !ok {
 		panic(msg)

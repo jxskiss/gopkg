@@ -14,6 +14,23 @@ func IsPrivateField(field *reflect.StructField) bool {
 	return field.PkgPath != ""
 }
 
+// IsIgnoredField returns whether the given field is ignored for specified tag
+// by checking the field's anonymity and it's struct tag equals to "-".
+func IsIgnoredField(field *reflect.StructField, tag string) bool {
+	if field.PkgPath != "" {
+		if field.Anonymous {
+			if !(field.Type.Kind() == reflect.Ptr && field.Type.Elem().Kind() == reflect.Struct) && field.Type.Kind() != reflect.Struct {
+				return true
+			}
+		} else {
+			// private field
+			return true
+		}
+	}
+	tagVal := field.Tag.Get(tag)
+	return tagVal == "-"
+}
+
 func IsStringTypeOrPtr(typ reflect.Type) bool {
 	kind := typ.Kind()
 	if kind == reflect.Ptr {
@@ -60,7 +77,7 @@ func ReflectInt(v reflect.Value) int64 {
 }
 
 func CastInt(v interface{}) int64 {
-	kind := reflect.TypeOf(v).Kind()
+	kind := EFaceOf(&v).RType.Kind()
 	return GetIntCaster(kind).Cast(EFaceOf(&v).Word)
 }
 
@@ -76,7 +93,7 @@ func CastInt64Slice(i64slice interface{}) []int64 {
 
 func ConvertInt32Slice(slice interface{}) []int32 {
 	header := UnpackSlice(slice)
-	elemTyp := reflect.TypeOf(slice).Elem()
+	elemTyp := EFaceOf(&slice).RType.Elem()
 	info := GetIntCaster(elemTyp.Kind())
 	out := make([]int32, header.Len)
 	for i := 0; i < header.Len; i++ {
@@ -88,7 +105,7 @@ func ConvertInt32Slice(slice interface{}) []int32 {
 
 func ConvertInt64Slice(slice interface{}) []int64 {
 	header := UnpackSlice(slice)
-	elemTyp := reflect.TypeOf(slice).Elem()
+	elemTyp := EFaceOf(&slice).RType.Elem()
 	info := GetIntCaster(elemTyp.Kind())
 	out := make([]int64, header.Len)
 	for i := 0; i < header.Len; i++ {
@@ -107,18 +124,16 @@ func GetIntCaster(kind reflect.Kind) IntCaster {
 	return i64table[kind]
 }
 
-var i64table [16]IntCaster
-
-func init() {
-	i64table[reflect.Int8] = IntCaster{1, func(p unsafe.Pointer) int64 { return int64(*(*int8)(p)) }}
-	i64table[reflect.Uint8] = IntCaster{1, func(p unsafe.Pointer) int64 { return int64(*(*uint8)(p)) }}
-	i64table[reflect.Int16] = IntCaster{2, func(p unsafe.Pointer) int64 { return int64(*(*int16)(p)) }}
-	i64table[reflect.Uint16] = IntCaster{2, func(p unsafe.Pointer) int64 { return int64(*(*uint16)(p)) }}
-	i64table[reflect.Int32] = IntCaster{4, func(p unsafe.Pointer) int64 { return int64(*(*int32)(p)) }}
-	i64table[reflect.Uint32] = IntCaster{4, func(p unsafe.Pointer) int64 { return int64(*(*uint32)(p)) }}
-	i64table[reflect.Int64] = IntCaster{8, func(p unsafe.Pointer) int64 { return int64(*(*int64)(p)) }}
-	i64table[reflect.Uint64] = IntCaster{8, func(p unsafe.Pointer) int64 { return int64(*(*uint64)(p)) }}
-	i64table[reflect.Int] = IntCaster{IntBitSize / 8, func(p unsafe.Pointer) int64 { return int64(*(*int)(p)) }}
-	i64table[reflect.Uint] = IntCaster{IntBitSize / 8, func(p unsafe.Pointer) int64 { return int64(*(*uint)(p)) }}
-	i64table[reflect.Uintptr] = IntCaster{IntBitSize / 8, func(p unsafe.Pointer) int64 { return int64(*(*uintptr)(p)) }}
+var i64table = [...]IntCaster{
+	reflect.Int8:    {1, func(p unsafe.Pointer) int64 { return int64(*(*int8)(p)) }},
+	reflect.Uint8:   {1, func(p unsafe.Pointer) int64 { return int64(*(*uint8)(p)) }},
+	reflect.Int16:   {2, func(p unsafe.Pointer) int64 { return int64(*(*int16)(p)) }},
+	reflect.Uint16:  {2, func(p unsafe.Pointer) int64 { return int64(*(*uint16)(p)) }},
+	reflect.Int32:   {4, func(p unsafe.Pointer) int64 { return int64(*(*int32)(p)) }},
+	reflect.Uint32:  {4, func(p unsafe.Pointer) int64 { return int64(*(*uint32)(p)) }},
+	reflect.Int64:   {8, func(p unsafe.Pointer) int64 { return int64(*(*int64)(p)) }},
+	reflect.Uint64:  {8, func(p unsafe.Pointer) int64 { return int64(*(*uint64)(p)) }},
+	reflect.Int:     {PtrBitSize / 8, func(p unsafe.Pointer) int64 { return int64(*(*int)(p)) }},
+	reflect.Uint:    {PtrBitSize / 8, func(p unsafe.Pointer) int64 { return int64(*(*uint)(p)) }},
+	reflect.Uintptr: {PtrBitSize / 8, func(p unsafe.Pointer) int64 { return int64(*(*uintptr)(p)) }},
 }

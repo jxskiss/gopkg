@@ -318,8 +318,9 @@ func ReverseSlice(slice interface{}) interface{} {
 	srcHeader := reflectx.UnpackSlice(slice)
 	length := srcHeader.Len
 	elemTyp := sliceTyp.Elem()
-	elemSize := elemTyp.Size()
-	outSlice, outHeader, elemRType := reflectx.MakeSlice(elemTyp, length, length)
+	elemRType := reflectx.ToRType(elemTyp)
+	elemSize := elemRType.Size()
+	outSlice, outHeader := reflectx.MakeSlice(elemTyp, length, length)
 	reflectx.TypedSliceCopy(elemRType, *outHeader, srcHeader)
 
 	tmp := reflect.New(elemTyp).Elem().Interface()
@@ -346,8 +347,9 @@ func ReverseSliceInplace(slice interface{}) {
 		panic("ReverseSliceInplace: " + errNotSliceType)
 	}
 	elemTyp := sliceTyp.Elem()
+	elemRType := reflectx.ToRType(elemTyp)
 
-	switch elemTyp.Kind() {
+	switch elemRType.Kind() {
 	case reflect.Int64, reflect.Uint64:
 		values := *(*[]int64)(reflectx.EFaceOf(&slice).Word)
 		ReverseInt64sInplace(values)
@@ -364,8 +366,7 @@ func ReverseSliceInplace(slice interface{}) {
 
 	header := reflectx.UnpackSlice(slice)
 	length := header.Len
-	elemSize := elemTyp.Size()
-	elemRType := reflectx.RTypeOf(elemTyp)
+	elemSize := elemRType.Size()
 
 	tmp := reflect.New(elemTyp).Elem().Interface()
 	swap := reflectx.EFaceOf(&tmp).Word
@@ -1013,13 +1014,6 @@ func _takeSlice(base unsafe.Pointer, elemSize uintptr, i, j int) (slice reflectx
 		slice.Cap = length
 	}
 	return
-}
-
-func indirect(value reflect.Value) reflect.Value {
-	for value.Kind() == reflect.Ptr {
-		value = reflect.Indirect(value)
-	}
-	return value
 }
 
 func min(a, b int) int {

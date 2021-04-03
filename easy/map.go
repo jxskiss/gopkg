@@ -17,8 +17,9 @@ func MapKeys(m interface{}) (keys interface{}) {
 
 	length := reflectx.MapLen(m)
 	keyTyp := mTyp.Key()
+	keyRType := reflectx.ToRType(keyTyp)
 	keySize := keyTyp.Size()
-	slice, header, keyRType := reflectx.MakeSlice(keyTyp, length, length)
+	slice, header := reflectx.MakeSlice(keyTyp, length, length)
 	array := header.Data
 	i := 0
 	reflectx.MapIter(m, func(k, _ unsafe.Pointer) {
@@ -37,8 +38,9 @@ func MapValues(m interface{}) (values interface{}) {
 
 	length := reflectx.MapLen(m)
 	elemTyp := mTyp.Elem()
+	elemRType := reflectx.ToRType(elemTyp)
 	elemSize := elemTyp.Size()
-	slice, header, elemRType := reflectx.MakeSlice(elemTyp, length, length)
+	slice, header := reflectx.MakeSlice(elemTyp, length, length)
 	array := header.Data
 	i := 0
 	reflectx.MapIter(m, func(_, v unsafe.Pointer) {

@@ -12,13 +12,13 @@ import (
 // If the given two types are not identical, the returned diff message
 // contains the detail difference.
 func IsIdenticalType(a, b interface{}) (equal bool, diff string) {
-	typ1 := reflect.TypeOf(a)
-	typ2 := reflect.TypeOf(b)
+	typ1 := ToRType(reflect.TypeOf(a))
+	typ2 := ToRType(reflect.TypeOf(b))
 	return newTypecmp().isEqualType(typ1, typ2)
 }
 
 type typ1typ2 struct {
-	typ1, typ2 reflect.Type
+	typ1, typ2 *RType
 }
 
 const (
@@ -40,7 +40,7 @@ func newTypecmp() *typecmp {
 	return &typecmp{seen: make(map[typ1typ2]*cmpresult)}
 }
 
-func (p *typecmp) isEqualType(typ1, typ2 reflect.Type) (bool, string) {
+func (p *typecmp) isEqualType(typ1, typ2 *RType) (bool, string) {
 	if typ1.Kind() != typ2.Kind() {
 		return false, fmt.Sprintf("type kind not equal: %s, %s", _t(typ1), _t(typ2))
 	}
@@ -67,7 +67,7 @@ func (p *typecmp) isEqualType(typ1, typ2 reflect.Type) (bool, string) {
 	return false, fmt.Sprintf("unsupported types: %s, %s", _t(typ1), _t(typ2))
 }
 
-func (p *typecmp) isEqualStruct(typ1, typ2 reflect.Type) (bool, string) {
+func (p *typecmp) isEqualStruct(typ1, typ2 *RType) (bool, string) {
 	if typ1.Kind() != reflect.Struct || typ1.Kind() != reflect.Struct {
 		return false, fmt.Sprintf("type is not struct: %s, %s", _t(typ1), _t(typ2))
 	}
@@ -99,7 +99,7 @@ func (p *typecmp) isEqualStruct(typ1, typ2 reflect.Type) (bool, string) {
 	return true, ""
 }
 
-func (p *typecmp) isEqualField(typ reflect.Type, field1, field2 reflect.StructField) (bool, string) {
+func (p *typecmp) isEqualField(typ *RType, field1, field2 reflect.StructField) (bool, string) {
 	if field1.Name != field2.Name {
 		return false, fmt.Sprintf("field name not equal: %s, %s", _f(typ, field1), _f(typ, field2))
 	}
@@ -107,8 +107,8 @@ func (p *typecmp) isEqualField(typ reflect.Type, field1, field2 reflect.StructFi
 		return false, fmt.Sprintf("field offset not equal: %s, %s", _f(typ, field1), _f(typ, field2))
 	}
 
-	typ1 := field1.Type
-	typ2 := field2.Type
+	typ1 := ToRType(field1.Type)
+	typ2 := ToRType(field2.Type)
 	if typ1.Kind() != typ2.Kind() {
 		return false, fmt.Sprintf("field type not equal: %s, %s", _f(typ, field1), _f(typ, field2))
 	}
@@ -123,7 +123,7 @@ func (p *typecmp) isEqualField(typ reflect.Type, field1, field2 reflect.StructFi
 	return false, fmt.Sprintf("field type not euqal: %s", diff)
 }
 
-func (p *typecmp) isEqualSlice(typ1, typ2 reflect.Type) (bool, string) {
+func (p *typecmp) isEqualSlice(typ1, typ2 *RType) (bool, string) {
 	if typ1.Kind() != reflect.Slice || typ1.Kind() != reflect.Slice {
 		return false, fmt.Sprintf("type is not slice: %s, %s", _t(typ1), _t(typ2))
 	}
@@ -132,7 +132,7 @@ func (p *typecmp) isEqualSlice(typ1, typ2 reflect.Type) (bool, string) {
 	return p.isEqualType(typ1, typ2)
 }
 
-func (p *typecmp) isEqualMap(typ1, typ2 reflect.Type) (bool, string) {
+func (p *typecmp) isEqualMap(typ1, typ2 *RType) (bool, string) {
 	if typ1.Kind() != reflect.Map || typ2.Kind() != reflect.Map {
 		return false, fmt.Sprintf("type is not map: %s, %s", _t(typ1), _t(typ2))
 	}
@@ -152,10 +152,10 @@ func (p *typecmp) isEqualMap(typ1, typ2 reflect.Type) (bool, string) {
 	return true, ""
 }
 
-func _t(typ reflect.Type) string {
+func _t(typ *RType) string {
 	return fmt.Sprintf("%s.%s", typ.PkgPath(), typ.Name())
 }
 
-func _f(typ reflect.Type, field reflect.StructField) string {
+func _f(typ *RType, field reflect.StructField) string {
 	return fmt.Sprintf("%s.%s", _t(typ), field.Name)
 }

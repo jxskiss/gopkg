@@ -6,14 +6,14 @@ import (
 )
 
 const (
-	// IntBitSize is the size in bits of an int or uint value.
-	IntBitSize = 32 << (^uint(0) >> 63)
+	// PtrBitSize is the size in bits of an int or uint value.
+	PtrBitSize = 32 << (^uint(0) >> 63)
 
-	// IntByteSize is the size in bytes of an int or uint values.
-	IntByteSize = IntBitSize / 8
+	// PtrByteSize is the size in bytes of an int or uint values.
+	PtrByteSize = PtrBitSize / 8
 
-	IsPlatform32bit = IntBitSize == 32
-	IsPlatform64bit = IntBitSize == 64
+	IsPlatform32bit = PtrBitSize == 32
+	IsPlatform64bit = PtrBitSize == 64
 )
 
 // StringHeader is the runtime representation of a string.
@@ -47,55 +47,31 @@ func s2b(s string) []byte {
 	return *(*[]byte)(unsafe.Pointer(bh))
 }
 
-func EFaceOf(ep *interface{}) *emptyInterface {
-	return (*emptyInterface)(unsafe.Pointer(ep))
+// EFaceOf casts the empty interface{} pointer to an EmptyInterface pointer.
+func EFaceOf(ep *interface{}) *EmptyInterface {
+	return (*EmptyInterface)(unsafe.Pointer(ep))
 }
 
+// PackInterface pack an empty interface{} using the given reflect.Type
+// and data pointer.
 func PackInterface(typ reflect.Type, word unsafe.Pointer) interface{} {
-	var i interface{} = typ
-	rtype := EFaceOf(&i).Word
-	return *(*interface{})(unsafe.Pointer(&emptyInterface{
-		RType: rtype,
-		Word:  word,
-	}))
+	return ToRType(typ).PackInterface(word)
 }
 
-var _itab_reflectType = func() unsafe.Pointer {
-	typ := reflect.TypeOf(0)
-	return (*iface)(unsafe.Pointer(&typ)).tab
-}()
-
-func PackReflectType(rtype unsafe.Pointer) reflect.Type {
-	typ := &iface{
-		tab:  _itab_reflectType,
-		data: rtype,
-	}
-	return *(*reflect.Type)(unsafe.Pointer(typ))
-}
-
-func RTypeOf(v interface{}) unsafe.Pointer {
-	switch v := v.(type) {
-	case reflect.Type:
-		var i interface{} = v
-		return EFaceOf(&i).Word
-	case reflect.Value:
-		var i interface{} = v.Type()
-		return EFaceOf(&i).Word
-	default:
-		return EFaceOf(&v).RType
-	}
-}
-
+// MapLen returns the length of the given map interface{} value.
+// The provided m must be a map, else it panics.
 func MapLen(m interface{}) int {
 	return maplen(EFaceOf(&m).Word)
 }
 
+// MapIter iterates the given map interface{} value, and calls function
+// f with each pair of key value pointers.
 func MapIter(m interface{}, f func(k, v unsafe.Pointer)) {
 	eface := EFaceOf(&m)
-	hiter := mapiterinit(eface.RType, eface.Word)
-	for hiter.key != nil {
-		f(hiter.key, hiter.value)
-		mapiternext(hiter)
+	iter := mapiterinit(eface.RType, eface.Word)
+	for iter.key != nil {
+		f(iter.key, iter.value)
+		mapiternext(iter)
 	}
 }
 
@@ -112,60 +88,61 @@ func ArrayAt(p unsafe.Pointer, i int, elemSize uintptr) unsafe.Pointer {
 	return add(p, uintptr(i)*elemSize)
 }
 
+// UnpackSlice unpacks the given slice interface{} to a SliceHeader.
 func UnpackSlice(slice interface{}) SliceHeader {
 	return *(*SliceHeader)(EFaceOf(&slice).Word)
 }
 
+// CastSlice returns a new interface{} value of the given reflect.Type,
+// and the data pointer points to the underlying data of the given slice.
 func CastSlice(slice interface{}, typ reflect.Type) interface{} {
-	newslice := emptyInterface{
-		RType: RTypeOf(typ),
-		Word:  EFaceOf(&slice).Word,
-	}
-	return *(*interface{})(unsafe.Pointer(&newslice))
+	return ToRType(typ).PackInterface(EFaceOf(&slice).Word)
 }
 
+// MakeSlice makes a new slice of the given reflect.Type and length, capacity.
 func MakeSlice(elemTyp reflect.Type, length, capacity int) (
-	slice interface{}, header *SliceHeader, elemRType unsafe.Pointer,
+	slice interface{}, header *SliceHeader,
 ) {
-	elemRType = RTypeOf(elemTyp)
 	header = &SliceHeader{
-		Data: unsafe_NewArray(elemRType, capacity),
+		Data: unsafe_NewArray(ToRType(elemTyp), capacity),
 		Len:  length,
 		Cap:  capacity,
 	}
-	slice = *(*interface{})(unsafe.Pointer(&emptyInterface{
-		RType: RTypeOf(reflect.SliceOf(elemTyp)),
+	slice = *(*interface{})(unsafe.Pointer(&EmptyInterface{
+		RType: ToRType(reflect.SliceOf(elemTyp)),
 		Word:  unsafe.Pointer(header),
 	}))
 	return
 }
 
-func TypedMemMove(rtype unsafe.Pointer, dst, src unsafe.Pointer) {
+// TypedMemMove exposes the typedmemmove function in reflect package.
+func TypedMemMove(rtype *RType, dst, src unsafe.Pointer) {
 	typedmemmove(rtype, dst, src)
 }
 
-func TypedSliceCopy(elemRType unsafe.Pointer, dst, src SliceHeader) int {
+// TypedSliceCopy exports the typedslicecopy function in reflect package.
+func TypedSliceCopy(elemRType *RType, dst, src SliceHeader) int {
 	return typedslicecopy(elemRType, dst, src)
 }
 
 // ------------------------------------------------------------ //
 
 //go:linkname unsafe_New reflect.unsafe_New
-func unsafe_New(unsafe.Pointer) unsafe.Pointer
+func unsafe_New(*RType) unsafe.Pointer
 
 //go:linkname unsafe_NewArray reflect.unsafe_NewArray
-func unsafe_NewArray(unsafe.Pointer, int) unsafe.Pointer
+func unsafe_NewArray(*RType, int) unsafe.Pointer
 
 // typedmemmove copies a value of type t to dst from src.
 //go:noescape
 //go:linkname typedmemmove reflect.typedmemmove
-func typedmemmove(t unsafe.Pointer, dst, src unsafe.Pointer)
+func typedmemmove(t *RType, dst, src unsafe.Pointer)
 
 // typedslicecopy copies a slice of elemType values from src to dst,
 // returning the number of elements copied.
 //go:noescape
 //go:linkname typedslicecopy reflect.typedslicecopy
-func typedslicecopy(elemRType unsafe.Pointer, dst, src SliceHeader) int
+func typedslicecopy(elemRType *RType, dst, src SliceHeader) int
 
 //go:noescape
 //go:linkname maplen reflect.maplen
@@ -175,7 +152,7 @@ func maplen(m unsafe.Pointer) int
 // doesn't let the return value escape.
 //go:noescape
 //go:linkname mapiterinit reflect.mapiterinit
-func mapiterinit(rtype unsafe.Pointer, m unsafe.Pointer) *hiter
+func mapiterinit(rtype *RType, m unsafe.Pointer) *hiter
 
 //go:noescape
 //go:linkname mapiternext reflect.mapiternext
@@ -187,13 +164,15 @@ func mapiternext(it *hiter)
 type hiter struct {
 	key   unsafe.Pointer // Must be in first position.  Write nil to indicate iteration end (see cmd/internal/gc/range.go).
 	value unsafe.Pointer // Must be in second position (see cmd/internal/gc/range.go).
-	// rest fields are ignored
+
+	// The rest fields are not used within this package.
+	// ...
 }
 
-// emptyInterface is the header for an interface{} value.
+// EmptyInterface is the header for an interface{} value.
 // It's a copy type of runtime.eface.
-type emptyInterface struct {
-	RType unsafe.Pointer
+type EmptyInterface struct {
+	RType *RType
 	Word  unsafe.Pointer
 }
 
@@ -206,7 +185,7 @@ type iface struct {
 // value is the reflection data to a Go value.
 // See reflect/value.go#Value for more details.
 type value struct {
-	typ  unsafe.Pointer
+	typ  *RType
 	ptr  unsafe.Pointer
 	flag uintptr
 }
