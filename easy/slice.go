@@ -793,8 +793,7 @@ func Filter(slice interface{}, predicate func(i int) bool) interface{} {
 	if slice == nil {
 		panicNilParams("Filter", "slice", slice)
 	}
-	sliceVal := reflect.ValueOf(slice)
-	sliceTyp := sliceVal.Type()
+	sliceTyp := reflect.TypeOf(slice)
 	if sliceTyp.Kind() != reflect.Slice {
 		panic("Filter: " + errNotSliceType)
 	}
@@ -809,6 +808,7 @@ func Filter(slice interface{}, predicate func(i int) bool) interface{} {
 		return FilterStrings(ToStrings_(slice), predicate).castType(sliceTyp)
 	}
 
+	sliceVal := reflect.ValueOf(slice)
 	length := sliceVal.Len()
 	outVal := reflect.MakeSlice(sliceVal.Type(), 0, max(length/4+1, 4))
 	for i := 0; i < length; i++ {

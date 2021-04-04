@@ -47,6 +47,13 @@ func s2b(s string) []byte {
 	return *(*[]byte)(unsafe.Pointer(bh))
 }
 
+// EmptyInterface is the header for an interface{} value.
+// It's a copy type of runtime.eface.
+type EmptyInterface struct {
+	RType *RType // *rtype
+	Word  unsafe.Pointer
+}
+
 // EFaceOf casts the empty interface{} pointer to an EmptyInterface pointer.
 func EFaceOf(ep *interface{}) *EmptyInterface {
 	return (*EmptyInterface)(unsafe.Pointer(ep))
@@ -169,23 +176,8 @@ type hiter struct {
 	// ...
 }
 
-// EmptyInterface is the header for an interface{} value.
-// It's a copy type of runtime.eface.
-type EmptyInterface struct {
-	RType *RType
-	Word  unsafe.Pointer
-}
-
 // iface is a copy type of runtime.iface.
 type iface struct {
 	tab  unsafe.Pointer // *itab
 	data unsafe.Pointer
-}
-
-// value is the reflection data to a Go value.
-// See reflect/value.go#Value for more details.
-type value struct {
-	typ  *RType
-	ptr  unsafe.Pointer
-	flag uintptr
 }

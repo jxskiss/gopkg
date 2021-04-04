@@ -177,27 +177,23 @@ func Logfmt(v interface{}) string {
 			if len(field.PkgPath) != 0 {
 				continue
 			}
-			k := strutil.ToSnakeCase(field.Name)
-			v := reflect.Indirect(val.Field(i))
-			if !v.IsValid() {
+			fk := strutil.ToSnakeCase(field.Name)
+			fv := reflect.Indirect(val.Field(i))
+			if !(fv.IsValid() && fv.CanInterface()) {
 				continue
 			}
-			v = reflect.ValueOf(v.Interface())
-			if !v.IsValid() {
+			if isBasicType(fv.Type()) {
+				keyValues = append(keyValues, fk, fv.Interface())
 				continue
 			}
-			if isBasicType(v.Type()) {
-				keyValues = append(keyValues, k, v.Interface())
-				continue
-			}
-			if bv, ok := v.Interface().([]byte); ok {
+			if bv, ok := fv.Interface().([]byte); ok {
 				if len(bv) > 0 && utf8.Valid(bv) {
-					keyValues = append(keyValues, k, String_(bv))
+					keyValues = append(keyValues, fk, String_(bv))
 				}
 				continue
 			}
-			if v.Kind() == reflect.Slice && isBasicType(v.Elem().Type()) {
-				keyValues = append(keyValues, k, JSON(v.Interface()))
+			if fv.Kind() == reflect.Slice && isBasicType(fv.Elem().Type()) {
+				keyValues = append(keyValues, fk, JSON(fv.Interface()))
 				continue
 			}
 		}

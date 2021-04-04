@@ -169,7 +169,7 @@ func RTypeOf(v interface{}) *RType {
 	case reflect.Type:
 		return ToRType(x)
 	case reflect.Value:
-		return (*value)(unsafe.Pointer(&x)).typ
+		return ToRType(x.Type())
 	default:
 		return EFaceOf(&x).RType
 	}
