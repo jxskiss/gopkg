@@ -24,7 +24,8 @@ const (
 //
 // All Pool instances share same underlying sized byte slice pools.
 //
-// The zero value for Pool is ready to use.
+// The zero value for Pool is ready to use. A Pool value shall not be
+// copied after initialized.
 type Pool struct {
 
 	// DefaultSize optionally configs the initial default size of
