@@ -21,6 +21,7 @@ var bpool = sync.Pool{
 // a Buffer variable is sufficient to initialize a Buffer.
 func NewBuffer(buf []byte) *Buffer {
 	b := bpool.Get().(*Buffer)
+	b.noReuse = true
 	b.B = buf
 	return b
 }
@@ -38,6 +39,8 @@ type Buffer struct {
 	// B is a byte buffer to use in append-like workloads.
 	// See example code for details.
 	B []byte
+
+	noReuse bool
 }
 
 // Len returns the size of the byte buffer.
@@ -103,13 +106,16 @@ func (b *Buffer) Write(p []byte) (int, error) {
 // The purpose of this function is bytes.Buffer compatibility.
 //
 // The function always returns nil.
-func (b *Buffer) WriteByte(c byte) error {
-	lenb := len(b.B)
-	want := lenb + 1
+func (b *Buffer) WriteByte(chars ...byte) error {
+	lenb, lenc := len(b.B), len(chars)
+	if lenc == 0 {
+		return nil
+	}
+	want := lenb + len(chars)
 	if want > cap(b.B) {
 		b.B = grow(b.B, want)[:want]
 	}
-	b.B[lenb] = c
+	copy(b.B[lenb:], chars)
 	return nil
 }
 

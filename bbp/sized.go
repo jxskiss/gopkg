@@ -40,11 +40,15 @@ func get(length int, capacity ...int) []byte {
 
 func put(buf []byte) {
 	cap_ := cap(buf)
-	if cap_ >= minBufSize && cap_ <= maxBufSize && isPowerOfTwo(cap_) {
+	if canReuse(cap_) {
 		idx := bsr(cap_)
 		buf = buf[:0]
 		sizedPools[idx].Put(buf)
 	}
+}
+
+func canReuse(cap int) bool {
+	return cap >= minBufSize && cap <= maxBufSize && isPowerOfTwo(cap)
 }
 
 func grow(buf []byte, capacity ...int) []byte {

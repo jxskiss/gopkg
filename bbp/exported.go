@@ -46,8 +46,11 @@ func Grow(buf []byte, capacity ...int) []byte {
 // The buf mustn't be touched after retuning it to the pool.
 // Otherwise data races will occur.
 func Put(buf *Buffer) {
-	put(buf.B)
+	if !buf.noReuse {
+		put(buf.B)
+	}
 	buf.B = nil
+	buf.noReuse = false
 	bpool.Put(buf)
 }
 

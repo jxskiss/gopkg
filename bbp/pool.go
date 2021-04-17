@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	defaultBufSize           = 64
+	defaultPoolIdx           = 6 // 64 bytes
 	defaultCalibrateCalls    = 1000
 	defaultCalibrateInterval = time.Minute
 )
@@ -31,12 +31,13 @@ type Pool struct {
 	// DefaultSize optionally configs the initial default size of
 	// byte buffer. The value will be dynamically updated when the
 	// Pool is being used. Default is 64 (in bytes).
-	DefaultSize int64
+	DefaultSize int
 
 	// CalibrateInterval optionally configs the interval to do calibrating.
 	// Default is one Minute.
 	CalibrateInterval time.Duration
 
+	poolIdx     uintptr
 	calls       [poolSize]int32
 	calibrating int64
 	preNano     int64
@@ -47,9 +48,13 @@ type Pool struct {
 // capacity. The returned byte buffer can be put back to the pool by calling
 // Pool.Put(buf) which may be reused later.
 func (p *Pool) Get() *Buffer {
-	size := int(atomic.LoadInt64(&p.DefaultSize))
+	//idx := atomic.LoadUintptr(&p.poolIdx)
+	idx := p.poolIdx
+	if idx == 0 {
+		idx = defaultPoolIdx
+	}
 	b := bpool.Get().(*Buffer)
-	b.B = get(0, size)
+	b.B = sizedPools[idx].Get().([]byte)
 	return b
 }
 
@@ -59,10 +64,20 @@ func (p *Pool) Get() *Buffer {
 // Otherwise data races will occur.
 func (p *Pool) Put(buf *Buffer) {
 	idx := index(len(buf.B))
+	if idx >= poolSize {
+		idx = poolSize - 1
+	}
 	if atomic.AddInt32(&p.calls[idx], -1) < 0 {
 		p.calibrate()
 	}
-	Put(buf)
+
+	// manually inline the Put function
+	if !buf.noReuse {
+		put(buf.B)
+	}
+	buf.B = nil
+	buf.noReuse = false
+	bpool.Put(buf)
 }
 
 func (p *Pool) calibrate() {
@@ -87,16 +102,16 @@ func (p *Pool) calibrate() {
 	p.preNano = nowNano
 	p.preCalls = nextCalls
 
-	var defaultSize int64 = defaultBufSize
+	var poolIdx = index(p.DefaultSize)
 	var maxCalls int32 = math.MaxInt32
-	for i := 0; i < poolSize; i++ {
+	for i := minPoolIdx; i < poolSize; i++ {
 		calls := atomic.SwapInt32(&p.calls[i], nextCalls)
-		if calls != 0 && calls < maxCalls {
+		if calls < maxCalls {
 			maxCalls = calls
-			defaultSize = 1 << i
+			poolIdx = i
 		}
 	}
-	atomic.StoreInt64(&p.DefaultSize, defaultSize)
+	atomic.StoreUintptr(&p.poolIdx, uintptr(poolIdx))
 
 	atomic.StoreInt64(&p.calibrating, 0)
 }
