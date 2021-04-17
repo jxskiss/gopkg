@@ -4,6 +4,7 @@ import (
 	"io"
 	"sync"
 	"unicode/utf8"
+	"unsafe"
 )
 
 var bpool = sync.Pool{
@@ -92,13 +93,7 @@ func (b *Buffer) WriteTo(w io.Writer) (int64, error) {
 
 // Write implements io.Writer - it appends p to the underlying byte buffer.
 func (b *Buffer) Write(p []byte) (int, error) {
-	lenb, lenp := len(b.B), len(p)
-	want := lenb + lenp
-	if want > cap(b.B) {
-		b.B = grow(b.B, want)[:want]
-	}
-	copy(b.B[lenb:], p)
-	return lenp, nil
+	return b.WriteString(b2s(p))
 }
 
 // WriteByte appends the byte c to the buffer.
@@ -106,16 +101,8 @@ func (b *Buffer) Write(p []byte) (int, error) {
 // The purpose of this function is bytes.Buffer compatibility.
 //
 // The function always returns nil.
-func (b *Buffer) WriteByte(chars ...byte) error {
-	lenb, lenc := len(b.B), len(chars)
-	if lenc == 0 {
-		return nil
-	}
-	want := lenb + len(chars)
-	if want > cap(b.B) {
-		b.B = grow(b.B, want)[:want]
-	}
-	copy(b.B[lenb:], chars)
+func (b *Buffer) WriteByte(c byte) error {
+	b.B = append(b.B, c)
 	return nil
 }
 
@@ -126,7 +113,7 @@ func (b *Buffer) WriteByte(chars ...byte) error {
 // The function always returns nil.
 func (b *Buffer) WriteRune(r rune) (n int, err error) {
 	if r < utf8.RuneSelf {
-		b.WriteByte(byte(r))
+		b.B = append(b.B, byte(r))
 		return 1, nil
 	}
 	lenb := len(b.B)
@@ -154,7 +141,7 @@ func (b *Buffer) WriteString(s string) (int, error) {
 // then write p to the buffer.
 func (b *Buffer) Set(p []byte) {
 	b.B = b.B[:0]
-	b.Write(p)
+	b.WriteString(b2s(p))
 }
 
 // SetString sets Buffer.B to s.
@@ -191,4 +178,8 @@ func (b *Buffer) Copy() []byte {
 // String returns a string copy of the underlying byte slice.
 func (b *Buffer) String() string {
 	return string(b.B)
+}
+
+func b2s(b []byte) string {
+	return *(*string)(unsafe.Pointer(&b))
 }

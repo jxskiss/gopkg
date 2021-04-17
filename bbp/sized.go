@@ -6,10 +6,14 @@ import (
 )
 
 const (
-	minPoolIdx = 3       // at least 8 bytes
-	minBufSize = 8       // at least 8 bytes
-	maxBufSize = 1 << 25 // max 32 MB
-	poolSize   = 26      // max 32 MB
+	// MinBufSize is the minimum buffer size (8B) provided in this package.
+	MinBufSize = 8
+
+	// MaxBufSize is the maximum buffer size (64MB) provided in this package.
+	MaxBufSize = 1 << 26
+
+	minPoolIdx = 3  // at least 8B (1<<3)
+	poolSize   = 27 // max 64MB (1<<26)
 )
 
 // power of two sized pools
@@ -30,53 +34,49 @@ func get(length int, capacity ...int) []byte {
 	if len(capacity) > 0 && capacity[0] > length {
 		cap_ = capacity[0]
 	}
-	if cap_ > maxBufSize {
+	if cap_ > MaxBufSize {
 		return make([]byte, length, cap_)
 	}
-	idx := index(cap_)
+	idx := indexGet(cap_)
 	out := sizedPools[idx].Get().([]byte)
 	return out[:length]
 }
 
 func put(buf []byte) {
 	cap_ := cap(buf)
-	if canReuse(cap_) {
-		idx := bsr(cap_)
+	if shouldReuse(cap_) {
+		idx := indexPut(cap_)
 		buf = buf[:0]
 		sizedPools[idx].Put(buf)
 	}
 }
 
-func canReuse(cap int) bool {
-	return cap >= minBufSize && cap <= maxBufSize && isPowerOfTwo(cap)
+func shouldReuse(cap int) bool {
+	return cap >= MinBufSize && cap <= MaxBufSize
 }
 
-func grow(buf []byte, capacity ...int) []byte {
+func grow(buf []byte, capacity int) []byte {
 	len_, cap_ := len(buf), cap(buf)
-	newCap := cap_ * 2
-	if len(capacity) > 0 && capacity[0] > newCap {
-		newCap = capacity[0]
+	if double := 2 * cap_; capacity < double {
+		capacity = double
 	}
 
-	if newCap > maxBufSize {
-		newBuf := make([]byte, len_, newCap)
-		copy(newBuf, buf)
-		put(buf)
-		return newBuf
+	var newBuf []byte
+	if capacity > MaxBufSize {
+		newBuf = make([]byte, len_, capacity)
+	} else {
+		idx := indexGet(capacity)
+		newBuf = sizedPools[idx].Get().([]byte)[:len_]
 	}
-
-	newCap = ceilToPowerOfTwo(newCap)
-	idx := index(newCap)
-	newBuf := sizedPools[idx].Get().([]byte)
 	copy(newBuf, buf)
 	put(buf)
 	return newBuf
 }
 
-// index finds the pool index for the given size, if size is not
-// power of tow, it returns the next power of tow pool index.
-func index(size int) int {
-	if size <= minBufSize {
+// indexGet finds the pool index for the given size to get buffer from,
+// if size is not power of tow, it returns the next power of tow index.
+func indexGet(size int) int {
+	if size <= MinBufSize {
 		return minPoolIdx
 	}
 	idx := bsr(size)
@@ -84,6 +84,12 @@ func index(size int) int {
 		return idx
 	}
 	return idx + 1
+}
+
+// indexPut finds the pool index for the given size to put buffer back,
+// if size is not power of two, it returns the previous power of two index.
+func indexPut(size int) int {
+	return bsr(size)
 }
 
 // bsr.
@@ -96,22 +102,4 @@ func bsr(n int) int {
 // isPowerOfTwo reports whether given integer is a power of two.
 func isPowerOfTwo(n int) bool {
 	return n&(n-1) == 0
-}
-
-// ceilToPowerOfTwo returns the least power of two integer value greater than
-// or equal to n.
-// Callers within this package guarantee that n doesn't overflow int32.
-func ceilToPowerOfTwo(n int) int {
-	if n <= 2 {
-		return n
-	}
-	n--
-	n |= n >> 1
-	n |= n >> 2
-	n |= n >> 4
-	n |= n >> 8
-	n |= n >> 16
-	// n |= n >> 32
-	n++
-	return n
 }

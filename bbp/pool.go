@@ -23,6 +23,10 @@ const (
 // are recommended, the dynamic calibrating will help to reduce memory waste.
 //
 // All Pool instances share same underlying sized byte slice pools.
+// The byte buffers provided by Pool has minimum and maximum limit (see
+// `MinBufSize` and `MaxBufSize`), byte slice with size not in the range
+// will be allocated directly from the operating system, and won't be
+// recycled for reuse.
 //
 // The zero value for Pool is ready to use. A Pool value shall not be
 // copied after initialized.
@@ -53,9 +57,9 @@ func (p *Pool) Get() *Buffer {
 	if idx == 0 {
 		idx = defaultPoolIdx
 	}
-	b := bpool.Get().(*Buffer)
-	b.B = sizedPools[idx].Get().([]byte)
-	return b
+	buf := bpool.Get().(*Buffer)
+	buf.B = sizedPools[idx].Get().([]byte)
+	return buf
 }
 
 // Put puts back a byte buffer to the pool for reusing.
@@ -63,7 +67,7 @@ func (p *Pool) Get() *Buffer {
 // The buf mustn't be touched after returning it to the pool.
 // Otherwise data races will occur.
 func (p *Pool) Put(buf *Buffer) {
-	idx := index(len(buf.B))
+	idx := indexGet(len(buf.B))
 	if idx >= poolSize {
 		idx = poolSize - 1
 	}
@@ -102,7 +106,7 @@ func (p *Pool) calibrate() {
 	p.preNano = nowNano
 	p.preCalls = nextCalls
 
-	var poolIdx = index(p.DefaultSize)
+	var poolIdx = indexGet(p.DefaultSize)
 	var maxCalls int32 = math.MaxInt32
 	for i := minPoolIdx; i < poolSize; i++ {
 		calls := atomic.SwapInt32(&p.calls[i], nextCalls)
