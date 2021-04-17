@@ -2,32 +2,31 @@ package json
 
 import (
 	"fmt"
-	"github.com/valyala/bytebufferpool"
+	"github.com/jxskiss/gopkg/bbp"
 )
 
-var pool bytebufferpool.Pool
+var pool bbp.Pool
 
 func MarshalStringMapUnordered(strMap map[string]string) ([]byte, error) {
 	buf := pool.Get()
 	defer pool.Put(buf)
 
-	var err error
-	buf.B, err = AppendStringMapUnordered(buf.B, strMap)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]byte, buf.Len())
-	copy(out, buf.B)
-	return out, nil
+	buf.B = appendStringMapUnordered(buf.B, strMap)
+	return buf.Copy(), nil
 }
 
 func AppendStringMapUnordered(buf []byte, strMap map[string]string) ([]byte, error) {
+	buf = appendStringMapUnordered(buf, strMap)
+	return buf, nil
+}
+
+func appendStringMapUnordered(buf []byte, strMap map[string]string) []byte {
 	if strMap == nil {
-		return append(buf, nullJSON...), nil
+		return append(buf, nullJSON...)
 	}
 	size := len(strMap)
 	if size == 0 {
-		return append(buf, emptyObject...), nil
+		return append(buf, emptyObject...)
 	}
 	idx := 0
 	buf = append(buf, leftWING)
@@ -41,7 +40,7 @@ func AppendStringMapUnordered(buf []byte, strMap map[string]string) ([]byte, err
 		buf, _ = appendString(buf, v)
 	}
 	buf = append(buf, rightWING)
-	return buf, nil
+	return buf
 }
 
 func UnmarshalStringMap(data []byte, dst *map[string]string) error {
