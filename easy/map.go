@@ -22,10 +22,11 @@ func MapKeys(m interface{}) (keys interface{}) {
 	slice, header := reflectx.MakeSlice(keyTyp, length, length)
 	array := header.Data
 	i := 0
-	reflectx.MapIter(m, func(k, _ unsafe.Pointer) {
+	reflectx.MapIterPointer(m, func(k, _ unsafe.Pointer) int {
 		dst := reflectx.ArrayAt(array, i, keySize)
 		reflectx.TypedMemMove(keyRType, dst, k)
 		i++
+		return 0
 	})
 	return slice
 }
@@ -43,10 +44,11 @@ func MapValues(m interface{}) (values interface{}) {
 	slice, header := reflectx.MakeSlice(elemTyp, length, length)
 	array := header.Data
 	i := 0
-	reflectx.MapIter(m, func(_, v unsafe.Pointer) {
+	reflectx.MapIterPointer(m, func(_, v unsafe.Pointer) int {
 		dst := reflectx.ArrayAt(array, i, elemSize)
 		reflectx.TypedMemMove(elemRType, dst, v)
 		i++
+		return 0
 	})
 	return slice
 }
@@ -60,8 +62,9 @@ func IntKeys(m interface{}) (keys Int64s) {
 
 	out := make([]int64, 0, reflectx.MapLen(m))
 	cast := reflectx.GetIntCaster(mTyp.Key().Kind()).Cast
-	reflectx.MapIter(m, func(k, _ unsafe.Pointer) {
+	reflectx.MapIterPointer(m, func(k, _ unsafe.Pointer) int {
 		out = append(out, cast(k))
+		return 0
 	})
 	return out
 }
@@ -75,8 +78,9 @@ func IntValues(m interface{}) (values Int64s) {
 
 	out := make([]int64, 0, reflectx.MapLen(m))
 	cast := reflectx.GetIntCaster(mTyp.Elem().Kind()).Cast
-	reflectx.MapIter(m, func(_, v unsafe.Pointer) {
+	reflectx.MapIterPointer(m, func(_, v unsafe.Pointer) int {
 		out = append(out, cast(v))
+		return 0
 	})
 	return out
 }
@@ -88,9 +92,10 @@ func StringKeys(m interface{}) (keys Strings) {
 	}
 
 	out := make([]string, 0, reflectx.MapLen(m))
-	reflectx.MapIter(m, func(k, _ unsafe.Pointer) {
+	reflectx.MapIterPointer(m, func(k, _ unsafe.Pointer) int {
 		x := *(*string)(k)
 		out = append(out, x)
+		return 0
 	})
 	return out
 }
@@ -102,9 +107,10 @@ func StringValues(m interface{}) (values Strings) {
 	}
 
 	out := make([]string, 0, reflectx.MapLen(m))
-	reflectx.MapIter(m, func(_, v unsafe.Pointer) {
+	reflectx.MapIterPointer(m, func(_, v unsafe.Pointer) int {
 		x := *(*string)(v)
 		out = append(out, x)
+		return 0
 	})
 	return out
 }

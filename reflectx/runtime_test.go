@@ -37,3 +37,13 @@ func Test_rtype(t *testing.T) {
 		assert.Equal(t, rtype2, rtype3)
 	}
 }
+
+func TestSliceIter(t *testing.T) {
+	slice := []int64{1, 2, 3}
+	var got []int64
+	SliceIter(slice, func(elem interface{}) int {
+		got = append(got, elem.(int64))
+		return 0
+	})
+	assert.Equal(t, slice, got)
+}

@@ -889,12 +889,13 @@ func SumMapSlice(mapOfSlice interface{}) int64 {
 	var sum int64
 	elemTyp := mTyp.Elem().Elem()
 	info := reflectx.GetIntCaster(elemTyp.Kind())
-	reflectx.MapIter(mapOfSlice, func(_, v unsafe.Pointer) {
+	reflectx.MapIterPointer(mapOfSlice, func(_, v unsafe.Pointer) int {
 		header := *(*reflectx.SliceHeader)(v)
 		for i := 0; i < header.Len; i++ {
 			ptr := reflectx.ArrayAt(header.Data, i, info.Size)
 			sum += info.Cast(ptr)
 		}
+		return 0
 	})
 	return sum
 }
@@ -913,9 +914,10 @@ func SumMapSliceLength(mapOfSlice interface{}) int {
 	}
 
 	var sumLen int
-	reflectx.MapIter(mapOfSlice, func(_, v unsafe.Pointer) {
+	reflectx.MapIterPointer(mapOfSlice, func(_, v unsafe.Pointer) int {
 		header := *(*reflectx.SliceHeader)(v)
 		sumLen += header.Len
+		return 0
 	})
 	return sumLen
 }

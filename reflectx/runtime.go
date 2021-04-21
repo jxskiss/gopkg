@@ -72,13 +72,79 @@ func MapLen(m interface{}) int {
 }
 
 // MapIter iterates the given map interface{} value, and calls function
-// f with each pair of key value pointers.
-func MapIter(m interface{}, f func(k, v unsafe.Pointer)) {
+// f with each pair of key value interface{}.
+// The iteration can be aborted by returning a non-zero value from f.
+func MapIter(m interface{}, f func(k, v interface{}) int) {
+	eface := EFaceOf(&m)
+	keyTyp := eface.RType.Key()
+	elemTyp := eface.RType.Elem()
+	iter := mapiterinit(eface.RType, eface.Word)
+	for iter.key != nil {
+		k := keyTyp.PackInterface(iter.key)
+		v := elemTyp.PackInterface(iter.value)
+		if f(k, v) != 0 {
+			return
+		}
+		mapiternext(iter)
+	}
+}
+
+// MapIterPointer is similar to MapIter, but it calls f for each key
+// value pair with their address pointers.
+// The iteration can be aborted by returning a non-zero value from f.
+func MapIterPointer(m interface{}, f func(k, v unsafe.Pointer) int) {
 	eface := EFaceOf(&m)
 	iter := mapiterinit(eface.RType, eface.Word)
 	for iter.key != nil {
-		f(iter.key, iter.value)
+		n := f(iter.key, iter.value)
+		if n != 0 {
+			return
+		}
 		mapiternext(iter)
+	}
+}
+
+// SliceLen returns the length of the given slice interface{} value.
+// The provided slice must be a slice, else it panics.
+func SliceLen(slice interface{}) int {
+	return UnpackSlice(slice).Len
+}
+
+// SliceCap returns the capacity of the given slice interface{} value.
+// The provided slice must be a slice, else it panics.
+func SliceCap(slice interface{}) int {
+	return UnpackSlice(slice).Cap
+}
+
+// SliceIter iterates the given slice interface{} value, and calls
+// function f with each element in the slice.
+// The iteration can be aborted by returning a non-zero value from f.
+func SliceIter(slice interface{}, f func(elem interface{}) int) {
+	elemTyp := EFaceOf(&slice).RType.Elem()
+	elemSize := elemTyp.Size()
+	header := UnpackSlice(slice)
+	for i := 0; i < header.Len; i++ {
+		ptr := ArrayAt(header.Data, i, elemSize)
+		elem := elemTyp.PackInterface(ptr)
+		if f(elem) != 0 {
+			return
+		}
+	}
+}
+
+// SliceIterPointer is similar to SliceIter, but it calls f for each
+// element with the address pointer.
+// The iteration can be aborted by returning a non-zero value from f.
+func SliceIterPointer(slice interface{}, f func(elem unsafe.Pointer) int) {
+	elemTyp := EFaceOf(&slice).RType.Elem()
+	elemSize := elemTyp.Size()
+	header := UnpackSlice(slice)
+	for i := 0; i < header.Len; i++ {
+		elem := ArrayAt(header.Data, i, elemSize)
+		n := f(elem)
+		if n != 0 {
+			return
+		}
 	}
 }
 
