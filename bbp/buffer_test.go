@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestBufferWrite(b *testing.T) {
+func TestBufferWrite(t *testing.T) {
 	str := "abc"
 	want := ""
 	buf := NewBuffer(nil)
@@ -18,7 +18,7 @@ func TestBufferWrite(b *testing.T) {
 		buf.WriteString(tmp)
 	}
 	got := buf.String()
-	assert.Equal(b, want, got)
+	assert.Equal(t, want, got)
 }
 
 func BenchmarkBufferWrite(b *testing.B) {

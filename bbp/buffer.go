@@ -7,9 +7,12 @@ import (
 	"unsafe"
 )
 
+// MinRead is the minimum slice size passed to a Read call by Buffer.ReadFrom.
+const MinRead = 512
+
 // NewBuffer creates and initializes a new Buffer using buf as its
 // initial contents. The new Buffer takes ownership of buf, and the
-// caller should not use buf after this call. NewBuffer is intended to
+// caller may not use buf after this call. NewBuffer is intended to
 // prepare a Buffer to read existing data. It can also be used to set
 // the initial size of the internal buffer for writing. To do that,
 // buf should have the desired capacity but a length of zero.
@@ -28,11 +31,11 @@ func NewBuffer(buf []byte) *Buffer {
 // Buffer provides byte buffer, which can be used for minimizing
 // memory allocations.
 //
-// Buffer may be used with functions appending data to the given []byte
-// slice. See example code for details.
+// Buffer may be used with functions appending data to the underlying
+// []byte slice. See example code for details.
 //
 // Use Get for obtaining an empty byte buffer.
-// The zero value for Buffer is ready to use.
+// The zero value for Buffer is an empty buffer ready to use.
 type Buffer struct {
 
 	// B is a byte buffer to use in append-like workloads.
@@ -47,9 +50,6 @@ func (b *Buffer) Len() int {
 	return len(b.B)
 }
 
-// 512 is considered a reasonable default size to work with io.Reader streams
-const defaultBufSizeForIOReader = 512
-
 // ReadFrom implements io.ReaderFrom.
 //
 // The function appends all the data read from r to b.
@@ -59,7 +59,7 @@ func (b *Buffer) ReadFrom(r io.Reader) (int64, error) {
 	nMax := cap(bb)
 	n := nStart
 	if nMax == 0 {
-		nMax = defaultBufSizeForIOReader
+		nMax = MinRead
 		bb = get(nMax)
 	} else {
 		bb = bb[:nMax]
@@ -100,6 +100,10 @@ func (b *Buffer) Write(p []byte) (int, error) {
 //
 // The function always returns nil.
 func (b *Buffer) WriteByte(c byte) error {
+	want := len(b.B) + 1
+	if want > cap(b.B) {
+		b.B = grow(b.B, want)
+	}
 	b.B = append(b.B, c)
 	return nil
 }
@@ -110,10 +114,6 @@ func (b *Buffer) WriteByte(c byte) error {
 //
 // The function always returns nil.
 func (b *Buffer) WriteRune(r rune) (n int, err error) {
-	if r < utf8.RuneSelf {
-		b.B = append(b.B, byte(r))
-		return 1, nil
-	}
 	lenb := len(b.B)
 	want := lenb + utf8.UTFMax
 	if want > cap(b.B) {
@@ -185,8 +185,8 @@ func b2s(b []byte) string {
 
 var bpool sync.Pool
 
-// getBuffer helps to eliminate unnecessary type assertion and memory
-// allocations, it will be inlined into the callers.
+// getBuffer helps to eliminate unnecessary type assertions and memory
+// allocation, it will be inlined into the callers.
 func getBuffer() *Buffer {
 	buf := bpool.Get()
 	if buf != nil {

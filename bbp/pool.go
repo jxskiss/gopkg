@@ -16,7 +16,7 @@ const (
 // calibrating (which is a little atomic operations) to try best to match
 // the workload.
 //
-// Generally, if the size and capacity is known in advance, you should use
+// Generally, if the size and capacity is known in advance, you may use
 // the exported function Get(length, capacity) to get a properly sized
 // byte buffer. However if the buffer size is uncertain in advance, you may
 // want to use this Pool. For different workloads, dedicated Pool instances
