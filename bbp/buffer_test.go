@@ -2,8 +2,24 @@ package bbp
 
 import (
 	"bytes"
+	"github.com/stretchr/testify/assert"
+	"strings"
+	"sync"
 	"testing"
 )
+
+func TestBufferWrite(b *testing.T) {
+	str := "abc"
+	want := ""
+	buf := NewBuffer(nil)
+	for i := 0; i < 1000; i++ {
+		tmp := strings.Repeat(str, i)
+		want += tmp
+		buf.WriteString(tmp)
+	}
+	got := buf.String()
+	assert.Equal(b, want, got)
+}
 
 func BenchmarkBufferWrite(b *testing.B) {
 	s := []byte("foobarbaz")
@@ -31,4 +47,24 @@ func BenchmarkBytesBufferWrite(b *testing.B) {
 			buf.Reset()
 		}
 	})
+}
+
+var testpool = sync.Pool{
+	New: func() interface{} { return &Buffer{} },
+}
+
+func BenchmarkSyncPoolWithNew(b *testing.B) {
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = testpool.Get().(*Buffer)
+	}
+}
+
+func BenchmarkNewBuffer(b *testing.B) {
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = getBuffer()
+	}
 }

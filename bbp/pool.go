@@ -22,7 +22,7 @@ const (
 // want to use this Pool. For different workloads, dedicated Pool instances
 // are recommended, the dynamic calibrating will help to reduce memory waste.
 //
-// All Pool instances share same underlying sized byte slice pools.
+// All Pool instances share the same underlying sized byte slice pools.
 // The byte buffers provided by Pool has minimum and maximum limit (see
 // `MinBufSize` and `MaxBufSize`), byte slice with size not in the range
 // will be allocated directly from the operating system, and won't be
@@ -57,7 +57,7 @@ func (p *Pool) Get() *Buffer {
 	if idx == 0 {
 		idx = defaultPoolIdx
 	}
-	buf := bpool.Get().(*Buffer)
+	buf := getBuffer()
 	buf.B = sizedPools[idx].Get().([]byte)
 	return buf
 }

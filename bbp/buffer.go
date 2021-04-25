@@ -7,10 +7,6 @@ import (
 	"unsafe"
 )
 
-var bpool = sync.Pool{
-	New: func() interface{} { return &Buffer{} },
-}
-
 // NewBuffer creates and initializes a new Buffer using buf as its
 // initial contents. The new Buffer takes ownership of buf, and the
 // caller should not use buf after this call. NewBuffer is intended to
@@ -21,9 +17,11 @@ var bpool = sync.Pool{
 // In most cases, Get(length, capacity), new(Buffer), or just declaring
 // a Buffer variable is sufficient to initialize a Buffer.
 func NewBuffer(buf []byte) *Buffer {
-	b := bpool.Get().(*Buffer)
-	b.noReuse = true
-	b.B = buf
+	b := getBuffer()
+	if buf != nil {
+		b.B = buf
+		b.noReuse = true
+	}
 	return b
 }
 
@@ -131,8 +129,9 @@ func (b *Buffer) WriteString(s string) (int, error) {
 	lenb, lens := len(b.B), len(s)
 	want := lenb + lens
 	if want > cap(b.B) {
-		b.B = grow(b.B, want)[:want]
+		b.B = grow(b.B, want)
 	}
+	b.B = b.B[:want]
 	copy(b.B[lenb:], s)
 	return lens, nil
 }
@@ -182,4 +181,16 @@ func (b *Buffer) String() string {
 
 func b2s(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
+}
+
+var bpool sync.Pool
+
+// getBuffer helps to eliminate unnecessary type assertion and memory
+// allocations, it will be inlined into the callers.
+func getBuffer() *Buffer {
+	buf := bpool.Get()
+	if buf != nil {
+		return buf.(*Buffer)
+	}
+	return &Buffer{}
 }

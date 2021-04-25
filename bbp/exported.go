@@ -5,7 +5,7 @@
 // but they do not need to; if they are returned, they will be recycled
 // and reused, otherwise they will be garbage collected as usual.
 //
-// Within this package, `Get`, `Set` and all `Pool` instances share same
+// Within this package, `Get`, `Set` and all `Pool` instances share the same
 // underlying sized byte slice pools. The byte buffers provided by this
 // package has minimum and maximum limit (see `MinBufSize` and `MaxBufSize`),
 // byte slice with size not in the range will be allocated directly from
@@ -21,9 +21,9 @@ func Get(length int, capacity ...int) *Buffer {
 	if len(capacity) > 1 {
 		panic("too many arguments to bbp.Get")
 	}
-	b := bpool.Get().(*Buffer)
-	b.B = get(length, capacity...)
-	return b
+	buf := getBuffer()
+	buf.B = get(length, capacity...)
+	return buf
 }
 
 // Grow returns a new byte buffer from the pool which guarantees it's
