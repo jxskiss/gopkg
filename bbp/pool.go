@@ -48,8 +48,8 @@ type Pool struct {
 	preCalls    int32
 }
 
-// Get returns a byte buffer from the pool with dynamic calibrated default
-// capacity. The returned byte buffer can be put back to the pool by calling
+// Get returns a Buffer from the pool with dynamic calibrated default
+// capacity. The returned Buffer can be put back to the pool by calling
 // Pool.Put(buf) which may be reused later.
 func (p *Pool) Get() *Buffer {
 	//idx := atomic.LoadUintptr(&p.poolIdx)
@@ -62,7 +62,7 @@ func (p *Pool) Get() *Buffer {
 	return buf
 }
 
-// Put puts back a byte buffer to the pool for reusing.
+// Put puts back a Buffer to the pool for reusing.
 //
 // The buf mustn't be touched after returning it to the pool.
 // Otherwise data races will occur.
@@ -82,6 +82,44 @@ func (p *Pool) Put(buf *Buffer) {
 	buf.B = nil
 	buf.noReuse = false
 	bpool.Put(buf)
+}
+
+// GetLinkBuffer returns a LinkBuffer from the pool with dynamic calibrated
+// default capacity. The returned LinkBuffer can be put back to the pool
+// by calling Pool.PutLinkBuffer(buf) which may be reused later.
+func (p *Pool) GetLinkBuffer() *LinkBuffer {
+	idx := p.poolIdx
+	if idx == 0 {
+		idx = defaultPoolIdx
+	}
+	buf := getLinkBuffer()
+	buf.blockSize = 1 << idx
+	buf.poolIdx = int(idx)
+	buf.size = 0
+	buf.cap = 0
+	return buf
+}
+
+// PutLinkBuffer puts back a LinkBuffer to the pool for reusing.
+//
+// The buf mustn't be touched after returning it to the pool.
+// Otherwise data races will occur.
+func (p *Pool) PutLinkBuffer(buf *LinkBuffer) {
+	idx := indexGet(buf.size)
+	if idx >= poolSize {
+		idx = poolSize - 1
+	}
+	if atomic.AddInt32(&p.calls[idx], -1) < 0 {
+		p.calibrate()
+	}
+
+	// manually inline the PutLinkBuffer function
+	poolIdx := buf.poolIdx
+	for _, bb := range buf.bufs {
+		sizedPools[poolIdx].Put(bb[:0])
+	}
+	buf.bufs = nil
+	linkBufferPool.Put(buf)
 }
 
 func (p *Pool) calibrate() {
