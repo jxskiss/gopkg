@@ -22,11 +22,19 @@ type COWMap struct {
 	m unsafe.Pointer // *Map
 }
 
-// NewCOWMap creates a new COWMap using the stated size and fill factor.
+// NewCOWMap creates a new COWMap using the stated fill factor.
 // The underlying Map will grow as needed.
-func NewCOWMap(size int, fillFactor float64) *COWMap {
-	m := New(size, fillFactor)
+func NewCOWMap(fillFactor float64) *COWMap {
+	m := New(8, fillFactor)
 	return &COWMap{m: unsafe.Pointer(m)}
+}
+
+// SetMap stores the given map as the underlying map.
+// Since each write operation will copy the map, write operations are
+// considerably expensive, if there are many write operations, you may
+// prepare a Map in batch mode, then use this method to set it to a COWMap.
+func (m *COWMap) SetMap(map_ *Map) {
+	atomic.StorePointer(&m.m, unsafe.Pointer(map_))
 }
 
 func (m *COWMap) getMap() *Map {

@@ -18,6 +18,13 @@ BenchmarkIntIntMapGet100PercentHitRate-12                    870           13055
 BenchmarkStdMapGet100PercentHitRate-12                       104          10678794 ns/op
 BenchmarkIntIntMapGet_Size_1024_FillFactor_60-12       479573955                 2.189 ns/op
 BenchmarkStdMapGet_Size_1024-12                         77867008                16.36 ns/op
+
+cpu: Intel(R) Core(TM) i7-8750H CPU @ 2.20GHz
+BenchmarkConcurrentStdMapGet_NoLock-12                  72221664                15.79 ns/op
+BenchmarkConcurrentStdMapGet_RWMutex-12                  3255450               369.01 ns/op
+BenchmarkConcurrentSyncMapGet-12                        27300724                44.59 ns/op
+BenchmarkConcurrentCOWMapGet-12                        344179628                 3.487 ns/op
+BenchmarkConcurrentSliceIndex-12                       908571164                 1.213 ns/op
 ```
 
 Some notes:
