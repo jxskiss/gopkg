@@ -5,34 +5,52 @@ import (
 	"testing"
 )
 
-func BenchmarkMathRand(b *testing.B) {
+func BenchmarkConcurrentRuntimeFastrand(b *testing.B) {
 	b.ResetTimer()
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		_ = rand.Uint64()
-	}
+	b.SetParallelism(8)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_ = Fastrand()
+		}
+	})
 }
 
-func BenchmarkRuntimeFastrand(b *testing.B) {
+func BenchmarkConcurrentMathRandUint32(b *testing.B) {
 	b.ResetTimer()
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		_ = Fastrand()
-	}
+	b.SetParallelism(8)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_ = rand.Uint32()
+		}
+	})
 }
 
-func BenchmarkPCG32(b *testing.B) {
+func BenchmarkConcurrentMathRandUint64(b *testing.B) {
 	b.ResetTimer()
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		_ = Uint32()
-	}
+	b.SetParallelism(8)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_ = rand.Uint64()
+		}
+	})
 }
 
-func BenchmarkPCG64(b *testing.B) {
+func BenchmarkConcurrentPCG32(b *testing.B) {
 	b.ResetTimer()
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		_ = Uint64()
-	}
+	b.SetParallelism(8)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_ = Uint32()
+		}
+	})
+}
+
+func BenchmarkConcurrentPCG64(b *testing.B) {
+	b.ResetTimer()
+	b.SetParallelism(8)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_ = Uint64()
+		}
+	})
 }

@@ -1,11 +1,6 @@
 package fastrand
 
-import (
-	"crypto/rand"
-	"encoding/binary"
-	"fmt"
-	"runtime"
-)
+import "runtime"
 
 const cacheLineSize = 64
 
@@ -20,26 +15,19 @@ func init() {
 	// the maximum CPU numbers.
 	shardsLen = 4 * runtime.GOMAXPROCS(0)
 
-	// Use random bytes to seed the generators.
-	randbuf := make([]byte, shardsLen*16*2)
-	if _, err := rand.Read(randbuf); err != nil {
-		panic(fmt.Sprintf("fastrand: rand.Read error: %v", err))
-	}
-
-	x := 0
 	globalPCG32 = make(pinPCG32, shardsLen)
 	for i := 0; i < len(globalPCG32); i++ {
-		state := binary.BigEndian.Uint64(randbuf[x : x+8])
-		seq := binary.BigEndian.Uint64(randbuf[x+8 : x+16])
+		a, b, c, d := runtime_fastrand(), runtime_fastrand(), runtime_fastrand(), runtime_fastrand()
+		state := uint64(a)<<32 + uint64(b)
+		seq := uint64(c)<<32 + uint64(d)
 		globalPCG32[i].Seed(state, seq)
-		x += 16
 	}
 	globalPCG64 = make(pinPCG64, shardsLen)
 	for i := 0; i < len(globalPCG64); i++ {
-		low := binary.BigEndian.Uint64(randbuf[x : x+8])
-		high := binary.BigEndian.Uint64(randbuf[x+8 : x+16])
+		a, b, c, d := runtime_fastrand(), runtime_fastrand(), runtime_fastrand(), runtime_fastrand()
+		low := uint64(a)<<32 + uint64(b)
+		high := uint64(c)<<32 + uint64(d)
 		globalPCG64[i].Seed(low, high)
-		x += 16
 	}
 }
 
@@ -58,7 +46,7 @@ type pcg64Source struct {
 type pinPCG64 []pcg64Source
 
 // Uint32 returns a pseudo-random 32-bit value as a uint32
-// from the default Source.
+// from the default pcg32 source.
 func Uint32() (x uint32) {
 	pid := runtime_procPin()
 	x = globalPCG32[pid].Uint32()
@@ -66,11 +54,31 @@ func Uint32() (x uint32) {
 	return
 }
 
+// Uint32n returns a pseudo-random unsigned 32-bit integer in range [0, n)
+// from the default pcg32 source.
+// It panics if n <= 0.
+func Uint32n(n uint32) (x uint32) {
+	pid := runtime_procPin()
+	x = globalPCG32[pid].Uint32n(n)
+	runtime_procUnpin()
+	return
+}
+
 // Uint64 returns a pseudo-random 64-bit value as a uint64
-// from the default Source.
+// from the default pcg64 source.
 func Uint64() (x uint64) {
 	pid := runtime_procPin()
 	x = globalPCG64[pid].Uint64()
+	runtime_procUnpin()
+	return
+}
+
+// Uint64n returns a pseudo-random unsigned 64-bit integer in range [0, n)
+// from the default pcg64 source.
+// It panics if n <= 0.
+func Uint64n(n uint64) (x uint64) {
+	pid := runtime_procPin()
+	x = globalPCG64[pid].Uint64n(n)
 	runtime_procUnpin()
 	return
 }

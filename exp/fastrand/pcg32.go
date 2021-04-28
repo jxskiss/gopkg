@@ -18,8 +18,18 @@ const (
 	pcg32Multiplier = 0x5851f42d4c957f2d //  6364136223846793005
 )
 
-func newPCG32() *pcg32 {
+// PCG32 returns a pcg32 generator with the default state and sequence.
+func PCG32() *pcg32 {
 	return &pcg32{pcg32State, pcg32Increment}
+}
+
+// NewPCG32 returns a pcg32 generator initialized with random state
+// and sequence.
+func NewPCG32() *pcg32 {
+	a, b, c, d := runtime_fastrand(), runtime_fastrand(), runtime_fastrand(), runtime_fastrand()
+	state := uint64(a)<<32 + uint64(b)
+	seq := uint64(c)<<32 + uint64(d)
+	return &pcg32{state: state, increment: seq}
 }
 
 // Seed uses the provided seed value to initialize the generator to a deterministic state.
@@ -40,4 +50,15 @@ func (p *pcg32) Uint32() uint32 {
 	rot := uint32(oldState >> 59)
 
 	return (xorShifted >> rot) | (xorShifted << ((-rot) & 31))
+}
+
+// Uint32n returns a pseudo-random 32-bit unsigned integer in range [0, n).
+// It panics if n <= 0.
+func (p *pcg32) Uint32n(n uint32) uint32 {
+	if n <= 0 {
+		panic("invalid argument to Uint32n")
+	}
+	// This is similar to Uint32() % n, but faster.
+	// See https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
+	return uint32(uint64(p.Uint32()) * uint64(n) >> 32)
 }

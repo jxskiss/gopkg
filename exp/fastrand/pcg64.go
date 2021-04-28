@@ -37,8 +37,18 @@ const (
 	initLow     = initializer & maxUint64
 )
 
-func newPCG64() *pcg64 {
+// PCG64 returns a pcg64 generator with the default state and sequence.
+func PCG64() *pcg64 {
 	return &pcg64{low: initLow, high: initHigh}
+}
+
+// NewPCG64 returns a pcg64 generator initialized with random state
+// and sequence.
+func NewPCG64() *pcg64 {
+	a, b, c, d := runtime_fastrand(), runtime_fastrand(), runtime_fastrand(), runtime_fastrand()
+	low := uint64(a)<<32 + uint64(b)
+	high := uint64(c)<<32 + uint64(d)
+	return &pcg64{low: low, high: high}
 }
 
 // Seed uses the provided seed value to initialize the generator to a deterministic state.
@@ -67,4 +77,15 @@ func (p *pcg64) multiply() {
 	hi += p.low * mulHigh
 	p.low = lo
 	p.high = hi
+}
+
+// Uint64n returns a pseudo-random 64-bit unsigned integer in range [0, n).
+// It panics if n <= 0.
+func (p *pcg64) Uint64n(n uint64) uint64 {
+	if n <= 0 {
+		panic("invalid argument to Uint64n")
+	}
+	x := p.Uint64()
+	hi, _ := bits.Mul64(x, n)
+	return hi
 }
