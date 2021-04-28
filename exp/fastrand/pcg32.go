@@ -58,7 +58,33 @@ func (p *pcg32) Uint32n(n uint32) uint32 {
 	if n <= 0 {
 		panic("invalid argument to Uint32n")
 	}
+
 	// This is similar to Uint32() % n, but faster.
-	// See https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
+	// See https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/,
+	// and https://lemire.me/blog/2016/06/30/fast-random-shuffling/.
+	u32 := uint64(p.Uint32())
+	mul := u32 * uint64(n)
+	leftover := uint32(mul)
+	if leftover < n {
+		threshold := -n % n
+		for leftover < threshold {
+			u32 = uint64(p.Uint32())
+			mul = u32 * uint64(n)
+			leftover = uint32(mul)
+		}
+	}
+	return uint32(mul >> 32)
+}
+
+// Uint32nRough returns a pseudo-random 32-bit unsigned integer in range [0, n),
+// it's faster than Uint32n while introducing a slight bias.
+// It panics if n <= 0.
+func (p *pcg32) Uint32nRough(n uint32) uint32 {
+	if n <= 0 {
+		panic("invalid argument to Uint32nRough")
+	}
+
+	// This is similar to Uint32() % n, but faster.
+	// See https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/.
 	return uint32(uint64(p.Uint32()) * uint64(n) >> 32)
 }

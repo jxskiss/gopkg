@@ -79,12 +79,36 @@ func (p *pcg64) multiply() {
 	p.high = hi
 }
 
-// Uint64n returns a pseudo-random 64-bit unsigned integer in range [0, n).
-// It panics if n <= 0.
 func (p *pcg64) Uint64n(n uint64) uint64 {
 	if n <= 0 {
 		panic("invalid argument to Uint64n")
 	}
+
+	// This is similar to Uint64() % n, but faster.
+	// See https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/,
+	// and https://lemire.me/blog/2016/06/30/fast-random-shuffling/.
+	u64 := p.Uint64()
+	hi, lo := bits.Mul64(u64, n)
+	if lo < n {
+		threshold := -n % n
+		for lo < threshold {
+			u64 = p.Uint64()
+			hi, lo = bits.Mul64(u64, n)
+		}
+	}
+	return hi
+}
+
+// Uint64nRough returns a pseudo-random 64-bit unsigned integer in range [0, n),
+// it's faster than Uint64n while introducing a slight bias.
+// It panics if n <= 0.
+func (p *pcg64) Uint64nRough(n uint64) uint64 {
+	if n <= 0 {
+		panic("invalid argument to Uint64n")
+	}
+
+	// This is similar to Uint64() % n, but faster.
+	// See https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/,
 	x := p.Uint64()
 	hi, _ := bits.Mul64(x, n)
 	return hi

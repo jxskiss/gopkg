@@ -29,11 +29,11 @@ func NewCOWMap(fillFactor float64) *COWMap {
 	return &COWMap{m: unsafe.Pointer(m)}
 }
 
-// SetMap stores the given map as the underlying map.
+// UseMap stores the given map as the underlying map.
 // Since each write operation will copy the map, write operations are
 // considerably expensive, if there are many write operations, you may
-// prepare a Map in batch mode, then use this method to set it to a COWMap.
-func (m *COWMap) SetMap(map_ *Map) {
+// prepare a Map in batch mode and tells COWMap to use it.
+func (m *COWMap) UseMap(map_ *Map) {
 	atomic.StorePointer(&m.m, unsafe.Pointer(map_))
 }
 

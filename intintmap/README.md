@@ -10,6 +10,7 @@ It is 2-8X faster than the builtin map, benchmark:
 
 ```text
 cpu: Intel(R) Core(TM) i7-8750H CPU @ 2.20GHz
+
 BenchmarkIntIntMapFill-12                                     12          95630852 ns/op
 BenchmarkStdMapFill-12                                         5         248595736 ns/op
 BenchmarkIntIntMapGet10PercentHitRate-12                   11953             96504 ns/op
