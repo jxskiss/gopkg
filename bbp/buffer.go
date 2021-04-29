@@ -60,7 +60,7 @@ func (b *Buffer) ReadFrom(r io.Reader) (int64, error) {
 	n := nStart
 	if nMax == 0 {
 		nMax = MinRead
-		bb = get(nMax)
+		bb = get(nMax, nMax)
 	} else {
 		bb = bb[:nMax]
 	}

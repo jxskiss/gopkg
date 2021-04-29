@@ -18,11 +18,20 @@ package bbp
 // The returned byte buffer can be put back to the pool by calling Put(buf),
 // which may be reused later. This reduces memory allocations and GC pressure.
 func Get(length int, capacity ...int) *Buffer {
-	if len(capacity) > 1 {
+	cap_ := length
+	if len(capacity) == 1 {
+		cap_ = capacity[0]
+	} else if len(capacity) > 1 {
 		panic("too many arguments to bbp.Get")
 	}
+	if cap_ > MaxBufSize {
+		return &Buffer{
+			B:       make([]byte, length, cap_),
+			noReuse: true,
+		}
+	}
 	buf := getBuffer()
-	buf.B = get(length, capacity...)
+	buf.B = get(length, cap_)
 	return buf
 }
 

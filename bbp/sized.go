@@ -29,15 +29,9 @@ func init() {
 	}
 }
 
-func get(length int, capacity ...int) []byte {
-	cap_ := length
-	if len(capacity) > 0 && capacity[0] > length {
-		cap_ = capacity[0]
-	}
-	if cap_ > MaxBufSize {
-		return make([]byte, length, cap_)
-	}
-	idx := indexGet(cap_)
+// callers must guarantee that capacity is not greater than MaxBufSize.
+func get(length, capacity int) []byte {
+	idx := indexGet(capacity)
 	out := sizedPools[idx].Get().([]byte)
 	return out[:length]
 }
@@ -65,8 +59,7 @@ func grow(buf []byte, capacity int) []byte {
 	if capacity > MaxBufSize {
 		newBuf = make([]byte, len_, capacity)
 	} else {
-		idx := indexGet(capacity)
-		newBuf = sizedPools[idx].Get().([]byte)[:len_]
+		newBuf = get(len_, capacity)
 	}
 	copy(newBuf, buf)
 	put(buf)
