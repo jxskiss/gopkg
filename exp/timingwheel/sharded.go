@@ -23,7 +23,7 @@ var (
 	     lv2: 2560 ms - 163.84 s
 	     range: 10 ms - 2560 ms
 	*/
-	milli10Wheel *shardWheel
+	milli10Wheel *shardedWheel
 
 	/*
 		- tick: 2560 milliseconds
@@ -33,7 +33,7 @@ var (
 		  lv2: 10.9227 m - 11.6508 h
 		  range: 2.56 s - (max uint64)
 	*/
-	secondWheel *shardWheel
+	secondWheel *shardedWheel
 )
 
 var (
@@ -87,7 +87,7 @@ func run() {
 	}
 }
 
-type shardWheel struct {
+type shardedWheel struct {
 	tick   time.Duration
 	shards []*wheel
 
@@ -95,8 +95,8 @@ type shardWheel struct {
 	tasks   []*tickTasks
 }
 
-func newShardWheel(tick time.Duration) *shardWheel {
-	sw := &shardWheel{
+func newShardWheel(tick time.Duration) *shardedWheel {
+	sw := &shardedWheel{
 		tick:   tick,
 		shards: make([]*wheel, shardSize),
 	}
@@ -107,7 +107,7 @@ func newShardWheel(tick time.Duration) *shardWheel {
 	return sw
 }
 
-func onTick(sw *shardWheel, now time.Time) {
+func onTick(sw *shardedWheel, now time.Time) {
 	defer atomic.StoreUint64(&sw.working, 0)
 
 	tasks := sw.tasks[:0]
