@@ -1,4 +1,4 @@
-package intintmap
+package intmap
 
 import (
 	"math"

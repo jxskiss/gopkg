@@ -1,4 +1,4 @@
-package intintmap
+package intmap
 
 // go build -gcflags=-m=2 ./
 // go build -gcflags="-d=ssa/check_bce/debug=1" ./
