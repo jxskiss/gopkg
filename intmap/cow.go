@@ -8,14 +8,15 @@ import (
 
 // COWMap provides a lockless copy-on-write map to optimize read-heavy
 // workload, while write requests can be very little.
-// When Set, Delete are called, the underlying map will be copied.
+// COWMap is safe to use concurrently, when Set, Delete are called, the
+// underlying map will be copied.
 //
 // COWMap also embeds a sync.Mutex, which can be used optionally to lock
 // the map to prevent unnecessary concurrent copying. When lock is
 // held, you may check the map again to see whether the target element has
 // already been set or changed.
 //
-// COWMap should be created by calling NewCOWMap, usage of uninitialized
+// COWMap should be created by calling NewCOWMap, using uninitialized
 // zero COWMap will case panic.
 type COWMap struct {
 	sync.Mutex

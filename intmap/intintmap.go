@@ -1,9 +1,5 @@
 package intmap
 
-// go build -gcflags=-m=2 ./
-// go build -gcflags="-d=ssa/check_bce/debug=1" ./
-// go tool compile -S ./intintmap.go > ./_intintmap.s
-
 import (
 	"math"
 	"unsafe"
@@ -44,10 +40,16 @@ func arraySize(exp int, fill float64) int {
 	return s
 }
 
+func calcThreshold(capacity int, fillFactor float64) int {
+	return int(math.Floor(float64(capacity) * fillFactor))
+}
+
 // Map is a hash map data structure optimized for int64 key values.
+// Map should be created by calling New, using uninitialized zero Map
+// will cause panic.
 //
-// Map should be created by calling New, usage of uninitialized
-// zero Map will cause panic.
+// Map is not safe to use concurrently, for a concurrently safe map,
+// you may check the COWMap and TypeMap.
 type Map struct {
 	data    []Entry
 	dataptr unsafe.Pointer // &data[0], helps to eliminate slice bounds checking
@@ -77,12 +79,13 @@ func New(size int, fillFactor float64) *Map {
 	}
 
 	capacity := arraySize(size, fillFactor)
+	threshold := calcThreshold(capacity, fillFactor)
 	data := make([]Entry, capacity)
 	return &Map{
 		data:       data,
 		dataptr:    unsafe.Pointer(&data[0]),
 		fillFactor: fillFactor,
-		threshold:  int(math.Floor(float64(capacity) * fillFactor)),
+		threshold:  threshold,
 		mask:       uint64(capacity - 1),
 	}
 }
@@ -161,9 +164,9 @@ func (m *Map) Has(key int64) bool {
 func (m *Map) Set(key, val int64) {
 	if key == FREE_KEY {
 		if !m.hasFreeKey {
+			m.hasFreeKey = true
 			m.size++
 		}
-		m.hasFreeKey = true
 		m.freeVal = val
 		return
 	}
@@ -192,7 +195,7 @@ func (m *Map) Set(key, val int64) {
 
 func (m *Map) rehash() {
 	newCapacity := len(m.data) * 2
-	m.threshold = int(math.Floor(float64(newCapacity/2) * m.fillFactor))
+	m.threshold = calcThreshold(newCapacity, m.fillFactor)
 	m.mask = uint64(newCapacity - 1)
 
 	data := m.data

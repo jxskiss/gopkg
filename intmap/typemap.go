@@ -13,6 +13,8 @@ const (
 
 // TypeMap provides a lockless copy-on-write map mainly to use for type
 // information cache, such as runtime generated encoders and decoders.
+// TypeMap is safe to use concurrently, when SetByUintptr, SetByType are
+// called, the underlying map will be copied.
 //
 // The fill factor used for TypeMap is 0.6. A TypeMap will grow as needed.
 type TypeMap struct {
@@ -21,8 +23,8 @@ type TypeMap struct {
 
 // NewTypeMap returns a new TypeMap with 8 as initial capacity.
 func NewTypeMap() *TypeMap {
-	capacity := 8
-	imap := newInterfaceMap(capacity, typemapFillFactor)
+	size := 8
+	imap := newInterfaceMap(size, typemapFillFactor)
 	return &TypeMap{m: unsafe.Pointer(imap)}
 }
 

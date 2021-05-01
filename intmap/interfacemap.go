@@ -1,16 +1,14 @@
 package intmap
 
-import (
-	"math"
-	"unsafe"
-)
-
-// TODO: doc concurrent safety.
+import "unsafe"
 
 // InterfaceMap is a hash map data structure optimized for int64 keys and
 // interface values.
 // InterfaceMap should be created by calling NewInterfaceMap, usage of
 // uninitialized zero InterfaceMap will cause panic.
+//
+// InterfaceMap is not safe to use concurrently, for a concurrently safe
+// map, you may check the COWMap and TypeMap.
 type InterfaceMap struct {
 	m *interfaceMap
 
@@ -34,8 +32,7 @@ func NewInterfaceMap(size int, fillFactor float64) *InterfaceMap {
 		panic("size must be positive")
 	}
 
-	capacity := arraySize(size, fillFactor)
-	imap := newInterfaceMap(capacity, fillFactor)
+	imap := newInterfaceMap(size, fillFactor)
 	return &InterfaceMap{m: imap}
 }
 
@@ -73,6 +70,7 @@ func (m *InterfaceMap) Has(key int64) bool {
 // Set adds or updates key with value to the map.
 func (m *InterfaceMap) Set(key int64, val interface{}) {
 	if key == FREE_KEY {
+		m.hasFreeKey = true
 		m.freeVal = val
 		return
 	}
@@ -114,11 +112,9 @@ func (m *InterfaceMap) Items() []InterfaceEntry {
 
 // ------------------------- interfaceMap ------------------------- //
 
-func newInterfaceMap(capacity int, fillFactor float64) *interfaceMap {
-	if capacity&(capacity-1) != 0 {
-		panic("interfaceMap capacity must be power of two")
-	}
-	threshold := int(math.Floor(float64(capacity) * fillFactor))
+func newInterfaceMap(size int, fillFactor float64) *interfaceMap {
+	capacity := arraySize(size, fillFactor)
+	threshold := calcThreshold(capacity, fillFactor)
 	mask := capacity - 1
 	data := make([]InterfaceEntry, capacity)
 	return &interfaceMap{
@@ -238,12 +234,13 @@ func (m *interfaceMap) SetRehash(key int64, val interface{}) {
 
 func (m *interfaceMap) rehash() {
 	newCapacity := len(m.data) * 2
-	m.threshold = int(math.Floor(float64(newCapacity/2) * m.fillFactor))
+	m.threshold = calcThreshold(newCapacity, m.fillFactor)
 	m.mask = uint64(newCapacity - 1)
 
 	data := m.data
 	m.data = make([]InterfaceEntry, newCapacity)
 	m.dataptr = unsafe.Pointer(&m.data[0])
+	m.size = 0
 
 	var i int64
 COPY:
