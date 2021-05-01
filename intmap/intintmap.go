@@ -35,6 +35,15 @@ func nextPowerOfTwo(x int) int {
 	return x + 1
 }
 
+func arraySize(exp int, fill float64) int {
+	s := int(math.Ceil(float64(exp) / fill))
+	s = nextPowerOfTwo(s)
+	if s < 2 {
+		s = 2
+	}
+	return s
+}
+
 // Map is a hash map data structure optimized for int64 key values.
 //
 // Map should be created by calling New, usage of uninitialized
@@ -67,14 +76,6 @@ func New(size int, fillFactor float64) *Map {
 		panic("size must be positive")
 	}
 
-	arraySize := func(exp int, fill float64) int {
-		s := int(math.Ceil(float64(exp) / fill))
-		s = nextPowerOfTwo(s)
-		if s < 2 {
-			s = 2
-		}
-		return s
-	}
 	capacity := arraySize(size, fillFactor)
 	data := make([]Entry, capacity)
 	return &Map{
@@ -189,6 +190,44 @@ func (m *Map) Set(key, val int64) {
 	}
 }
 
+func (m *Map) rehash() {
+	newCapacity := len(m.data) * 2
+	m.threshold = int(math.Floor(float64(newCapacity/2) * m.fillFactor))
+	m.mask = uint64(newCapacity - 1)
+
+	data := m.data
+	m.data = make([]Entry, newCapacity)
+	m.dataptr = unsafe.Pointer(&m.data[0])
+	if m.hasFreeKey {
+		m.size = 1
+	} else {
+		m.size = 0
+	}
+
+	var i int64
+COPY:
+	for i = 0; i < int64(len(data)); i++ {
+		e := data[i]
+		if e.K == FREE_KEY {
+			continue
+		}
+
+		// Manually inline the Set function to avoid unnecessary calculation.
+		ptr := phiMix(e.K)
+		for {
+			ptr &= m.mask
+			k := *m.getK(ptr)
+			if k == FREE_KEY {
+				*m.getK(ptr) = e.K
+				*m.getV(ptr) = e.V
+				m.size++
+				continue COPY
+			}
+			ptr += 1
+		}
+	}
+}
+
 // Delete deletes a key and it's value from the map.
 func (m *Map) Delete(key int64) {
 	if key == FREE_KEY {
@@ -244,45 +283,6 @@ func (m *Map) shiftKeys(pos uint64) uint64 {
 		}
 		*(m.getK(last)) = *m.getK(pos)
 		*(m.getV(last)) = *m.getV(pos)
-	}
-}
-
-func (m *Map) rehash() {
-	newCapacity := len(m.data) * 2
-	m.threshold = int(math.Floor(float64(newCapacity/2) * m.fillFactor))
-	m.mask = uint64(newCapacity - 1)
-
-	data := m.data
-	m.data = make([]Entry, newCapacity)
-	m.dataptr = unsafe.Pointer(&m.data[0])
-	if m.hasFreeKey {
-		m.size = 1
-	} else {
-		m.size = 0
-	}
-
-	var i int64
-COPY:
-	for i = 0; i < int64(len(data)); i++ {
-		e := data[i]
-		if e.K == FREE_KEY {
-			continue
-		}
-
-		// Manually inline the Set function to eliminate unnecessary
-		// key comparison.
-		ptr := phiMix(e.K)
-		for {
-			ptr &= m.mask
-			k := *m.getK(ptr)
-			if k == FREE_KEY {
-				*m.getK(ptr) = e.K
-				*m.getV(ptr) = e.V
-				m.size++
-				continue COPY
-			}
-			ptr += 1
-		}
 	}
 }
 

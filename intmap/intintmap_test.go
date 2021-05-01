@@ -104,7 +104,7 @@ func TestMapSimple(t *testing.T) {
 		m.Delete(i)
 	}
 	for i = 10000; i < 20000; i += 2 {
-		if _, ok = m.Get(i + 1); ok {
+		if _, ok = m.Get(i); ok {
 			t.Errorf("didn't get expected 'not found' flag")
 		}
 	}

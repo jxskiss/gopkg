@@ -48,7 +48,7 @@ func (m *COWMap) Size() int {
 	return (*Map)(atomic.LoadPointer(&m.m)).Size()
 }
 
-// Get returns the value if the key is found.
+// Get returns the value if the key is found in the map.
 func (m *COWMap) Get(key int64) (int64, bool) {
 	return (*Map)(atomic.LoadPointer(&m.m)).Get(key)
 }
