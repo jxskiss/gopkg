@@ -10,13 +10,14 @@ import (
 )
 
 // INT_PHI is for scrambling the keys.
-const INT_PHI = 11400714819323198485
+const INT_PHI = 0x9E3779B9
 
 // FREE_KEY is the 'free' key.
 const FREE_KEY = 0
 
 func phiMix(x int64) uint64 {
-	return uint64(x) * INT_PHI
+	h := x * INT_PHI
+	return uint64(h ^ (h >> 16))
 }
 
 func nextPowerOfTwo(x int) int {
@@ -99,13 +100,11 @@ func (m *Map) getK(ptr uint64) *int64 {
 // getV uses pointer arithmetic to eliminate slice bounds checking,
 // it will be inlined into the callers.
 func (m *Map) getV(ptr uint64) *int64 {
-	return (*int64)(unsafe.Pointer(uintptr(m.dataptr) + uintptr(ptr*16+8)))
+	return (*int64)(unsafe.Pointer(uintptr(m.dataptr) + uintptr(ptr*16) + 8))
 }
 
 // Get returns the value if the key is found.
-//
-// It may be inlined by the compiler:
-// `can inline (*Map).Get with cost 67 as: method(*Map) func(int64) (int64, bool) { if key == FREE_KEY { if m.hasFreeKey { return m.freeVal, true }; return 0, false }; ptr := uint64(key) * INT_PHI & m.mask; for loop }`.
+// It will be inlined into the callers
 func (m *Map) Get(key int64) (int64, bool) {
 	if key == FREE_KEY {
 		if m.hasFreeKey {
@@ -115,34 +114,36 @@ func (m *Map) Get(key int64) (int64, bool) {
 	}
 
 	// manually inline phiMix to help inlining
-	ptr := (uint64(key) * INT_PHI) & m.mask
+	h := uint64(key) * INT_PHI
+	ptr := h ^ (h >> 16)
 
 	for {
-		// manually inline getK to help inlining
+		ptr &= m.mask
+		// manually inline getK and getV to help inlining
 		k := *(*int64)(unsafe.Pointer(uintptr(m.dataptr) + uintptr(ptr*16)))
+		if k == key {
+			return *(*int64)(unsafe.Pointer(uintptr(m.dataptr) + uintptr(ptr*16) + 8)), true
+		}
 		if k == FREE_KEY {
 			return 0, false
 		}
-		if k == key {
-			return m.data[ptr].V, true
-		}
-		ptr = (ptr + 1) & m.mask
+		ptr += 1
 	}
 }
 
-// Has tells whether a key is found in the Map.
-//
-// It may be inlined by the compiler:
-// `can inline (*Map).Has with cost 54 as: method(*Map) func(int64) bool { if key == FREE_KEY { return m.hasFreeKey }; ptr := uint64(key) * INT_PHI & m.mask; for loop }`.
+// Has tells whether a key is found in the map.
+// It will be inlined into the callers.
 func (m *Map) Has(key int64) bool {
 	if key == FREE_KEY {
 		return m.hasFreeKey
 	}
 
 	// manually inline phiMix to help inlining
-	ptr := (uint64(key) * INT_PHI) & m.mask
+	h := uint64(key) * INT_PHI
+	ptr := h ^ (h >> 16)
 
 	for {
+		ptr &= m.mask
 		// manually inline getK to help inlining
 		k := *(*int64)(unsafe.Pointer(uintptr(m.dataptr) + uintptr(ptr*16)))
 		if k == FREE_KEY {
@@ -151,11 +152,11 @@ func (m *Map) Has(key int64) bool {
 		if k == key {
 			return true
 		}
-		ptr = (ptr + 1) & m.mask
+		ptr += 1
 	}
 }
 
-// Set adds or updates key with value to the Map.
+// Set adds or updates key with value to the map.
 func (m *Map) Set(key, val int64) {
 	if key == FREE_KEY {
 		if !m.hasFreeKey {
@@ -166,8 +167,9 @@ func (m *Map) Set(key, val int64) {
 		return
 	}
 
-	ptr := phiMix(key) & m.mask
+	ptr := phiMix(key)
 	for {
+		ptr &= m.mask
 		k := *m.getK(ptr)
 		if k == FREE_KEY {
 			*m.getK(ptr) = key
@@ -183,11 +185,11 @@ func (m *Map) Set(key, val int64) {
 			*m.getV(ptr) = val
 			return
 		}
-		ptr = (ptr + 1) & m.mask
+		ptr += 1
 	}
 }
 
-// Delete deletes a key and it's value from the Map.
+// Delete deletes a key and it's value from the map.
 func (m *Map) Delete(key int64) {
 	if key == FREE_KEY {
 		if m.hasFreeKey {
@@ -197,8 +199,9 @@ func (m *Map) Delete(key int64) {
 		return
 	}
 
-	ptr := phiMix(key) & m.mask
+	ptr := phiMix(key)
 	for {
+		ptr &= m.mask
 		k := *m.getK(ptr)
 		if k == key {
 			m.shiftKeys(ptr)
@@ -208,6 +211,7 @@ func (m *Map) Delete(key int64) {
 		if k == FREE_KEY {
 			return
 		}
+		ptr += 1
 	}
 }
 
@@ -217,8 +221,9 @@ func (m *Map) shiftKeys(pos uint64) uint64 {
 	var k int64
 	for {
 		last = pos
-		pos = (last + 1) & m.mask
+		pos = last + 1
 		for {
+			pos &= m.mask
 			k = *m.getK(pos)
 			if k == FREE_KEY {
 				*m.getK(last) = FREE_KEY
@@ -235,7 +240,7 @@ func (m *Map) shiftKeys(pos uint64) uint64 {
 					break
 				}
 			}
-			pos = (pos + 1) & m.mask
+			pos += 1
 		}
 		*(m.getK(last)) = *m.getK(pos)
 		*(m.getV(last)) = *m.getV(pos)
@@ -266,8 +271,9 @@ COPY:
 
 		// Manually inline the Set function to eliminate unnecessary
 		// key comparison.
-		ptr := phiMix(e.K) & m.mask
+		ptr := phiMix(e.K)
 		for {
+			ptr &= m.mask
 			k := *m.getK(ptr)
 			if k == FREE_KEY {
 				*m.getK(ptr) = e.K
@@ -275,12 +281,12 @@ COPY:
 				m.size++
 				continue COPY
 			}
-			ptr = (ptr + 1) & m.mask
+			ptr += 1
 		}
 	}
 }
 
-// Keys returns a slice of all keys stored in the Map.
+// Keys returns a slice of all keys stored in the map.
 func (m *Map) Keys() []int64 {
 	keys := make([]int64, 0, m.size)
 	if m.hasFreeKey {
@@ -296,7 +302,7 @@ func (m *Map) Keys() []int64 {
 	return keys
 }
 
-// Items returns a slice of all items stored in the Map.
+// Items returns a slice of all items stored in the map.
 func (m *Map) Items() []Entry {
 	items := make([]Entry, 0, m.size)
 	if m.hasFreeKey {
@@ -312,7 +318,7 @@ func (m *Map) Items() []Entry {
 	return items
 }
 
-// Clone returns a deep copy of the the Map.
+// Clone returns a deep copy of the the map.
 func (m *Map) Clone() *Map {
 	data := make([]Entry, m.size)
 	copy(data, m.data)

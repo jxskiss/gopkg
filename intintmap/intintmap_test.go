@@ -80,10 +80,10 @@ func TestMapSimple(t *testing.T) {
 	// --------------------------------------------------------------------
 	// Del()
 
-	for i = 0; i < 20000; i += 2 {
+	for i = 0; i < 10000; i += 2 {
 		m.Delete(i)
 	}
-	for i = 0; i < 20000; i += 2 {
+	for i = 0; i < 10000; i += 2 {
 		if _, ok = m.Get(i); ok {
 			t.Errorf("didn't get expected 'not found' flag")
 		}
@@ -91,9 +91,22 @@ func TestMapSimple(t *testing.T) {
 			t.Errorf("didn't get expected 'not found' flag")
 		}
 	}
+	for i = 10000; i < 20000; i += 2 {
+		if v, ok = m.Get(i); !ok || v != i {
+			t.Errorf("didn't get expected value")
+		}
+		if _, ok = m.Get(i + 1); ok {
+			t.Errorf("didn't get expected 'not found' flag")
+		}
+	}
 
-	if m.Size() != 0 {
-		t.Errorf("size (%d) is not right, should be %d", m.Size(), 0)
+	for i = 10000; i < 20000; i += 2 {
+		m.Delete(i)
+	}
+	for i = 10000; i < 20000; i += 2 {
+		if _, ok = m.Get(i + 1); ok {
+			t.Errorf("didn't get expected 'not found' flag")
+		}
 	}
 
 	// --------------------------------------------------------------------

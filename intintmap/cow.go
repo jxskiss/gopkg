@@ -6,12 +6,12 @@ import (
 	"unsafe"
 )
 
-// COWMap provides a lockless copy-on-write Map to optimize read-heavy
+// COWMap provides a lockless copy-on-write map to optimize read-heavy
 // workload, while write requests can be very little.
-// When Set, Delete are called, the underlying Map will be copied.
+// When Set, Delete are called, the underlying map will be copied.
 //
 // COWMap also embeds a sync.Mutex, which can be used optionally to lock
-// the map to prevent unnecessary concurrent calculation. When lock is
+// the map to prevent unnecessary concurrent copying. When lock is
 // held, you may check the map again to see whether the target element has
 // already been set or changed.
 //
@@ -23,7 +23,7 @@ type COWMap struct {
 }
 
 // NewCOWMap creates a new COWMap using the stated fill factor.
-// The underlying Map will grow as needed.
+// The underlying map will grow as needed.
 func NewCOWMap(fillFactor float64) *COWMap {
 	m := New(8, fillFactor)
 	return &COWMap{m: unsafe.Pointer(m)}
@@ -37,31 +37,33 @@ func (m *COWMap) UseMap(map_ *Map) {
 	atomic.StorePointer(&m.m, unsafe.Pointer(map_))
 }
 
-func (m *COWMap) getMap() *Map {
+// Underlying returns the current underlying Map of the COWMap.
+// The returned Map is not safe for concurrent read and write.
+func (m *COWMap) Underlying() *Map {
 	return (*Map)(atomic.LoadPointer(&m.m))
 }
 
 // Size returns size of the map.
 func (m *COWMap) Size() int {
-	return m.getMap().size
+	return (*Map)(atomic.LoadPointer(&m.m)).Size()
 }
 
 // Get returns the value if the key is found.
 func (m *COWMap) Get(key int64) (int64, bool) {
-	return m.getMap().Get(key)
+	return (*Map)(atomic.LoadPointer(&m.m)).Get(key)
 }
 
-// Has tells whether a key is found in the COWMap.
+// Has tells whether a key is found in the map.
 func (m *COWMap) Has(key int64) bool {
-	return m.getMap().Has(key)
+	return (*Map)(atomic.LoadPointer(&m.m)).Has(key)
 }
 
-// Set adds or updates key with value to the COWMap, if the key value
-// is not present in the underlying Map, it will copy the Map and
-// set the key value to the copy, then swap to the new Map using atomic
+// Set adds or updates key with value to the map, if the key value
+// is not present in the underlying map, it will copy the map and
+// add the key value to the copy, then swap to the new map using atomic
 // operation.
 func (m *COWMap) Set(key, val int64) {
-	mm := m.getMap()
+	mm := (*Map)(atomic.LoadPointer(&m.m))
 	if v, ok := mm.Get(key); ok && v == val {
 		return
 	}
@@ -70,12 +72,11 @@ func (m *COWMap) Set(key, val int64) {
 	atomic.StorePointer(&m.m, unsafe.Pointer(newMap))
 }
 
-// Delete deletes a key and it's value from the COWMap, if the key
-// presents in the underlying Map, it will copy the Map and
-// delete the key value from the copy, then swap the new Map using
-// atomic operation.
+// Delete deletes a key and it's value from the map, if the key presents
+// in the underlying map, it will copy the map and delete the key value
+// from the copy, then swap the new map using atomic operation.
 func (m *COWMap) Delete(key int64) {
-	mm := m.getMap()
+	mm := (*Map)(atomic.LoadPointer(&m.m))
 	if mm.Has(key) {
 		newMap := mm.Clone()
 		newMap.Delete(key)
@@ -83,12 +84,12 @@ func (m *COWMap) Delete(key int64) {
 	}
 }
 
-// Keys returns the keys presented in the COWMap.
+// Keys returns the keys presented in the map.
 func (m *COWMap) Keys() []int64 {
-	return m.getMap().Keys()
+	return (*Map)(atomic.LoadPointer(&m.m)).Keys()
 }
 
-// Items returns all items stored in the COWMap.
+// Items returns all items stored in the map.
 func (m *COWMap) Items() []Entry {
-	return m.getMap().Items()
+	return (*Map)(atomic.LoadPointer(&m.m)).Items()
 }

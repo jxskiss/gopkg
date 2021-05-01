@@ -107,18 +107,3 @@ func fillMap(setfunc func(k, v uintptr)) []uintptr {
 	}
 	return ptrs
 }
-
-// --------------------------------------------------------------------
-
-type TestType1 struct{ A int }
-type TestType2 struct{ B int32 }
-type TestType3 struct{ C int64 }
-type TestType4 struct{ D int8 }
-type TestType5 struct{ E int }
-type TestType6 struct{ F int }
-type TestType7 struct{ G string }
-type TestType8 struct{ H []byte }
-type TestType9 struct{ I string }
-type TestType10 struct{ J uint }
-type TestType11 struct{ K uint }
-type TestType12 struct{ L uint }
