@@ -8,10 +8,7 @@ import (
 	"unsafe"
 )
 
-const (
-	maxCapacity = 1<<32 - 1
-	walBufSize  = 512
-)
+const maxCapacity = 1<<32 - 1
 
 // NewCache returns a lru cache instance with given capacity, the underlying
 // memory will be immediately allocated. For best performance, the memory
@@ -26,8 +23,7 @@ func NewCache(capacity int) *Cache {
 	c := &Cache{
 		list: list,
 		m:    make(map[interface{}]uint32, capacity),
-		buf:  unsafe.Pointer(&walbuf{}),
-		_buf: unsafe.Pointer(&walbuf{}),
+		buf:  unsafe.Pointer(newWalBuf()),
 	}
 	return c
 }
@@ -37,10 +33,7 @@ type Cache struct {
 	list *list
 	m    map[interface{}]uint32
 
-	buf  unsafe.Pointer // *walbuf
-	_buf unsafe.Pointer // *walbuf
-
-	flush int32
+	buf unsafe.Pointer // *walbuf
 }
 
 // Len returns the number of cached values.
@@ -303,33 +296,35 @@ func (c *Cache) promote(idx uint32) {
 
 	// buffer is full, swap buffer
 	oldbuf := buf
-	newbuf := (*walbuf)(atomic.SwapPointer(&c._buf, nil))
-	if newbuf != nil {
-		atomic.StorePointer(&c.buf, unsafe.Pointer(newbuf))
-	} else {
-		newbuf = (*walbuf)(atomic.LoadPointer(&c.buf))
-		if newbuf == oldbuf {
-			newbuf = nil
+
+	// create new buffer, and reserve the first element to use for
+	// this promotion request
+	newbuf := newWalBuf()
+	newbuf.p = 1
+	for {
+		swapped := atomic.CompareAndSwapPointer(&c.buf, unsafe.Pointer(oldbuf), unsafe.Pointer(newbuf))
+		if swapped {
+			newbuf.b[0] = idx
+			break
 		}
-	}
-	// in case of too high concurrency, discard current promotion
-	if newbuf != nil {
-		i = atomic.AddInt32(&newbuf.p, 1)
+
+		// try again
+		oldbuf = (*walbuf)(atomic.LoadPointer(&c.buf))
+		i = atomic.AddInt32(&oldbuf.p, 1)
 		if i <= walBufSize {
-			newbuf.b[i-1] = idx
+			oldbuf.b[i-1] = idx
+			walbufpool.Put(newbuf)
+			return
 		}
 	}
 
-	// flush the full buffer
-	if atomic.CompareAndSwapInt32(&c.flush, 0, 1) {
-		go func(c *Cache, buf *walbuf) {
-			c.mu.Lock()
-			c.flushBuf(buf)
-			c._buf = unsafe.Pointer(buf)
-			c.flush = 0
-			c.mu.Unlock()
-		}(c, oldbuf)
-	}
+	// the oldbuf has been swapped, we take responsibility to flush it
+	go func(c *Cache, buf *walbuf) {
+		c.mu.Lock()
+		c.flushBuf(buf)
+		c.mu.Unlock()
+		walbufpool.Put(buf)
+	}(c, oldbuf)
 }
 
 // Set adds an item to the cache overwriting existing one if it exists.
@@ -480,52 +475,4 @@ func (c *Cache) flushBuf(buf *walbuf) {
 	}
 
 	buf.p = 0
-}
-
-// walbuf helps to reduce lock-contention of read requests from the cache.
-type walbuf struct {
-	b [walBufSize]uint32
-	p int32
-}
-
-func (wbuf *walbuf) deduplicate() []uint32 {
-	// we have already checked wbuf.p > 0
-	ln := wbuf.p
-	if ln > walBufSize {
-		ln = walBufSize
-	}
-
-	const fastThreshold = 10
-	if ln > fastThreshold {
-		return wbuf.deduplicateSlowPath(ln)
-	}
-
-	// Fast path? (not benchmarked)
-	b, p := wbuf.b[:], ln-2
-LOOP:
-	for i := ln - 2; i >= 0; i-- {
-		idx := b[i]
-		for j := ln - 1; j > p; j-- {
-			if b[j] == idx {
-				continue LOOP
-			}
-		}
-		b[p] = idx
-		p--
-	}
-	return b[p+1 : ln]
-}
-
-func (wbuf *walbuf) deduplicateSlowPath(ln int32) []uint32 {
-	m := make(map[uint32]struct{}, ln/2)
-	b, p := wbuf.b[:], ln-1
-	for i := ln - 1; i >= 0; i-- {
-		idx := b[i]
-		if _, ok := m[idx]; !ok {
-			m[idx] = struct{}{}
-			b[p] = idx
-			p--
-		}
-	}
-	return b[p+1 : ln]
 }

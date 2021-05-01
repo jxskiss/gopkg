@@ -5,7 +5,7 @@ import (
 )
 
 var _ Interface = (*Cache)(nil)
-var _ Interface = (*MultiCache)(nil)
+var _ Interface = (*ShardedCache)(nil)
 
 type Interface interface {
 	Len() int

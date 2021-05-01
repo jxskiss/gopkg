@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-func createFilledMultiCache(ttl time.Duration) *MultiCache {
-	c := NewMultiCache(8, 500)
+func createFilledShardedCache(ttl time.Duration) *ShardedCache {
+	c := NewShardedCache(8, 500)
 	for i := 0; i < 1000; i++ {
 		key := int64(rand.Intn(5000))
 		c.Set(key, key, ttl)
@@ -16,9 +16,9 @@ func createFilledMultiCache(ttl time.Duration) *MultiCache {
 	return c
 }
 
-func TestMultiBasicEviction(t *testing.T) {
+func TestShardedBasicEviction(t *testing.T) {
 	t.Parallel()
-	c := NewMultiCache(4, 3)
+	c := NewShardedCache(4, 3)
 	if _, ok, _ := c.Get("a"); ok {
 		t.Error("")
 	}
@@ -54,9 +54,9 @@ func TestMultiBasicEviction(t *testing.T) {
 	}
 }
 
-func TestMultiConcurrentGet(t *testing.T) {
+func TestShardedConcurrentGet(t *testing.T) {
 	t.Parallel()
-	c := createFilledMultiCache(time.Second)
+	c := createFilledShardedCache(time.Second)
 	s := createRandInts(50000)
 
 	done := make(chan bool)
@@ -79,9 +79,9 @@ func TestMultiConcurrentGet(t *testing.T) {
 	}
 }
 
-func TestMultiConcurrentSet(t *testing.T) {
+func TestShardedConcurrentSet(t *testing.T) {
 	t.Parallel()
-	c := createFilledMultiCache(time.Second)
+	c := createFilledShardedCache(time.Second)
 	s := createRandInts(5000)
 
 	done := make(chan bool)
@@ -102,9 +102,9 @@ func TestMultiConcurrentSet(t *testing.T) {
 	}
 }
 
-func TestMultiConcurrentGetSet(t *testing.T) {
+func TestShardedConcurrentGetSet(t *testing.T) {
 	t.Parallel()
-	c := createFilledMultiCache(time.Second)
+	c := createFilledShardedCache(time.Second)
 	s := createRandInts(5000)
 
 	done := make(chan bool)
@@ -136,8 +136,8 @@ func TestMultiConcurrentGetSet(t *testing.T) {
 	}
 }
 
-func BenchmarkMultiConcurrentGetLRUCache(bb *testing.B) {
-	c := createFilledMultiCache(time.Second)
+func BenchmarkShardedConcurrentGetLRUCache(bb *testing.B) {
+	c := createFilledShardedCache(time.Second)
 	s := createRandInts(5000)
 
 	bb.ReportAllocs()
@@ -158,8 +158,8 @@ func BenchmarkMultiConcurrentGetLRUCache(bb *testing.B) {
 	}
 }
 
-func BenchmarkMultiConcurrentSetLRUCache(bb *testing.B) {
-	c := createFilledMultiCache(time.Second)
+func BenchmarkShardedConcurrentSetLRUCache(bb *testing.B) {
+	c := createFilledShardedCache(time.Second)
 	s := createRandInts(5000)
 
 	bb.ReportAllocs()
@@ -183,8 +183,8 @@ func BenchmarkMultiConcurrentSetLRUCache(bb *testing.B) {
 }
 
 // No expiry
-func BenchmarkMultiConcurrentSetNXLRUCache(bb *testing.B) {
-	c := createFilledMultiCache(time.Second)
+func BenchmarkShardedConcurrentSetNXLRUCache(bb *testing.B) {
+	c := createFilledShardedCache(time.Second)
 	s := createRandInts(5000)
 
 	bb.ReportAllocs()

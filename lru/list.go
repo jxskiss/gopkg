@@ -1,5 +1,7 @@
 package lru
 
+import "unsafe"
+
 type element struct {
 	next, prev uint32
 
@@ -35,14 +37,14 @@ func (l *list) Front() *element {
 	if l.len == 0 {
 		return nil
 	}
-	return &l.elems[l.root.next]
+	return l.get(l.root.next)
 }
 
 func (l *list) Back() *element {
 	if l.len == 0 {
 		return nil
 	}
-	return &l.elems[l.root.prev]
+	return l.get(l.root.prev)
 }
 
 func (l *list) PushFront(elem *element) *element {
@@ -50,7 +52,7 @@ func (l *list) PushFront(elem *element) *element {
 }
 
 func (l *list) PushBack(elem *element) *element {
-	return l.insert(elem, &l.elems[l.root.prev])
+	return l.insert(elem, l.get(l.root.prev))
 }
 
 func (l *list) MoveToFront(elem *element) {
@@ -58,11 +60,11 @@ func (l *list) MoveToFront(elem *element) {
 }
 
 func (l *list) MoveToBack(elem *element) {
-	l.insert(l.remove(elem), &l.elems[l.root.prev])
+	l.insert(l.remove(elem), l.get(l.root.prev))
 }
 
 func (l *list) insert(elem, at *element) *element {
-	next := &l.elems[at.next]
+	next := l.get(at.next)
 	at.next = elem.index
 	elem.prev = at.index
 	elem.next = next.index
@@ -72,14 +74,17 @@ func (l *list) insert(elem, at *element) *element {
 }
 
 func (l *list) remove(elem *element) *element {
-	prev := &l.elems[elem.prev]
-	next := &l.elems[elem.next]
+	prev := l.get(elem.prev)
+	next := l.get(elem.next)
 	prev.next = elem.next
 	next.prev = elem.prev
 	l.len--
 	return elem
 }
 
+const elemsize = unsafe.Sizeof(element{})
+
+// get uses unsafe trick to eliminate slice bounds checking
 func (l *list) get(idx uint32) *element {
-	return &l.elems[idx]
+	return (*element)(unsafe.Pointer(uintptr(unsafe.Pointer(l.root)) + uintptr(idx)*elemsize))
 }
