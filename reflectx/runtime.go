@@ -1,6 +1,8 @@
 package reflectx
 
 import (
+	"github.com/jxskiss/gopkg/internal/linkname"
+	"github.com/jxskiss/gopkg/internal/unsafeheader"
 	"reflect"
 	"unsafe"
 )
@@ -19,19 +21,12 @@ const (
 // StringHeader is the runtime representation of a string.
 // Unlike reflect.StringHeader, its Data field is sufficient to guarantee the
 // data it references will not be garbage collected.
-type StringHeader struct {
-	Data unsafe.Pointer
-	Len  int
-}
+type StringHeader = unsafeheader.String
 
 // SliceHeader is the runtime representation of a slice.
 // Unlike reflect.SliceHeader, its Data field is sufficient to guarantee the
 // data it references will not be garbage collected.
-type SliceHeader struct {
-	Data unsafe.Pointer
-	Len  int
-	Cap  int
-}
+type SliceHeader = unsafeheader.Slice
 
 func b2s(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
@@ -176,8 +171,10 @@ func CastSlice(slice interface{}, typ reflect.Type) interface{} {
 func MakeSlice(elemTyp reflect.Type, length, capacity int) (
 	slice interface{}, header *SliceHeader,
 ) {
+	elemRType := ToRType(elemTyp)
+	data := linkname.Reflect_unsafe_NewArray(unsafe.Pointer(elemRType), capacity)
 	header = &SliceHeader{
-		Data: unsafe_NewArray(ToRType(elemTyp), capacity),
+		Data: data,
 		Len:  length,
 		Cap:  capacity,
 	}
@@ -190,46 +187,27 @@ func MakeSlice(elemTyp reflect.Type, length, capacity int) (
 
 // TypedMemMove exposes the typedmemmove function in reflect package.
 func TypedMemMove(rtype *RType, dst, src unsafe.Pointer) {
-	typedmemmove(rtype, dst, src)
+	linkname.Reflect_typedmemmove(unsafe.Pointer(rtype), dst, src)
 }
 
 // TypedSliceCopy exports the typedslicecopy function in reflect package.
 func TypedSliceCopy(elemRType *RType, dst, src SliceHeader) int {
-	return typedslicecopy(elemRType, dst, src)
+	return linkname.Reflect_typedslicecopy(unsafe.Pointer(elemRType), dst, src)
 }
 
 // ------------------------------------------------------------ //
 
-//go:linkname unsafe_New reflect.unsafe_New
-func unsafe_New(*RType) unsafe.Pointer
+func maplen(m unsafe.Pointer) int {
+	return linkname.Reflect_maplen(m)
+}
 
-//go:linkname unsafe_NewArray reflect.unsafe_NewArray
-func unsafe_NewArray(*RType, int) unsafe.Pointer
+func mapiterinit(rtype *RType, m unsafe.Pointer) *hiter {
+	return (*hiter)(linkname.Reflect_mapiterinit(unsafe.Pointer(rtype), m))
+}
 
-// typedmemmove copies a value of type t to dst from src.
-//go:noescape
-//go:linkname typedmemmove reflect.typedmemmove
-func typedmemmove(t *RType, dst, src unsafe.Pointer)
-
-// typedslicecopy copies a slice of elemType values from src to dst,
-// returning the number of elements copied.
-//go:noescape
-//go:linkname typedslicecopy reflect.typedslicecopy
-func typedslicecopy(elemRType *RType, dst, src SliceHeader) int
-
-//go:noescape
-//go:linkname maplen reflect.maplen
-func maplen(m unsafe.Pointer) int
-
-// m escapes into the return value, but the caller of mapiterinit
-// doesn't let the return value escape.
-//go:noescape
-//go:linkname mapiterinit reflect.mapiterinit
-func mapiterinit(rtype *RType, m unsafe.Pointer) *hiter
-
-//go:noescape
-//go:linkname mapiternext reflect.mapiternext
-func mapiternext(it *hiter)
+func mapiternext(it *hiter) {
+	linkname.Reflect_mapiternext(unsafe.Pointer(it))
+}
 
 // A hash iteration structure.
 // If you modify hiter, also change cmd/internal/gc/reflect.go to indicate

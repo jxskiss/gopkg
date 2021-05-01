@@ -1,5 +1,7 @@
 package fastrand
 
+import "github.com/jxskiss/gopkg/internal/linkname"
+
 // pcg32 is an implementation of a 32-bit permuted congruential generator.
 //
 // Developed by Melissa O'Neill <oneill@pcg-random.org>
@@ -26,7 +28,7 @@ func PCG32() *pcg32 {
 // NewPCG32 returns a pcg32 generator initialized with random state
 // and sequence.
 func NewPCG32() *pcg32 {
-	a, b, c, d := runtime_fastrand(), runtime_fastrand(), runtime_fastrand(), runtime_fastrand()
+	a, b, c, d := linkname.Runtime_fastrand(), linkname.Runtime_fastrand(), linkname.Runtime_fastrand(), linkname.Runtime_fastrand()
 	state := uint64(a)<<32 + uint64(b)
 	seq := uint64(c)<<32 + uint64(d)
 	return &pcg32{state: state, increment: seq}

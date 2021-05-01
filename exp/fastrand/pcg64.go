@@ -1,6 +1,9 @@
 package fastrand
 
-import "math/bits"
+import (
+	"github.com/jxskiss/gopkg/internal/linkname"
+	"math/bits"
+)
 
 // pcg64 is an implementation of a 64-bit permuted congruential
 // generator as defined in
@@ -45,7 +48,7 @@ func PCG64() *pcg64 {
 // NewPCG64 returns a pcg64 generator initialized with random state
 // and sequence.
 func NewPCG64() *pcg64 {
-	a, b, c, d := runtime_fastrand(), runtime_fastrand(), runtime_fastrand(), runtime_fastrand()
+	a, b, c, d := linkname.Runtime_fastrand(), linkname.Runtime_fastrand(), linkname.Runtime_fastrand(), linkname.Runtime_fastrand()
 	low := uint64(a)<<32 + uint64(b)
 	high := uint64(c)<<32 + uint64(d)
 	return &pcg64{low: low, high: high}

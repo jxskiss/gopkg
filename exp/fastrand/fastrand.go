@@ -1,6 +1,9 @@
 package fastrand
 
-import "runtime"
+import (
+	"github.com/jxskiss/gopkg/internal/linkname"
+	"runtime"
+)
 
 const cacheLineSize = 64
 
@@ -17,14 +20,14 @@ func init() {
 
 	globalPCG32 = make(pinPCG32, shardsLen)
 	for i := 0; i < len(globalPCG32); i++ {
-		a, b, c, d := runtime_fastrand(), runtime_fastrand(), runtime_fastrand(), runtime_fastrand()
+		a, b, c, d := linkname.Runtime_fastrand(), linkname.Runtime_fastrand(), linkname.Runtime_fastrand(), linkname.Runtime_fastrand()
 		state := uint64(a)<<32 + uint64(b)
 		seq := uint64(c)<<32 + uint64(d)
 		globalPCG32[i].Seed(state, seq)
 	}
 	globalPCG64 = make(pinPCG64, shardsLen)
 	for i := 0; i < len(globalPCG64); i++ {
-		a, b, c, d := runtime_fastrand(), runtime_fastrand(), runtime_fastrand(), runtime_fastrand()
+		a, b, c, d := linkname.Runtime_fastrand(), linkname.Runtime_fastrand(), linkname.Runtime_fastrand(), linkname.Runtime_fastrand()
 		low := uint64(a)<<32 + uint64(b)
 		high := uint64(c)<<32 + uint64(d)
 		globalPCG64[i].Seed(low, high)
@@ -48,9 +51,9 @@ type pinPCG64 []pcg64Source
 // Uint32 returns a pseudo-random 32-bit value as a uint32
 // from the default pcg32 source.
 func Uint32() (x uint32) {
-	pid := runtime_procPin()
+	pid := linkname.Runtime_procPin()
 	x = globalPCG32[pid].Uint32()
-	runtime_procUnpin()
+	linkname.Runtime_procUnpin()
 	return
 }
 
@@ -58,18 +61,18 @@ func Uint32() (x uint32) {
 // from the default pcg32 source.
 // It panics if n <= 0.
 func Uint32n(n uint32) (x uint32) {
-	pid := runtime_procPin()
+	pid := linkname.Runtime_procPin()
 	x = globalPCG32[pid].Uint32n(n)
-	runtime_procUnpin()
+	linkname.Runtime_procUnpin()
 	return
 }
 
 // Uint64 returns a pseudo-random 64-bit value as a uint64
 // from the default pcg64 source.
 func Uint64() (x uint64) {
-	pid := runtime_procPin()
+	pid := linkname.Runtime_procPin()
 	x = globalPCG64[pid].Uint64()
-	runtime_procUnpin()
+	linkname.Runtime_procUnpin()
 	return
 }
 
@@ -77,8 +80,8 @@ func Uint64() (x uint64) {
 // from the default pcg64 source.
 // It panics if n <= 0.
 func Uint64n(n uint64) (x uint64) {
-	pid := runtime_procPin()
+	pid := linkname.Runtime_procPin()
 	x = globalPCG64[pid].Uint64n(n)
-	runtime_procUnpin()
+	linkname.Runtime_procUnpin()
 	return
 }

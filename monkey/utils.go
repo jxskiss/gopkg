@@ -32,9 +32,3 @@ func copy_(buf []byte) []byte {
 	copy(dst, buf)
 	return dst
 }
-
-//go:linkname runtime_stopTheWorld runtime.stopTheWorld
-func runtime_stopTheWorld()
-
-//go:linkname runtime_startTheWorld runtime.startTheWorld
-func runtime_startTheWorld()

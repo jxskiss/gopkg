@@ -3,6 +3,7 @@ package monkey
 import (
 	"fmt"
 	"github.com/jxskiss/gopkg/forceexport"
+	"github.com/jxskiss/gopkg/internal/linkname"
 	"reflect"
 )
 
@@ -82,7 +83,7 @@ func UnpatchByName(targetName string) bool {
 
 // UnpatchAll removes all applied monkey patches.
 func UnpatchAll() {
-	runtime_stopTheWorld()
+	linkname.Runtime_stopTheWorld()
 	for target, patch := range patchTable {
 		if !patch.patched {
 			continue
@@ -90,7 +91,7 @@ func UnpatchAll() {
 		replaceCode(target, patch.origBytes)
 		patch.patched = false
 	}
-	runtime_startTheWorld()
+	linkname.Runtime_startTheWorld()
 }
 
 func patchValue(target, replacement reflect.Value) *PatchGuard {
@@ -104,7 +105,7 @@ func patchValue(target, replacement reflect.Value) *PatchGuard {
 		panic("monkey: target and replacement have different types")
 	}
 
-	runtime_stopTheWorld()
+	linkname.Runtime_stopTheWorld()
 	targetPtr := target.Pointer()
 	patch, ok := patchTable[targetPtr]
 	if !ok {
@@ -124,7 +125,7 @@ func patchValue(target, replacement reflect.Value) *PatchGuard {
 	}
 	replaceCode(targetPtr, patch.replBytes)
 	patch.patched = true
-	runtime_startTheWorld()
+	linkname.Runtime_startTheWorld()
 	return patch
 }
 
@@ -134,10 +135,10 @@ func unpatchValue(target uintptr) bool {
 		return false
 	}
 
-	runtime_stopTheWorld()
+	linkname.Runtime_stopTheWorld()
 	replaceCode(target, patch.origBytes)
 	patch.patched = false
-	runtime_startTheWorld()
+	linkname.Runtime_startTheWorld()
 	return true
 }
 

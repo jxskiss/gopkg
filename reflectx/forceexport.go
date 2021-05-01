@@ -2,19 +2,19 @@ package reflectx
 
 import (
 	"fmt"
+	"github.com/jxskiss/gopkg/internal/linkname"
 	"reflect"
 	"strings"
-	"unsafe"
 )
 
 // GetType gets the type defined by the given fully-qualified name.
 // If the specified type does not exist, or inactive (haven't been
 // compiled into the binary), it panics.
 func GetType(name string) *RType {
-	sections, offsets := typelinks()
+	sections, offsets := linkname.Reflect_typelinks()
 	for i, base := range sections {
 		for _, offset := range offsets[i] {
-			typ := resolveTypeOff(base, offset)
+			typ := (*RType)(linkname.Reflect_resolveTypeOff(base, offset))
 			for typ.Name() == "" && typ.Kind() == reflect.Ptr {
 				typ = typ.Elem()
 			}
@@ -40,9 +40,3 @@ func removeVendorPrefix(path string) string {
 	}
 	return path
 }
-
-//go:linkname typelinks reflect.typelinks
-func typelinks() ([]unsafe.Pointer, [][]int32)
-
-//go:linkname resolveTypeOff reflect.resolveTypeOff
-func resolveTypeOff(_ unsafe.Pointer, _ int32) *RType

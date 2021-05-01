@@ -2,6 +2,7 @@ package forceexport
 
 import (
 	"fmt"
+	"github.com/jxskiss/gopkg/internal/linkname"
 	"github.com/jxskiss/gopkg/reflectx"
 	"reflect"
 	"runtime"
@@ -74,7 +75,7 @@ func getName(f *runtime.Func) string {
 }
 
 func activeModules() []moduledata {
-	mdptrs := runtime_activeModules()
+	mdptrs := linkname.Runtime_activeModules()
 	out := make([]moduledata, len(mdptrs))
 	for i, ptr := range mdptrs {
 		out[i] = moduledata{ptr}
@@ -117,6 +118,3 @@ func getOffset(t *reflectx.RType, fieldname string, msg string) uintptr {
 	}
 	return f.Offset
 }
-
-//go:linkname runtime_activeModules runtime.activeModules
-func runtime_activeModules() []unsafe.Pointer
