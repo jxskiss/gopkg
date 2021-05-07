@@ -25,7 +25,7 @@ func TestRuntimeModuledata(t *testing.T) {
 func TestTypeEquality(t *testing.T) {
 	ifacetype := GetType("github.com/jxskiss/gopkg/reflectx.iface").ReflectType()
 	assert.Equal(t, reflect.TypeOf(iface{}), ifacetype)
-	
+
 	structtype := GetType("github.com/jxskiss/gopkg/reflectx.TestStruct").ReflectType()
 	assert.Equal(t, reflect.TypeOf(TestStruct{}), structtype)
 }

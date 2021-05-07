@@ -7,11 +7,80 @@ import (
 
 const (
 	// MinBufSize is the minimum buffer size (8B) provided in this package.
-	MinBufSize = 8
+	MinBufSize = 1 << minPoolIdx
 
 	// MaxBufSize is the maximum buffer size (64MB) provided in this package.
-	MaxBufSize = 1 << 26
+	MaxBufSize = 1 << (poolSize - 1)
+)
 
+// Get returns a byte buffer from the pool with specified length and capacity.
+// The returned byte buffer's capacity is of at least 8.
+//
+// The returned byte buffer can be put back to the pool by calling Put(buf),
+// which may be reused later. This reduces memory allocations and GC pressure.
+func Get(length int, capacity ...int) *Buffer {
+	cap_ := length
+	if len(capacity) == 1 {
+		cap_ = capacity[0]
+	} else if len(capacity) > 1 {
+		panic("too many arguments to bbp.Get")
+	}
+	if cap_ > MaxBufSize {
+		return &Buffer{
+			B:       make([]byte, length, cap_),
+			noReuse: true,
+		}
+	}
+	buf := getBuffer()
+	buf.B = get(length, cap_)
+	return buf
+}
+
+// Grow returns a new byte buffer from the pool which guarantees it's
+// at least of specified capacity.
+//
+// If capacity is not specified, the returned slice is at least twice
+// of the given buf slice.
+// The returned byte buffer's capacity is always power of two, which
+// can be put back to the pool after usage.
+//
+// The old buf will be put into the pool for reusing, so it mustn't be
+// touched after calling this function, otherwise data races will occur.
+func Grow(buf []byte, capacity ...int) []byte {
+	if len(capacity) > 1 {
+		panic("too many arguments to bbp.Grow")
+	}
+	l, c := len(buf), cap(buf)
+	newCap := 2 * l
+	if len(capacity) > 0 {
+		newCap = capacity[0]
+	}
+	if c >= newCap {
+		return buf
+	}
+	return grow(buf, newCap)
+}
+
+// Put puts back a byte buffer to the pool for reusing.
+//
+// The buf mustn't be touched after retuning it to the pool.
+// Otherwise data races will occur.
+func Put(buf *Buffer) {
+	if !buf.noReuse {
+		put(buf.B)
+	}
+	buf.B = nil
+	buf.noReuse = false
+	bpool.Put(buf)
+}
+
+// PutSlice puts back a byte slice which is obtained from function Grow.
+//
+// The byte slice mustn't be touched after returning it to the pool.
+// Otherwise data races will occur.
+func PutSlice(buf []byte) { put(buf) }
+
+const (
 	minPoolIdx = 3  // at least 8B (1<<3)
 	poolSize   = 27 // max 64MB (1<<26)
 )

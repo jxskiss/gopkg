@@ -14,7 +14,7 @@ import (
 )
 
 func TestSingleJoin(t *testing.T) {
-	text := []string{"a","b..", "..c"}
+	text := []string{"a", "b..", "..c"}
 	got := SingleJoin("..", text...)
 	want := "a..b..c"
 	assert.Equal(t, want, got)
