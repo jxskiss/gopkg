@@ -36,14 +36,26 @@ func Runtime_fastrand() uint32
 //go:linkname Runtime_fastrandn runtime.fastrandn
 func Runtime_fastrandn(n uint32) uint32
 
+// Runtime_procPin links to runtime.procPin.
+// It pins current p, return pid.
+//
+// DON'T USE THIS if you don't know what it is.
 //go:noescape
 //go:linkname Runtime_procPin runtime.procPin
 func Runtime_procPin() int
 
+// Runtime_procUnpin links to runtime.procUnpin.
+// It unpins current p.
+//
 //go:noescape
 //go:linkname Runtime_procUnpin runtime.procUnpin
 func Runtime_procUnpin()
 
+// Runtime_stopTheWorld links to runtime.stopTheWorld.
+// It stops all P's from executing goroutines, interrupting all goroutines
+// at GC safe points and records reason as the reason for the stop.
+// On return, only the current goroutine's P is running.
+//
 //go:linkname Runtime_stopTheWorld runtime.stopTheWorld
 func Runtime_stopTheWorld()
 
