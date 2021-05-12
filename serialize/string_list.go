@@ -65,7 +65,7 @@ func (m *StringList) UnmarshalProto(dAtA []byte) error {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
 			if shift >= 64 {
-				return ErrProtoIntOverflow
+				return ErrIntegerOverflow
 			}
 			if iNdEx >= l {
 				return ErrUnexpectedEOF
@@ -88,7 +88,7 @@ func (m *StringList) UnmarshalProto(dAtA []byte) error {
 		var stringLen uint64
 		for shift := uint(0); ; shift += 7 {
 			if shift >= 64 {
-				return ErrProtoIntOverflow
+				return ErrIntegerOverflow
 			}
 			if iNdEx >= l {
 				return ErrUnexpectedEOF
@@ -102,11 +102,11 @@ func (m *StringList) UnmarshalProto(dAtA []byte) error {
 		}
 		intStringLen := int(stringLen)
 		if intStringLen < 0 {
-			return ErrProtoInvalidLength
+			return ErrInvalidLength
 		}
 		postIndex := iNdEx + intStringLen
 		if postIndex < 0 {
-			return ErrProtoInvalidLength
+			return ErrInvalidLength
 		}
 		if postIndex > l {
 			return ErrUnexpectedEOF

@@ -445,6 +445,39 @@ func TestToMapMap(t *testing.T) {
 	assert.Panics(t, func() { ToMapMap(a, "I32", "I32_p") })
 }
 
+func TestToInterfaceSlice(t *testing.T) {
+	slice1 := []int{1, 2, 3}
+	want := []interface{}{1, 2, 3}
+	got := ToInterfaceSlice(slice1)
+	assert.Equal(t, want, got)
+
+	slice2 := []*int{ptr.Int(1), ptr.Int(2), ptr.Int(3)}
+	got2 := ToInterfaceSlice(slice2)
+	for i, x := range got2 {
+		assert.Equal(t, *slice2[i], *(x.(*int)))
+	}
+
+	slice3 := []simple{
+		{"a"},
+		{"b"},
+		{"c"},
+	}
+	got3 := ToInterfaceSlice(slice3)
+	for i, x := range got3 {
+		assert.Equal(t, slice3[i], x.(simple))
+	}
+
+	slice4 := []*simple{
+		{"a"},
+		{"b"},
+		{"c"},
+	}
+	got4 := ToInterfaceSlice(slice4)
+	for i, x := range got4 {
+		assert.Equal(t, slice4[i].A, x.(*simple).A)
+	}
+}
+
 func TestFindAndFilter(t *testing.T) {
 	a := &comptyp{I32: 1, Str_p: ptr.String("a")}
 	b := &comptyp{I64: 2, Str_p: ptr.String("b")}
@@ -568,9 +601,9 @@ func reverseSlice_reflect(slice interface{}) interface{} {
 	sliceTyp := reflect.TypeOf(slice)
 	switch slice := slice.(type) {
 	case Int64s, []int64, []uint64:
-		return ReverseInt64s(ToInt64s_(slice)).castType(sliceTyp)
+		return ReverseInt64s(AsInt64s_(slice)).castType(sliceTyp)
 	case Int32s, []int32, []uint32:
-		return ReverseInt32s(ToInt32s_(slice)).castType(sliceTyp)
+		return ReverseInt32s(AsInt32s_(slice)).castType(sliceTyp)
 	case Strings, []string:
 		return ReverseStrings(ToStrings_(slice)).castType(sliceTyp)
 	}

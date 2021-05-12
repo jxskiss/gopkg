@@ -10,23 +10,23 @@ var int32sSample = Int32s{5, 6, 7, 8}
 
 var int32sMethodTests = []map[string]interface{}{
 	{
-		"got":  int32sSample.Uint32s_(),
+		"got":  int32sSample.AsUint32s_(),
 		"want": []uint32{5, 6, 7, 8},
 	},
 	{
-		"got":  int32sSample.Int64s(),
+		"got":  int32sSample.ToInt64s(),
 		"want": []int64{5, 6, 7, 8},
 	},
 	{
-		"got":  int32sSample.Uint64s(),
+		"got":  int32sSample.ToUint64s(),
 		"want": []uint64{5, 6, 7, 8},
 	},
 	{
-		"got":  int32sSample.Ints_(),
+		"got":  int32sSample.AsInts_(),
 		"want": []int{5, 6, 7, 8},
 	},
 	{
-		"got":  int32sSample.Uints_(),
+		"got":  int32sSample.AsUints_(),
 		"want": []uint{5, 6, 7, 8},
 	},
 	{
@@ -59,12 +59,12 @@ func TestInt32s_Drop(t *testing.T) {
 	length := len(slice)
 
 	var got1 []int32
-	got1 = Int32s(slice).Drop(0, false)
+	got1 = Int32s(slice).Drop(false, 0)
 	assert.Equal(t, want, got1)
 	assert.Equal(t, slice[0], int32(0))
 
 	var got2 []int32
-	got2 = Int32s(slice).Drop(0, true)
+	got2 = Int32s(slice).Drop(true, 0)
 	assert.Equal(t, want, got2)
 	assert.Equal(t, want, slice[:len(got2)])
 	assert.Len(t, slice, length)
@@ -96,7 +96,7 @@ func TestToInt32s(t *testing.T) {
 	}
 	want := Int32s{1, 2, 3}
 	for _, test := range tests {
-		got := ToInt32s_(test)
+		got := AsInt32s_(test)
 		assert.Equal(t, want, got)
 	}
 }
@@ -105,23 +105,23 @@ var int64sSample = Int64s{5, 6, 7, 8}
 
 var int64sMethodTests = []map[string]interface{}{
 	{
-		"got":  int64sSample.Uint64s_(),
+		"got":  int64sSample.AsUint64s_(),
 		"want": []uint64{5, 6, 7, 8},
 	},
 	{
-		"got":  int64sSample.Int32s(),
+		"got":  int64sSample.ToInt32s(),
 		"want": []int32{5, 6, 7, 8},
 	},
 	{
-		"got":  int64sSample.Uint32s(),
+		"got":  int64sSample.ToUint32s(),
 		"want": []uint32{5, 6, 7, 8},
 	},
 	{
-		"got":  int64sSample.Ints_(),
+		"got":  int64sSample.AsInts_(),
 		"want": []int{5, 6, 7, 8},
 	},
 	{
-		"got":  int64sSample.Uints_(),
+		"got":  int64sSample.AsUints_(),
 		"want": []uint{5, 6, 7, 8},
 	},
 	{
@@ -154,12 +154,12 @@ func TestInt64s_Drop(t *testing.T) {
 	length := len(slice)
 
 	var got1 []int64
-	got1 = Int64s(slice).Drop(0, false)
+	got1 = Int64s(slice).Drop(false, 0)
 	assert.Equal(t, want, got1)
 	assert.Equal(t, slice[0], int64(0))
 
 	var got2 []int64
-	got2 = Int64s(slice).Drop(0, true)
+	got2 = Int64s(slice).Drop(true, 0)
 	assert.Equal(t, want, got2)
 	assert.Equal(t, want, slice[:len(got2)])
 	assert.Len(t, slice, length)
@@ -191,7 +191,7 @@ func TestToInt64s(t *testing.T) {
 	}
 	want := Int64s{1, 2, 3}
 	for _, test := range tests {
-		got := ToInt64s_(test)
+		got := AsInt64s_(test)
 		assert.Equal(t, want, got)
 	}
 }
@@ -205,17 +205,17 @@ func TestToInt64s_UnsafeCasting_ChangeOriginal(t *testing.T) {
 		{
 			"slice":  []uint64{1, 2, 3},
 			"getter": func(x interface{}, i int) int { return int(x.([]uint64)[i]) },
-			"caster": func(x Int64s) interface{} { return x.Uint64s_() },
+			"caster": func(x Int64s) interface{} { return x.AsUint64s_() },
 		},
 		{
 			"slice":  []int{1, 2, 3},
 			"getter": func(x interface{}, i int) int { return int(x.([]int)[i]) },
-			"caster": func(x Int64s) interface{} { return x.Ints_() },
+			"caster": func(x Int64s) interface{} { return x.AsInts_() },
 		},
 		{
 			"slice":  []uint{1, 2, 3},
 			"getter": func(x interface{}, i int) int { return int(x.([]uint)[i]) },
-			"caster": func(x Int64s) interface{} { return x.Uints_() },
+			"caster": func(x Int64s) interface{} { return x.AsUints_() },
 		},
 		{
 			"slice":  []uintptr{1, 2, 3},
@@ -227,7 +227,7 @@ func TestToInt64s_UnsafeCasting_ChangeOriginal(t *testing.T) {
 		slice := test["slice"]
 		getter := test["getter"].(func(interface{}, int) int)
 
-		ints := ToInt64s_(slice)
+		ints := AsInt64s_(slice)
 		ints[0], ints[1], ints[2] = 6, 7, 8
 
 		assert.Equal(t, 6, getter(slice, 0))
@@ -241,9 +241,9 @@ func TestToInt64s_UnsafeCasting_ChangeOriginal(t *testing.T) {
 		if !ok {
 			continue
 		}
-		newSlice := ToInt64s_(test["slice"]).
-			Drop(6, true).
-			Drop(7, true)
+		newSlice := AsInt64s_(test["slice"]).
+			Drop(true, 6).
+			Drop(true, 7)
 		test["slice"] = caster(newSlice)
 
 		slice := test["slice"]
@@ -291,12 +291,12 @@ func TestStrings_Drop(t *testing.T) {
 	length := len(slice)
 
 	var got1 []string
-	got1 = Strings(slice).Drop("", false)
+	got1 = Strings(slice).Drop(false, "")
 	assert.Equal(t, want, got1)
 	assert.Equal(t, slice[0], "")
 
 	var got2 []string
-	got2 = Strings(slice).Drop("", true)
+	got2 = Strings(slice).Drop(true, "")
 	assert.Equal(t, want, got2)
 	assert.Equal(t, want, slice[:len(got2)])
 	assert.Len(t, slice, length)

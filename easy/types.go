@@ -2,27 +2,21 @@ package easy
 
 import (
 	"fmt"
-	"github.com/jxskiss/gopkg/reflectx"
 	"reflect"
-	"sort"
 	"strconv"
 	"unsafe"
+
+	"github.com/jxskiss/gopkg/reflectx"
+	"github.com/jxskiss/gopkg/set"
 )
 
 type Int32s []int32
 
-func (p Int32s) Len() int           { return len(p) }
-func (p Int32s) Less(i, j int) bool { return p[i] < p[j] }
-func (p Int32s) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-
-// Sort is a convenient method.
-func (p Int32s) Sort() { sort.Sort(p) }
-
-func (p Int32s) Uint32s_() []uint32 {
+func (p Int32s) AsUint32s_() []uint32 {
 	return *(*[]uint32)(unsafe.Pointer(&p))
 }
 
-func (p Int32s) Int64s() []int64 {
+func (p Int32s) ToInt64s() []int64 {
 	out := make([]int64, len(p))
 	for i := len(p) - 1; i >= 0; i-- {
 		out[i] = int64(p[i])
@@ -30,7 +24,7 @@ func (p Int32s) Int64s() []int64 {
 	return out
 }
 
-func (p Int32s) Uint64s() []uint64 {
+func (p Int32s) ToUint64s() []uint64 {
 	out := make([]uint64, len(p))
 	for i := len(p) - 1; i >= 0; i-- {
 		out[i] = uint64(p[i])
@@ -38,7 +32,7 @@ func (p Int32s) Uint64s() []uint64 {
 	return out
 }
 
-func (p Int32s) Ints_() []int {
+func (p Int32s) AsInts_() []int {
 	if reflectx.IsPlatform32bit {
 		return *(*[]int)(unsafe.Pointer(&p))
 	}
@@ -49,7 +43,7 @@ func (p Int32s) Ints_() []int {
 	return out
 }
 
-func (p Int32s) Uints_() []uint {
+func (p Int32s) AsUints_() []uint {
 	if reflectx.IsPlatform32bit {
 		return *(*[]uint)(unsafe.Pointer(&p))
 	}
@@ -95,20 +89,42 @@ func (p Int32s) ToStringMap() map[string]bool {
 	return out
 }
 
-func (p Int32s) Drop(x int32, inPlace bool) Int32s {
+func (p Int32s) ToInterfaceSlice() []interface{} {
+	out := make([]interface{}, len(p))
+	for i := 0; i < len(p); i++ {
+		out[i] = p[i]
+	}
+	return out
+}
+
+func (p Int32s) Drop(inPlace bool, vals ...int32) Int32s {
+	var valSet = set.NewInt32(vals...)
 	var out = p[:0]
 	if !inPlace {
 		out = make([]int32, 0, len(p))
 	}
 	for i := 0; i < len(p); i++ {
-		if p[i] != x {
+		if !valSet.Contains(p[i]) {
 			out = append(out, p[i])
 		}
 	}
 	return out
 }
 
-func ToInt32s_(intSlice interface{}) Int32s {
+func (p Int32s) DropFunc(inPlace bool, predicate func(x int32) bool) Int32s {
+	var out = p[:0]
+	if !inPlace {
+		out = make([]int32, 0, len(p))
+	}
+	for i := 0; i < len(p); i++ {
+		if !predicate(p[i]) {
+			out = append(out, p[i])
+		}
+	}
+	return out
+}
+
+func AsInt32s_(intSlice interface{}) Int32s {
 	if intSlice == nil {
 		return nil
 	}
@@ -127,7 +143,7 @@ func ToInt32s_(intSlice interface{}) Int32s {
 	}
 
 	sliceTyp := reflect.TypeOf(intSlice)
-	assertSliceOfIntegers("ToInt32s_", sliceTyp)
+	assertSliceOfIntegers("AsInt32s_", sliceTyp)
 
 	if reflectx.Is32bitInt(sliceTyp.Elem().Kind()) {
 		return reflectx.CastInt32Slice(intSlice)
@@ -137,18 +153,11 @@ func ToInt32s_(intSlice interface{}) Int32s {
 
 type Int64s []int64
 
-func (p Int64s) Len() int           { return len(p) }
-func (p Int64s) Less(i, j int) bool { return p[i] < p[j] }
-func (p Int64s) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-
-// Sort is a convenience method.
-func (p Int64s) Sort() { sort.Sort(p) }
-
-func (p Int64s) Uint64s_() []uint64 {
+func (p Int64s) AsUint64s_() []uint64 {
 	return *(*[]uint64)(unsafe.Pointer(&p))
 }
 
-func (p Int64s) Int32s() []int32 {
+func (p Int64s) ToInt32s() []int32 {
 	out := make([]int32, len(p))
 	for i := len(p) - 1; i >= 0; i-- {
 		out[i] = int32(p[i])
@@ -156,7 +165,7 @@ func (p Int64s) Int32s() []int32 {
 	return out
 }
 
-func (p Int64s) Uint32s() []uint32 {
+func (p Int64s) ToUint32s() []uint32 {
 	out := make([]uint32, len(p))
 	for i := len(p) - 1; i >= 0; i-- {
 		out[i] = uint32(p[i])
@@ -164,7 +173,7 @@ func (p Int64s) Uint32s() []uint32 {
 	return out
 }
 
-func (p Int64s) Ints_() []int {
+func (p Int64s) AsInts_() []int {
 	if reflectx.IsPlatform64bit {
 		return *(*[]int)(unsafe.Pointer(&p))
 	}
@@ -175,7 +184,7 @@ func (p Int64s) Ints_() []int {
 	return out
 }
 
-func (p Int64s) Uints_() []uint {
+func (p Int64s) AsUints_() []uint {
 	if reflectx.IsPlatform64bit {
 		return *(*[]uint)(unsafe.Pointer(&p))
 	}
@@ -221,20 +230,42 @@ func (p Int64s) ToStringMap() map[string]bool {
 	return out
 }
 
-func (p Int64s) Drop(x int64, inPlace bool) Int64s {
+func (p Int64s) ToInterfaceSlice() []interface{} {
+	out := make([]interface{}, len(p))
+	for i := 0; i < len(p); i++ {
+		out[i] = p[i]
+	}
+	return out
+}
+
+func (p Int64s) Drop(inPlace bool, vals ...int64) Int64s {
+	var valSet = set.NewInt64(vals...)
 	var out = p[:0]
 	if !inPlace {
 		out = make([]int64, 0, len(p))
 	}
 	for i := 0; i < len(p); i++ {
-		if p[i] != x {
+		if !valSet.Contains(p[i]) {
 			out = append(out, p[i])
 		}
 	}
 	return out
 }
 
-func ToInt64s_(intSlice interface{}) Int64s {
+func (p Int64s) DropFunc(inPlace bool, predicate func(x int64) bool) Int64s {
+	var out = p[:0]
+	if !inPlace {
+		out = make([]int64, 0, len(p))
+	}
+	for i := 0; i < len(p); i++ {
+		for !predicate(p[i]) {
+			out = append(out, p[i])
+		}
+	}
+	return out
+}
+
+func AsInt64s_(intSlice interface{}) Int64s {
 	if intSlice == nil {
 		return nil
 	}
@@ -253,7 +284,7 @@ func ToInt64s_(intSlice interface{}) Int64s {
 	}
 
 	sliceTyp := reflect.TypeOf(intSlice)
-	assertSliceOfIntegers("ToInt64s_", sliceTyp)
+	assertSliceOfIntegers("AsInt64s_", sliceTyp)
 
 	if reflectx.Is64bitInt(sliceTyp.Elem().Kind()) {
 		return reflectx.CastInt64Slice(intSlice)
@@ -262,13 +293,6 @@ func ToInt64s_(intSlice interface{}) Int64s {
 }
 
 type Strings []string
-
-func (p Strings) Len() int           { return len(p) }
-func (p Strings) Less(i, j int) bool { return p[i] < p[j] }
-func (p Strings) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-
-// Sort is a convenience method.
-func (p Strings) Sort() { sort.Sort(p) }
 
 func ToStrings_(slice interface{}) Strings {
 	switch slice := slice.(type) {
@@ -336,13 +360,35 @@ func (p Strings) ToMap() map[string]bool {
 	return out
 }
 
-func (p Strings) Drop(x string, inPlace bool) Strings {
+func (p Strings) ToInterfaceSlice() []interface{} {
+	out := make([]interface{}, len(p))
+	for i := 0; i < len(p); i++ {
+		out[i] = p[i]
+	}
+	return out
+}
+
+func (p Strings) Drop(inPlace bool, vals ...string) Strings {
+	var valSet = set.NewString(vals...)
 	var out = p[:0]
 	if !inPlace {
 		out = make([]string, 0, len(p))
 	}
 	for i := 0; i < len(p); i++ {
-		if p[i] != x {
+		if !valSet.Contains(p[i]) {
+			out = append(out, p[i])
+		}
+	}
+	return out
+}
+
+func (p Strings) DropFunc(inPlace bool, predicate func(x string) bool) Strings {
+	var out = p[:0]
+	if !inPlace {
+		out = make([]string, 0, len(p))
+	}
+	for i := 0; i < len(p); i++ {
+		if !predicate(p[i]) {
 			out = append(out, p[i])
 		}
 	}

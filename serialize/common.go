@@ -8,18 +8,18 @@ import (
 )
 
 var (
-	ErrBinaryInvalidFormat  = fmt.Errorf("binary: unexpected bytes format")
-	ErrBinaryInvalidLength  = fmt.Errorf("binary: unexpected bytes length")
-	ErrProtoInvalidWireType = fmt.Errorf("proto: unexpected wire type")
-	ErrProtoInvalidFieldNum = fmt.Errorf("proto: unexpected field num")
-	ErrProtoInvalidLength   = fmt.Errorf("proto: invalid negative length")
-	ErrProtoIntOverflow     = fmt.Errorf("proto: integer overflow")
+	ErrBinaryInvalidFormat  = fmt.Errorf("serialize: unexpected binary format")
+	ErrProtoInvalidWireType = fmt.Errorf("serialize: unexpected proto wire type")
+	ErrProtoInvalidFieldNum = fmt.Errorf("serialize: unexpected proto field num")
+	ErrInvalidLength        = fmt.Errorf("serialize: invalid length")
+	ErrIntegerOverflow      = fmt.Errorf("serialize: integer overflow")
 	ErrUnexpectedEOF        = io.ErrUnexpectedEOF
 )
 
 const (
-	binMagic32 byte = '0'
-	binMagic64 byte = '1'
+	binMagic32        byte = '0'
+	binMagic64        byte = '1'
+	binDiffCompressed byte = '2' // TODO
 )
 
 const maxUint32 = 1<<32 - 1
@@ -40,4 +40,9 @@ func encodeVarint(dAtA []byte, offset int, v uint64) int {
 
 func sov(x uint64) (n int) {
 	return (bits.Len64(x|1) + 6) / 7
+}
+
+func encodeZigZag(buf []byte, offset int, v int64) int {
+	zigzag := (v << 1) ^ (v >> 63)
+	return encodeVarint(buf, offset, uint64(zigzag))
 }

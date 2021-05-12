@@ -74,7 +74,7 @@ func (m *StringMap) UnmarshalProto(dAtA []byte) error {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
 			if shift >= 64 {
-				return ErrProtoIntOverflow
+				return ErrIntegerOverflow
 			}
 			if iNdEx >= l {
 				return ErrUnexpectedEOF
@@ -97,7 +97,7 @@ func (m *StringMap) UnmarshalProto(dAtA []byte) error {
 		var msglen int
 		for shift := uint(0); ; shift += 7 {
 			if shift >= 64 {
-				return ErrProtoIntOverflow
+				return ErrIntegerOverflow
 			}
 			if iNdEx >= l {
 				return ErrUnexpectedEOF
@@ -110,11 +110,11 @@ func (m *StringMap) UnmarshalProto(dAtA []byte) error {
 			}
 		}
 		if msglen < 0 {
-			return ErrProtoInvalidLength
+			return ErrInvalidLength
 		}
 		postIndex := iNdEx + msglen
 		if postIndex < 0 {
-			return ErrProtoInvalidLength
+			return ErrInvalidLength
 		}
 		if postIndex > l {
 			return ErrUnexpectedEOF
@@ -128,7 +128,7 @@ func (m *StringMap) UnmarshalProto(dAtA []byte) error {
 			var wire uint64
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
-					return ErrProtoIntOverflow
+					return ErrIntegerOverflow
 				}
 				if iNdEx >= l {
 					return ErrUnexpectedEOF
@@ -145,7 +145,7 @@ func (m *StringMap) UnmarshalProto(dAtA []byte) error {
 				var stringLenmapkey uint64
 				for shift := uint(0); ; shift += 7 {
 					if shift >= 64 {
-						return ErrProtoIntOverflow
+						return ErrIntegerOverflow
 					}
 					if iNdEx >= l {
 						return ErrUnexpectedEOF
@@ -159,11 +159,11 @@ func (m *StringMap) UnmarshalProto(dAtA []byte) error {
 				}
 				intStringLenmapkey := int(stringLenmapkey)
 				if intStringLenmapkey < 0 {
-					return ErrProtoInvalidLength
+					return ErrInvalidLength
 				}
 				postStringIndexmapkey := iNdEx + intStringLenmapkey
 				if postStringIndexmapkey < 0 {
-					return ErrProtoInvalidLength
+					return ErrInvalidLength
 				}
 				if postStringIndexmapkey > l {
 					return ErrUnexpectedEOF
@@ -174,7 +174,7 @@ func (m *StringMap) UnmarshalProto(dAtA []byte) error {
 				var stringLenmapvalue uint64
 				for shift := uint(0); ; shift += 7 {
 					if shift >= 64 {
-						return ErrProtoIntOverflow
+						return ErrIntegerOverflow
 					}
 					if iNdEx >= l {
 						return ErrUnexpectedEOF
@@ -188,11 +188,11 @@ func (m *StringMap) UnmarshalProto(dAtA []byte) error {
 				}
 				intStringLenmapvalue := int(stringLenmapvalue)
 				if intStringLenmapvalue < 0 {
-					return ErrProtoInvalidLength
+					return ErrInvalidLength
 				}
 				postStringIndexmapvalue := iNdEx + intStringLenmapvalue
 				if postStringIndexmapvalue < 0 {
-					return ErrProtoInvalidLength
+					return ErrInvalidLength
 				}
 				if postStringIndexmapvalue > l {
 					return ErrUnexpectedEOF

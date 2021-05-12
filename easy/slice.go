@@ -190,10 +190,10 @@ func InsertSlice(slice interface{}, index int, elem interface{}) (out interface{
 	elemKind := elemTyp.Kind()
 	if sliceTyp.Kind() == reflect.Slice && sliceTyp.Elem().Kind() == elemKind {
 		if reflectx.Is64bitInt(elemKind) {
-			return InsertInt64s(ToInt64s_(slice), index, _int64(elem)).castType(sliceTyp)
+			return InsertInt64s(AsInt64s_(slice), index, _int64(elem)).castType(sliceTyp)
 		}
 		if reflectx.Is32bitInt(elemKind) {
-			return InsertInt32s(ToInt32s_(slice), index, _int32(elem)).castType(sliceTyp)
+			return InsertInt32s(AsInt32s_(slice), index, _int32(elem)).castType(sliceTyp)
 		}
 		if elemKind == reflect.String {
 			return InsertStrings(ToStrings_(slice), index, _string(elem)).castType(sliceTyp)
@@ -304,9 +304,9 @@ func ReverseSlice(slice interface{}) interface{} {
 	sliceTyp := reflect.TypeOf(slice)
 	switch slice := slice.(type) {
 	case Int64s, []int64, []uint64:
-		return ReverseInt64s(ToInt64s_(slice)).castType(sliceTyp)
+		return ReverseInt64s(AsInt64s_(slice)).castType(sliceTyp)
 	case Int32s, []int32, []uint32:
-		return ReverseInt32s(ToInt32s_(slice)).castType(sliceTyp)
+		return ReverseInt32s(AsInt32s_(slice)).castType(sliceTyp)
 	case Strings, []string:
 		return ReverseStrings(ToStrings_(slice)).castType(sliceTyp)
 	}
@@ -454,15 +454,15 @@ func UniqueSlice(slice interface{}) interface{} {
 	sliceTyp := reflect.TypeOf(slice)
 	switch slice := slice.(type) {
 	case Int64s, []int64, []uint64:
-		return UniqueInt64s(ToInt64s_(slice)).castType(sliceTyp)
+		return UniqueInt64s(AsInt64s_(slice)).castType(sliceTyp)
 	case Int32s, []int32, []uint32:
-		return UniqueInt32s(ToInt32s_(slice)).castType(sliceTyp)
+		return UniqueInt32s(AsInt32s_(slice)).castType(sliceTyp)
 	case Strings, []string:
 		return UniqueStrings(ToStrings_(slice)).castType(sliceTyp)
 	}
 
 	if sliceTyp.Kind() != reflect.Slice {
-		panicNilParams("UniqueSlice: " + errNotSliceType)
+		panic("UniqueSlice: " + errNotSliceType)
 	}
 	setTyp := reflect.MapOf(sliceTyp.Elem(), emptyStructTyp)
 	seen := reflect.MakeMap(setTyp)
@@ -766,6 +766,23 @@ func ToMapMap(slice interface{}, keyField, subKeyField string) interface{} {
 	return outVal.Interface()
 }
 
+func ToInterfaceSlice(slice interface{}) []interface{} {
+	if slice == nil {
+		return nil
+	}
+	sliceTyp := reflect.TypeOf(slice)
+	if sliceTyp.Kind() != reflect.Slice {
+		panic("UniqueSlice: " + errNotSliceType)
+	}
+	sliceVal := reflect.ValueOf(slice)
+	out := make([]interface{}, 0, sliceVal.Len())
+	for i := 0; i < sliceVal.Len(); i++ {
+		elem := sliceVal.Index(i).Interface()
+		out = append(out, elem)
+	}
+	return out
+}
+
 // Find returns the first element in the slice for which predicate returns true.
 func Find(slice interface{}, predicate func(i int) bool) interface{} {
 	if slice == nil {
@@ -799,10 +816,10 @@ func Filter(slice interface{}, predicate func(i int) bool) interface{} {
 	}
 	elemKind := sliceTyp.Elem().Kind()
 	if reflectx.Is64bitInt(elemKind) {
-		return FilterInt64s(ToInt64s_(slice), predicate).castType(sliceTyp)
+		return FilterInt64s(AsInt64s_(slice), predicate).castType(sliceTyp)
 	}
 	if reflectx.Is32bitInt(elemKind) {
-		return FilterInt32s(ToInt32s_(slice), predicate).castType(sliceTyp)
+		return FilterInt32s(AsInt32s_(slice), predicate).castType(sliceTyp)
 	}
 	if elemKind == reflect.String {
 		return FilterStrings(ToStrings_(slice), predicate).castType(sliceTyp)

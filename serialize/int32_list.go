@@ -74,7 +74,7 @@ func (m *Int32List) UnmarshalProto(dAtA []byte) error {
 	var wire uint64
 	for shift := uint(0); ; shift += 7 {
 		if shift >= 64 {
-			return ErrProtoIntOverflow
+			return ErrIntegerOverflow
 		}
 		if iNdEx >= l {
 			return ErrUnexpectedEOF
@@ -95,7 +95,7 @@ func (m *Int32List) UnmarshalProto(dAtA []byte) error {
 		var v int32
 		for shift := uint(0); ; shift += 7 {
 			if shift >= 64 {
-				return ErrProtoIntOverflow
+				return ErrIntegerOverflow
 			}
 			if iNdEx >= l {
 				return ErrUnexpectedEOF
@@ -112,7 +112,7 @@ func (m *Int32List) UnmarshalProto(dAtA []byte) error {
 		var packedLen int
 		for shift := uint(0); ; shift += 7 {
 			if shift >= 64 {
-				return ErrProtoIntOverflow
+				return ErrIntegerOverflow
 			}
 			if iNdEx >= l {
 				return ErrUnexpectedEOF
@@ -125,11 +125,11 @@ func (m *Int32List) UnmarshalProto(dAtA []byte) error {
 			}
 		}
 		if packedLen < 0 {
-			return ErrProtoInvalidLength
+			return ErrInvalidLength
 		}
 		postIndex := iNdEx + packedLen
 		if postIndex < 0 {
-			return ErrProtoInvalidLength
+			return ErrInvalidLength
 		}
 		if postIndex > l {
 			return ErrUnexpectedEOF
@@ -149,7 +149,7 @@ func (m *Int32List) UnmarshalProto(dAtA []byte) error {
 			var v int32
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
-					return ErrProtoIntOverflow
+					return ErrIntegerOverflow
 				}
 				if iNdEx >= l {
 					return ErrUnexpectedEOF
@@ -194,7 +194,7 @@ func (m *Int32List) UnmarshalBinary(buf []byte) error {
 	}
 	buf = buf[1:]
 	if len(buf)%4 != 0 {
-		return ErrBinaryInvalidLength
+		return ErrInvalidLength
 	}
 	slice := *m
 	if cap(slice)-len(slice) < len(buf)/4 {
