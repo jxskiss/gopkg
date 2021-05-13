@@ -12,18 +12,18 @@ const (
 	maxInsertGrowth = 1024
 )
 
-// InSlice iterates the given slice, it calls predicate(i) for i in range [0, n)
+// InSliceFunc iterates the given slice, it calls predicate(i) for i in range [0, n)
 // where n is the length of the slice.
 // When predicate(i) returns true, it stops and returns true.
 //
 // The parameter predicate must be not nil, otherwise it panics.
-func InSlice(slice interface{}, predicate func(i int) bool) bool {
+func InSliceFunc(slice interface{}, predicate func(i int) bool) bool {
 	if slice == nil {
 		return false
 	}
 	sliceTyp := reflect.TypeOf(slice)
 	if sliceTyp.Kind() != reflect.Slice {
-		panic("Find: " + errNotSliceType)
+		panic("InSliceFunc: " + errNotSliceType)
 	}
 	header := reflectx.UnpackSlice(slice)
 	for i := 0; i < header.Len; i++ {
@@ -44,7 +44,7 @@ func InInt32s(slice []int32, elem int32) bool {
 	return false
 }
 
-// Int64s tells whether the int64 value elem is in the slice.
+// InInt64s tells whether the int64 value elem is in the slice.
 func InInt64s(slice []int64, elem int64) bool {
 	for _, x := range slice {
 		if x == elem {
@@ -64,18 +64,18 @@ func InStrings(slice []string, elem string) bool {
 	return false
 }
 
-// Index iterates the given slice, it calls predicate(i) for i in range [0, n)
-// where n is the length of the slice.
+// IndexFunc iterates the given slice, it calls predicate(i) for i in
+// range [0, n) where n is the length of the slice.
 // When predicate(i) returns true, it stops and returns the index i.
 //
-// The parameter predicate must be not nil, otherwise it panics.
-func Index(slice interface{}, predicate func(i int) bool) int {
+// The parameter predicate must not be nil, otherwise it panics.
+func IndexFunc(slice interface{}, predicate func(i int) bool) int {
 	if slice == nil {
 		return -1
 	}
 	sliceTyp := reflect.TypeOf(slice)
 	if sliceTyp.Kind() != reflect.Slice {
-		panic("Index: " + errNotSliceType)
+		panic("IndexFunc: " + errNotSliceType)
 	}
 	header := reflectx.UnpackSlice(slice)
 	for i := 0; i < header.Len; i++ {
@@ -119,18 +119,18 @@ func IndexStrings(slice []string, elem string) int {
 	return -1
 }
 
-// LastIndex iterates the given slice, it calls predicate(i) for i in range [0, n)
-// in descending order, where n is the length of the slice.
+// LastIndexFunc iterates the given slice, it calls predicate(i) for i in
+// range [0, n) in descending order, where n is the length of the slice.
 // When predicate(i) returns true, it stops and returns the index i.
 //
-// The parameter predicate must be not nil, otherwise it panics.
-func LastIndex(slice interface{}, predicate func(i int) bool) int {
+// The parameter predicate must not be nil, otherwise it panics.
+func LastIndexFunc(slice interface{}, predicate func(i int) bool) int {
 	if slice == nil {
 		return -1
 	}
 	sliceTyp := reflect.TypeOf(slice)
 	if sliceTyp.Kind() != reflect.Slice {
-		panic("LastIndex: " + errNotSliceType)
+		panic("LastIndexFunc: " + errNotSliceType)
 	}
 	header := reflectx.UnpackSlice(slice)
 	for i := header.Len - 1; i >= 0; i-- {

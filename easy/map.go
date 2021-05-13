@@ -319,8 +319,8 @@ func (p Map) GetInt64Map(key string) Int64Map {
 	return nil
 }
 
-// GetStringMap returns the value associated with the key as a map of strings (map[string]string).
-func (p Map) GetStringMap(key string) map[string]string {
+// GetStrstrMap returns the value associated with the key as a map of (map[string]string).
+func (p Map) GetStrstrMap(key string) map[string]string {
 	if val, ok := p[key].(map[string]string); ok {
 		return val
 	}
@@ -329,9 +329,12 @@ func (p Map) GetStringMap(key string) map[string]string {
 
 // Iterate iterates the map in unspecified order, the given function fn
 // will be called for each key value pair.
-func (p Map) Iterate(fn func(k string, v interface{})) {
+// The iteration can be aborted by returning a non-zero value from fn.
+func (p Map) Iterate(fn func(k string, v interface{}) int) {
 	for k, v := range p {
-		fn(k, v)
+		if fn(k, v) != 0 {
+			return
+		}
 	}
 }
 
@@ -501,8 +504,8 @@ func (p Int64Map) GetInt64Map(key int64) Int64Map {
 	return nil
 }
 
-// GetStringMap returns the value associated with the key as a map of strings (map[string]string).
-func (p Int64Map) GetStringMap(key int64) map[string]string {
+// GetStrstrMap returns the value associated with the key as a map of (map[string]string).
+func (p Int64Map) GetStrstrMap(key int64) map[string]string {
 	if val, ok := p[key].(map[string]string); ok {
 		return val
 	}
@@ -511,8 +514,11 @@ func (p Int64Map) GetStringMap(key int64) map[string]string {
 
 // Iterate iterates the map in unspecified order, the given function fn
 // will be called for each key value pair.
-func (p Int64Map) Iterate(fn func(k int64, v interface{})) {
+// The iteration can be aborted by returning a non-zero value from fn.
+func (p Int64Map) Iterate(fn func(k int64, v interface{}) int) {
 	for k, v := range p {
-		fn(k, v)
+		if fn(k, v) != 0 {
+			return
+		}
 	}
 }
