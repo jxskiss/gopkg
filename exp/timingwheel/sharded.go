@@ -58,7 +58,7 @@ var (
 func initWheels() {
 	runOnce.Do(func() {
 		shardSize = runtime.GOMAXPROCS(0)
-		shardSize = nextPowerOf2(shardSize)
+		shardSize = nextPowerOfTwo(shardSize)
 		shardMask = shardSize - 1
 
 		milli10Wheel = newShardWheel(milli10Tick)
@@ -154,7 +154,7 @@ func doTasks(now time.Time, timers *timerlist) {
 	timers.release()
 }
 
-func nextPowerOf2(x int) int {
+func nextPowerOfTwo(x int) int {
 	if x == 0 {
 		return 1
 	}

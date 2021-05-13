@@ -22,14 +22,17 @@ func NewMultiCache(buckets, bucketCapacity int) *MultiCache {
 // Deprecated.
 type MultiCache = ShardedCache
 
-// NewShardedCache returns a hash-shared lru cache instance which is suitable
+// NewShardedCache returns a hash-sharded lru cache instance which is suitable
 // to use for heavy lock contention use-case. It keeps same interface with
 // the lru cache instance returned by NewCache function.
 // Generally NewCache should be used instead of this unless you are sure that
 // you are facing the lock contention problem.
 func NewShardedCache(buckets, bucketCapacity int) *ShardedCache {
+	buckets = nextPowerOfTwo(buckets)
+	mask := uintptr(buckets - 1)
 	mc := &ShardedCache{
 		buckets: uintptr(buckets),
+		mask:    mask,
 		cache:   make([]*Cache, buckets),
 	}
 	for i := 0; i < buckets; i++ {
@@ -38,10 +41,31 @@ func NewShardedCache(buckets, bucketCapacity int) *ShardedCache {
 	return mc
 }
 
-// MultiCache
+func nextPowerOfTwo(x int) int {
+	if x == 0 {
+		return 1
+	}
 
+	x--
+	x |= x >> 1
+	x |= x >> 2
+	x |= x >> 4
+	x |= x >> 8
+	x |= x >> 16
+
+	return x + 1
+}
+
+// ShardedCache is a hash-sharded version of Cache, it minimizes lock
+// contention for heavy read workload. Generally Cache should be used
+// instead of this unless you are sure that you are facing the lock
+// contention problem.
+//
+// It implements Interface in this package, see Interface for detailed
+// api documents.
 type ShardedCache struct {
 	buckets uintptr
+	mask    uintptr
 	cache   []*Cache
 }
 
@@ -54,22 +78,27 @@ func (c *ShardedCache) Len() (n int) {
 
 func (c *ShardedCache) Has(key interface{}) (exists, expired bool) {
 	h := shardingHash.Hash(key)
-	return c.cache[h%c.buckets].Has(key)
+	return c.cache[h&c.mask].Has(key)
 }
 
 func (c *ShardedCache) Get(key interface{}) (v interface{}, exists, expired bool) {
 	h := shardingHash.Hash(key)
-	return c.cache[h%c.buckets].Get(key)
+	return c.cache[h&c.mask].Get(key)
+}
+
+func (c *ShardedCache) GetWithTTL(key interface{}) (v interface{}, exists bool, ttl *time.Duration) {
+	h := shardingHash.Hash(key)
+	return c.cache[h&c.mask].GetWithTTL(key)
 }
 
 func (c *ShardedCache) GetQuiet(key interface{}) (v interface{}, exists, expired bool) {
 	h := shardingHash.Hash(key)
-	return c.cache[h%c.buckets].GetQuiet(key)
+	return c.cache[h&c.mask].GetQuiet(key)
 }
 
 func (c *ShardedCache) GetNotStale(key interface{}) (v interface{}, exists bool) {
 	h := shardingHash.Hash(key)
-	return c.cache[h%c.buckets].GetNotStale(key)
+	return c.cache[h&c.mask].GetNotStale(key)
 }
 
 func (c *ShardedCache) MGet(keys ...interface{}) map[interface{}]interface{} {
@@ -204,7 +233,7 @@ func (c *ShardedCache) mgetString(notStale bool, keys ...string) map[string]inte
 
 func (c *ShardedCache) Set(key, value interface{}, ttl time.Duration) {
 	h := shardingHash.Hash(key)
-	c.cache[h%c.buckets].Set(key, value, ttl)
+	c.cache[h&c.mask].Set(key, value, ttl)
 }
 
 func (c *ShardedCache) MSet(kvmap interface{}, ttl time.Duration) {
@@ -219,7 +248,7 @@ func (c *ShardedCache) MSet(kvmap interface{}, ttl time.Duration) {
 
 func (c *ShardedCache) Del(key interface{}) {
 	h := shardingHash.Hash(key)
-	c.cache[h%c.buckets].Del(key)
+	c.cache[h&c.mask].Del(key)
 }
 
 func (c *ShardedCache) MDel(keys ...interface{}) {
@@ -265,7 +294,7 @@ func (c *ShardedCache) MDelString(keys ...string) {
 func (c *ShardedCache) groupKeys(keys []interface{}) map[uintptr][]interface{} {
 	grpKeys := make(map[uintptr][]interface{})
 	for _, key := range keys {
-		idx := shardingHash.Interface(key) % c.buckets
+		idx := shardingHash.Interface(key) & c.mask
 		grpKeys[idx] = append(grpKeys[idx], key)
 	}
 	return grpKeys
@@ -274,7 +303,7 @@ func (c *ShardedCache) groupKeys(keys []interface{}) map[uintptr][]interface{} {
 func (c *ShardedCache) groupIntKeys(keys []int) map[uintptr][]int {
 	grpKeys := make(map[uintptr][]int)
 	for _, key := range keys {
-		idx := shardingHash.Int(key) % c.buckets
+		idx := shardingHash.Int(key) & c.mask
 		grpKeys[idx] = append(grpKeys[idx], key)
 	}
 	return grpKeys
@@ -283,7 +312,7 @@ func (c *ShardedCache) groupIntKeys(keys []int) map[uintptr][]int {
 func (c *ShardedCache) groupInt64Keys(keys []int64) map[uintptr][]int64 {
 	grpKeys := make(map[uintptr][]int64)
 	for _, key := range keys {
-		idx := shardingHash.Int64(key) % c.buckets
+		idx := shardingHash.Int64(key) & c.mask
 		grpKeys[idx] = append(grpKeys[idx], key)
 	}
 	return grpKeys
@@ -292,7 +321,7 @@ func (c *ShardedCache) groupInt64Keys(keys []int64) map[uintptr][]int64 {
 func (c *ShardedCache) groupUint64Keys(keys []uint64) map[uintptr][]uint64 {
 	grpKeys := make(map[uintptr][]uint64)
 	for _, key := range keys {
-		idx := shardingHash.Uint64(key) % c.buckets
+		idx := shardingHash.Uint64(key) & c.mask
 		grpKeys[idx] = append(grpKeys[idx], key)
 	}
 	return grpKeys
@@ -301,7 +330,7 @@ func (c *ShardedCache) groupUint64Keys(keys []uint64) map[uintptr][]uint64 {
 func (c *ShardedCache) groupStringKeys(keys []string) map[uintptr][]string {
 	grpKeys := make(map[uintptr][]string)
 	for _, key := range keys {
-		idx := shardingHash.String(key) % c.buckets
+		idx := shardingHash.String(key) & c.mask
 		grpKeys[idx] = append(grpKeys[idx], key)
 	}
 	return grpKeys

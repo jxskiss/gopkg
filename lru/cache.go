@@ -28,6 +28,10 @@ func NewCache(capacity int) *Cache {
 	return c
 }
 
+// Cache is a in-memory cache using LRU algorithm.
+//
+// It implements Interface in this package, see Interface for detailed
+// api documents.
 type Cache struct {
 	mu   sync.RWMutex
 	list *list
@@ -36,7 +40,6 @@ type Cache struct {
 	buf unsafe.Pointer // *walbuf
 }
 
-// Len returns the number of cached values.
 func (c *Cache) Len() (n int) {
 	c.mu.RLock()
 	n = len(c.m)
@@ -44,8 +47,6 @@ func (c *Cache) Len() (n int) {
 	return
 }
 
-// Has checks if a key is in the cache and whether it is expired,
-// without updating it's LRU score.
 func (c *Cache) Has(key interface{}) (exists, expired bool) {
 	c.mu.RLock()
 	_, elem, exists := c.get(key)
@@ -56,9 +57,6 @@ func (c *Cache) Has(key interface{}) (exists, expired bool) {
 	return
 }
 
-// Get returns the cached value for the given key and updates its LRU score.
-// The returned value may be expired, caller can check the returned value
-// "expired" to check whether the value is expired.
 func (c *Cache) Get(key interface{}) (v interface{}, exists, expired bool) {
 	c.mu.RLock()
 	idx, elem, exists := c.get(key)
@@ -71,9 +69,21 @@ func (c *Cache) Get(key interface{}) (v interface{}, exists, expired bool) {
 	return
 }
 
-// GetQuiet returns the cached value for the given key, but don't modify its LRU score.
-// The returned value may be expired, caller can check the returned value
-// "expired" to check whether the value is expired.
+func (c *Cache) GetWithTTL(key interface{}) (v interface{}, exists bool, ttl *time.Duration) {
+	c.mu.RLock()
+	idx, elem, exists := c.get(key)
+	if exists {
+		v = elem.value
+		if elem.expires > 0 {
+			x := time.Duration(elem.expires - time.Now().UnixNano())
+			ttl = &x
+		}
+		c.promote(idx)
+	}
+	c.mu.RUnlock()
+	return
+}
+
 func (c *Cache) GetQuiet(key interface{}) (v interface{}, exists, expired bool) {
 	c.mu.RLock()
 	_, elem, exists := c.get(key)
@@ -85,9 +95,6 @@ func (c *Cache) GetQuiet(key interface{}) (v interface{}, exists, expired bool) 
 	return
 }
 
-// GetNotStale returns the cached value for the given key. The returned value
-// is guaranteed not expired. If unexpired value available, its LRU score
-// will be updated.
 func (c *Cache) GetNotStale(key interface{}) (v interface{}, exists bool) {
 	c.mu.RLock()
 	idx, elem, exists := c.get(key)
@@ -112,15 +119,11 @@ func (c *Cache) get(key interface{}) (idx uint32, elem *element, exists bool) {
 	return
 }
 
-// MGet returns map of cached values for the given interface keys and
-// update their LRU scores. The returned values may be expired.
-// It's a convenient and efficient way to retrieve multiple values.
 func (c *Cache) MGet(keys ...interface{}) map[interface{}]interface{} {
 	nowNano := time.Now().UnixNano()
 	return c.mget(false, nowNano, keys...)
 }
 
-// MGetNotStale is similar to MGet, but it returns only not stale values.
 func (c *Cache) MGetNotStale(keys ...interface{}) map[interface{}]interface{} {
 	nowNano := time.Now().UnixNano()
 	return c.mget(true, nowNano, keys...)
@@ -146,16 +149,11 @@ func (c *Cache) mget(notStale bool, nowNano int64, keys ...interface{}) map[inte
 	return res
 }
 
-// MGetInt returns map of cached values for the given int keys and
-// update their LRU scores. The returned values may be expired.
-// It's a convenient and efficient way to retrieve multiple values for
-// int keys.
 func (c *Cache) MGetInt(keys ...int) map[int]interface{} {
 	nowNano := time.Now().UnixNano()
 	return c.mgetInt(false, nowNano, keys...)
 }
 
-// MGetIntNotStale is similar to MGetInt, but it returns only not stale values.
 func (c *Cache) MGetIntNotStale(keys ...int) map[int]interface{} {
 	nowNano := time.Now().UnixNano()
 	return c.mgetInt(true, nowNano, keys...)
@@ -181,16 +179,11 @@ func (c *Cache) mgetInt(notStale bool, nowNano int64, keys ...int) map[int]inter
 	return res
 }
 
-// MGetInt64 returns map of cached values for the given int64 keys and
-// update their LRU scores. The returned values may be expired.
-// It's a convenient and efficient way to retrieve multiple values for
-// int64 keys.
 func (c *Cache) MGetInt64(keys ...int64) map[int64]interface{} {
 	nowNano := time.Now().UnixNano()
 	return c.mgetInt64(false, nowNano, keys...)
 }
 
-// MGetInt64NotStale is similar to MGetInt64, but it returns only not stale values.
 func (c *Cache) MGetInt64NotStale(keys ...int64) map[int64]interface{} {
 	nowNano := time.Now().UnixNano()
 	return c.mgetInt64(true, nowNano, keys...)
@@ -216,16 +209,11 @@ func (c *Cache) mgetInt64(notStale bool, nowNano int64, keys ...int64) map[int64
 	return res
 }
 
-// MGetUint64 returns map of cached values for the given uint64 keys and
-// update their LRU scores. The returned values may be expired.
-// It's a convenient and efficient way to retrieve multiple values for
-// uint64 keys.
 func (c *Cache) MGetUint64(keys ...uint64) map[uint64]interface{} {
 	nowNano := time.Now().UnixNano()
 	return c.mgetUint64(false, nowNano, keys...)
 }
 
-// MGetUint64NotStale is similar to MGetUint64, but it returns only not stale values.
 func (c *Cache) MGetUint64NotStale(keys ...uint64) map[uint64]interface{} {
 	nowNano := time.Now().UnixNano()
 	return c.mgetUint64(true, nowNano, keys...)
@@ -251,16 +239,11 @@ func (c *Cache) mgetUint64(notStale bool, nowNano int64, keys ...uint64) map[uin
 	return res
 }
 
-// MGetString returns map of cached values for the given string keys and
-// update their LRU scores. The returned values may be expired.
-// It's a convenient and efficient way to retrieve multiple values for
-// string keys.
 func (c *Cache) MGetString(keys ...string) map[string]interface{} {
 	nowNano := time.Now().UnixNano()
 	return c.mgetString(false, nowNano, keys...)
 }
 
-// MGetStringNotStale is similar to MGetString, but it returns only not stale values.
 func (c *Cache) MGetStringNotStale(keys ...string) map[string]interface{} {
 	nowNano := time.Now().UnixNano()
 	return c.mgetString(true, nowNano, keys...)
@@ -327,7 +310,6 @@ func (c *Cache) promote(idx uint32) {
 	}(c, oldbuf)
 }
 
-// Set adds an item to the cache overwriting existing one if it exists.
 func (c *Cache) Set(key, value interface{}, ttl time.Duration) {
 	var expires int64
 	if ttl > 0 {
@@ -339,9 +321,6 @@ func (c *Cache) Set(key, value interface{}, ttl time.Duration) {
 	c.mu.Unlock()
 }
 
-// MSet adds multiple items to the cache overwriting existing ones.
-// Unlike calling Set multiple times, it acquires lock only once for
-// multiple key-value pairs.
 func (c *Cache) MSet(kvmap interface{}, ttl time.Duration) {
 	var expires int64
 	if ttl > 0 {
@@ -379,7 +358,6 @@ func (c *Cache) set(k, v interface{}, expires int64) {
 	}
 }
 
-// Del removes a key from the cache if it exists.
 func (c *Cache) Del(key interface{}) {
 	c.mu.Lock()
 	c.checkAndFlushBuf()
@@ -387,8 +365,6 @@ func (c *Cache) Del(key interface{}) {
 	c.mu.Unlock()
 }
 
-// MDel removes multiple interface keys from the cache if exists.
-// It's a convenient and efficient way to remove multiple keys.
 func (c *Cache) MDel(keys ...interface{}) {
 	c.mu.Lock()
 	c.checkAndFlushBuf()
@@ -398,8 +374,6 @@ func (c *Cache) MDel(keys ...interface{}) {
 	c.mu.Unlock()
 }
 
-// MDelInt removes multiple int keys from the cache if exists.
-// It's a convenient and efficient way to remove multiple int keys.
 func (c *Cache) MDelInt(keys ...int) {
 	c.mu.Lock()
 	c.checkAndFlushBuf()
@@ -409,8 +383,6 @@ func (c *Cache) MDelInt(keys ...int) {
 	c.mu.Unlock()
 }
 
-// MDelInt64 removes multiple int64 keys from the cache if exists.
-// It's a convenient and efficient way to remove multiple int64 keys.
 func (c *Cache) MDelInt64(keys ...int64) {
 	c.mu.Lock()
 	c.checkAndFlushBuf()
@@ -420,8 +392,6 @@ func (c *Cache) MDelInt64(keys ...int64) {
 	c.mu.Unlock()
 }
 
-// MDelUint64 removes multiple uint64 keys from the cache if exists.
-// It's a convenient and efficient way to remove multiple uint64 keys.
 func (c *Cache) MDelUint64(keys ...uint64) {
 	c.mu.Lock()
 	c.checkAndFlushBuf()
@@ -431,8 +401,6 @@ func (c *Cache) MDelUint64(keys ...uint64) {
 	c.mu.Unlock()
 }
 
-// MDelString removes multiple string keys from the cache if exists.
-// It's a convenient and efficient way to remove multiple string keys.
 func (c *Cache) MDelString(keys ...string) {
 	c.mu.Lock()
 	c.checkAndFlushBuf()
