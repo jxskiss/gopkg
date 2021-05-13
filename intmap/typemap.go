@@ -2,6 +2,7 @@ package intmap
 
 import (
 	"reflect"
+	"sync"
 	"sync/atomic"
 	"unsafe"
 )
@@ -18,6 +19,7 @@ const (
 //
 // The fill factor used for TypeMap is 0.6. A TypeMap will grow as needed.
 type TypeMap struct {
+	l sync.Mutex
 	m unsafe.Pointer // *interfaceMap
 }
 
@@ -52,6 +54,8 @@ func (m *TypeMap) GetByType(key reflect.Type) interface{} {
 // map and add the key value to the copy, then swap to the new map using
 // atomic operation.
 func (m *TypeMap) SetByUintptr(key uintptr, val interface{}) {
+	m.l.Lock()
+	defer m.l.Unlock()
 	imap := (*interfaceMap)(atomic.LoadPointer(&m.m))
 	if v := imap.Get(int64(key)); v == val {
 		return

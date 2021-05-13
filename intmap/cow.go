@@ -11,15 +11,10 @@ import (
 // COWMap is safe to use concurrently, when Set, Delete are called, the
 // underlying map will be copied.
 //
-// COWMap also embeds a sync.Mutex, which can be used optionally to lock
-// the map to prevent unnecessary concurrent copying. When lock is
-// held, you may check the map again to see whether the target element has
-// already been set or changed.
-//
 // COWMap should be created by calling NewCOWMap, using uninitialized
 // zero COWMap will case panic.
 type COWMap struct {
-	sync.Mutex
+	l sync.Mutex
 	m unsafe.Pointer // *Map
 }
 
@@ -35,7 +30,9 @@ func NewCOWMap(fillFactor float64) *COWMap {
 // considerably expensive, if there are many write operations, you may
 // prepare a Map in batch mode and tells COWMap to use it.
 func (m *COWMap) UseMap(map_ *Map) {
+	m.l.Lock()
 	atomic.StorePointer(&m.m, unsafe.Pointer(map_))
+	m.l.Unlock()
 }
 
 // Underlying returns the current underlying Map of the COWMap.
@@ -64,6 +61,8 @@ func (m *COWMap) Has(key int64) bool {
 // add the key value to the copy, then swap to the new map using atomic
 // operation.
 func (m *COWMap) Set(key, val int64) {
+	m.l.Lock()
+	defer m.l.Unlock()
 	mm := (*Map)(atomic.LoadPointer(&m.m))
 	if v, ok := mm.Get(key); ok && v == val {
 		return
@@ -77,6 +76,8 @@ func (m *COWMap) Set(key, val int64) {
 // in the underlying map, it will copy the map and delete the key value
 // from the copy, then swap the new map using atomic operation.
 func (m *COWMap) Delete(key int64) {
+	m.l.Lock()
+	defer m.l.Unlock()
 	mm := (*Map)(atomic.LoadPointer(&m.m))
 	if mm.Has(key) {
 		newMap := mm.Clone()

@@ -74,7 +74,7 @@ func (m *InterfaceMap) Set(key int64, val interface{}) {
 		m.freeVal = val
 		return
 	}
-	m.m.SetRehash(key, val)
+	m.m.Set(key, val)
 }
 
 // Delete deletes a key and it's value from the map.
@@ -191,25 +191,6 @@ func (m *interfaceMap) Has(key int64) bool {
 
 // Set adds or updates key with value to the interfaceMap.
 func (m *interfaceMap) Set(key int64, val interface{}) {
-	ptr := phiMix(key)
-	for {
-		ptr &= m.mask
-		k := *m.getK(ptr)
-		if k == 0 {
-			*m.getK(ptr) = key
-			*m.getV(ptr) = val
-			m.size++
-			return
-		}
-		if k == key {
-			*m.getV(ptr) = val
-			return
-		}
-		ptr += 1
-	}
-}
-
-func (m *interfaceMap) SetRehash(key int64, val interface{}) {
 	ptr := phiMix(key)
 	for {
 		ptr &= m.mask
