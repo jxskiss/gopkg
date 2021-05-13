@@ -40,7 +40,7 @@ func (m Int32List) MarshalProtoToSizedBuffer(dAtA []byte) (int, error) {
 		}
 		i -= j1
 		copy(dAtA[i:], dAtA2[:j1])
-		i = encodeVarint(dAtA, i, uint64(j1))
+		i = protoEncodeVarint(dAtA, i, uint64(j1))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -185,11 +185,34 @@ func (m Int32List) MarshalBinary() ([]byte, error) {
 	return out, nil
 }
 
+func (m Int32List) MarshalDiffCompressed() ([]byte, error) {
+	if len(m) == 0 {
+		return []byte{}, nil
+	}
+	bufLen := 1 + 4*len(m)
+	out := make([]byte, 1, bufLen)
+	out[0] = binDiffCompressed
+
+	var tmp [16]byte
+	x := encodeZigZag(tmp[:0], int64(m[0]))
+	out = append(out, tmp[:x]...)
+	for i := 1; i < len(m); i++ {
+		diff := m[i] - m[i-1]
+		x = encodeZigZag(tmp[:0], int64(diff))
+		out = append(out, tmp[:x]...)
+	}
+	return out, nil
+}
+
 func (m *Int32List) UnmarshalBinary(buf []byte) error {
 	if len(buf) == 0 {
 		return nil
 	}
-	if len(buf) < 1 || buf[0] != binMagic32 {
+	if buf[0] == binDiffCompressed {
+		return m.unmarshalDiffCompressed(buf[1:])
+	}
+
+	if buf[0] != binMagic32 {
 		return ErrBinaryInvalidFormat
 	}
 	buf = buf[1:]
@@ -203,6 +226,28 @@ func (m *Int32List) UnmarshalBinary(buf []byte) error {
 	for i := 0; i < len(buf); i += 4 {
 		x := binEncoding.Uint32(buf[i : i+4])
 		slice = append(slice, int32(x))
+	}
+	*m = slice
+	return nil
+}
+
+func (m *Int32List) unmarshalDiffCompressed(buf []byte) error {
+	if len(buf) == 0 {
+		return nil
+	}
+
+	slice := *m
+	i := 0
+	pre := int32(0)
+	for i < len(buf) {
+		x, n, err := decodeZigZag(buf[i:])
+		if err != nil {
+			return err
+		}
+		v := int32(x) + pre
+		slice = append(slice, v)
+		pre = v
+		i += n
 	}
 	*m = slice
 	return nil

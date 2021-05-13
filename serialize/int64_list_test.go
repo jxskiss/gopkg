@@ -28,3 +28,15 @@ func TestInt64s_Binary64(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, slice, got)
 }
+
+func TestInt64s_DiffCompressed(t *testing.T) {
+	slice := Int64List{123, 456, 345, 789, 678, 38194344737811443}
+	buf, _ := slice.MarshalDiffCompressed()
+	t.Logf("Int64List DiffCompressed, len(buf)= %v", len(buf))
+	assert.Equal(t, binDiffCompressed, buf[0])
+
+	var got Int64List
+	err := got.UnmarshalBinary(buf)
+	assert.Nil(t, err)
+	assert.Equal(t, slice, got)
+}

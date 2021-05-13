@@ -31,15 +31,15 @@ func (m StringMap) MarshalProtoToSizedBuffer(dAtA []byte) (int, error) {
 			baseI := i
 			i -= len(v)
 			copy(dAtA[i:], v)
-			i = encodeVarint(dAtA, i, uint64(len(v)))
+			i = protoEncodeVarint(dAtA, i, uint64(len(v)))
 			i--
 			dAtA[i] = 0x12
 			i -= len(k)
 			copy(dAtA[i:], k)
-			i = encodeVarint(dAtA, i, uint64(len(k)))
+			i = protoEncodeVarint(dAtA, i, uint64(len(k)))
 			i--
 			dAtA[i] = 0xa
-			i = encodeVarint(dAtA, i, uint64(baseI-i))
+			i = protoEncodeVarint(dAtA, i, uint64(baseI-i))
 			i--
 			dAtA[i] = 0xa
 		}

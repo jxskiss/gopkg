@@ -29,7 +29,7 @@ func (m StringList) MarshalProtoToSizedBuffer(dAtA []byte) (int, error) {
 		for iNdEx := len(m) - 1; iNdEx >= 0; iNdEx-- {
 			i -= len(m[iNdEx])
 			copy(dAtA[i:], m[iNdEx])
-			i = encodeVarint(dAtA, i, uint64(len(m[iNdEx])))
+			i = protoEncodeVarint(dAtA, i, uint64(len(m[iNdEx])))
 			i--
 			dAtA[i] = 0xa
 		}
