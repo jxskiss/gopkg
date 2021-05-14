@@ -13,24 +13,24 @@ func TestParseOptions_Gorm(t *testing.T) {
 		{
 			tag: `type:varchar(100);unique_index`,
 			options: Options{
-				{Value: "type:varchar(100)", K: "type", V: "varchar(100)"},
-				{Value: "unique_index", K: "unique_index", V: ""},
+				{raw: "type:varchar(100)", k: "type", v: "varchar(100)"},
+				{raw: "unique_index", k: "unique_index", v: ""},
 			},
 		},
 		{
 			tag: `unique;not null`,
 			options: Options{
-				{Value: "unique", K: "unique", V: ""},
-				{Value: "not null", K: "not null", V: ""},
+				{raw: "unique", k: "unique", v: ""},
+				{raw: "not null", k: "not null", v: ""},
 			},
 		},
 		{
 			tag:     `AUTO_INCREMENT`,
-			options: Options{{Value: "AUTO_INCREMENT", K: "AUTO_INCREMENT", V: ""}},
+			options: Options{{raw: "AUTO_INCREMENT", k: "AUTO_INCREMENT", v: ""}},
 		},
 		{
 			tag:     `-`,
-			options: Options{{Value: "-", K: "-", V: ""}},
+			options: Options{{raw: "-", k: "-", v: ""}},
 		},
 		{
 			tag:     "",
@@ -45,7 +45,7 @@ func TestParseOptions_Gorm(t *testing.T) {
 }
 
 func TestOptions_Get(t *testing.T) {
-	options := Options{{K: "type", V: "varchar(100)"}, {K: "unique_index", V: ""}}
+	options := Options{{k: "type", v: "varchar(100)"}, {k: "unique_index", v: ""}}
 	tests := []struct {
 		opt   string
 		exp   string
@@ -71,7 +71,7 @@ func TestOptions_Get(t *testing.T) {
 		opt, found := options.Get(ts.opt)
 		assert.Equal(t, ts.found, found)
 		if found {
-			assert.Equal(t, ts.exp, opt)
+			assert.Equal(t, ts.exp, opt.Value())
 		}
 	}
 }

@@ -1,24 +1,25 @@
 package structtag
 
-import (
-	"strings"
-)
+import "strings"
 
 type Options []Option
 
-func (p Options) Get(option string) (string, bool) {
+func (p Options) Get(option string) (Option, bool) {
 	for _, opt := range p {
-		if opt.K == option {
-			return opt.V, true
+		if opt.k == option {
+			return opt, true
 		}
 	}
-	return "", false
+	return Option{}, false
 }
 
 type Option struct {
-	Value string
-	K, V  string
+	raw, k, v string
 }
+
+func (p Option) String() string { return p.raw }
+func (p Option) Key() string    { return p.k }
+func (p Option) Value() string  { return p.v }
 
 func ParseOptions(tag string, optionSep, kvSep string) Options {
 	tag = strings.TrimSpace(tag)
@@ -36,14 +37,14 @@ func ParseOptions(tag string, optionSep, kvSep string) Options {
 
 	for _, optstr := range opts {
 		optstr = strings.TrimSpace(optstr)
-		opt := Option{Value: optstr}
+		opt := Option{raw: optstr}
 		if kvSep != "" {
-			sepidx := strings.Index(optstr, kvSep)
-			if sepidx < 0 {
-				opt.K = optstr
+			sepIdx := strings.Index(optstr, kvSep)
+			if sepIdx < 0 {
+				opt.k = optstr
 			} else {
-				opt.K = strings.TrimSpace(optstr[:sepidx])
-				opt.V = strings.TrimSpace(optstr[sepidx+1:])
+				opt.k = strings.TrimSpace(optstr[:sepIdx])
+				opt.v = strings.TrimSpace(optstr[sepIdx+1:])
 			}
 		}
 		options = append(options, opt)

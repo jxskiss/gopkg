@@ -8,7 +8,6 @@ import (
 func TestCompile(t *testing.T) {
 	compileReflectFunctions()
 	compileRuntimeFunctions()
-	compileUtilFunctions()
 }
 
 // call helps to ensure the linked functions can build.

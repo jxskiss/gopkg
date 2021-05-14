@@ -1,6 +1,7 @@
 package sqlutil
 
 import (
+	"fmt"
 	"strings"
 	"unsafe"
 )
@@ -102,8 +103,9 @@ func (p *Condition) Build() (string, []interface{}) {
 }
 
 func (p *Condition) String() string {
-	clause, _ := p.Build()
-	return clause
+	clause, args := p.Build()
+	format := strings.Replace(clause, "?", "%v", -1)
+	return fmt.Sprintf(format, args...)
 }
 
 func containsAnd(clause string) bool {

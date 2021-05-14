@@ -4,12 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/jxskiss/gopkg/reflectx"
-	"github.com/jxskiss/gopkg/structtag"
-	"github.com/jxskiss/gopkg/strutil"
 	"reflect"
 	"strings"
 	"sync"
+
+	"github.com/jxskiss/gopkg/reflectx"
+	"github.com/jxskiss/gopkg/structtag"
+	"github.com/jxskiss/gopkg/strutil"
 )
 
 type InsertOptions struct {
@@ -245,10 +246,10 @@ func parseType(rows interface{}) *typeInfo {
 		dbTag := field.Tag.Get("db")
 		opts := structtag.ParseOptions(dbTag, ",", "")
 		if len(opts) > 0 {
-			if opts[0].Value == "-" {
+			if opts[0].String() == "-" {
 				continue
 			}
-			col = opts[0].Value
+			col = opts[0].String()
 		}
 
 		// be compatible with gorm column name tag
@@ -256,12 +257,12 @@ func parseType(rows interface{}) *typeInfo {
 			gormTag := field.Tag.Get("gorm")
 			opts = structtag.ParseOptions(gormTag, ";", ":")
 			if len(opts) > 0 {
-				if opts[0].K == "-" {
+				if opts[0].Key() == "-" {
 					continue
 				}
 				colopt, found := opts.Get("column")
-				if found && colopt != "" {
-					col = colopt
+				if found && colopt.Value() != "" {
+					col = colopt.Value()
 				}
 			}
 		}
