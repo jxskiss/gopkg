@@ -248,11 +248,19 @@ func (p LazyBinary) Value() (driver.Value, error) {
 
 func (p *LazyBinary) Scan(src interface{}) error {
 	if src != nil {
+		// NOTE
+		// We MUST copy the src byte slice here, database/sql.Scanner says:
+		//
+		// Reference types such as []byte are only valid until the next call to Scan
+		// and should not be retained. Their underlying memory is owned by the driver.
+		// If retention is necessary, copy their values before the next call to Scan.
+
 		b, ok := src.([]byte)
 		if !ok {
 			return fmt.Errorf("sqlutil: wants []byte but got %T", src)
 		}
-		p.raw = b
+		p.raw = make([]byte, len(b))
+		copy(p.raw, b)
 	}
 	return nil
 }
