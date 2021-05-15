@@ -2,13 +2,14 @@ package ecode
 
 import (
 	"encoding/json"
-	"strconv"
+	"fmt"
 )
 
 type Code struct {
 	code    int32
-	reg     *Registry
+	msg     string
 	details []interface{}
+	reg     *Registry
 }
 
 type ErrCode interface {
@@ -18,52 +19,55 @@ type ErrCode interface {
 	Details() []interface{}
 }
 
-func (e Code) String() string {
-	return e.Error()
-}
+func (e *Code) String() string { return e.Error() }
 
-func (e Code) Error() string {
-	code := strconv.FormatInt(int64(e.code), 10)
+func (e *Code) Error() string {
+	code := e.Code()
 	msg := e.Message()
 	if msg == "" {
-		return code
+		msg = "<no message>"
 	}
-	return code + ": " + msg
+	return fmt.Sprintf("[%d] %s", code, msg)
 }
 
-func (e Code) Code() int32 {
-	return e.code
-}
+func (e *Code) Code() int32 { return e.code }
 
-func (e Code) Message() string {
-	if e.reg == nil {
-		return ""
+func (e *Code) Message() string {
+	if e.msg != "" {
+		return e.msg
 	}
 	return e.reg.getMessage(e.code)
 }
 
-func (e Code) Details() []interface{} {
-	return e.details
+func (e *Code) Details() []interface{} { return e.details }
+
+func (e *Code) WithDetails(details ...interface{}) (code *Code) {
+	return &Code{
+		code:    e.code,
+		msg:     e.msg,
+		details: details,
+		reg:     e.reg,
+	}
 }
 
-func (e Code) WithDetails(details ...interface{}) (code Code) {
-	code = Code{
-		code: e.code,
-		reg:  e.reg,
+func (e *Code) WithMessage(msg string, details ...interface{}) (code *Code) {
+	return &Code{
+		code:    e.code,
+		msg:     msg,
+		details: details,
+		reg:     e.reg,
 	}
-	if len(details) > 0 {
-		code.details = details
-	}
-	return
 }
 
-func (e Code) MarshalJSON() ([]byte, error) {
+func (e *Code) MarshalJSON() ([]byte, error) {
 	out := struct {
-		Code    int32  `json:"code"`
-		Message string `json:"message,omitempty"`
+		Code    int32         `json:"code"`
+		Message string        `json:"message,omitempty"`
+		Details []interface{} `json:"details,omitempty"`
 	}{
 		Code:    e.Code(),
 		Message: e.Message(),
+		Details: e.details,
 	}
 	return json.Marshal(out)
 }

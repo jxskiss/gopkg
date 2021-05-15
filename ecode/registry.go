@@ -7,52 +7,51 @@ import (
 )
 
 type Registry struct {
-	reserved *int32
-	codeSet  map[int32]struct{} // registry of all error codes
-	messages atomic.Value       // map[int32]string, copy on write
+	reserve  func(code int32) bool // check reserved code
+	codeSet  map[int32]struct{}    // registry of all error codes
+	messages atomic.Value          // map[int32]string, copy on write
 }
 
 func New() *Registry {
-	return &Registry{
+	r := &Registry{
 		codeSet: make(map[int32]struct{}),
 	}
+	r.messages.Store(make(map[int32]string))
+	return r
 }
 
-func NewWithReserved(maxReserved int32) *Registry {
+func NewWithReserved(reserveFunc func(code int32) bool) *Registry {
 	p := New()
-	p.reserved = &maxReserved
+	p.reserve = reserveFunc
 	return p
 }
 
-func (p *Registry) Register(n int32, msg string) Code {
-	if p.reserved != nil && n <= *p.reserved {
-		panic(fmt.Sprintf("ecode: code <= %d is reserved", *p.reserved))
+func (p *Registry) Register(code int32, msg string) *Code {
+	if p.reserve != nil && p.reserve(code) {
+		panic(fmt.Sprintf("ecode: code %d is reserved", code))
 	}
-	return p.add(n, msg)
+	return p.add(code, msg)
 }
 
-func (p *Registry) RegisterReserved(n int32, msg string) Code {
-	return p.add(n, msg)
+func (p *Registry) RegisterReserved(code int32, msg string) *Code {
+	return p.add(code, msg)
 }
 
-func (p *Registry) add(n int32, msg string) Code {
-	if _, ok := p.codeSet[n]; ok {
-		panic(fmt.Sprintf("ecode: %d already registered", n))
+func (p *Registry) add(code int32, msg string) *Code {
+	if _, ok := p.codeSet[code]; ok {
+		panic(fmt.Sprintf("ecode: code %d is already registered", code))
 	}
-	p.codeSet[n] = struct{}{}
-	if len(msg) > 0 {
-		p.AddMessages(map[int32]string{n: msg})
+	p.codeSet[code] = struct{}{}
+	if msg != "" {
+		messages := p.messages.Load().(map[int32]string)
+		messages[code] = msg
 	}
-	return Code{code: n, reg: p}
+	return &Code{code: code, reg: p}
 }
 
-func (p *Registry) SetMessages(messages map[int32]string) {
-	p.messages.Store(messages)
-}
-
-func (p *Registry) AddMessages(messages map[int32]string) {
+func (p *Registry) UpdateMessages(messages map[int32]string) {
 	oldMsgs, _ := p.messages.Load().(map[int32]string)
-	newMsgs := make(map[int32]string, len(oldMsgs)+len(messages))
+	newMsgs := make(map[int32]string, len(oldMsgs))
 	for code, msg := range oldMsgs {
 		newMsgs[code] = msg
 	}
@@ -62,10 +61,10 @@ func (p *Registry) AddMessages(messages map[int32]string) {
 	p.messages.Store(newMsgs)
 }
 
-func (p *Registry) Dump() []Code {
-	out := make([]Code, 0, len(p.codeSet))
+func (p *Registry) Dump() []*Code {
+	out := make([]*Code, 0, len(p.codeSet))
 	for code := range p.codeSet {
-		out = append(out, Code{code: code, reg: p})
+		out = append(out, &Code{code: code, reg: p})
 	}
 	sort.Slice(out, func(i, j int) bool {
 		return out[i].code < out[j].code
@@ -74,6 +73,9 @@ func (p *Registry) Dump() []Code {
 }
 
 func (p *Registry) getMessage(code int32) string {
+	if p == nil {
+		return ""
+	}
 	msgs, _ := p.messages.Load().(map[int32]string)
 	return msgs[code]
 }

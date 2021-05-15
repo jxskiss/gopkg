@@ -11,8 +11,8 @@ func TestCode(t *testing.T) {
 	dummy1 := reg.Register(100001, "")
 	dummy2 := reg.RegisterReserved(100002, "dummy2")
 
-	assert.Equal(t, dummy1.Error(), "100001")
-	assert.Equal(t, dummy2.Error(), "100002: dummy2")
+	assert.Equal(t, dummy1.Error(), "[100001] <no message>")
+	assert.Equal(t, dummy2.Error(), "[100002] dummy2")
 
 	got1 := func() error { return dummy1 }()
 	got2 := func() error { return dummy2 }()
