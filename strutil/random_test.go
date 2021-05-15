@@ -29,14 +29,14 @@ func TestRandASCII(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		length := 3 + rand.Intn(1024)
-		lower := RandAlphaLower(length)
+		lower := RandLowerLetters(length)
 		t.Log("lower:", lower)
 		assert.True(t, IsLower(lower))
 	}
 
 	for i := 0; i < 10; i++ {
 		length := 3 + rand.Intn(1024)
-		upper := RandAlphaUpper(length)
+		upper := RandUpperLetters(length)
 		assert.True(t, IsUpper(upper))
 	}
 

@@ -3,16 +3,16 @@ package strutil
 import "unicode"
 
 const (
-	AlphaLower  = "abcdefghijklmnopqrstuvwxyz"
-	AlphaUpper  = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	Letters     = AlphaLower + AlphaUpper
-	Digits      = "0123456789"
-	HexDigits   = "0123456789abcdefABCDEF"
-	OctDigits   = "01234567"
-	AlphaDigits = Digits + Letters
-	Punctuation = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
-	Whitespace  = " \t\n\r\x0b\x0c"
-	Printable   = Digits + Letters + Punctuation + Whitespace
+	Letters      = UpperLetters + LowerLetters
+	UpperLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	LowerLetters = "abcdefghijklmnopqrstuvwxyz"
+	Digits       = "0123456789"
+	HexDigits    = "0123456789abcdefABCDEF"
+	OctDigits    = "01234567"
+	AlphaDigits  = Letters + Digits
+	Punctuation  = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
+	Whitespace   = " \t\n\r\x0b\x0c"
+	Printable    = AlphaDigits + Punctuation + Whitespace
 
 	PunctNoEscape = "!#$%&()*+,-./:;<=>?@[]^_{|}~" // without " ' ` \
 )

@@ -32,16 +32,16 @@ func RandLetters(length int) string {
 	return Random(Letters, length)
 }
 
-// RandAlphaLower returns a random string containing only lowercase
+// RandLowerLetters returns a random string containing only lowercase
 // alphabetic characters.
-func RandAlphaLower(length int) string {
-	return Random(AlphaLower, length)
+func RandLowerLetters(length int) string {
+	return Random(LowerLetters, length)
 }
 
-// RandAlphaUpper returns a random string containing only uppercase
+// RandUpperLetters returns a random string containing only uppercase
 // alphabetic characters.
-func RandAlphaUpper(length int) string {
-	return Random(AlphaUpper, length)
+func RandUpperLetters(length int) string {
+	return Random(UpperLetters, length)
 }
 
 // RandDigits returns a random string containing only digit numbers, the

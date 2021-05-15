@@ -11,6 +11,6 @@ Less is more!
 - [spf13/cast] Easy and safe casting from one type to another in Go.
 - [go-resty/resty] Simple HTTP and REST client library for Go (Powerful).
 
-[jxskiss/base62]: https://github.comm/jxskiss/base62
+[jxskiss/base62]: https://github.com/jxskiss/base62
 [spf13/cast]: https://github.com/spf13/cast
 [go-resty/resty]: https://github.com/go-resty/resty
