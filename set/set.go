@@ -1,7 +1,5 @@
 package set
 
-//go:generate go run template.go
-
 import (
 	"fmt"
 	"reflect"
@@ -44,10 +42,10 @@ func NewSetWithSize(size int) Set {
 }
 
 // Size returns the size of the set.
-func (s *Set) Size() int { return len(s.m) }
+func (s Set) Size() int { return len(s.m) }
 
 // Add adds the given values into the set.
-// If given only on param and which is a slice, the elements of the slice
+// If given only one param and which is a slice, the elements of the slice
 // will be added into the set using reflection.
 func (s *Set) Add(vals ...interface{}) {
 	if s.m == nil {
@@ -93,14 +91,14 @@ func (s *Set) Pop() interface{} {
 
 // Iterate iterates the set in no particular order and call the given
 // function for each set element.
-func (s *Set) Iterate(fn func(interface{})) {
+func (s Set) Iterate(fn func(interface{})) {
 	for val := range s.m {
 		fn(val)
 	}
 }
 
 // Contains returns true if the set contains all the values.
-func (s *Set) Contains(vals ...interface{}) bool {
+func (s Set) Contains(vals ...interface{}) bool {
 	if len(vals) == 0 {
 		return false
 	}
@@ -113,7 +111,7 @@ func (s *Set) Contains(vals ...interface{}) bool {
 }
 
 // ContainsAny returns true if the set contains any of the values.
-func (s *Set) ContainsAny(vals ...interface{}) bool {
+func (s Set) ContainsAny(vals ...interface{}) bool {
 	for _, v := range vals {
 		if _, ok := s.m[v]; ok {
 			return true
@@ -135,11 +133,21 @@ func (s Set) Diff(other Set) Set {
 }
 
 // DiffSlice is similar to Diff, but takes a slice as parameter.
-func (s Set) DiffSlice(other []interface{}) Set {
-	if len(s.m) > len(other) {
-		tmp := NewSetWithSize(len(other))
+// Param other must be a slice of []interface{} or slice of the concrete
+// element type, else it panics.
+func (s Set) DiffSlice(other interface{}) Set {
+	otherTyp := reflect.TypeOf(other)
+	if otherTyp == nil || otherTyp.Kind() != reflect.Slice {
+		panic(fmt.Sprintf("invalid other type %T", other))
+	}
+
+	otherVal := reflect.ValueOf(other)
+	otherLen := otherVal.Len()
+	if len(s.m) > otherLen {
+		tmp := NewSetWithSize(otherLen)
 		dup := 0
-		for _, val := range other {
+		for i := 0; i < otherLen; i++ {
+			val := otherVal.Index(i).Interface()
 			if _, ok := s.m[val]; ok {
 				dup++
 			}
@@ -157,7 +165,8 @@ func (s Set) DiffSlice(other []interface{}) Set {
 		for val := range s.m {
 			res.m[val] = struct{}{}
 		}
-		for _, val := range other {
+		for i := 0; i < otherLen; i++ {
+			val := otherVal.Index(i).Interface()
 			if _, ok := res.m[val]; ok {
 				delete(res.m, val)
 			}
@@ -168,26 +177,46 @@ func (s Set) DiffSlice(other []interface{}) Set {
 
 // FilterInclude returns a new slice which contains values that present in
 // the provided slice and also present in the Set.
-func (s Set) FilterInclude(slice []interface{}) []interface{} {
-	res := make([]interface{}, 0, min(s.Size(), len(slice)))
-	for _, val := range slice {
-		if _, ok := s.m[val]; ok {
-			res = append(res, val)
+// Param slice must be a slice of []interface{} or slice of the concrete
+// element type, else it panics.
+func (s Set) FilterInclude(slice interface{}) interface{} {
+	sliceTyp := reflect.TypeOf(slice)
+	if sliceTyp == nil || sliceTyp.Kind() != reflect.Slice {
+		panic(fmt.Sprintf("invalid slice type %T", slice))
+	}
+
+	sliceVal := reflect.ValueOf(slice)
+	sliceLen := sliceVal.Len()
+	res := reflect.MakeSlice(sliceTyp, 0, min(s.Size(), sliceLen))
+	for i := 0; i < sliceLen; i++ {
+		val := sliceVal.Index(i)
+		if _, ok := s.m[val.Interface()]; ok {
+			res = reflect.Append(res, val)
 		}
 	}
-	return res
+	return res.Interface()
 }
 
 // FilterExclude returns a new slice which contains values that present in
 // the provided slice but don't present in the Set.
-func (s Set) FilterExclude(slice []interface{}) []interface{} {
-	res := make([]interface{}, 0, len(slice))
-	for _, val := range slice {
-		if _, ok := s.m[val]; !ok {
-			res = append(res, val)
+// Param slice must be a slice of []interface{} or slice of the concrete
+// element type, else it panics.
+func (s Set) FilterExclude(slice interface{}) interface{} {
+	sliceTyp := reflect.TypeOf(slice)
+	if sliceTyp == nil || sliceTyp.Kind() != reflect.Slice {
+		panic(fmt.Sprintf("invalid slice type %T", slice))
+	}
+
+	sliceVal := reflect.ValueOf(slice)
+	sliceLen := sliceVal.Len()
+	res := reflect.MakeSlice(sliceTyp, 0, sliceLen)
+	for i := 0; i < sliceLen; i++ {
+		val := sliceVal.Index(i)
+		if _, ok := s.m[val.Interface()]; !ok {
+			res = reflect.Append(res, val)
 		}
 	}
-	return res
+	return res.Interface()
 }
 
 // Intersect returns new Set about values which other set also contains.
@@ -212,10 +241,19 @@ func (s Set) Intersect(other Set) Set {
 }
 
 // IntersectSlice is similar to Intersect, but takes a slice as parameter.
-func (s Set) IntersectSlice(other []interface{}) Set {
-	res := NewSetWithSize(min(s.Size(), len(other)))
+// Param other must be a slice of []interface{} or slice of the concrete
+// element type, else it panics.
+func (s Set) IntersectSlice(other interface{}) Set {
+	otherTyp := reflect.TypeOf(other)
+	if otherTyp == nil || otherTyp.Kind() != reflect.Slice {
+		panic(fmt.Sprintf("invalid other type %T", other))
+	}
 
-	for _, val := range other {
+	otherVal := reflect.ValueOf(other)
+	otherLen := otherVal.Len()
+	res := NewSetWithSize(min(s.Size(), otherLen))
+	for i := 0; i < otherLen; i++ {
+		val := otherVal.Index(i).Interface()
 		if _, ok := s.m[val]; ok {
 			res.m[val] = struct{}{}
 		}
@@ -237,46 +275,34 @@ func (s Set) Union(other Set) Set {
 }
 
 // UnionSlice is similar to Union, but takes a slice as parameter.
-func (s Set) UnionSlice(other []interface{}) Set {
-	res := NewSetWithSize(s.Size() + len(other))
+// Param other must be a slice of []interface{} or slice of the concrete
+// element type, else it panics.
+func (s Set) UnionSlice(other interface{}) Set {
+	otherTyp := reflect.TypeOf(other)
+	if otherTyp == nil || otherTyp.Kind() != reflect.Slice {
+		panic(fmt.Sprintf("invalid other type %T", other))
+	}
 
+	otherVal := reflect.ValueOf(other)
+	otherLen := otherVal.Len()
+	res := NewSetWithSize(s.Size() + otherLen)
 	for val := range s.m {
 		res.m[val] = struct{}{}
 	}
-	for _, val := range other {
+	for i := 0; i < otherLen; i++ {
+		val := otherVal.Index(i).Interface()
 		res.m[val] = struct{}{}
 	}
 	return res
 }
 
-// Slice converts set into interface{} slice.
+// Slice converts set into a []interface{} slice.
 func (s Set) Slice() []interface{} {
 	res := make([]interface{}, 0, len(s.m))
 	for val := range s.m {
 		res = append(res, val)
 	}
 	return res
-}
-
-// SliceTo copy the set elements to the given dst slice.
-//
-// The param dst must be a pointer to either an interface slice, or a
-// slice of the concrete element type, else it panics.
-func (s Set) SliceTo(dst interface{}) {
-	dstTyp := reflect.TypeOf(dst)
-	if dstTyp == nil || dstTyp.Kind() != reflect.Ptr || dstTyp.Elem().Kind() != reflect.Slice {
-		panic(fmt.Sprintf("invalid destination type %T", dst))
-	}
-	dstPtr := reflect.ValueOf(dst)
-	dstElem := dstPtr.Elem()
-	dstVal := dstElem
-	if !dstElem.IsValid() {
-		panic(fmt.Sprintf("invalid destination value %v", dst))
-	}
-	for val := range s.m {
-		dstVal = reflect.Append(dstVal, reflect.ValueOf(val))
-	}
-	dstElem.Set(dstVal)
 }
 
 // Map converts set into map[interface{}]bool.
@@ -286,28 +312,6 @@ func (s Set) Map() map[interface{}]bool {
 		res[val] = true
 	}
 	return res
-}
-
-// MapTo copy the set elements to the given map as keys.
-//
-// The param dst must be a pointer to either map[interface{}]bool, or a
-// map using the concrete element type as key, else it panics.
-func (s Set) MapTo(dst interface{}) {
-	dstTyp := reflect.TypeOf(dst)
-	if dstTyp == nil || dstTyp.Kind() != reflect.Ptr || dstTyp.Elem().Kind() != reflect.Map {
-		panic(fmt.Sprintf("invalid destination type %T", dst))
-	}
-	dstPtr := reflect.ValueOf(dst)
-	dstElem := dstPtr.Elem()
-	dstVal := dstElem
-	if !dstElem.IsValid() {
-		panic(fmt.Sprintf("invalid destination value %v", dst))
-	}
-	trueVal := reflect.ValueOf(true)
-	for val := range s.m {
-		dstVal.SetMapIndex(reflect.ValueOf(val), trueVal)
-	}
-	dstElem.Set(dstVal)
 }
 
 func min(a, b int) int {

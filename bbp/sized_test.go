@@ -19,23 +19,23 @@ func TestGet(t *testing.T) {
 }
 
 func Test_indexGet(t *testing.T) {
-	assert.Equal(t, 3, indexGet(7))
-	assert.Equal(t, 3, indexGet(8))
-	assert.Equal(t, 4, indexGet(9))
-	assert.Equal(t, 4, indexGet(15))
-	assert.Equal(t, 4, indexGet(16))
-	assert.Equal(t, 5, indexGet(17))
+	assert.Equal(t, 6, indexGet(63))
+	assert.Equal(t, 6, indexGet(64))
+	assert.Equal(t, 7, indexGet(65))
+	assert.Equal(t, 7, indexGet(127))
+	assert.Equal(t, 7, indexGet(128))
+	assert.Equal(t, 8, indexGet(129))
 }
 
 func Test_indexPut(t *testing.T) {
-	assert.Equal(t, 2, indexPut(7))
-	assert.Equal(t, 3, indexPut(8))
-	assert.Equal(t, 3, indexPut(9))
-	assert.Equal(t, 3, indexPut(15))
-	assert.Equal(t, 4, indexPut(16))
-	assert.Equal(t, 4, indexPut(17))
-	assert.Equal(t, 4, indexPut(31))
-	assert.Equal(t, 5, indexPut(32))
+	assert.Equal(t, 5, indexPut(63))
+	assert.Equal(t, 6, indexPut(64))
+	assert.Equal(t, 6, indexPut(65))
+	assert.Equal(t, 6, indexPut(127))
+	assert.Equal(t, 7, indexPut(128))
+	assert.Equal(t, 7, indexPut(129))
+	assert.Equal(t, 7, indexPut(255))
+	assert.Equal(t, 8, indexPut(256))
 }
 
 func BenchmarkAlloc_4K(b *testing.B) {

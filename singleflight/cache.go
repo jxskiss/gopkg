@@ -88,9 +88,6 @@ type Cache struct {
 	data  sync.Map
 
 	exit chan struct{}
-
-	refreshTicker *time.Ticker
-	expireTicker  *time.Ticker
 }
 
 // NewCache returns a new Cache instance using the given options.
@@ -100,29 +97,21 @@ func NewCache(opt CacheOptions) *Cache {
 		exit: make(chan struct{}),
 	}
 	if opt.RefreshInterval > 0 {
-		c.refreshTicker = time.NewTicker(opt.RefreshInterval)
 		go c.refresh()
 	}
 	if opt.ExpireInterval > 0 {
-		c.expireTicker = time.NewTicker(opt.ExpireInterval)
 		go c.expire()
 	}
 	return c
 }
 
-// Close closes the Cache. It will shutdown the refresh and expire
-// goroutines of the Cache.
+// Close closes the Cache. It will signal the refresh and expire
+// goroutines of the Cache to shutdown.
 //
-// This should be called when the Cache is no longer needed, or may lead
+// It should be called when the Cache is no longer needed, or may lead
 // resource leaks.
 func (c *Cache) Close() {
 	close(c.exit)
-	if c.refreshTicker != nil {
-		c.refreshTicker.Stop()
-	}
-	if c.expireTicker != nil {
-		c.expireTicker.Stop()
-	}
 }
 
 // SetDefault sets the default value of a given key if it is new to the cache.
@@ -161,12 +150,12 @@ func (c *Cache) Get(key string) (interface{}, error) {
 
 func (c *Cache) doFetch(key string, defaultVal interface{}) (interface{}, error) {
 	if c.opt.FetchTimeout == 0 {
-		return c.fetchNaive(key, defaultVal)
+		return c.fetchNoTimeout(key, defaultVal)
 	}
 	return c.fetchWithTimeout(key, defaultVal)
 }
 
-func (c *Cache) fetchNaive(key string, defaultVal interface{}) (interface{}, error) {
+func (c *Cache) fetchNoTimeout(key string, defaultVal interface{}) (interface{}, error) {
 	val, err, _ := c.group.Do(key, func() (interface{}, error) {
 		val, err := c.opt.Fetch(key)
 		if err != nil && defaultVal != nil {
@@ -257,9 +246,12 @@ func (c *Cache) DeleteFunc(match func(key string) bool) {
 }
 
 func (c *Cache) refresh() {
+	ticker := time.NewTicker(c.opt.RefreshInterval)
+	defer ticker.Stop()
+
 	for {
 		select {
-		case <-c.refreshTicker.C:
+		case <-ticker.C:
 			c.doRefresh()
 		case <-c.exit:
 			return
@@ -297,9 +289,12 @@ func (c *Cache) doRefresh() {
 }
 
 func (c *Cache) expire() {
+	ticker := time.NewTicker(c.opt.ExpireInterval)
+	defer ticker.Stop()
+
 	for {
 		select {
-		case <-c.expireTicker.C:
+		case <-ticker.C:
 			c.doExpire()
 		case <-c.exit:
 			return

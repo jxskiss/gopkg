@@ -143,7 +143,6 @@ func unpatchValue(target uintptr) bool {
 }
 
 // this function is super unsafe
-// aww yeah
 // It copies a slice to a raw memory location, disabling all memory protection before doing so.
 func replaceCode(target uintptr, code []byte) {
 	_replace_code(target, code)

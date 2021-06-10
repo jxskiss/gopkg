@@ -1,104 +1,85 @@
 package crypto
 
 import (
-	"bytes"
+	"github.com/stretchr/testify/assert"
 	"regexp"
 	"testing"
 )
 
 var (
 	testkey   = []byte("_test_test_test_")
-	plainText = []byte("hello 世界")
+	plaintext = []byte("hello 世界")
 )
 
 func Test_GCM(t *testing.T) {
-	cipherText, err := GCMEncrypt(plainText, testkey)
-	if err != nil {
-		t.Errorf("GCM failed encrypt: %v", err)
-	}
-	decrypted, err := GCMDecrypt(cipherText, testkey)
-	if err != nil {
-		t.Errorf("GCM failed decrypt: %v", err)
-	}
-	if !bytes.Equal(decrypted, plainText) {
-		t.Errorf("GCM got invalid decrypted result")
-	}
+	ciphertext, err := GCMEncrypt(plaintext, testkey)
+	assert.Nil(t, err)
+
+	decrypted, err := GCMDecrypt(ciphertext, testkey)
+	assert.Nil(t, err)
+	assert.Equal(t, plaintext, decrypted)
+}
+
+func Test_GCM_EmptyKey(t *testing.T) {
+	emptyKey := []byte("")
+	ciphertext, err := GCMEncrypt(plaintext, emptyKey)
+	assert.Nil(t, err)
+
+	decrypted, err := GCMDecrypt(ciphertext, emptyKey)
+	assert.Nil(t, err)
+	assert.Equal(t, plaintext, decrypted)
 }
 
 func Test_GCM_NewKey(t *testing.T) {
-	cipherText, key, additional, err := GCMEncryptNewKey(plainText)
-	if err != nil {
-		t.Errorf("GCM_NewKey failed encrypt: %v", err)
-	}
-	decrypted, err := GCMDecrypt(cipherText, key, AdditionalData(additional))
-	if err != nil {
-		t.Errorf("GCM_NewKey failed decrypt: %v", err)
-	}
-	if !bytes.Equal(decrypted, plainText) {
-		t.Errorf("GCM_NewKey got invalid decrypted result")
-	}
+	ciphertext, key, additional, err := GCMEncryptNewKey(plaintext)
+	assert.Nil(t, err)
+
+	decrypted, err := GCMDecrypt(ciphertext, key, AdditionalData(additional))
+	assert.Nil(t, err)
+	assert.Equal(t, plaintext, decrypted)
 }
 
 func Test_CBC(t *testing.T) {
-	cipherText, err := CBCEncrypt(plainText, testkey)
-	if err != nil {
-		t.Errorf("CBC failed encrypt: %v", err)
-	}
-	decrypted, err := CBCDecrypt(cipherText, testkey)
-	if err != nil {
-		t.Errorf("CBC failed decrypt: %v", err)
-	}
-	if !bytes.Equal(decrypted, plainText) {
-		t.Errorf("CBC got invalid decrypted result")
-	}
+	ciphertext, err := CBCEncrypt(plaintext, testkey)
+	assert.Nil(t, err)
+
+	decrypted, err := CBCDecrypt(ciphertext, testkey)
+	assert.Nil(t, err)
+	assert.Equal(t, plaintext, decrypted)
 }
 
 func Test_CFB(t *testing.T) {
-	cipherText, err := CFBEncrypt(plainText, testkey)
-	if err != nil {
-		t.Errorf("CFB failed encrypt: %v", err)
-	}
-	decrypted, err := CFBDecrypt(cipherText, testkey)
-	if err != nil {
-		t.Errorf("CFB failed decrypt: %v", err)
-	}
-	if !bytes.Equal(decrypted, plainText) {
-		t.Errorf("CFB got invalid decrypted result")
-	}
+	ciphertext, err := CFBEncrypt(plaintext, testkey)
+	assert.Nil(t, err)
+
+	decrypted, err := CFBDecrypt(ciphertext, testkey)
+	assert.Nil(t, err)
+	assert.Equal(t, plaintext, decrypted)
 }
 
 func Test_Option_Base64(t *testing.T) {
-	cipherText, err := CFBEncrypt(plainText, testkey, Base64)
-	if err != nil {
-		t.Errorf("Option_Base64 failed encrypt: %v", err)
-	}
-	t.Log(string(cipherText))
+	ciphertext, err := CFBEncrypt(plaintext, testkey, Base64)
+	assert.Nil(t, err)
+
+	t.Log(string(ciphertext))
 	base64Pattern := regexp.MustCompile(`^[A-Za-z0-9_\-]+=*$`)
-	if !base64Pattern.Match(cipherText) {
-		t.Errorf("Option_Base64 got invalid character")
-	}
+	assert.Regexp(t, base64Pattern, string(ciphertext))
 }
 
 func Test_KeyPadding(t *testing.T) {
 	for i := 0; i < 17; i++ {
 		key := make([]byte, i)
 		key = KeyPadding(key)
-		if len(key) != 16 {
-			t.Errorf("KeyPadding got invalid key length")
-		}
+		assert.Len(t, key, 16)
 	}
 	for i := 17; i < 25; i++ {
 		key := make([]byte, i)
 		key = KeyPadding(key)
-		if len(key) != 24 {
-			t.Errorf("KeyPadding got invalid key length")
-		}
+		assert.Len(t, key, 24)
 	}
 	for i := 25; i < 50; i++ {
 		key := make([]byte, i)
 		key = KeyPadding(key)
-		if len(key) != 32 {
-			t.Errorf("KeyPadding got invalid key length")
-		}
+		assert.Len(t, key, 32)
 	}
 }

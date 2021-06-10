@@ -1,11 +1,9 @@
 package monkey
 
-import (
-	"github.com/jxskiss/gopkg/reflectx"
-)
+const ptrBitSize = 32 << (^uint(0) >> 63)
 
 func buildJmpDirective(to uintptr) []byte {
-	if reflectx.PtrBitSize == 32 {
+	if ptrBitSize == 32 {
 		return _buildJmpDirective_x86(to)
 	}
 	return _buildJmpDirective_amd64(to)

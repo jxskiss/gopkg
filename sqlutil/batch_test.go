@@ -84,6 +84,7 @@ func TestMakeBatchInsertSQL_Panic(t *testing.T) {
 		assert.Panics(t, func() { _, _ = MakeBatchInsertSQL(test) })
 		_, err := BatchInsert(dummyExecutor{}, test)
 		t.Log(err)
+		assert.NotNil(t, err)
 		assert.True(t, strings.HasPrefix(err.Error(), "BatchInsert: "))
 	}
 }

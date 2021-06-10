@@ -14,7 +14,10 @@ func TestLinkBufferWrite(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		tmp := strings.Repeat(str, i)
 		want += tmp
-		buf.WriteString(tmp)
+		tmpNN, tmpErr := buf.WriteString(tmp)
+
+		assert.Nil(t, tmpErr)
+		assert.Equal(t, len(tmp), tmpNN)
 	}
 	got := buf.String()
 	assert.Equal(t, want, got)
@@ -27,7 +30,10 @@ func TestLinkBufferReadFrom(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		tmp := strings.Repeat(str, i)
 		want += tmp
-		bytesBuf.WriteString(tmp)
+		tmpNN, tmpErr := bytesBuf.WriteString(tmp)
+
+		assert.Nil(t, tmpErr)
+		assert.Equal(t, len(tmp), tmpNN)
 	}
 	bytesStr := bytesBuf.String()
 

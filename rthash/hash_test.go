@@ -3,10 +3,11 @@ package rthash
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"testing"
 )
 
-func Test_Hash(t *testing.T) {
+func TestHash(t *testing.T) {
 	cases := []interface{}{
 		"abc",
 		int8(19),
@@ -37,4 +38,20 @@ func Test_Hash(t *testing.T) {
 type hashable struct {
 	A int
 	B string
+}
+
+func BenchmarkHash_Int64(b *testing.B) {
+	h := New()
+	x := rand.Int63()
+	for i := 0; i < b.N; i++ {
+		_ = h.Int64(x)
+	}
+}
+
+func BenchmarkHash_Bytes(b *testing.B) {
+	h := New()
+	x := []byte("this is a short sample text")
+	for i := 0; i < b.N; i++ {
+		_ = h.Bytes(x)
+	}
 }

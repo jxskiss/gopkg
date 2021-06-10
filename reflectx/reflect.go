@@ -1,44 +1,12 @@
 package reflectx
 
 import (
+	"github.com/jxskiss/gopkg/internal"
 	"reflect"
 	"unsafe"
 )
 
-// IsPrivateField returns whether the field is private by checking PkgPath.
-//
-// PkgPath is the package path that qualifies a lower case (unexported)
-// field name. It is empty for upper case (exported) field names.
-// See https://golang.org/ref/spec#Uniqueness_of_identifiers
-func IsPrivateField(field *reflect.StructField) bool {
-	return field.PkgPath != ""
-}
-
-// IsIgnoredField returns whether the given field is ignored for specified tag
-// by checking the field's anonymity and it's struct tag equals to "-".
-func IsIgnoredField(field *reflect.StructField, tag string) bool {
-	if field.PkgPath != "" {
-		if field.Anonymous {
-			if !(field.Type.Kind() == reflect.Ptr && field.Type.Elem().Kind() == reflect.Struct) && field.Type.Kind() != reflect.Struct {
-				return true
-			}
-		} else {
-			// private field
-			return true
-		}
-	}
-	tagVal := field.Tag.Get(tag)
-	return tagVal == "-"
-}
-
-func IsStringTypeOrPtr(typ reflect.Type) bool {
-	kind := typ.Kind()
-	if kind == reflect.Ptr {
-		kind = typ.Elem().Kind()
-	}
-	return kind == reflect.String
-}
-
+// IsIntType tells whether kind is an integer.
 func IsIntType(kind reflect.Kind) bool {
 	switch kind {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
@@ -48,22 +16,8 @@ func IsIntType(kind reflect.Kind) bool {
 	return false
 }
 
-func IsIntTypeOrPtr(typ reflect.Type) bool {
-	kind := typ.Kind()
-	if kind == reflect.Ptr {
-		kind = typ.Elem().Kind()
-	}
-	return IsIntType(kind)
-}
-
-func Is32bitInt(kind reflect.Kind) bool {
-	return IsIntType(kind) && GetIntCaster(kind).Size == 4
-}
-
-func Is64bitInt(kind reflect.Kind) bool {
-	return IsIntType(kind) && GetIntCaster(kind).Size == 8
-}
-
+// ReflectInt returns v's underlying value as int64.
+// It panics if v is not a integer value.
 func ReflectInt(v reflect.Value) int64 {
 	switch v.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -76,64 +30,17 @@ func ReflectInt(v reflect.Value) int64 {
 	panic("bug: not int type")
 }
 
+// CastInt returns an integer v's value as int64.
+// v must be an integer, else it panics.
 func CastInt(v interface{}) int64 {
-	kind := EFaceOf(&v).RType.Kind()
-	return GetIntCaster(kind).Cast(EFaceOf(&v).Word)
+	return internal.CastInt(v)
 }
 
-func CastString(x interface{}) string { return *(*string)(EFaceOf(&x).Word) }
-
-func CastInt32Slice(i32slice interface{}) []int32 {
-	return *(*[]int32)(EFaceOf(&i32slice).Word)
-}
-
-func CastInt64Slice(i64slice interface{}) []int64 {
-	return *(*[]int64)(EFaceOf(&i64slice).Word)
-}
-
-func ConvertInt32Slice(slice interface{}) []int32 {
-	header := UnpackSlice(slice)
-	elemTyp := EFaceOf(&slice).RType.Elem()
-	info := GetIntCaster(elemTyp.Kind())
-	out := make([]int32, header.Len)
-	for i := 0; i < header.Len; i++ {
-		x := ArrayAt(header.Data, i, info.Size)
-		out[i] = int32(info.Cast(x))
-	}
-	return out
-}
-
-func ConvertInt64Slice(slice interface{}) []int64 {
-	header := UnpackSlice(slice)
-	elemTyp := EFaceOf(&slice).RType.Elem()
-	info := GetIntCaster(elemTyp.Kind())
-	out := make([]int64, header.Len)
-	for i := 0; i < header.Len; i++ {
-		x := ArrayAt(header.Data, i, info.Size)
-		out[i] = info.Cast(x)
-	}
-	return out
-}
-
-type IntCaster struct {
-	Size uintptr
-	Cast func(unsafe.Pointer) int64
-}
-
-func GetIntCaster(kind reflect.Kind) IntCaster {
-	return i64table[kind]
-}
-
-var i64table = [...]IntCaster{
-	reflect.Int8:    {1, func(p unsafe.Pointer) int64 { return int64(*(*int8)(p)) }},
-	reflect.Uint8:   {1, func(p unsafe.Pointer) int64 { return int64(*(*uint8)(p)) }},
-	reflect.Int16:   {2, func(p unsafe.Pointer) int64 { return int64(*(*int16)(p)) }},
-	reflect.Uint16:  {2, func(p unsafe.Pointer) int64 { return int64(*(*uint16)(p)) }},
-	reflect.Int32:   {4, func(p unsafe.Pointer) int64 { return int64(*(*int32)(p)) }},
-	reflect.Uint32:  {4, func(p unsafe.Pointer) int64 { return int64(*(*uint32)(p)) }},
-	reflect.Int64:   {8, func(p unsafe.Pointer) int64 { return int64(*(*int64)(p)) }},
-	reflect.Uint64:  {8, func(p unsafe.Pointer) int64 { return int64(*(*uint64)(p)) }},
-	reflect.Int:     {PtrBitSize / 8, func(p unsafe.Pointer) int64 { return int64(*(*int)(p)) }},
-	reflect.Uint:    {PtrBitSize / 8, func(p unsafe.Pointer) int64 { return int64(*(*uint)(p)) }},
-	reflect.Uintptr: {PtrBitSize / 8, func(p unsafe.Pointer) int64 { return int64(*(*uintptr)(p)) }},
+// CastIntPointer returns ptr's value as int64, the underlying value
+// is cast to int64 using unsafe tricks according kind.
+//
+// If ptr is not pointed to an integer or kind does not match ptr,
+// the behavior is undefined, it may panic or return incorrect value.
+func CastIntPointer(kind reflect.Kind, ptr unsafe.Pointer) int64 {
+	return internal.CastIntPointer(kind, ptr)
 }

@@ -99,6 +99,6 @@ func TestPanicOnError(t *testing.T) {
 	})
 
 	assert.PanicsWithValue(t, panicErr, func() {
-		Must(willPanic())
+		PanicOnError(willPanic())
 	})
 }

@@ -7,8 +7,9 @@ import (
 )
 
 type value struct {
-	_   uintptr
-	ptr unsafe.Pointer
+	_   uintptr        // typ *rtype
+	ptr unsafe.Pointer // ptr unsafe.Pointer
+	_   uintptr        // flag
 }
 
 func getPtr(v reflect.Value) unsafe.Pointer {

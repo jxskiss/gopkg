@@ -24,7 +24,7 @@ const (
 //
 // All Pool instances share the same underlying sized byte slice pools.
 // The byte buffers provided by Pool has minimum and maximum limit (see
-// `MinBufSize` and `MaxBufSize`), byte slice with size not in the range
+// `MinSize` and `MaxSize`), byte slice with size not in the range
 // will be allocated directly from the operating system, and won't be
 // recycled for reuse.
 //

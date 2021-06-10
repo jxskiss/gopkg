@@ -106,7 +106,7 @@ var (
 )
 
 func init() {
-	rtmdtype := reflectx.GetType("runtime.moduledata")
+	rtmdtype := GetType("runtime.moduledata")
 	moduledata_pclntableOffset = getOffset(rtmdtype, "pclntable", "forceexport: moduledata.pclntable not found")
 	moduledata_ftabOffset = getOffset(rtmdtype, "ftab", "foceexport: moduledata.ftab not found")
 }

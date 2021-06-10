@@ -1,6 +1,7 @@
 package reflectx
 
 import (
+	"github.com/jxskiss/gopkg/internal"
 	"github.com/jxskiss/gopkg/internal/linkname"
 	"reflect"
 	"unsafe"
@@ -128,20 +129,20 @@ func (t *RType) Out(i int) reflect.Type {
 	return linkname.Reflect_rtype_Out(unsafe.Pointer(t), i)
 }
 
-// ---- extended functions not provided in reflect package ---- //
+// ---- extended methods not in reflect package ---- //
 
 func (t *RType) IfaceIndir() bool {
 	return linkname.Reflect_ifaceIndir(unsafe.Pointer(t))
 }
 
 func (t *RType) PackInterface(word unsafe.Pointer) interface{} {
-	return *(*interface{})(unsafe.Pointer(&EmptyInterface{
-		RType: t,
+	return *(*interface{})(unsafe.Pointer(&internal.EmptyInterface{
+		RType: unsafe.Pointer(t),
 		Word:  word,
 	}))
 }
 
-func (t *RType) ReflectType() reflect.Type {
+func (t *RType) ToType() reflect.Type {
 	return linkname.Reflect_toType(unsafe.Pointer(t))
 }
 
@@ -149,12 +150,28 @@ func (t *RType) Pointer() unsafe.Pointer {
 	return unsafe.Pointer(t)
 }
 
-// ---- exported functions ---- //
+// ---- exported public functions ---- //
 
 // PtrTo returns the pointer type with element t.
 // For example, if t represents type Foo, PtrTo(t) represents *Foo.
 func PtrTo(t *RType) *RType {
 	return (*RType)(linkname.Reflect_rtype_ptrTo(unsafe.Pointer(t)))
+}
+
+// SliceOf returns the slice type with element type t.
+// For example, if t represents int, SliceOf(t) represents []int.
+func SliceOf(t *RType) *RType {
+	return ToRType(reflect.SliceOf(t.ToType()))
+}
+
+// MapOf returns the map type with the given key and element types.
+// For example, if k represents int and e represents string,
+// MapOf(k, e) represents map[int]string.
+//
+// If the key type is not a valid map key type (that is, if it does
+// not implement Go's == operator), MapOf panics.
+func MapOf(key, elem *RType) *RType {
+	return ToRType(reflect.MapOf(key.ToType(), elem.ToType()))
 }
 
 // ToRType converts a reflect.Type value to *Type.
@@ -172,6 +189,15 @@ func RTypeOf(v interface{}) *RType {
 	case reflect.Value:
 		return ToRType(x.Type())
 	default:
-		return EFaceOf(&x).RType
+		eface := internal.EFaceOf(&x)
+		return (*RType)(eface.RType)
 	}
+}
+
+// ---- private things ---- //
+
+// iface is a copy type of runtime.iface.
+type iface struct {
+	tab  unsafe.Pointer // *itab
+	data unsafe.Pointer
 }

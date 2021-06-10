@@ -15,7 +15,7 @@ import (
 //
 // Unlike hash.Hash or hash/maphash.Hash, this Hash does not provide
 // the ability to reset seed, the seed must be provided when creating the
-// Hash and will be used forever.
+// Hash instance and will be used during the lifetime.
 //
 // This Hash type is intended to be used to do fast sharding, when
 // implementing hash tables or other data structures, it's recommended
@@ -38,21 +38,16 @@ type Hash struct {
 // in runtime package. The returned Hash instance is safe for concurrent use
 // by multiple goroutines.
 func New() Hash {
-	var s1, s2 uint64
-	for {
-		s1 = uint64(linkname.Runtime_fastrand())
-		s2 = uint64(linkname.Runtime_fastrand())
-		// We use seed 0 to indicate an uninitialized seed/hash,
-		// so keep trying until we get a non-zero seed.
-		if s1|s2 != 0 {
-			break
-		}
-	}
-	seed := uintptr(s1<<32 + s2)
+	seed := uintptr(makeseed())
 	return Hash{seed: seed}
 }
 
 // Hash returns a hash code for a comparable argument.
+//
+// Note this function calls the hash functions for the concrete type if
+// x is of type string, int8, uint8, int16, uint16, int32, uint32,
+// int64, uint64, int, uint, uintptr, float32, float64, complex64,
+// or complex128, else it calls
 func (h Hash) Hash(x interface{}) uintptr {
 	switch v := x.(type) {
 	case string:
@@ -104,22 +99,22 @@ func (h Hash) Bytes(x []byte) uintptr {
 
 // Int8 exposes the memhash8 function from runtime package.
 func (h Hash) Int8(x int8) uintptr {
-	return linkname.Runtime_memhash8(noescape(unsafe.Pointer(&x)), h.seed)
+	return linkname.Runtime_memhash8(unsafe.Pointer(&x), h.seed)
 }
 
 // Uint8 exposes the memhash8 function from runtime package.
 func (h Hash) Uint8(x uint8) uintptr {
-	return linkname.Runtime_memhash8(noescape(unsafe.Pointer(&x)), h.seed)
+	return linkname.Runtime_memhash8(unsafe.Pointer(&x), h.seed)
 }
 
 // Int16 exposes the memhash16 function from runtime package.
 func (h Hash) Int16(x int16) uintptr {
-	return linkname.Runtime_memhash16(noescape(unsafe.Pointer(&x)), h.seed)
+	return linkname.Runtime_memhash16(unsafe.Pointer(&x), h.seed)
 }
 
 // Uint16 exposes the memhash16 function from runtime package.
 func (h Hash) Uint16(x uint16) uintptr {
-	return linkname.Runtime_memhash16(noescape(unsafe.Pointer(&x)), h.seed)
+	return linkname.Runtime_memhash16(unsafe.Pointer(&x), h.seed)
 }
 
 // Int32 exposes the int32Hash function from runtime package.
@@ -171,22 +166,22 @@ func (h Hash) Uintptr(x uintptr) uintptr {
 
 // Float32 exposes the f32hash function from runtime package.
 func (h Hash) Float32(x float32) uintptr {
-	return linkname.Runtime_f32hash(noescape(unsafe.Pointer(&x)), h.seed)
+	return linkname.Runtime_f32hash(unsafe.Pointer(&x), h.seed)
 }
 
 // Float64 exposes the f64hash function from runtime package.
 func (h Hash) Float64(x float64) uintptr {
-	return linkname.Runtime_f64hash(noescape(unsafe.Pointer(&x)), h.seed)
+	return linkname.Runtime_f64hash(unsafe.Pointer(&x), h.seed)
 }
 
 // Complex64 exposes the c64hash function from runtime package.
 func (h Hash) Complex64(x complex64) uintptr {
-	return linkname.Runtime_c64hash(noescape(unsafe.Pointer(&x)), h.seed)
+	return linkname.Runtime_c64hash(unsafe.Pointer(&x), h.seed)
 }
 
 // Complex128 exposes the c128hash function from runtime package.
 func (h Hash) Complex128(x complex128) uintptr {
-	return linkname.Runtime_c128hash(noescape(unsafe.Pointer(&x)), h.seed)
+	return linkname.Runtime_c128hash(unsafe.Pointer(&x), h.seed)
 }
 
 // Interface exposes the efaceHash function from runtime package.
@@ -197,15 +192,16 @@ func (h Hash) Interface(x interface{}) uintptr {
 // ptrSize is the size in bits of an int or uint value.
 const ptrSize = 32 << (^uint(0) >> 63)
 
-// noescape is copied from the runtime package.
-//
-// noescape hides a pointer from escape analysis.  noescape is
-// the identity function but escape analysis doesn't think the
-// output depends on the input.  noescape is inlined and currently
-// compiles down to zero instructions.
-// USE CAREFULLY!
-//go:nosplit
-func noescape(p unsafe.Pointer) unsafe.Pointer {
-	x := uintptr(p)
-	return unsafe.Pointer(x ^ 0)
+func makeseed() uint64 {
+	var s1, s2 uint64
+	for {
+		s1 = uint64(linkname.Runtime_fastrand())
+		s2 = uint64(linkname.Runtime_fastrand())
+		// We use seed 0 to indicate an uninitialized seed/hash,
+		// so keep trying until we get a non-zero seed.
+		if s1|s2 != 0 {
+			break
+		}
+	}
+	return s1<<32 + s2
 }

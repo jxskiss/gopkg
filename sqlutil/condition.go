@@ -6,6 +6,8 @@ import (
 	"unsafe"
 )
 
+// And returns a new *Condition which is combination of given conditions
+// using the "AND" operator.
 func And(conds ...*Condition) *Condition {
 	f := new(Condition)
 	for _, c := range conds {
@@ -15,6 +17,8 @@ func And(conds ...*Condition) *Condition {
 	return f
 }
 
+// Or returns a new *Condition which is combination of given conditions
+// using the "OR" operator.
 func Or(conds ...*Condition) *Condition {
 	f := new(Condition)
 	for _, c := range conds {
@@ -24,16 +28,19 @@ func Or(conds ...*Condition) *Condition {
 	return f
 }
 
+// Cond creates a new *Condition from the given params.
 func Cond(clause string, args ...interface{}) *Condition {
 	return new(Condition).And(clause, args...)
 }
 
+// Condition represents a query filter to work with SQL query.
 type Condition struct {
 	builder strings.Builder
 	prefix  []byte
 	args    []interface{}
 }
 
+// And combines the given query filter to Condition using "AND" operator.
 func (p *Condition) And(clause string, args ...interface{}) *Condition {
 	if clause == "" {
 		return p
@@ -56,6 +63,7 @@ func (p *Condition) And(clause string, args ...interface{}) *Condition {
 	return p
 }
 
+// Or combines the given query filter to Condition using "OR" operator.
 func (p *Condition) Or(clause string, args ...interface{}) *Condition {
 	if clause == "" {
 		return p
@@ -80,6 +88,8 @@ func (p *Condition) Or(clause string, args ...interface{}) *Condition {
 	return p
 }
 
+// IfAnd checks cond, if cond is true, it combines the query filter
+// to Condition using "AND" operator.
 func (p *Condition) IfAnd(cond bool, clause string, args ...interface{}) *Condition {
 	if cond {
 		return p.And(clause, args...)
@@ -87,6 +97,8 @@ func (p *Condition) IfAnd(cond bool, clause string, args ...interface{}) *Condit
 	return p
 }
 
+// IfOr checks cond, it cond is true, it combines the query filter
+// to Condition using "OR" operator.
 func (p *Condition) IfOr(cond bool, clause string, args ...interface{}) *Condition {
 	if cond {
 		return p.Or(clause, args...)
@@ -94,6 +106,7 @@ func (p *Condition) IfOr(cond bool, clause string, args ...interface{}) *Conditi
 	return p
 }
 
+// Build returns the query filter clause and parameters of the Condition.
 func (p *Condition) Build() (string, []interface{}) {
 	buf := make([]byte, len(p.prefix)+p.builder.Len())
 	copy(buf, p.prefix)
@@ -102,6 +115,7 @@ func (p *Condition) Build() (string, []interface{}) {
 	return clause, p.args
 }
 
+// String returns the string representation of the Condition.
 func (p *Condition) String() string {
 	clause, args := p.Build()
 	format := strings.Replace(clause, "?", "%v", -1)

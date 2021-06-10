@@ -19,3 +19,15 @@ func TestSetDefault(t *testing.T) {
 	assert.Equal(t, testObject{A: 1, B: "b"}, *ptr)
 	assert.Equal(t, tmp, ptr)
 }
+
+func TestSetDefault_ShouldPanic(t *testing.T) {
+	var ptr *testObject
+	var tmp = &testObject{A: 1, B: "b"}
+
+	err := Safe(func() {
+		SetDefault(ptr, tmp)
+	})()
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "SetDefault")
+	assert.Contains(t, err.Error(), "must be a non-nil pointer")
+}

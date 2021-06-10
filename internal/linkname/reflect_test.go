@@ -41,5 +41,7 @@ func compileReflectFunctions() {
 	call(Reflect_typedslicecopy)
 	call(Reflect_maplen)
 	call(Reflect_mapiterinit)
+	call(Reflect_mapiterkey)
+	call(Reflect_mapiterelem)
 	call(Reflect_mapiternext)
 }

@@ -1,5 +1,7 @@
 Package linkname exports various private functions from the standard library
 using the `//go:linkname` directive.
 
-Generally it is very UNSAFE to use functions from this package.
-**DON'T USE THIS if you don't know what it is.**
+**DON'T USE THIS IF YOU DON'T KNOW WHAT IT IS.**
+
+Also, it is a bad practice to use private functions from other packages,
+and it is **UNSAFE and not protected by the Go 1 compatibility promise**.

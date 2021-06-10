@@ -4,9 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/json-iterator/go"
-	"github.com/jxskiss/gopkg/json"
-	"github.com/jxskiss/gopkg/strutil"
 	"io"
 	"log"
 	"os"
@@ -16,6 +13,10 @@ import (
 	"strings"
 	"sync"
 	"unicode/utf8"
+
+	"github.com/jxskiss/gopkg/internal/unsafeheader"
+	"github.com/jxskiss/gopkg/json"
+	"github.com/jxskiss/gopkg/strutil"
 )
 
 func ConfigLog(cfg LogCfg) {
@@ -79,41 +80,35 @@ func (f PrintFunc) Errorf(format string, args ...interface{}) { f(format, args..
 
 func (f PrintFunc) Debugf(format string, args ...interface{}) { f(format, args...) }
 
-var logjson = jsoniter.Config{
-	// compatible with standard library behavior
-	SortMapKeys:            true,
-	ValidateJsonRawMessage: true,
-
-	// incompatible with standard library behavior
-	EscapeHTML: false,
-}.Froze()
-
 // JSON converts given object to a json string, it never returns error.
+// The marshalling method used here does not escape HTML characters,
+// and map keys are sorted, which helps human reading.
 func JSON(v interface{}) string {
-	b, err := logjson.Marshal(v)
+	b, err := json.MarshalNoHTMLEscape(v, "", "")
 	if err != nil {
 		return fmt.Sprintf("<error: %v>", err)
 	}
-	return String_(b)
+	b = bytes.TrimSpace(b)
+	return unsafeheader.BtoS(b)
 }
 
 // Logfmt converts given object to a string in logfmt format, it never
 // returns error. Note that only struct and map of basic types are
 // supported, non-basic types are simply ignored.
 func Logfmt(v interface{}) string {
-	if IsNil(v) {
+	if isNil(v) {
 		return "null"
 	}
-	var src Bytes
+	var src []byte
 	switch v := v.(type) {
 	case []byte:
 		src = v
 	case string:
-		src = ToBytes_(v)
+		src = unsafeheader.StoB(v)
 	}
 	if src != nil && utf8.Valid(src) {
-		srcstr := src.String_()
-		if strings.IndexFunc(srcstr, needsQuoteValueRune) != -1 {
+		srcstr := string(src)
+		if bytes.IndexFunc(src, needsQuoteValueRune) != -1 {
 			return JSON(srcstr)
 		}
 		return srcstr
@@ -153,7 +148,7 @@ func Logfmt(v interface{}) string {
 			if bv, ok := v.Interface().([]byte); ok {
 				if len(bv) > 0 && utf8.Valid(bv) {
 					keys = append(keys, kstr)
-					values[kstr] = String_(bv)
+					values[kstr] = string(bv)
 				}
 				continue
 			}
@@ -188,7 +183,7 @@ func Logfmt(v interface{}) string {
 			}
 			if bv, ok := fv.Interface().([]byte); ok {
 				if len(bv) > 0 && utf8.Valid(bv) {
-					keyValues = append(keyValues, fk, String_(bv))
+					keyValues = append(keyValues, fk, string(bv))
 				}
 				continue
 			}
@@ -232,29 +227,30 @@ func needsQuoteValueRune(r rune) bool {
 // If the input is an json string, it will be formatted using json.Indent
 // with four space characters as indent.
 func Pretty(v interface{}) string {
-	var src Bytes
+	var src []byte
 	switch v := v.(type) {
 	case []byte:
 		src = v
 	case string:
-		src = ToBytes_(v)
+		src = unsafeheader.StoB(v)
 	}
 	if src != nil {
 		if json.Valid(src) {
 			buf := bytes.NewBuffer(nil)
 			_ = json.Indent(buf, src, "", "    ")
-			return String_(buf.Bytes())
+			return unsafeheader.BtoS(buf.Bytes())
 		}
 		if utf8.Valid(src) {
-			return src.String_()
+			return string(src)
 		}
 		return "<pretty: non-printable bytes>"
 	}
-	buf, err := logjson.MarshalIndent(v, "", "    ")
+	buf, err := json.MarshalNoHTMLEscape(v, "", "    ")
 	if err != nil {
 		return fmt.Sprintf("<error: %v>", err)
 	}
-	return String_(buf)
+	buf = bytes.TrimSpace(buf)
+	return unsafeheader.BtoS(buf)
 }
 
 // Caller returns function name, filename, and the line number of the caller.
@@ -291,7 +287,7 @@ var (
 // copies the content written to os.Stdout.
 // This is not safe and most likely problematic, it's mainly to help intercepting
 // output in testing.
-func CopyStdout(f func()) (Bytes, error) {
+func CopyStdout(f func()) ([]byte, error) {
 	stdoutMu.Lock()
 	defer stdoutMu.Unlock()
 	old := os.Stdout
@@ -332,7 +328,7 @@ func CopyStdout(f func()) (Bytes, error) {
 // with another writer, we won't know anything about that writer and will
 // restore the out Writer to os.Stderr before it returns.
 // It will be a real mess.
-func CopyStdLog(f func()) Bytes {
+func CopyStdLog(f func()) []byte {
 	stdlogMu.Lock()
 	defer stdlogMu.Unlock()
 	defer log.SetOutput(os.Stderr)
@@ -373,6 +369,32 @@ func isBasicType(typ reflect.Type) bool {
 		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
 		reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
+		return true
+	}
+	return false
+}
+
+func isNil(x interface{}) bool {
+	if x == nil {
+		return true
+	}
+	val := reflect.ValueOf(x)
+	if isNillableKind(val.Kind()) {
+		return val.IsNil()
+	}
+	return false
+}
+
+func isNillableKind(kind reflect.Kind) bool {
+	switch kind {
+	case
+		reflect.Chan,
+		reflect.Func,
+		reflect.Interface,
+		reflect.Map,
+		reflect.Ptr,
+		reflect.Slice,
+		reflect.UnsafePointer:
 		return true
 	}
 	return false

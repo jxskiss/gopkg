@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
-	"github.com/jxskiss/gopkg/json"
 	"io"
 	"io/ioutil"
 	"log"
@@ -15,6 +14,9 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/jxskiss/gopkg/internal/unsafeheader"
+	"github.com/jxskiss/gopkg/json"
 )
 
 var (
@@ -27,6 +29,9 @@ var (
 	xmlCheck  = regexp.MustCompile(`(?i:(application|text)/(xml|.*\+xml)(;|$))`)
 )
 
+// SingleJoin joins the given text segments using sep.
+// No matter whether a segment begins or ends with sep or not, it
+// guarantees that only one sep appears between two segments.
 func SingleJoin(sep string, text ...string) string {
 	if len(text) == 0 {
 		return ""
@@ -47,10 +52,15 @@ func SingleJoin(sep string, text ...string) string {
 	return result
 }
 
+// SlashJoin joins the given path segments using "/".
+// No matter whether a segment begins or ends with "/" or not, it guarantees
+// that only one "/" appears between two segments.
 func SlashJoin(path ...string) string {
 	return SingleJoin("/", path...)
 }
 
+// JSONToReader converts an json encodeable object to an io.Reader.
+// If obj cannot be marshaled as JSON, it reports the error.
 func JSONToReader(obj interface{}) (io.Reader, error) {
 	b, err := json.Marshal(obj)
 	if err != nil {
@@ -59,6 +69,7 @@ func JSONToReader(obj interface{}) (io.Reader, error) {
 	return bytes.NewBuffer(b), nil
 }
 
+// DecodeJSON decodes a json value from r.
 func DecodeJSON(r io.Reader, v interface{}) error {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
@@ -72,6 +83,8 @@ func IsJSONType(contentType string) bool {
 	return jsonCheck.MatchString(contentType)
 }
 
+// XMLToReader converts an XML encodeable object to an io.Reader.
+// If obj cannot be marshaled as XML, it reports the error.
 func XMLToReader(obj interface{}) (io.Reader, error) {
 	b, err := xml.Marshal(obj)
 	if err != nil {
@@ -80,6 +93,7 @@ func XMLToReader(obj interface{}) (io.Reader, error) {
 	return bytes.NewBuffer(b), nil
 }
 
+// DecodeXML decodes a XML value from r.
 func DecodeXML(r io.Reader, v interface{}) error {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
@@ -95,6 +109,7 @@ func IsXMLType(contentType string) bool {
 
 // Request represents a request and options to send with the DoRequest function.
 type Request struct {
+
 	// Req should be a fully prepared http Request to sent, if not nil,
 	// the following `Method`, `URL`, `Params`, `JSON`, `XML`, `Form`, `Body`
 	// will be ignored.
@@ -259,7 +274,7 @@ func (p *Request) prepareRequest(method string) (err error) {
 		case []byte:
 			bodyBuf = data
 		case string:
-			bodyBuf = ToBytes_(data)
+			bodyBuf = unsafeheader.StoB(data)
 		default:
 			err = fmt.Errorf("unsupported body data type: %T", data)
 			return err
@@ -359,7 +374,8 @@ func marshalForm(v interface{}) ([]byte, error) {
 		err := fmt.Errorf("unsupported form data type: %T", v)
 		return nil, err
 	}
-	buf := ToBytes_(form.Encode())
+	encoded := form.Encode()
+	buf := unsafeheader.StoB(encoded)
 	return buf, nil
 }
 
@@ -399,8 +415,8 @@ func (p *Request) prepareHeaders() {
 //
 // Trade-off was taken to balance simplicity and convenience of the function.
 //
-// For more powerful controls of a http request and convenient utilities,
-// one may take a look at the awesome package `https://github.com/go-resty/resty/`.
+// For more powerful controls of a http request and handy utilities,
+// you may take a look at the awesome library `https://github.com/go-resty/resty/`.
 func DoRequest(req *Request) (respContent []byte, status int, err error) {
 	if err = req.prepareRequest(""); err != nil {
 		return
@@ -417,12 +433,12 @@ func DoRequest(req *Request) (respContent []byte, status int, err error) {
 		httpReq = httpReq.WithContext(timeoutCtx)
 	}
 	if req.DumpRequest {
-		var dump Bytes
+		var dump []byte
 		dump, err = httputil.DumpRequestOut(httpReq, true)
 		if err != nil {
 			return
 		}
-		log.Printf("dump http request:\n%s", dump.String_())
+		log.Printf("dump http request:\n%s", dump)
 	}
 
 	httpClient := req.buildClient()
@@ -434,12 +450,12 @@ func DoRequest(req *Request) (respContent []byte, status int, err error) {
 
 	status = httpResp.StatusCode
 	if req.DumpResponse {
-		var dump Bytes
+		var dump []byte
 		dump, err = httputil.DumpResponse(httpResp, true)
 		if err != nil {
 			return
 		}
-		log.Printf("dump http response:\n%s", dump.String_())
+		log.Printf("dump http response:\n%s", dump)
 	}
 
 	respContent, err = ioutil.ReadAll(httpResp.Body)

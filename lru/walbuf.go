@@ -45,7 +45,17 @@ func (wbuf *walbuf) deduplicate() []uint32 {
 	}
 
 	if ln > fastThreshold {
-		return wbuf.deduplicateSlowPath(ln)
+		m := make(map[uint32]struct{}, ln/2)
+		b, p := wbuf.b[:], ln-1
+		for i := ln - 1; i >= 0; i-- {
+			idx := b[i]
+			if _, ok := m[idx]; !ok {
+				m[idx] = struct{}{}
+				b[p] = idx
+				p--
+			}
+		}
+		return b[p+1 : ln]
 	}
 
 	// Fast path? (not benchmarked)
@@ -60,20 +70,6 @@ LOOP:
 		}
 		b[p] = idx
 		p--
-	}
-	return b[p+1 : ln]
-}
-
-func (wbuf *walbuf) deduplicateSlowPath(ln int32) []uint32 {
-	m := make(map[uint32]struct{}, ln/2)
-	b, p := wbuf.b[:], ln-1
-	for i := ln - 1; i >= 0; i-- {
-		idx := b[i]
-		if _, ok := m[idx]; !ok {
-			m[idx] = struct{}{}
-			b[p] = idx
-			p--
-		}
 	}
 	return b[p+1 : ln]
 }

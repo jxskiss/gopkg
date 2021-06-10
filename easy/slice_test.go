@@ -2,102 +2,54 @@ package easy
 
 import (
 	"github.com/jxskiss/gopkg/ptr"
+	"github.com/jxskiss/gopkg/reflectx"
 	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
 )
 
-type simple struct {
-	A string
+func callFunction(f interface{}, args ...interface{}) interface{} {
+	fVal := reflect.ValueOf(f)
+	argsVal := make([]reflect.Value, 0, len(args))
+	for _, arg := range args {
+		argsVal = append(argsVal, reflect.ValueOf(arg))
+	}
+	outVals := fVal.Call(argsVal)
+	if len(outVals) > 0 {
+		return outVals[0].Interface()
+	}
+	return nil
 }
 
 var insertSliceTests = []map[string]interface{}{
 	{
-		"func":  InsertSlice,
+		"func":  InsertInt64s,
 		"slice": []int64{1, 2, 3, 4},
 		"elem":  int64(9),
 		"index": 3,
 		"want":  []int64{1, 2, 3, 9, 4},
 	},
 	{
-		"func":  InsertSlice,
-		"slice": []int64{1, 2, 3, 4},
-		"elem":  int(9), // int type not match
-		"index": 3,
-		"want":  []int64{1, 2, 3, 9, 4},
-	},
-	{
-		"func":  InsertSlice,
-		"slice": []int{1, 2, 3, 4},
-		"elem":  9,
+		"func":  InsertInt32s,
+		"slice": []int32{1, 2, 3, 4},
+		"elem":  int32(9),
 		"index": 10,
-		"want":  []int{1, 2, 3, 4, 9},
+		"want":  []int32{1, 2, 3, 4, 9},
 	},
 	{
-		"func":  InsertSlice,
+		"func":  InsertStrings,
 		"slice": []string{"1", "2", "3", "4"},
 		"elem":  "9",
 		"index": 3,
 		"want":  []string{"1", "2", "3", "9", "4"},
 	},
-	{
-		"func":  InsertSlice,
-		"slice": Strings{"1", "2", "3", "4"},
-		"elem":  "9",
-		"index": 10,
-		"want":  Strings{"1", "2", "3", "4", "9"},
-	},
-	{
-		"func":  InsertSlice,
-		"slice": []simple{{"a"}, {"b"}, {"c"}, {"d"}},
-		"elem":  simple{"z"},
-		"index": 3,
-		"want":  []simple{{"a"}, {"b"}, {"c"}, {"z"}, {"d"}},
-	},
-	{
-		"func":  InsertSlice,
-		"slice": []int64{1, 2, 3, 4},
-		"elem":  int16(9), // int type not match
-		"index": 10,       // exceeds slice length
-		"want":  []int64{1, 2, 3, 4, 9},
-	},
-	{
-		"func":  InsertSlice,
-		"slice": nil,
-		"elem":  9,
-		"index": 3,
-		"want":  "panic",
-	},
-	{
-		"func":  InsertSlice,
-		"slice": []int64{1, 2, 3, 4},
-		"elem":  nil,
-		"index": 3,
-		"want":  "panic",
-	},
-	{
-		"func":  InsertSlice,
-		"slice": []*simple{},
-		"elem":  nil,
-		"index": 3,
-		"want":  "panic",
-	},
-	{
-		"func":  InsertSlice,
-		"slice": []*simple{},
-		"elem":  (*simple)(nil),
-		"index": 3,
-		"want":  []*simple{nil},
-	},
 }
 
 func TestInsertSlice(t *testing.T) {
 	for _, test := range insertSliceTests {
-		f := test["func"].(func(slice interface{}, index int, elem interface{}) interface{})
-
 		var got interface{}
 		insert := func() {
-			got = f(test["slice"], test["index"].(int), test["elem"])
+			got = callFunction(test["func"], test["slice"], test["index"], test["elem"])
 		}
 		if test["want"] == "panic" {
 			assert.Panics(t, insert)
@@ -106,20 +58,6 @@ func TestInsertSlice(t *testing.T) {
 			assert.Equal(t, test["want"], got)
 		}
 	}
-}
-
-type comptyp struct {
-	I32   int32
-	I32_p *int32
-
-	I64   int64
-	I64_p *int64
-
-	Str   string
-	Str_p *string
-
-	Simple   simple
-	Simple_p *simple
 }
 
 var complexTypeData = []*comptyp{
@@ -181,7 +119,7 @@ func TestPluck(t *testing.T) {
 }
 
 func TestPluckStrings(t *testing.T) {
-	want := Strings{"a", "b", "c"}
+	want := []string{"a", "b", "c"}
 	slice1 := []simple{{"a"}, {"b"}, {"c"}}
 	slice2 := []*simple{{"a"}, {"b"}, {"c"}}
 
@@ -199,19 +137,19 @@ func TestPluckInt64s(t *testing.T) {
 	slice := complexTypeData
 
 	got1 := PluckInt64s(slice, "I32")
-	want1 := Int64s{32, 33, 34, 35}
+	want1 := []int64{32, 33, 34, 35}
 	assert.Equal(t, want1, got1)
 
 	got2 := PluckInt64s(slice, "I32_p")
-	want2 := Int64s{32, 33, 34}
+	want2 := []int64{32, 33, 34}
 	assert.Equal(t, want2, got2)
 
 	got3 := PluckInt64s(slice, "I64")
-	want3 := Int64s{64, 65, 66, 67}
+	want3 := []int64{64, 65, 66, 67}
 	assert.Equal(t, want3, got3)
 
 	got4 := PluckInt64s(slice, "I64_p")
-	want4 := Int64s{64, 65, 66}
+	want4 := []int64{64, 65, 66}
 	assert.Equal(t, want4, got4)
 
 	assert.Panics(t, func() { PluckInt64s(nil, "I32") })
@@ -233,22 +171,32 @@ func TestPluck_StructField(t *testing.T) {
 
 var reverseSliceTests = []map[string]interface{}{
 	{
-		"slice": []uint64{1, 2, 3},
-		"want":  []uint64{3, 2, 1},
+		"func":  ReverseInt64s,
+		"slice": []int64{1, 2, 3},
+		"want":  []int64{3, 2, 1},
 	},
 	{
-		"slice": []int8{1, 2, 3, 4},
-		"want":  []int8{4, 3, 2, 1},
+		"func":  ReverseInt32s,
+		"slice": []int32{1, 2, 3, 4},
+		"want":  []int32{4, 3, 2, 1},
 	},
 	{
+		"func":  ReverseStrings,
 		"slice": []string{"1", "2", "3"},
 		"want":  []string{"3", "2", "1"},
 	},
 	{
+		"func":  ReverseSlice,
+		"slice": []int8{1, 2, 3, 4},
+		"want":  []int8{4, 3, 2, 1},
+	},
+	{
+		"func":  ReverseSlice,
 		"slice": []simple{{"a"}, {"b"}, {"c"}, {"d"}},
 		"want":  []simple{{"d"}, {"c"}, {"b"}, {"a"}},
 	},
 	{
+		"func":  ReverseSlice,
 		"slice": []int(nil),
 		"want":  []int{},
 	},
@@ -256,35 +204,39 @@ var reverseSliceTests = []map[string]interface{}{
 
 func TestReverseSlice(t *testing.T) {
 	for _, test := range reverseSliceTests {
-		got := ReverseSlice(test["slice"])
+		got := callFunction(test["func"], test["slice"], false)
 		assert.Equal(t, test["want"], got)
 	}
-
-	assert.Panics(t, func() { ReverseSlice(nil) })
 }
 
 var reverseSliceInplaceTests = []map[string]interface{}{
 	{
-		"slice": []uint64{1, 2, 3},
-		"want":  []uint64{3, 2, 1},
+		"func":  ReverseInt64s,
+		"slice": []int64{1, 2, 3},
+		"want":  []int64{3, 2, 1},
 	},
 	{
+		"func":  ReverseInt32s,
 		"slice": []int32{1, 2, 3},
 		"want":  []int32{3, 2, 1},
 	},
 	{
-		"slice": []int8{1, 2, 3, 4},
-		"want":  []int8{4, 3, 2, 1},
-	},
-	{
+		"func":  ReverseStrings,
 		"slice": []string{"1", "2", "3"},
 		"want":  []string{"3", "2", "1"},
 	},
 	{
+		"func":  ReverseSlice,
+		"slice": []int8{1, 2, 3, 4},
+		"want":  []int8{4, 3, 2, 1},
+	},
+	{
+		"func":  ReverseSlice,
 		"slice": []simple{{"a"}, {"b"}, {"c"}, {"d"}},
 		"want":  []simple{{"d"}, {"c"}, {"b"}, {"a"}},
 	},
 	{
+		"func":  ReverseSlice,
 		"slice": []int(nil),
 		"want":  []int(nil),
 	},
@@ -292,58 +244,61 @@ var reverseSliceInplaceTests = []map[string]interface{}{
 
 func TestReverseSliceInplace(t *testing.T) {
 	for _, test := range reverseSliceInplaceTests {
-		ReverseSliceInplace(test["slice"])
+		got := callFunction(test["func"], test["slice"], true)
+		assert.Equal(t, test["want"], got)
 		assert.Equal(t, test["want"], test["slice"])
 	}
 }
 
 var uniqueSliceTests = []map[string]interface{}{
 	{
-		"slice": []uint64{2, 2, 1, 3, 2, 3, 1, 3},
-		"want":  []uint64{2, 1, 3},
+		"func":  UniqueInt64s,
+		"slice": []int64{2, 2, 1, 3, 2, 3, 1, 3},
+		"want":  []int64{2, 1, 3},
 	},
 	{
-		"slice": []int8{2, 2, 1, 3, 2, 3, 1, 3},
-		"want":  []int8{2, 1, 3},
+		"func":  UniqueInt32s,
+		"slice": []int32{2, 2, 1, 3, 2, 3, 1, 3},
+		"want":  []int32{2, 1, 3},
 	},
 	{
+		"func":  UniqueStrings,
 		"slice": []string{"2", "2", "1", "3", "2", "3", "1", "3"},
 		"want":  []string{"2", "1", "3"},
-	},
-	{
-		"slice": []simple{{"2"}, {"2"}, {"1"}, {"3"}, {"2"}, {"3"}, {"1"}, {"3"}},
-		"want":  []simple{{"2"}, {"1"}, {"3"}},
-	},
-	{
-		"slice": []int(nil),
-		"want":  []int{},
 	},
 }
 
 func TestUniqueSlice(t *testing.T) {
 	for _, test := range uniqueSliceTests {
-		got := UniqueSlice(test["slice"])
+		got := callFunction(test["func"], test["slice"], false)
 		assert.Equal(t, test["want"], got)
+	}
+	for _, test := range uniqueSliceTests {
+		got := callFunction(test["func"], test["slice"], true)
+		assert.Equal(t, test["want"], got)
+		n := reflectx.SliceLen(got)
+		changed := reflect.ValueOf(test["slice"]).Slice(0, n).Interface()
+		assert.Equal(t, test["want"], changed)
 	}
 }
 
 func TestDiffInt64s(t *testing.T) {
 	a := []int64{1, 2, 3, 4, 5}
 	b := []int64{4, 5, 6, 7, 8}
-	want1 := Int64s{1, 2, 3}
+	want1 := []int64{1, 2, 3}
 	assert.Equal(t, want1, DiffInt64s(a, b))
 
-	want2 := Int64s{6, 7, 8}
+	want2 := []int64{6, 7, 8}
 	assert.Equal(t, want2, DiffInt64s(b, a))
 }
 
 func TestDiffStrings(t *testing.T) {
 	a := []string{"1", "2", "3", "4", "5"}
 	b := []string{"4", "5", "6", "7", "8"}
-	want1 := Strings{"1", "2", "3"}
+	want1 := []string{"1", "2", "3"}
 	assert.Equal(t, want1, DiffStrings(a, b))
 
-	want2 := Strings{"6", "7", "8"}
+	want2 := []string{"6", "7", "8"}
 	assert.Equal(t, want2, DiffStrings(b, a))
 }
 
@@ -478,34 +433,34 @@ func TestToInterfaceSlice(t *testing.T) {
 	}
 }
 
-func TestFindAndFilter(t *testing.T) {
+func TestFindFuncAndFilterFunc(t *testing.T) {
 	a := &comptyp{I32: 1, Str_p: ptr.String("a")}
 	b := &comptyp{I64: 2, Str_p: ptr.String("b")}
 	c := &comptyp{I64_p: ptr.Int64(3), Str_p: ptr.String("c")}
 	slice := []*comptyp{a, b, c}
 
 	f1 := func(i int) bool { return slice[i].Str_p == nil }
-	got1 := Find(slice, f1)
-	all1 := Filter(slice, f1)
+	got1 := FindFunc(slice, f1)
+	all1 := FilterFunc(slice, f1)
 
 	assert.Equal(t, nil, got1)
 	assert.NotNil(t, all1)
 	assert.Len(t, all1, 0)
 
 	f3 := func(i int) bool { return ptr.DerefInt64(slice[i].I64_p) == 3 }
-	got3 := Find(slice, f3)
-	all3 := Filter(slice, f3)
+	got3 := FindFunc(slice, f3)
+	all3 := FilterFunc(slice, f3)
 	assert.Equal(t, c, got3)
 	assert.Len(t, all3, 1)
 
-	assert.Panics(t, func() { Find(slice, nil) })
-	assert.Panics(t, func() { Filter(nil, f3) })
-	assert.Panics(t, func() { Filter(slice, nil) })
+	assert.Panics(t, func() { FindFunc(slice, nil) })
+	assert.Panics(t, func() { FilterFunc(nil, f3) })
+	assert.Panics(t, func() { FilterFunc(slice, nil) })
 }
 
 func TestParseInt64s(t *testing.T) {
 	strIntIDs := "123,,456,789, ,0,"
-	want := Int64s{123, 456, 789}
+	want := []int64{123, 456, 789}
 	got, isMalformed := ParseInt64s(strIntIDs, ",", true)
 	assert.True(t, isMalformed)
 	assert.Equal(t, want, got)
@@ -569,68 +524,5 @@ func TestSumSlice(t *testing.T) {
 	for _, test := range tests {
 		got := SumSlice(test["slice"])
 		assert.Equal(t, test["sum"], int(got))
-	}
-}
-
-func TestSumMapSlice(t *testing.T) {
-	mSlice := map[string][]int{
-		"a": {1, 2, 3},
-		"b": {4, 5, 6},
-	}
-	got := SumMapSlice(mSlice)
-	want := int64(21)
-	assert.Equal(t, want, got)
-}
-
-func TestSumMapSliceLength(t *testing.T) {
-	mSlice := map[string][]int{
-		"a": {1, 2, 3},
-		"b": {4, 5},
-	}
-	got := SumMapSliceLength(mSlice)
-	want := 5
-	assert.Equal(t, want, got)
-}
-
-var simpleSlice = make([]simple, 5000)
-
-func reverseSlice_reflect(slice interface{}) interface{} {
-	if slice == nil {
-		panicNilParams("ReverseSlice", "slice", slice)
-	}
-	sliceTyp := reflect.TypeOf(slice)
-	switch slice := slice.(type) {
-	case Int64s, []int64, []uint64:
-		return ReverseInt64s(AsInt64s_(slice)).castType(sliceTyp)
-	case Int32s, []int32, []uint32:
-		return ReverseInt32s(AsInt32s_(slice)).castType(sliceTyp)
-	case Strings, []string:
-		return ReverseStrings(ToStrings_(slice)).castType(sliceTyp)
-	}
-
-	if sliceTyp.Kind() != reflect.Slice {
-		panic("ReverseSlice: " + errNotSliceType)
-	}
-	sliceVal := reflect.ValueOf(slice)
-	outVal := reflect.MakeSlice(sliceTyp, 0, sliceVal.Len())
-	for i := sliceVal.Len() - 1; i >= 0; i-- {
-		outVal = reflect.Append(outVal, sliceVal.Index(i))
-	}
-	return outVal.Interface()
-}
-
-func BenchmarkReverseSlice_reflect(b *testing.B) {
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = reverseSlice_reflect(simpleSlice)
-	}
-}
-
-func BenchmarkReverseSlice(b *testing.B) {
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = ReverseSlice(simpleSlice)
 	}
 }

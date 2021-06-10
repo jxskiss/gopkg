@@ -169,5 +169,13 @@ func Reflect_maplen(m unsafe.Pointer) int
 func Reflect_mapiterinit(rtype unsafe.Pointer, m unsafe.Pointer) unsafe.Pointer
 
 //go:noescape
+//go:linkname Reflect_mapiterkey reflect.mapiterkey
+func Reflect_mapiterkey(it unsafe.Pointer) (key unsafe.Pointer)
+
+//go:noescape
+//go:linkname Reflect_mapiterelem reflect.mapiterelem
+func Reflect_mapiterelem(it unsafe.Pointer) (elem unsafe.Pointer)
+
+//go:noescape
 //go:linkname Reflect_mapiternext reflect.mapiternext
 func Reflect_mapiternext(it unsafe.Pointer)

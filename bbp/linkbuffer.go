@@ -7,16 +7,16 @@ import (
 )
 
 const (
-	linkBufferMinPoolIdx   = defaultPoolIdx
-	linkBufferMinBlockSize = 1 << linkBufferMinPoolIdx // 64
+	linkBufferMinPoolIdx   = 10
+	linkBufferMinBlockSize = 1 << linkBufferMinPoolIdx // 1024
 
-	linkBufferDefaultPoolIdx   = 9
-	linkBufferDefaultBlockSize = 1 << linkBufferDefaultPoolIdx // 512
+	linkBufferDefaultPoolIdx   = 12
+	linkBufferDefaultBlockSize = 1 << linkBufferDefaultPoolIdx // 4096
 )
 
 // NewLinkBuffer creates and initializes a new LinkBuffer, blockSize will
-// be round up to the next power of two, and limited in between MinBufSize
-// and MaxBufSize, if bockSize <= 0, a default value 512 will be used.
+// be round up to the next power of two, and limited in between MinSize
+// and MaxSize, if bockSize <= 0, a default value 512 will be used.
 func NewLinkBuffer(blockSize int) *LinkBuffer {
 	if blockSize <= 0 {
 		blockSize = linkBufferDefaultBlockSize
@@ -24,8 +24,8 @@ func NewLinkBuffer(blockSize int) *LinkBuffer {
 	if blockSize < linkBufferMinBlockSize {
 		blockSize = linkBufferMinBlockSize
 	}
-	if blockSize > MaxBufSize {
-		blockSize = MaxBufSize
+	if blockSize > MaxSize {
+		blockSize = MaxSize
 	}
 
 	poolIdx := indexGet(blockSize)
@@ -121,6 +121,9 @@ func (b *LinkBuffer) ReadFrom(r io.Reader) (int64, error) {
 func (b *LinkBuffer) WriteTo(w io.Writer) (int64, error) {
 	var n int
 	for _, bb := range b.bufs {
+		if len(bb) == 0 {
+			break
+		}
 		nn, err := w.Write(bb)
 		n += nn
 		if err != nil {

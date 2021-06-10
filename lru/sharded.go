@@ -1,6 +1,7 @@
 package lru
 
 import (
+	"github.com/jxskiss/gopkg/internal"
 	"github.com/jxskiss/gopkg/rthash"
 	"reflect"
 	"time"
@@ -8,27 +9,13 @@ import (
 
 var shardingHash = rthash.New()
 
-// NewMultiCache is renamed to NewShardedCache, please use the new name
-// instead of this. It will be removed in future.
-//
-// Deprecated.
-func NewMultiCache(buckets, bucketCapacity int) *MultiCache {
-	return NewShardedCache(buckets, bucketCapacity)
-}
-
-// MultiCache is renamed to ShardedCache, please use the new name instead
-// of this. It will be removed in future.
-//
-// Deprecated.
-type MultiCache = ShardedCache
-
 // NewShardedCache returns a hash-sharded lru cache instance which is suitable
 // to use for heavy lock contention use-case. It keeps same interface with
 // the lru cache instance returned by NewCache function.
 // Generally NewCache should be used instead of this unless you are sure that
 // you are facing the lock contention problem.
 func NewShardedCache(buckets, bucketCapacity int) *ShardedCache {
-	buckets = nextPowerOfTwo(buckets)
+	buckets = internal.NextPowerOfTwo(buckets)
 	mask := uintptr(buckets - 1)
 	mc := &ShardedCache{
 		buckets: uintptr(buckets),
@@ -39,21 +26,6 @@ func NewShardedCache(buckets, bucketCapacity int) *ShardedCache {
 		mc.cache[i] = NewCache(bucketCapacity)
 	}
 	return mc
-}
-
-func nextPowerOfTwo(x int) int {
-	if x == 0 {
-		return 1
-	}
-
-	x--
-	x |= x >> 1
-	x |= x >> 2
-	x |= x >> 4
-	x |= x >> 8
-	x |= x >> 16
-
-	return x + 1
 }
 
 // ShardedCache is a hash-sharded version of Cache, it minimizes lock

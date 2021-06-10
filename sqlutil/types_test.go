@@ -3,10 +3,11 @@ package sqlutil
 import (
 	"database/sql"
 	"database/sql/driver"
+	"testing"
+
+	"github.com/jxskiss/gopkg/gemap"
 	"github.com/jxskiss/gopkg/serialize"
 	"github.com/stretchr/testify/assert"
-	"reflect"
-	"testing"
 )
 
 func TestTypes(t *testing.T) {
@@ -15,40 +16,8 @@ func TestTypes(t *testing.T) {
 		b sql.Scanner
 	}{
 		{
-			a: JSONInt32s{1, 2, 3, 438138181},
-			b: &JSONInt32s{},
-		},
-		{
-			a: JSONInt64s{1, 2, 3, 38828198418419919},
-			b: &JSONInt64s{},
-		},
-		{
-			a: JSONStrings{"a", "b", "c"},
-			b: &JSONStrings{},
-		},
-		{
-			a: JSONStringMap{"a": "123", "b": "234", "c": "345"},
-			b: &JSONStringMap{},
-		},
-		{
-			a: JSONDict{"a": "1", "b": float64(2), "c": []interface{}{"a", "b", "c"}},
-			b: &JSONDict{},
-		},
-		{
-			a: PBInt32s{1, 3, 48483219},
-			b: &PBInt32s{},
-		},
-		{
-			a: PBInt64s{1, 3, 431943119414314},
-			b: &PBInt64s{},
-		},
-		{
-			a: PBStrings{"a", "b", "c"},
-			b: &PBStrings{},
-		},
-		{
-			a: PBStringMap{"a": "123", "b": "234", "c": "345"},
-			b: &PBStringMap{},
+			a: &JSON{Map: gemap.Map{"a": "1", "b": float64(2), "c": []interface{}{"a", "b", "c"}}},
+			b: &JSON{},
 		},
 	}
 
@@ -59,7 +28,9 @@ func TestTypes(t *testing.T) {
 
 		err = tc.b.Scan(buf)
 		assert.Nil(t, err)
-		assert.Equal(t, tc.a, reflect.ValueOf(tc.b).Elem().Interface())
+		assert.Equal(t, tc.a.(*JSON).GetString("a"), "1")
+		assert.Equal(t, tc.a.(*JSON).GetFloat64("b"), float64(2))
+		assert.Equal(t, tc.a.(*JSON).MustGet("c"), tc.b.(*JSON).MustGet("c"))
 	}
 }
 

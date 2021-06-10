@@ -16,9 +16,9 @@ DEBUG is debug message logger which do nothing if debug level is not enabled (th
 It gives best performance for production deployment by eliminating unnecessary
 parameter evaluation and control flows.
 
-For the sake of performance, you may add "release" tag to the `go build` command,
-then the debug calling is all empty functions, which will be ignored and won't
-be compiled into the final binary file. It happens at compile-time.
+For sake of best performance, you may add "release" tag to the `go build` command,
+then the debug calling is all empty functions, which will be eliminated by the
+compiler and won't be compiled into the final binary file. It happens at compile-time.
 
 DEBUG accepts very flexible arguments to help development, see the following examples:
 
@@ -63,10 +63,26 @@ func DEBUG(args ...interface{}) {
 }
 
 // DEBUGSkip is similar to DEBUG, but it has an extra skip param to skip stacktrace
-// to get correct caller information. When you wrap functions in this package,
-// you should use this function instead of `DEBUG`.
+// to get correct caller information.
+// When you wrap functions in this package, you always want to use the functions
+// which end with "Skip".
 func DEBUGSkip(skip int, args ...interface{}) {
 	stringer := JSON
+	logdebug(skip+1, stringer, args...)
+}
+
+// PRETTY is similar to DEBUG, but it calls Pretty to format non-basic-type data.
+func PRETTY(args ...interface{}) {
+	stringer := Pretty
+	logdebug(1, stringer, args...)
+}
+
+// PRETTYSkip is similar to PRETTY, but it has an extra skip param to skip stacktrace
+// to get correct caller information.
+// When you wrap functions in this package, you always want to use the functions
+// which end with "Skip".
+func PRETTYSkip(skip int, args ...interface{}) {
+	stringer := Pretty
 	logdebug(skip+1, stringer, args...)
 }
 
@@ -76,10 +92,28 @@ func SPEW(args ...interface{}) {
 	logdebug(1, stringer, args...)
 }
 
+// SPEWSkip is similar to SPEW, but it has an extra skip param to skip stacktrace
+// to get correct caller information.
+// When you wrap functions in this package, you always want to use the functions
+// which end with "Skip".
+func SPEWSkip(skip int, args ...interface{}) {
+	stringer := func(v interface{}) string { return spew.Sprintf("%#v", v) }
+	logdebug(skip+1, stringer, args...)
+}
+
 // DUMP is similar to DEBUG, but it calls spew.Sdump to format non-basic-type data.
 func DUMP(args ...interface{}) {
 	stringer := func(v interface{}) string { return spew.Sdump(v) }
 	logdebug(1, stringer, args...)
+}
+
+// DUMPSkip is similar to DUMP, but it has an extra skip param to skip stacktrace
+// to get correct caller information.
+// When you wrap functions in this package, you always want to use the functions
+// which end with "Skip".
+func DUMPSkip(skip int, args ...interface{}) {
+	stringer := func(v interface{}) string { return spew.Sdump(v) }
+	logdebug(skip+1, stringer, args...)
 }
 
 func logdebug(skip int, stringer stringer, args ...interface{}) {

@@ -5,6 +5,22 @@ import (
 	"testing"
 )
 
+func toInt32s(slice []int64) []int32 {
+	out := make([]int32, len(slice))
+	for i, x := range slice {
+		out[i] = int32(x)
+	}
+	return out
+}
+
+func toInts(slice []int64) []int {
+	out := make([]int, len(slice))
+	for i, x := range slice {
+		out[i] = int(x)
+	}
+	return out
+}
+
 func TestInSortedInt64s(t *testing.T) {
 	slice1 := []int64{3, 5, 7, 9, 10}
 	slice2 := []int64{10, 9, 7, 5, 3}
@@ -21,20 +37,20 @@ func TestInSortedInt64s(t *testing.T) {
 		got64 := InSortedInt64s(slice1, int64(test["elem"].(int)))
 		assert.Equal(t, test["want"], got64)
 
-		got32 := InSortedInt32s(Int64s(slice1).ToInt32s(), int32(test["elem"].(int)))
+		got32 := InSortedInt32s(toInt32s(slice1), int32(test["elem"].(int)))
 		assert.Equal(t, test["want"], got32)
 
-		gotInt := InSortedInts(Int64s(slice1).AsInts_(), test["elem"].(int))
+		gotInt := InSortedInts(toInts(slice1), test["elem"].(int))
 		assert.Equal(t, test["want"], gotInt)
 	}
 	for _, test := range tests {
 		got64 := InSortedInt64s(slice2, int64(test["elem"].(int)))
 		assert.Equal(t, test["want"], got64)
 
-		got32 := InSortedInt32s(Int64s(slice2).ToInt32s(), int32(test["elem"].(int)))
+		got32 := InSortedInt32s(toInt32s(slice2), int32(test["elem"].(int)))
 		assert.Equal(t, test["want"], got32)
 
-		gotInt := InSortedInts(Int64s(slice2).AsInts_(), test["elem"].(int))
+		gotInt := InSortedInts(toInts(slice2), test["elem"].(int))
 		assert.Equal(t, test["want"], gotInt)
 	}
 }

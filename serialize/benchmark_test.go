@@ -1,7 +1,7 @@
 package serialize
 
 import (
-	"github.com/jxskiss/gopkg/json"
+	"encoding/json"
 	"math/rand"
 	"testing"
 )

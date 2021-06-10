@@ -26,8 +26,7 @@ func (m StringMap) MarshalProtoTo(dAtA []byte) (int, error) {
 func (m StringMap) MarshalProtoToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	if len(m) > 0 {
-		for k := range m {
-			v := m[k]
+		for k, v := range m {
 			baseI := i
 			i -= len(v)
 			copy(dAtA[i:], v)

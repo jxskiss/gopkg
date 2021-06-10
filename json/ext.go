@@ -1,67 +1,48 @@
 package json
 
 import (
-	"io"
+	"github.com/jxskiss/gopkg/json/extparser"
 	"io/ioutil"
 	"os"
-
-	"github.com/jxskiss/gopkg/json/extparser"
 )
 
-type ExtDecoder struct {
-	reader io.Reader
-
-	importRoot string
-}
-
-func NewExtDecoder(r io.Reader) *ExtDecoder {
-	return &ExtDecoder{reader: r}
-}
-
-func (r *ExtDecoder) SetImportRoot(path string) *ExtDecoder {
-	r.importRoot = path
-	return r
-}
-
-func (r *ExtDecoder) Decode(v interface{}) error {
-	content, err := ioutil.ReadAll(r.reader)
-	if err != nil {
-		return err
-	}
-
-	if r.importRoot == "" {
+// UnmarshalExt parses the JSON-encoded data and stores the result in the
+// value pointed to by v.
+//
+// In addition to features of encoding/json, it enables some extended
+// features such as "trailing comma", "comments", "file including", etc.
+// The extended features are documented in the README file.
+func UnmarshalExt(data []byte, v interface{}, importRoot string) error {
+	if importRoot == "" {
 		wd, err := os.Getwd()
 		if err != nil {
 			return err
 		}
-		r.importRoot = wd
+		importRoot = wd
 	}
-
-	data, err := extparser.Parse(content, r.importRoot)
+	data, err := extparser.Parse(data, importRoot)
 	if err != nil {
 		return err
 	}
 	return Unmarshal(data, v)
 }
 
-func UnmarshalExt(data []byte, v interface{}) error {
-	wd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	data, err = extparser.Parse(data, wd)
-	if err != nil {
-		return err
-	}
-	return Unmarshal(data, v)
-}
-
-func LoadExt(path string, v interface{}) error {
+// LoadExt reads JSON-encoded data from the named file at path and stores
+// the result in the value pointed to by v.
+//
+// In additional to features of encoding/json, it enables some extended
+// features such as "trailing comma", "comments", "file including" etc.
+// The extended features are documented in the README file.
+func LoadExt(path string, v interface{}, importRoot string) error {
 	file, err := os.Open(path)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
-	err = NewExtDecoder(file).Decode(v)
-	return err
+
+	data, err := ioutil.ReadAll(file)
+	if err != nil {
+		return err
+	}
+	return UnmarshalExt(data, v, importRoot)
 }

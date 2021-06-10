@@ -4,20 +4,39 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/jxskiss/gopkg/ptr"
-	"github.com/stretchr/testify/assert"
 	"log"
 	"math/rand"
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/jxskiss/gopkg/ptr"
+	"github.com/stretchr/testify/assert"
 )
+
+type simple struct {
+	A string
+}
+
+type comptyp struct {
+	I32   int32
+	I32_p *int32
+
+	I64   int64
+	I64_p *int64
+
+	Str   string
+	Str_p *string
+
+	Simple   simple
+	Simple_p *simple
+}
 
 func TestCaller(t *testing.T) {
 	name, file, line := Caller(0)
 	assert.Equal(t, "easy.TestCaller", name)
 	assert.Equal(t, "easy/log_test.go", file)
-	assert.Equal(t, 17, line)
+	assert.Equal(t, 36, line)
 }
 
 func TestJSON(t *testing.T) {
@@ -93,8 +112,8 @@ var prettyTestWant = strings.TrimSpace(`
 }`)
 
 func TestPretty(t *testing.T) {
-	test := map[interface{}]interface{}{
-		1:   123,
+	test := map[string]interface{}{
+		"1":   123,
 		"b": "<html>",
 	}
 	jsonString := JSON(test)
@@ -121,7 +140,7 @@ func TestCopyStdout(t *testing.T) {
 	got, _ := CopyStdout(func() {
 		fmt.Println(msg)
 	})
-	assert.Contains(t, got.String_(), msg)
+	assert.Contains(t, string(got), msg)
 }
 
 func TestCopyStdLog(t *testing.T) {
@@ -129,7 +148,7 @@ func TestCopyStdLog(t *testing.T) {
 	got := CopyStdLog(func() {
 		log.Println(msg)
 	})
-	assert.Contains(t, got.String_(), msg)
+	assert.Contains(t, string(got), msg)
 }
 
 func TestDEBUG_bare_func(t *testing.T) {
@@ -140,9 +159,9 @@ func TestDEBUG_bare_func(t *testing.T) {
 		DEBUG(func() {
 			log.Println(msg, 1, 2, 3)
 		})
-	}).String_()
-	assert.Contains(t, got, msg)
-	assert.Contains(t, got, "1 2 3")
+	})
+	assert.Contains(t, string(got), msg)
+	assert.Contains(t, string(got), "1 2 3")
 }
 
 func TestDEBUG_logger_interface(t *testing.T) {
@@ -167,9 +186,9 @@ func TestDEBUG_logger_func(t *testing.T) {
 	msg := "test DEBUG_logger_func"
 	got := CopyStdLog(func() {
 		DEBUG(logger, msg, 1, 2, 3)
-	}).String_()
-	assert.Contains(t, got, msg)
-	assert.Contains(t, got, "1 2 3")
+	})
+	assert.Contains(t, string(got), msg)
+	assert.Contains(t, string(got), "1 2 3")
 }
 
 func TestDEBUG_print_func(t *testing.T) {
@@ -183,10 +202,10 @@ func TestDEBUG_print_func(t *testing.T) {
 	}
 	got := CopyStdLog(func() {
 		DEBUG(logger, msg, 1, 2, 3)
-	}).String_()
-	assert.Contains(t, got, prefix)
-	assert.Contains(t, got, msg)
-	assert.Contains(t, got, "1 2 3")
+	})
+	assert.Contains(t, string(got), prefix)
+	assert.Contains(t, string(got), msg)
+	assert.Contains(t, string(got), "1 2 3")
 }
 
 func TestDEBUG_ctx_logger(t *testing.T) {
@@ -211,38 +230,38 @@ func TestDEBUG_simple(t *testing.T) {
 	// test format
 	got1 := CopyStdLog(func() {
 		DEBUG("test DEBUG_simple a=%v b=%v c=%v", 1, 2, 3)
-	}).String_()
+	})
 	want1 := "test DEBUG_simple a=1 b=2 c=3"
-	assert.Contains(t, got1, want1)
+	assert.Contains(t, string(got1), want1)
 
 	// raw params
 	got2 := CopyStdLog(func() {
 		DEBUG("test DEBUG_simple a=", 1, "b=", 2, "c=", 3)
-	}).String_()
+	})
 	want2 := "test DEBUG_simple a= 1 b= 2 c= 3"
-	assert.Contains(t, got2, want2)
+	assert.Contains(t, string(got2), want2)
 }
 
 func TestDEBUG_empty(t *testing.T) {
 	configTestLog(true, nil, nil)
-	got := CopyStdLog(func() { DEBUG() }).String_()
+	got := CopyStdLog(func() { DEBUG() })
 	want := regexp.MustCompile(`easy/log_test.go#L\d+ - easy.TestDEBUG_empty`)
-	assert.Regexp(t, want, got)
+	assert.Regexp(t, want, string(got))
 }
 
 func TestDEBUGSkip(t *testing.T) {
 	configTestLog(true, nil, nil)
 
-	got := CopyStdLog(func() { DEBUGWrap() }).String_()
+	got := CopyStdLog(func() { DEBUGWrap() })
 	want := regexp.MustCompile(`easy/log_test.go#L\d+ - easy.TestDEBUGSkip`)
-	assert.Regexp(t, want, got)
+	assert.Regexp(t, want, string(got))
 
-	got = CopyStdLog(func() { DEBUGWrapSkip2() }).String_()
+	got = CopyStdLog(func() { DEBUGWrapSkip2() })
 	want = regexp.MustCompile(`easy/log_test.go#L\d+ - easy.TestDEBUGSkip`)
-	assert.Regexp(t, want, got)
+	assert.Regexp(t, want, string(got))
 }
 
-func TestconfigTestLog(t *testing.T) {
+func TestConfigLog(t *testing.T) {
 	defaultLogger := &bufLogger{}
 	getCtxLogger := func(ctx context.Context) ErrDebugLogger {
 		return ctx.Value("TEST_LOGGER").(*bufLogger)

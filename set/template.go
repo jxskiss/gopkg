@@ -82,7 +82,7 @@ func New{{ .SetType }}WithSize(size int) {{ .SetType }} {
 }
 
 // Size returns the size of set.
-func (s *{{ .SetType }}) Size() int { return len(s.m) }
+func (s {{ .SetType }}) Size() int { return len(s.m) }
 
 // Add adds values into the set.
 func (s *{{ .SetType }}) Add(vals ...{{ .Type }}) {
@@ -113,14 +113,14 @@ func (s *{{ .SetType }}) Pop() {{ .Type }} {
 
 // Iterate iterates the set in no particular order and call the given function
 // for each set element.
-func (s *{{ .SetType }}) Iterate(fn func({{ .Type }})) {
+func (s {{ .SetType }}) Iterate(fn func({{ .Type }})) {
 	for val := range s.m {
 		fn(val)
 	}
 }
 
 // Contains returns true if the set contains all the values.
-func (s *{{ .SetType }}) Contains(vals ...{{ .Type }}) bool {
+func (s {{ .SetType }}) Contains(vals ...{{ .Type }}) bool {
 	if len(vals) == 0 {
 		return false
 	}
@@ -133,7 +133,7 @@ func (s *{{ .SetType }}) Contains(vals ...{{ .Type }}) bool {
 }
 
 // ContainsAny returns true if the set contains any of the values.
-func (s *{{ .SetType }}) ContainsAny(vals ...{{ .Type }}) bool {
+func (s {{ .SetType }}) ContainsAny(vals ...{{ .Type }}) bool {
 	for _, v := range vals {
 		if _, ok := s.m[v]; ok {
 			return true

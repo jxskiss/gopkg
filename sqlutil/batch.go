@@ -8,11 +8,12 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/jxskiss/gopkg/reflectx"
+	"github.com/jxskiss/gopkg/internal"
 	"github.com/jxskiss/gopkg/structtag"
 	"github.com/jxskiss/gopkg/strutil"
 )
 
+// InsertOptions holds options to use with batch inserting operation.
 type InsertOptions struct {
 	Context   context.Context
 	TableName string
@@ -38,6 +39,8 @@ func (p *InsertOptions) quote(name string) string {
 	return p.Quote + name + p.Quote
 }
 
+// InsertOpt represents an inserting option to use with batch
+// inserting operation.
 type InsertOpt func(*InsertOptions)
 
 // WithContext makes the query executed with `ExecContext` if available.
@@ -338,7 +341,7 @@ func assertSliceOfStructAndLength(where string, rows interface{}) {
 	if indirectType(elemTyp).Kind() != reflect.Struct {
 		panic(where + ": slice element is not struct or pointer to struct")
 	}
-	sh := reflectx.UnpackSlice(rows)
+	sh := internal.UnpackSlice(rows)
 	if sh.Len == 0 {
 		panic(where + ": slice length is zero")
 	}

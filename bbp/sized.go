@@ -6,11 +6,11 @@ import (
 )
 
 const (
-	// MinBufSize is the minimum buffer size (8B) provided in this package.
-	MinBufSize = 1 << minPoolIdx
+	// MinSize is the minimum buffer size (64B) provided in this package.
+	MinSize = 1 << minPoolIdx
 
-	// MaxBufSize is the maximum buffer size (64MB) provided in this package.
-	MaxBufSize = 1 << (poolSize - 1)
+	// MaxSize is the maximum buffer size (32MB) provided in this package.
+	MaxSize = 1 << (poolSize - 1)
 )
 
 // Get returns a byte buffer from the pool with specified length and capacity.
@@ -25,7 +25,7 @@ func Get(length int, capacity ...int) *Buffer {
 	} else if len(capacity) > 1 {
 		panic("too many arguments to bbp.Get")
 	}
-	if cap_ > MaxBufSize {
+	if cap_ > MaxSize {
 		return &Buffer{
 			B:       make([]byte, length, cap_),
 			noReuse: true,
@@ -34,31 +34,6 @@ func Get(length int, capacity ...int) *Buffer {
 	buf := getBuffer()
 	buf.B = get(length, cap_)
 	return buf
-}
-
-// Grow returns a new byte buffer from the pool which guarantees it's
-// at least of specified capacity.
-//
-// If capacity is not specified, the returned slice is at least twice
-// of the given buf slice.
-// The returned byte buffer's capacity is always power of two, which
-// can be put back to the pool after usage.
-//
-// The old buf will be put into the pool for reusing, so it mustn't be
-// touched after calling this function, otherwise data races will occur.
-func Grow(buf []byte, capacity ...int) []byte {
-	if len(capacity) > 1 {
-		panic("too many arguments to bbp.Grow")
-	}
-	l, c := len(buf), cap(buf)
-	newCap := 2 * l
-	if len(capacity) > 0 {
-		newCap = capacity[0]
-	}
-	if c >= newCap {
-		return buf
-	}
-	return grow(buf, newCap)
 }
 
 // Put puts back a byte buffer to the pool for reusing.
@@ -74,6 +49,32 @@ func Put(buf *Buffer) {
 	bpool.Put(buf)
 }
 
+// Grow returns a new byte buffer from the pool which guarantees it's
+// at least of specified capacity.
+//
+// If capacity is not specified, the returned slice is at least twice
+// of the given buf slice length.
+// The returned byte buffer's capacity is always power of two, which
+// can be put back to the pool after usage.
+//
+// Note that the old buf will be put into the pool for reusing,
+// so it mustn't be touched after calling this function, otherwise
+// data races will occur.
+func Grow(buf []byte, capacity ...int) []byte {
+	if len(capacity) > 1 {
+		panic("too many arguments to bbp.Grow")
+	}
+	l, c := len(buf), cap(buf)
+	newCap := 2 * l
+	if len(capacity) > 0 {
+		newCap = capacity[0]
+	}
+	if c >= newCap {
+		return buf
+	}
+	return grow(buf, newCap)
+}
+
 // PutSlice puts back a byte slice which is obtained from function Grow.
 //
 // The byte slice mustn't be touched after returning it to the pool.
@@ -81,8 +82,11 @@ func Put(buf *Buffer) {
 func PutSlice(buf []byte) { put(buf) }
 
 const (
-	minPoolIdx = 3  // at least 8B (1<<3)
-	poolSize   = 27 // max 64MB (1<<26)
+	// at least 1<<6 = 64B, a CPU cache line size
+	minPoolIdx = 6
+
+	// max 1<<25 = 32MB
+	poolSize = 26
 )
 
 // power of two sized pools
@@ -98,7 +102,7 @@ func init() {
 	}
 }
 
-// callers must guarantee that capacity is not greater than MaxBufSize.
+// callers must guarantee that capacity is not greater than MaxSize.
 func get(length, capacity int) []byte {
 	idx := indexGet(capacity)
 	out := sizedPools[idx].Get().([]byte)
@@ -115,7 +119,7 @@ func put(buf []byte) {
 }
 
 func shouldReuse(cap int) bool {
-	return cap >= MinBufSize && cap <= MaxBufSize
+	return cap >= MinSize && cap <= MaxSize
 }
 
 func grow(buf []byte, capacity int) []byte {
@@ -125,7 +129,7 @@ func grow(buf []byte, capacity int) []byte {
 	}
 
 	var newBuf []byte
-	if capacity > MaxBufSize {
+	if capacity > MaxSize {
 		newBuf = make([]byte, len_, capacity)
 	} else {
 		newBuf = get(len_, capacity)
@@ -138,7 +142,7 @@ func grow(buf []byte, capacity int) []byte {
 // indexGet finds the pool index for the given size to get buffer from,
 // if size is not power of tow, it returns the next power of tow index.
 func indexGet(size int) int {
-	if size <= MinBufSize {
+	if size <= MinSize {
 		return minPoolIdx
 	}
 	idx := bsr(size)
@@ -161,7 +165,7 @@ func bsr(n int) int {
 	return bits.Len32(uint32(n)) - 1
 }
 
-// isPowerOfTwo reports whether given integer is a power of two.
+// isPowerOfTwo reports whether n is a power of two.
 func isPowerOfTwo(n int) bool {
 	return n&(n-1) == 0
 }

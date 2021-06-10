@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// PanicError represents an captured panic error.
 type PanicError struct {
 	Err   error
 	Loc   string
@@ -20,7 +21,7 @@ func (p *PanicError) Error() string {
 
 // Go calls the given function with panic recover, in case of panic happens,
 // the panic message, location and the calling stack will be logged using
-// the default logger configured by `ConfigLog`.
+// the default logger configured by `ConfigLog` in this package.
 func Go(f func()) {
 	go func() {
 		defer Recover(nil, nil)
@@ -30,7 +31,7 @@ func Go(f func()) {
 
 // Go1 calls the given function with panic recover, in case an error is returned,
 // or panic happens, the error message or panic information will be logged
-// using the default logger configured by `ConfigLog`.
+// using the default logger configured by `ConfigLog` in this package.
 func Go1(f func() error) {
 	go func() {
 		defer Recover(nil, nil)
@@ -45,7 +46,7 @@ func Go1(f func() error) {
 // Safe returns an wrapped function with panic recover.
 //
 // Note that if panic happens, the wrapped function does not log messages,
-// instead it will be returned as a `PanicError`, the caller take
+// instead it will be returned as a `*PanicError`, the caller take
 // responsibility to log the panic messages.
 func Safe(f func()) func() error {
 	return func() (err error) {
@@ -112,6 +113,7 @@ func Recover(ctx context.Context, err *error) {
 	_logcfg.getLogger(&ctx).Errorf("catch %v\n%s", pErr, stack)
 }
 
+// IdentifyPanic reports the panic location when a panic happens.
 func IdentifyPanic() string {
 	var name, file string
 	var line int
@@ -152,16 +154,11 @@ func EnsureError(v interface{}) error {
 	return err
 }
 
-// PanicOnError panics the program if any of the args is non-nil error.
+// PanicOnError fires a panic if any of the args is non-nil error.
 func PanicOnError(args ...interface{}) {
 	for _, arg := range args {
 		if err, ok := arg.(error); ok && err != nil {
 			panic(err)
 		}
 	}
-}
-
-// Must is an alias function of PanicOnError.
-func Must(args ...interface{}) {
-	PanicOnError(args...)
 }

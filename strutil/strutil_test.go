@@ -122,6 +122,7 @@ func TestReverse(t *testing.T) {
 	tests := []struct {
 		s, result string
 	}{
+		{"ABCD", "DCBA"},
 		{"ABCDE", "EDCBA"},
 		{"Hello, 世界", "界世 ,olleH"},
 	}
