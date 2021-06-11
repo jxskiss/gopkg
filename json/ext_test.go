@@ -16,6 +16,8 @@ var malformedJSONData = `
 	*/
 	"array": [1, 2, 3, ], // Trailing comma in array.
 	"import": @import("testdata.json"), // Import another json file.
+	identifier_simple1: 1234,
+	$identifierSimple2: "abc",
 	"obj2": {
 		"foo": "bar", /* Another style inline comment. */
 	}, // <-- Another trailing comma!
@@ -31,6 +33,8 @@ func TestUnmarshalExt_comment_trailingComma(t *testing.T) {
 		"import": map[string]interface{}{
 			"foo": "bar",
 		},
+		"identifier_simple1": float64(1234),
+		"$identifierSimple2":  "abc",
 		"obj2": map[string]interface{}{
 			"foo": "bar",
 		},

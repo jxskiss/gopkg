@@ -1,16 +1,17 @@
 # Extended JSON grammar
 #
 # Reference:
-# 1. https://json.org/ and ECMA-262 Ed.5
-# 2. https://github.com/pointlander/peg
+# - https://json.org/ and ECMA-262 Ed.5
+# - https://github.com/pointlander/peg
 #
 # Extended features:
-# 1. trailing comma of Object and Array
-# 2. traditional, end of line, or pragma comments
-# 3. Python boolean constants
-# 4. Python None as null
-# 5. Python style single quote string
-# 6. import other JSON files
+# - trailing comma of Object and Array
+# - traditional, end of line, or pragma comments
+# - simple identifier as object key without quotes
+# - Python boolean constants
+# - Python None as null
+# - Python style single quote string
+# - import other JSON files
 
 
 package extparser
@@ -21,10 +22,12 @@ type JSON Peg {
 
 Document  <-  Spacing JSON EOT
 JSON      <-  ( Object / Array / String / True / False / Null / Number / Import ) Spacing
-Object    <-  LWING ( String COLON JSON COMMA )* ( String COLON JSON )? RWING
+Object    <-  LWING ( ObjectKey COLON JSON COMMA )* ( ObjectKey COLON JSON )? RWING
+ObjectKey <-  String / SimpleIdentifier
 Array     <-  LBRK ( JSON COMMA )* JSON? RBRK
 Import    <-  '@import(' String ')'
 
+SimpleIdentifier    <-  [0-9A-Za-z_$]+
 String              <-  SingleQuoteLiteral / DoubleQuoteLiteral
 SingleQuoteLiteral  <-  '\'' ( SingleQuoteEscape / !['\\\n\r] .)* '\''
 DoubleQuoteLiteral  <-  '\"' ( DoubleQuoteEscape / !["\\\n\r] .)* '\"'

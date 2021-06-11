@@ -118,8 +118,8 @@ func (p *parser) parseObject(n *node32) (err error) {
 			p.buf = append(p.buf, ':')
 		case ruleCOMMA:
 			p.buf = append(p.buf, ',')
-		case ruleString:
-			p.buf = append(p.buf, p.parseString(n)...)
+		case ruleObjectKey:
+			p.buf = append(p.buf, p.parseObjectKey(n)...)
 		case ruleJSON:
 			err = p.parseJSON(n)
 			if err != nil {
@@ -129,6 +129,17 @@ func (p *parser) parseObject(n *node32) (err error) {
 		preRule = n.pegRule
 	}
 	return nil
+}
+
+func (p *parser) parseObjectKey(n *node32) string {
+	n = n.up
+	switch n.pegRule {
+	case ruleSimpleIdentifier:
+		return `"` + string(p.doc.buffer[n.begin:n.end]) + `"`
+	case ruleString:
+		return p.parseString(n)
+	}
+	return ""
 }
 
 func (p *parser) parseArray(n *node32) (err error) {
