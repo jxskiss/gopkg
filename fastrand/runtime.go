@@ -1,9 +1,6 @@
 package fastrand
 
-import (
-	"github.com/jxskiss/gopkg/internal/linkname"
-	_ "unsafe"
-)
+import "github.com/jxskiss/gopkg/internal/linkname"
 
 // Fastrand exposes the fastrand function from runtime package.
 func Fastrand() uint32 {
