@@ -1,0 +1,33 @@
+{
+  "some_1": "some_1",
+  "some_1_ptr": "some_1_ptr",
+  "some_2": 2345,
+  "some_2_ptr": 23456,
+
+  "some_5": [5, 6, 7],
+  "some_6": [6, 7, 8],
+
+  "some_8": ["a", "b", "c"],
+
+  "override_env_var": 12345,
+
+  "db_ptr": {
+    "mysql": "mysql_dsn",
+    "redis": "redis_dsn"
+  },
+  "mq_list": [
+    {
+      "topic": "topic_0",
+      "group": "group_0"
+    },
+    {
+      "topic": "topic_1",
+      "group": "group_1"
+    },
+    {
+      "cluster": "cluster_2",
+      "topic": "topic_2",
+      "group": "group_2"
+    }
+  ]
+}

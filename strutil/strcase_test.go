@@ -19,6 +19,8 @@ func TestToCamelCase(t *testing.T) {
 		{"numbers2And55with000", "Numbers2And55With000"},
 		{"id", "Id"},
 		{"ID", "ID"},
+		{"someID", "SomeID"},
+		{"someHTMLWord", "SomeHTMLWord"},
 	}
 	for _, tc := range cases {
 		want := tc[1]
