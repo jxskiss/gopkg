@@ -1,0 +1,15 @@
+some_2 = -2345
+some_3 = -3456
+some_3_ptr = -34567
+
+some_6 = [-6, -7, -8]
+some_7 = [-7, -8, -9]
+
+implicit_env_var_override = "env_var_override"
+
+[db]
+mysql = "common_mysql_dsn"
+redis = "common_redis_dsn"
+
+[default_mq]
+topic = "common_default_mq_topic"
