@@ -10,13 +10,13 @@ import (
 
 // PanicError represents an captured panic error.
 type PanicError struct {
-	Err   error
-	Loc   string
-	Stack []byte
+	Exception  interface{}
+	Location   string
+	Stacktrace []byte
 }
 
 func (p *PanicError) Error() string {
-	return fmt.Sprintf("panic: %v, location: %v", p.Err, p.Loc)
+	return fmt.Sprintf("panic: %v, location: %v", p.Exception, p.Location)
 }
 
 // Go calls the given function with panic recover, in case of panic happens,
@@ -57,8 +57,11 @@ func Safe(f func()) func() error {
 			}
 			panicLoc := IdentifyPanic()
 			stack := debug.Stack()
-			err = EnsureError(e)
-			err = &PanicError{Err: err, Loc: panicLoc, Stack: stack}
+			err = &PanicError{
+				Exception:  e,
+				Location:   panicLoc,
+				Stacktrace: stack,
+			}
 		}()
 		f()
 		return nil
@@ -79,8 +82,11 @@ func Safe1(f func() error) func() error {
 			}
 			panicLoc := IdentifyPanic()
 			stack := debug.Stack()
-			err = EnsureError(e)
-			err = &PanicError{Err: err, Loc: panicLoc, Stack: stack}
+			err = &PanicError{
+				Exception:  e,
+				Location:   panicLoc,
+				Stacktrace: stack,
+			}
 		}()
 		err = f()
 		return
@@ -102,7 +108,11 @@ func Recover(ctx context.Context, err *error) {
 
 	panicLoc := IdentifyPanic()
 	stack := debug.Stack()
-	pErr := &PanicError{Err: EnsureError(e), Loc: panicLoc, Stack: stack}
+	pErr := &PanicError{
+		Exception:  e,
+		Location:   panicLoc,
+		Stacktrace: stack,
+	}
 
 	// If the caller receives the error, we don't log it here,
 	// else we log the panic error with stack information.
