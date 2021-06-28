@@ -2,6 +2,7 @@ package structtag
 
 import "strings"
 
+// Options represents a set of parsed options of a struct field tag.
 type Options []Option
 
 func (p Options) Get(option string) (Option, bool) {
@@ -13,14 +14,26 @@ func (p Options) Get(option string) (Option, bool) {
 	return Option{}, false
 }
 
+// Option represents a single option from a struct field tag.
 type Option struct {
 	raw, k, v string
 }
 
+// String returns the original string represent of the option.
 func (p Option) String() string { return p.raw }
-func (p Option) Key() string    { return p.k }
-func (p Option) Value() string  { return p.v }
 
+// Key returns the parsed key of the option, if available.
+func (p Option) Key() string { return p.k }
+
+// Value returns the parsed value of the option, if available.
+func (p Option) Value() string { return p.v }
+
+// ParseOptions parses tag into Options using optionSep and kvSep.
+//
+// If optionSep is not empty, it splits tag into options using optionSep
+// as separator, else the whole tag is considered as a single option.
+// If kvSep is not empty, it splits each option into key value pair using
+// kvSep as separator, else the option's key, value will be empty.
 func ParseOptions(tag string, optionSep, kvSep string) Options {
 	tag = strings.TrimSpace(tag)
 	if tag == "" {

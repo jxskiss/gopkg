@@ -6,6 +6,18 @@ import (
 	"unsafe"
 )
 
+// IsNilInterface tells whether v is nil or the underlying data is nil.
+func IsNilInterface(v interface{}) bool {
+	if v == nil {
+		return true
+	}
+	ef := EfaceOf(&v)
+	if ef.RType.Kind() == reflect.Slice {
+		return *(*unsafe.Pointer)(ef.Word) == nil
+	}
+	return ef.Word == nil
+}
+
 // IsIntType tells whether kind is an integer.
 func IsIntType(kind reflect.Kind) bool {
 	switch kind {

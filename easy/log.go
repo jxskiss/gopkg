@@ -16,6 +16,7 @@ import (
 
 	"github.com/jxskiss/gopkg/internal/unsafeheader"
 	"github.com/jxskiss/gopkg/json"
+	"github.com/jxskiss/gopkg/reflectx"
 	"github.com/jxskiss/gopkg/strutil"
 )
 
@@ -96,7 +97,7 @@ func JSON(v interface{}) string {
 // returns error. Note that only struct and map of basic types are
 // supported, non-basic types are simply ignored.
 func Logfmt(v interface{}) string {
-	if isNil(v) {
+	if reflectx.IsNilInterface(v) {
 		return "null"
 	}
 	var src []byte
@@ -369,32 +370,6 @@ func isBasicType(typ reflect.Type) bool {
 		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
 		reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
-		return true
-	}
-	return false
-}
-
-func isNil(x interface{}) bool {
-	if x == nil {
-		return true
-	}
-	val := reflect.ValueOf(x)
-	if isNillableKind(val.Kind()) {
-		return val.IsNil()
-	}
-	return false
-}
-
-func isNillableKind(kind reflect.Kind) bool {
-	switch kind {
-	case
-		reflect.Chan,
-		reflect.Func,
-		reflect.Interface,
-		reflect.Map,
-		reflect.Ptr,
-		reflect.Slice,
-		reflect.UnsafePointer:
 		return true
 	}
 	return false

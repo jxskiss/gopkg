@@ -9,7 +9,7 @@ import (
 	"github.com/jxskiss/gopkg/reflectx"
 )
 
-// PyFormat mimics subset features of the python string.format function.
+// Format mimics subset features of the python string.format function.
 //
 // It formats the string using given keyword arguments and positional arguments.
 // kwArgs can be a map[string]interface{}, map[string]string or a struct
@@ -22,11 +22,11 @@ import (
 // options. The percent sign is optional. For example:
 //
 //   // returns "3.14, 3.1416"
-//   PyFormat("{pi:%.2f}, {pi:.4f}", map[string]interface{}{"pi": math.Pi})
+//   Format("{pi:%.2f}, {pi:.4f}", map[string]interface{}{"pi": math.Pi})
 //
 // If a replacement is not found in kwArgs and posArgs, the placeholder will be
 // output as the same in the given format.
-func PyFormat(format string, kwArgs interface{}, posArgs ...interface{}) string {
+func Format(format string, kwArgs interface{}, posArgs ...interface{}) string {
 	var (
 		defaultFormat = []rune("%v")
 

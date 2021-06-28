@@ -7,6 +7,29 @@ import (
 	"testing"
 )
 
+func TestIsNilInterface(t *testing.T) {
+	testcases := []struct {
+		v    interface{}
+		want bool
+	}{
+		{nil, true},
+		{(map[string]int)(nil), true},
+		{([]string)(nil), true},
+		{(*int)(nil), true},
+		{(*simple)(nil), true},
+		{map[string]int{}, false},
+		{[]string{}, false},
+		{1, false},
+		{"abc", false},
+		{simple{}, false},
+		{&simple{}, false},
+	}
+	for i, tc := range testcases {
+		got := IsNilInterface(tc.v)
+		assert.Equalf(t, tc.want, got, "i= %v, v = %q", i, tc.v)
+	}
+}
+
 func TestCastInt(t *testing.T) {
 	values := []interface{}{
 		int8(1), int8(math.MinInt8), int8(math.MaxInt8),
