@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -198,7 +199,7 @@ type Request struct {
 	Timeout time.Duration
 
 	// Client specifies an optional http.Client to do the request, instead of
-	// the default http.DefaultClient.
+	// the default http client.
 	Client *http.Client
 
 	// DisableRedirect tells the http client don't follow response redirection.
@@ -216,11 +217,10 @@ type Request struct {
 }
 
 func (p *Request) buildClient() *http.Client {
-	if p.Client == nil &&
-		!p.DisableRedirect {
-		return http.DefaultClient
+	if p.Client == nil && !p.DisableRedirect {
+		return NoHttp2Client
 	}
-	var client http.Client
+	var client = *NoHttp2Client
 	if p.Client != nil {
 		client = *p.Client
 	}
@@ -487,4 +487,29 @@ func DoRequest(req *Request) (respContent []byte, status int, err error) {
 		}
 	}
 	return
+}
+
+var zeroDialer net.Dialer
+
+// NoHttp2Client disables HTTP/2 feature by specifying a custom DialContext
+// function, otherwise it behaves exactly same with http.NoHttp2Client.
+//
+// HTTP/2 support in golang has many problematic corner cases where dead
+// connections would be kept and used in connection pools. See:
+//
+//   https://github.com/golang/go/issues/32388
+//   https://github.com/golang/go/issues/39337
+//   https://github.com/golang/go/issues/39750
+//
+// The deadlock reported by issue 32388 is observed in our production deployment,
+// thus we disable HTTP/2 to help to get a better sleep.
+var NoHttp2Client = &http.Client{
+	Transport: &http.Transport{
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return zeroDialer.DialContext(ctx, network, addr)
+		},
+		Dial: func(network, addr string) (net.Conn, error) {
+			return zeroDialer.Dial(network, addr)
+		},
+	},
 }
