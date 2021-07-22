@@ -31,3 +31,17 @@ func TestCode(t *testing.T) {
 	assert.Equal(t, []byte(`{"code":100001}`), json1)
 	assert.Equal(t, []byte(`{"code":100002,"message":"dummy2"}`), json2)
 }
+
+func TestCode_StringRepresentation(t *testing.T) {
+	code := &Code{
+		code:    132456,
+		msg:     "dummy message",
+		details: []interface{}{"detail1", "detail2"},
+	}
+	repr, err := Encode(code)
+	assert.Nil(t, err)
+
+	got, ok := Decode(repr)
+	assert.True(t, ok)
+	assert.Equal(t, *code, *got)
+}
