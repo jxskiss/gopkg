@@ -18,9 +18,8 @@ type ErrCode interface {
 	// If message is not available, it returns an empty string "".
 	Message() string
 
-	// Details returns the additional detail information attached to
-	// the error code.
-	// It may return nil if no additional information is attached.
+	// Details returns the error details attached to the Code.
+	// It may return nil if no details is attached.
 	Details() []interface{}
 }
 
@@ -60,46 +59,78 @@ func (e *Code) Message() string {
 	return e.reg.getMessage(e.code)
 }
 
-// Details returns the additional detail information attached to
-// the error code.
-// It may return nil if no additional information is attached.
-func (e *Code) Details() []interface{} { return e.details }
-
-// WithDetails returns a copy of Code with new additional information attached.
-func (e *Code) WithDetails(details ...interface{}) (code *Code) {
-	details = append(e.details, details...)
+func (e *Code) clone() *Code {
+	detailsLen := len(e.details)
 	return &Code{
 		code:    e.code,
 		msg:     e.msg,
-		details: details,
+		details: e.details[:detailsLen:detailsLen],
 		reg:     e.reg,
 	}
+}
+
+// Details returns the error details attached to the Code.
+// It may return nil if no details is attached.
+func (e *Code) Details() []interface{} { return e.details }
+
+// WithDetails returns a copy of Code with new error details attached.
+func (e *Code) WithDetails(details ...interface{}) (code *Code) {
+	code = e.clone()
+	code.details = append(code.details, details...)
+	return
+}
+
+// RemoveDetails returns a copy of Code without the error details.
+// If the Code does not have error details, it returns the Code
+// directly instead of a copy.
+// When returning an error code to end-users, you may want to remove
+// the error details which generally should not be exposed to them.
+func (e *Code) RemoveDetails() (code *Code) {
+	if len(e.details) == 0 {
+		return e
+	}
+	return &Code{code: e.code, msg: e.msg, reg: e.reg}
 }
 
 // WithMessage returns a copy of Code with the given message.
-// If details is given, the new additional information will be attached
+// If error details are given, the new error details will be attached
 // to the returned Code.
 func (e *Code) WithMessage(msg string, details ...interface{}) (code *Code) {
-	details = append(e.details, details...)
-	return &Code{
-		code:    e.code,
-		msg:     msg,
-		details: details,
-		reg:     e.reg,
+	code = e.clone()
+	code.msg = msg
+	if len(details) > 0 {
+		code.details = append(code.details, details...)
 	}
+	return
 }
 
+type jsonCode struct {
+	Code    int32         `json:"code"`
+	Message string        `json:"message,omitempty"`
+	Details []interface{} `json:"details,omitempty"`
+}
+
+// MarshalJSON implements json.Marshaler.
 func (e *Code) MarshalJSON() ([]byte, error) {
-	out := struct {
-		Code    int32         `json:"code"`
-		Message string        `json:"message,omitempty"`
-		Details []interface{} `json:"details,omitempty"`
-	}{
+	out := &jsonCode{
 		Code:    e.Code(),
 		Message: e.Message(),
 		Details: e.details,
 	}
 	return json.Marshal(out)
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (e *Code) UnmarshalJSON(data []byte) error {
+	tmp := &jsonCode{}
+	err := json.Unmarshal(data, tmp)
+	if err != nil {
+		return err
+	}
+	e.code = tmp.Code
+	e.msg = tmp.Message
+	e.details = tmp.Details
+	return nil
 }
 
 // Is reports whether any error in err's chain matches the target ErrCode.
@@ -110,8 +141,15 @@ func Is(err error, target ErrCode) bool {
 
 // IsErrCode reports whether any error in err's chain is an ErrCode.
 func IsErrCode(err error) bool {
-	errCode := unwrapErrCode(err)
-	return errCode != nil
+	if errCode := unwrapErrCode(err); errCode != nil {
+		return true
+	}
+	if iv, ok := err.(interface {
+		IsErrCode() bool
+	}); ok {
+		return iv.IsErrCode()
+	}
+	return false
 }
 
 func unwrapErrCode(err error) ErrCode {
