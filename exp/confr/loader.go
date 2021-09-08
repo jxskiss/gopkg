@@ -468,8 +468,16 @@ func assignFieldValue(dst reflect.Value, value interface{}) error {
 		val, err = cast.ToStringE(value)
 	case []string:
 		val, err = cast.ToStringSliceE(value)
+	case map[string]bool:
+		val, err = cast.ToStringMapBoolE(value)
+	case map[string]int:
+		val, err = cast.ToStringMapIntE(value)
+	case map[string]int64:
+		val, err = cast.ToStringMapInt64E(value)
 	case map[string]string:
 		val, err = cast.ToStringMapStringE(value)
+	case map[string][]string:
+		val, err = cast.ToStringMapStringSliceE(value)
 	case map[string]interface{}:
 		val, err = cast.ToStringMapE(value)
 	default:
