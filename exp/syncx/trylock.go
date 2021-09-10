@@ -5,7 +5,8 @@ import "context"
 // TryLocker represents an object that can be locked and unlocked.
 type TryLocker interface {
 	TryLock() bool
-	Lock(ctx context.Context) error
+	LockTimeout(ctx context.Context) error
+	Lock()
 	Unlock()
 }
 
@@ -29,18 +30,24 @@ func (p *tryLock) TryLock() bool {
 	}
 }
 
-// Lock tries to acquire the lock.
+// LockTimeout tries to acquire the lock.
 // It waits ctx.Done(), if the context is finished before it successfully
 // acquires the lock, it returns the error from ctx.Done().
 // A nil error means the lock is acquired successfully, else the error
-// may be context.Cancelled or context.DeadlineExceeded.
-func (p *tryLock) Lock(ctx context.Context) error {
+// will be one of context.Cancelled or context.DeadlineExceeded.
+func (p *tryLock) LockTimeout(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	case p.c <- struct{}{}:
 		return nil
 	}
+}
+
+// Lock acquires the lock, it waits the lock if it's already acquired
+// by someone else.
+func (p *tryLock) Lock() {
+	p.c <- struct{}{}
 }
 
 // Unlock releases the lock if it is in locked state.

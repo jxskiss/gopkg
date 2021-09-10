@@ -36,7 +36,7 @@ func NewWithReserved(reserveFunc func(code int32) bool) *Registry {
 // the reserve function and panics if the code is reserved.
 func (p *Registry) Register(code int32, msg string) *Code {
 	if p.reserve != nil && p.reserve(code) {
-		panic(fmt.Sprintf("ecode: code %d is reserved", code))
+		panic(fmt.Sprintf("errcode: code %d is reserved", code))
 	}
 	return p.add(code, msg)
 }
@@ -50,7 +50,7 @@ func (p *Registry) RegisterReserved(code int32, msg string) *Code {
 
 func (p *Registry) add(code int32, msg string) *Code {
 	if _, ok := p.codes[code]; ok {
-		panic(fmt.Sprintf("ecode: code %d is already registered", code))
+		panic(fmt.Sprintf("errcode: code %d is already registered", code))
 	}
 	p.codes[code] = struct{}{}
 	if msg != "" {

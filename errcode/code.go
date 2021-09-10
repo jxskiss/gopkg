@@ -144,11 +144,6 @@ func IsErrCode(err error) bool {
 	if errCode := unwrapErrCode(err); errCode != nil {
 		return true
 	}
-	if iv, ok := err.(interface {
-		IsErrCode() bool
-	}); ok {
-		return iv.IsErrCode()
-	}
 	return false
 }
 
@@ -164,13 +159,25 @@ func unwrapErrCode(err error) ErrCode {
 		Unwrap() error
 	}
 
-	if wrappedErr, ok := err.(causer); ok {
-		err = wrappedErr.Cause()
-	} else if wrappedErr, ok := err.(wrapper); ok {
-		err = wrappedErr.Unwrap()
+	for _err := err; _err != nil; {
+		if code, ok := _err.(ErrCode); ok && code != nil {
+			return code
+		}
+		wrapped, ok := _err.(causer)
+		if !ok {
+			break
+		}
+		_err = wrapped.Cause()
 	}
-	if code, ok := err.(ErrCode); ok && code != nil {
-		return code
+	for _err := err; err != nil; {
+		if code, ok := _err.(ErrCode); ok && code != nil {
+			return code
+		}
+		wrapped, ok := _err.(wrapper)
+		if !ok {
+			break
+		}
+		_err = wrapped.Unwrap()
 	}
 	return nil
 }
