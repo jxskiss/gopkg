@@ -13,15 +13,15 @@ func TestTryLock_Lock(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.TODO(), time.Second)
 	defer cancel()
 	m := NewTryLock()
-	assert.Nil(t, m.Lock(ctx))
-	assert.True(t, m.Lock(ctx) != nil)
+	assert.Nil(t, m.LockTimeout(ctx))
+	assert.True(t, m.LockTimeout(ctx) != nil)
 	m.Unlock()
-	assert.Nil(t, m.Lock(context.TODO()))
+	assert.Nil(t, m.LockTimeout(context.TODO()))
 }
 
 func TestTryLock_TryLock(t *testing.T) {
 	m := NewTryLock()
-	assert.Nil(t, m.Lock(context.TODO()))
+	m.Lock()
 	assert.False(t, m.TryLock())
 	m.Unlock()
 	assert.True(t, m.TryLock())
@@ -42,7 +42,7 @@ func TestTryLock(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_ = m.Lock(context.TODO())
+			m.Lock()
 			defer m.Unlock()
 			assert.Equal(t, value, 0)
 			value = 1
@@ -59,7 +59,7 @@ func BenchmarkTryLock_Lock(b *testing.B) {
 	lock := NewTryLock()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			_ = lock.Lock(context.TODO())
+			lock.Lock()
 			//nolint:staticcheck
 			lock.Unlock()
 		}

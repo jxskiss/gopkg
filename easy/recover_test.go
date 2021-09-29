@@ -2,11 +2,12 @@ package easy
 
 import (
 	"errors"
-	"github.com/stretchr/testify/assert"
 	"log"
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var _ = log.Println
