@@ -5,8 +5,18 @@ import (
 	"log"
 	"os"
 	_ "unsafe"
+
+	"go.uber.org/zap"
 )
 
+var _ Logger = (*zap.SugaredLogger)(nil)
+
+// Logger is a generic logger interface that output logs with a format.
+// It's implemented by many logging libraries, including logrus.Logger,
+// zap.SugaredLogger, etc.
+//
+// Within this package, StdLogger is a default implementation which sends
+// log messages to the standard library.
 type Logger interface {
 	Debugf(format string, args ...interface{})
 	Infof(format string, args ...interface{})
@@ -17,7 +27,9 @@ type Logger interface {
 
 // -------- standard library logger -------- //
 
-var Std Logger = &stdLogger{}
+// StdLogger is a default implementation of Logger which sends log messages
+// to the standard library.
+var StdLogger Logger = &stdLogger{}
 
 type stdLogger struct{}
 

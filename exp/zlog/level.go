@@ -14,6 +14,7 @@ const (
 	TraceLevel Level = iota
 	DebugLevel
 	InfoLevel
+	_NoticeLevel // not implemented
 	WarnLevel
 	ErrorLevel
 	DPanicLevel
@@ -24,6 +25,7 @@ const (
 var mapZapLevels = [...]zapcore.Level{
 	zap.DebugLevel,
 	zap.DebugLevel,
+	zap.InfoLevel,
 	zap.InfoLevel,
 	zap.WarnLevel,
 	zap.ErrorLevel,
@@ -42,6 +44,8 @@ func (l *Level) unmarshalText(text []byte) bool {
 		*l = DebugLevel
 	case "info", "INFO":
 		*l = InfoLevel
+	case "notice", "NOTICE":
+		*l = _NoticeLevel
 	case "warn", "warning", "WARN", "WARNING":
 		*l = WarnLevel
 	case "error", "ERROR":

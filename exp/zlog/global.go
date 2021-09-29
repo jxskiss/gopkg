@@ -28,6 +28,9 @@ type Properties struct {
 }
 
 // ReplaceGlobals replaces the global Logger and SugaredLogger.
+//
+// It's not safe for concurrent use, it should be called only in main
+// function at program startup, library code shell not touch this.
 func ReplaceGlobals(logger *zap.Logger, props *Properties) {
 	gL = logger
 	gS = logger.Sugar()
@@ -55,6 +58,9 @@ func MustNewLogger(cfg *Config, opts ...zap.Option) (*zap.Logger, *Properties) {
 
 // NewLogger initializes a zap logger.
 func NewLogger(cfg *Config, opts ...zap.Option) (*zap.Logger, *Properties, error) {
+	if cfg == nil {
+		cfg = &Config{}
+	}
 	cfg.fillDefaults()
 	var output zapcore.WriteSyncer
 	if len(cfg.File.Filename) > 0 {
@@ -75,6 +81,9 @@ func NewLogger(cfg *Config, opts ...zap.Option) (*zap.Logger, *Properties, error
 
 // NewLoggerWithSyncer initializes a zap logger with given write syncer.
 func NewLoggerWithSyncer(cfg *Config, output zapcore.WriteSyncer, opts ...zap.Option) (*zap.Logger, *Properties, error) {
+	if cfg == nil {
+		cfg = &Config{}
+	}
 	cfg.fillDefaults()
 	level := newAtomicLevel()
 	err := level.UnmarshalText([]byte(cfg.Level))
@@ -100,7 +109,8 @@ func NewLoggerWithSyncer(cfg *Config, output zapcore.WriteSyncer, opts ...zap.Op
 // GetLevel gets the global logging level.
 func GetLevel() Level { return gP.level.Level() }
 
-// SetLevel alters the global logging level.
+// SetLevel modifies the global logging level on the fly.
+// It's safe for concurrent use.
 func SetLevel(lvl Level) { gP.level.SetLevel(lvl) }
 
 // L returns the global Logger, which can be reconfigured with
@@ -149,6 +159,8 @@ func DPanicf(format string, args ...interface{}) { _s().DPanicf(format, args...)
 func Panicf(format string, args ...interface{})  { _s().Panicf(format, args...) }
 func Fatalf(format string, args ...interface{})  { _s().Fatalf(format, args...) }
 
+// -------- utility functions -------- //
+
 // With creates a child logger and adds structured context to it.
 // Fields added to the child don't affect the parent, and vice versa.
 func With(fields ...zap.Field) *zap.Logger {
@@ -157,24 +169,23 @@ func With(fields ...zap.Field) *zap.Logger {
 
 // WithCtx creates a child logger and adds fields extracted from ctx and extra.
 //
-// Note: to use this, Config.CtxFunc must be set, else it logs an error
-// message at DPANIC level.
+// If the ctx is created by WithBuilder, it carries a Builder instance,
+// this function uses that Builder to build the logger, else it uses
+// Config.CtxFunc to extract fields from ctx. In case Config.CtxFunc is
+// not configured, it logs an error message at DPANIC level.
 func WithCtx(ctx context.Context, extra ...zap.Field) *zap.Logger {
+	if ctx == nil {
+		return L().With(extra...)
+	}
+	if builder := getCtxBuilder(ctx); builder != nil {
+		return builder.With(extra...).Build()
+	}
 	ctxFunc := gP.cfg.CtxFunc
 	if ctxFunc == nil {
 		L().DPanic("calling WithCtx without CtxFunc configured")
 		return L().With(extra...)
 	}
-	if ctx == nil {
-		return L().With(extra...)
-	}
 	ctxFields := ctxFunc(ctx)
-	if len(ctxFields) == 0 {
-		return L().With(extra...)
-	}
-	if len(extra) == 0 {
-		return L().With(ctxFields...)
-	}
 	return L().With(append(ctxFields, extra...)...)
 }
 
