@@ -157,7 +157,7 @@ func With(fields ...zap.Field) *zap.Logger {
 
 // WithCtx creates a child logger and adds fields extracted from ctx and extra.
 //
-// NOTE: to use this, Config.CtxFunc must be set, else it will log an error
+// Note: to use this, Config.CtxFunc must be set, else it logs an error
 // message at DPANIC level.
 func WithCtx(ctx context.Context, extra ...zap.Field) *zap.Logger {
 	ctxFunc := gP.cfg.CtxFunc
@@ -204,110 +204,4 @@ func getFunctionName(skip int) (name string, ok bool) {
 	}
 	frame, _ := runtime.CallersFrames(pc).Next()
 	return frame.Function, frame.PC != 0
-}
-
-// -------- builder -------- //
-
-// B returns a base builder using logger L().
-func B() *Builder { return &Builder{base: L()} }
-
-// Builder provides chaining methods to build a logger.
-// When the builder is prepared, call Build to get the final logger.
-//
-// A Builder is not safe for concurrent use. User should not pass a
-// builder across functions, but you may pass the final logger.
-//
-// Example:
-//	logger := zlog.B().Method().Ctx(ctx).With(fields...).Build()
-//	logger.Info("some message")
-type Builder struct {
-	base       *zap.Logger
-	fields     []zap.Field
-	name       string
-	methodName string
-
-	final *zap.Logger
-}
-
-// Logger set the base logger to build upon.
-func (b *Builder) Logger(logger *zap.Logger) *Builder {
-	if logger != nil {
-		b.final = nil
-		b.base = logger
-	}
-	return b
-}
-
-// With adds extra fields to the builder. Duplicate key overrides the
-// old field.
-func (b *Builder) With(fields ...zap.Field) *Builder {
-	b.final = nil
-loop:
-	for _, f := range fields {
-		for i, x := range b.fields {
-			if f.Key == x.Key {
-				b.fields[i] = f
-				continue loop
-			}
-		}
-		b.fields = append(b.fields, f)
-	}
-	return b
-}
-
-// Ctx adds fields extracted from ctx to the builder.
-//
-// NOTE: to use this, Config.CtxFunc must be set, else it will log an error
-// message at DPANIC level.
-func (b *Builder) Ctx(ctx context.Context) *Builder {
-	ctxFunc := gP.cfg.CtxFunc
-	if ctxFunc == nil {
-		L().DPanic("calling Builder.Ctx without CtxFunc configured")
-		return b
-	}
-	if ctx != nil {
-		if ctxFields := ctxFunc(ctx); len(ctxFields) > 0 {
-			b.With(ctxFields...)
-		}
-	}
-	return b
-}
-
-// Method adds the caller's method name to the builder.
-func (b *Builder) Method() *Builder {
-	if gP.cfg.FunctionKey == "" {
-		b.final = nil
-		b.methodName, _ = getFunctionName(1)
-	}
-	return b
-}
-
-func (b *Builder) Named(name string) *Builder {
-	b.final = nil
-	b.name = name
-	return b
-}
-
-// Build returns the final logger.
-func (b *Builder) Build() *zap.Logger {
-	if b.final != nil {
-		return b.final
-	}
-	final := b.base
-	if final == nil {
-		final = L()
-	}
-	if b.name != "" {
-		final = final.Named(b.name)
-	}
-	if b.methodName == "" {
-		final = final.With(b.fields...)
-	} else if len(b.fields) == 0 {
-		final = final.With(zap.String(MethodKey, b.methodName))
-	} else {
-		fields := append([]zap.Field{zap.String(MethodKey, b.methodName)}, b.fields...)
-		final = final.With(fields...)
-	}
-	b.final = final
-	return final
 }
