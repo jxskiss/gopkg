@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 var baseBuilder = &Builder{}
@@ -81,28 +80,7 @@ func (b *Builder) With(fields ...zap.Field) *Builder {
 		return b
 	}
 	out := b.clone()
-	out.fields = make([]zap.Field, len(b.fields), len(b.fields)+len(fields))
-	copy(out.fields, b.fields)
-
-	// check namespace
-	nsIdx := 0
-	for i := len(out.fields) - 1; i >= 0; i-- {
-		if out.fields[i].Type == zapcore.NamespaceType {
-			nsIdx = i + 1
-			break
-		}
-	}
-
-loop:
-	for _, f := range fields {
-		for i := nsIdx; i < len(out.fields); i++ {
-			if out.fields[i].Key == f.Key {
-				out.fields[i] = f
-				continue loop
-			}
-		}
-		out.fields = append(out.fields, f)
-	}
+	out.fields = appendFields(out.fields, fields)
 	return out
 }
 

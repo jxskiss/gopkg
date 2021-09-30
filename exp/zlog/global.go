@@ -186,7 +186,7 @@ func WithCtx(ctx context.Context, extra ...zap.Field) *zap.Logger {
 		return L().With(extra...)
 	}
 	ctxFields := ctxFunc(ctx)
-	return L().With(append(ctxFields, extra...)...)
+	return L().With(appendFields(ctxFields, extra)...)
 }
 
 // WithMethod creates a child logger and adds the caller's method name and
@@ -207,12 +207,45 @@ func WithMethod(extra ...zap.Field) *zap.Logger {
 }
 
 func getFunctionName(skip int) (name string, ok bool) {
-	const skipOffset = 2 // skip getFunctionName and Callers
-	pc := make([]uintptr, 1)
-	numFrames := runtime.Callers(skip+skipOffset, pc)
-	if numFrames < 1 {
+	pc, _, _, ok := runtime.Caller(skip + 1)
+	if !ok {
 		return
 	}
-	frame, _ := runtime.CallersFrames(pc).Next()
-	return frame.Function, frame.PC != 0
+	name = runtime.FuncForPC(pc).Name()
+	for i := len(name) - 1; i >= 0; i-- {
+		if name[i] == '/' {
+			name = name[i+1:]
+			break
+		}
+	}
+	return
+}
+
+func appendFields(old []zap.Field, new []zap.Field) []zap.Field {
+	if len(new) == 0 {
+		return old
+	}
+	result := make([]zap.Field, len(old), len(old)+len(new))
+	copy(result, old)
+
+	// check namespace
+	nsIdx := 0
+	for i := len(result) - 1; i >= 0; i-- {
+		if result[i].Type == zapcore.NamespaceType {
+			nsIdx = i + 1
+			break
+		}
+	}
+
+loop:
+	for _, f := range new {
+		for i := nsIdx; i < len(result); i++ {
+			if result[i].Key == f.Key {
+				result[i] = f
+				continue loop
+			}
+		}
+		result = append(result, f)
+	}
+	return result
 }

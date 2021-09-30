@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 
-	zaplogfmt "github.com/jsternberg/zap-logfmt"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -106,13 +105,16 @@ func (cfg *Config) buildEncoder() (zapcore.Encoder, error) {
 		encConfig = zap.NewDevelopmentEncoderConfig()
 	}
 	encConfig.FunctionKey = cfg.FunctionKey
+	if cfg.DisableTimestamp {
+		encConfig.TimeKey = zapcore.OmitKey
+	}
 	switch cfg.Format {
 	case "json":
 		return zapcore.NewJSONEncoder(encConfig), nil
 	case "console":
 		return zapcore.NewConsoleEncoder(encConfig), nil
 	case "logfmt":
-		return zaplogfmt.NewEncoder(encConfig), nil
+		return NewLogfmtEncoder(encConfig), nil
 	default:
 		return nil, fmt.Errorf("unknown format: %s", cfg.Format)
 	}
