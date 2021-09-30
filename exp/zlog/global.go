@@ -185,8 +185,8 @@ func WithCtx(ctx context.Context, extra ...zap.Field) *zap.Logger {
 		L().DPanic("calling WithCtx without CtxFunc configured")
 		return L().With(extra...)
 	}
-	ctxFields := ctxFunc(ctx)
-	return L().With(appendFields(ctxFields, extra)...)
+	ctxResult := ctxFunc(ctx, CtxArgs{})
+	return L().With(appendFields(ctxResult.Fields, extra)...)
 }
 
 // WithMethod creates a child logger and adds the caller's method name and

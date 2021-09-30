@@ -76,7 +76,13 @@ type Config struct {
 	Sampling *zap.SamplingConfig `json:"sampling" yaml:"sampling"`
 
 	// CtxFunc gets logging fields from ctx, it's optional.
-	CtxFunc func(ctx context.Context) []zap.Field `json:"-" yaml:"-"`
+	CtxFunc func(ctx context.Context, args CtxArgs) CtxResult `json:"-" yaml:"-"`
+}
+
+type CtxArgs struct{}
+
+type CtxResult struct {
+	Fields []zap.Field
 }
 
 func (cfg *Config) fillDefaults() {

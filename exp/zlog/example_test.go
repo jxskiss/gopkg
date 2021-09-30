@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func testHelperReplaceGlobalToStdout(ctxFunc func(ctx context.Context) []zap.Field) func() {
+func testHelperReplaceGlobalToStdout(ctxFunc func(ctx context.Context, args CtxArgs) CtxResult) func() {
 	oldL, oldP := gL, gP
 	cfg := &Config{
 		Level:             "trace",
@@ -82,8 +82,10 @@ func ExampleWith() {
 
 func ExampleWithCtx() {
 
-	demoCtxFunc := func(ctx context.Context) []zap.Field {
-		return []zap.Field{zap.String("ctx1", "v1"), zap.Int64("ctx2", 123)}
+	demoCtxFunc := func(ctx context.Context, args CtxArgs) CtxResult {
+		return CtxResult{
+			Fields: []zap.Field{zap.String("ctx1", "v1"), zap.Int64("ctx2", 123)},
+		}
 	}
 	defer testHelperReplaceGlobalToStdout(demoCtxFunc)()
 

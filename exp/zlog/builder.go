@@ -42,6 +42,13 @@ func (b *Builder) clone() *Builder {
 	}
 }
 
+func (b *Builder) getBaseLogger() *zap.Logger {
+	if b.base != nil {
+		return b.base
+	}
+	return L()
+}
+
 // Ctx adds fields extracted from ctx to the builder.
 //
 // If the ctx is created by WithBuilder, it carries a Builder instance,
@@ -60,7 +67,8 @@ func (b *Builder) Ctx(ctx context.Context) *Builder {
 		L().DPanic("calling Builder.Ctx without CtxFunc configured")
 		return b
 	}
-	return b.With(ctxFunc(ctx)...)
+	ctxResult := ctxFunc(ctx, CtxArgs{})
+	return b.With(ctxResult.Fields...)
 }
 
 // Logger sets the base logger to build upon.
@@ -110,10 +118,7 @@ func (b *Builder) Build() *zap.Logger {
 	if b.final != nil {
 		return b.final
 	}
-	final := b.base
-	if final == nil {
-		final = L()
-	}
+	final := b.getBaseLogger()
 	if b.name != "" {
 		final = final.Named(b.name)
 	}
