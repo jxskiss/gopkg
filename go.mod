@@ -6,7 +6,6 @@ require (
 	github.com/BurntSushi/toml v0.4.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/goccy/go-json v0.7.9-0.20210927113039-9df46fc918f2
-	github.com/jsternberg/zap-logfmt v1.2.0
 	github.com/spf13/cast v1.4.1
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/atomic v1.7.0
