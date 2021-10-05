@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"sync"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -13,10 +14,12 @@ var (
 	gL, gL_1 *zap.Logger
 	gS, gS_1 *zap.SugaredLogger
 	gP       *Properties
+
+	setupOnce sync.Once
 )
 
 func init() {
-	ReplaceGlobals(MustNewLogger(&Config{}))
+	replaceGlobals(MustNewLogger(&Config{}))
 }
 
 // Properties records some information about zap.
@@ -27,11 +30,33 @@ type Properties struct {
 	syncer zapcore.WriteSyncer
 }
 
-// ReplaceGlobals replaces the global Logger and SugaredLogger.
+// SetupGlobals setups the global loggers in this package and zap library.
+// By default, global loggers are set with default configuration with info
+// level and json format, you may use this function to change the default
+// loggers.
 //
-// It's not safe for concurrent use, it should be called only in main
-// function at program startup, library code shell not touch this.
-func ReplaceGlobals(logger *zap.Logger, props *Properties) {
+// If redirectStdLog is true, it calls RedirectStdLog to redirect output
+// from the standard library's package-global logger to the global logger
+// configured by this function.
+//
+// This function must not be called more than once, else it panics.
+// It should be called only in main function at program startup, library
+// code shall not touch this.
+func SetupGlobals(cfg *Config, redirectStdLog bool) {
+	first := false
+	setupOnce.Do(func() {
+		first = true
+		replaceGlobals(MustNewLogger(cfg))
+		if redirectStdLog {
+			RedirectStdLog()
+		}
+	})
+	if !first {
+		panic("SetupGlobals called more than once")
+	}
+}
+
+func replaceGlobals(logger *zap.Logger, props *Properties) {
 	gL = logger
 	gS = logger.Sugar()
 	gP = props
@@ -114,11 +139,11 @@ func GetLevel() Level { return gP.level.Level() }
 func SetLevel(lvl Level) { gP.level.SetLevel(lvl) }
 
 // L returns the global Logger, which can be reconfigured with
-// ReplaceGlobals.
+// SetupGlobals.
 func L() *zap.Logger { return gL }
 
 // S returns the global SugaredLogger, which can be reconfigured with
-// ReplaceGlobals.
+// SetupGlobals.
 func S() *zap.SugaredLogger { return gS }
 
 // Sync flushes any buffered log entries.

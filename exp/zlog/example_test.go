@@ -22,9 +22,9 @@ func testHelperReplaceGlobalToStdout(ctxFunc func(ctx context.Context, args CtxA
 	if err != nil {
 		panic(err)
 	}
-	ReplaceGlobals(l, p)
+	replaceGlobals(l, p)
 	return func() {
-		ReplaceGlobals(oldL, oldP)
+		replaceGlobals(oldL, oldP)
 	}
 }
 

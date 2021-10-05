@@ -59,6 +59,7 @@ func (_ stdLogger) Errorf(format string, args ...interface{}) {
 
 func (_ stdLogger) Fatalf(format string, args ...interface{}) {
 	log_std.Output(_stdLogDepth, fmt.Sprintf("[Fatal] "+format, args...))
+	Sync()
 	os.Exit(1)
 }
 
@@ -77,4 +78,7 @@ func (_ nopLogger) Warnf(format string, args ...interface{}) {}
 
 func (_ nopLogger) Errorf(format string, args ...interface{}) {}
 
-func (_ nopLogger) Fatalf(format string, args ...interface{}) {}
+func (_ nopLogger) Fatalf(format string, args ...interface{}) {
+	Sync()
+	os.Exit(1)
+}
