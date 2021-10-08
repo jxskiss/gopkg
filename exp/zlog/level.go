@@ -22,6 +22,15 @@ const (
 	FatalLevel
 )
 
+const (
+	tracePrefix = "[Trace] "
+	debugPrefix = "[Debug] "
+	infoPrefix  = "[Info] "
+	warnPrefix  = "[Warn] "
+	errorPrefix = "[Error] "
+	fatalPrefix = "[Fatal] "
+)
+
 var mapZapLevels = [...]zapcore.Level{
 	zap.DebugLevel,
 	zap.DebugLevel,

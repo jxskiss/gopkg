@@ -18,7 +18,7 @@ const (
 //
 // Generally, if the size and capacity is known in advance, you may use
 // the exported function Get(length, capacity) to get a properly sized
-// byte buffer. However if the buffer size is uncertain in advance, you may
+// byte buffer. However, if the buffer size is uncertain in advance, you may
 // want to use this Pool. For different workloads, dedicated Pool instances
 // are recommended, the dynamic calibrating will help to reduce memory waste.
 //
@@ -65,7 +65,7 @@ func (p *Pool) Get() *Buffer {
 // Put puts back a Buffer to the pool for reusing.
 //
 // The buf mustn't be touched after returning it to the pool.
-// Otherwise data races will occur.
+// Otherwise, data races will occur.
 func (p *Pool) Put(buf *Buffer) {
 	idx := indexGet(len(buf.B))
 	if idx >= poolSize {
@@ -103,7 +103,7 @@ func (p *Pool) GetLinkBuffer() *LinkBuffer {
 // PutLinkBuffer puts back a LinkBuffer to the pool for reusing.
 //
 // The buf mustn't be touched after returning it to the pool.
-// Otherwise data races will occur.
+// Otherwise, data races will occur.
 func (p *Pool) PutLinkBuffer(buf *LinkBuffer) {
 	idx := indexGet(buf.size)
 	if idx >= poolSize {

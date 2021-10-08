@@ -10,7 +10,7 @@ type spinLock uint32
 
 // NewSpinLock creates a new spin lock.
 // A spin lock calls runtime.Gosched when it failed acquiring the lock,
-// then try again until it success.
+// then try again until it succeeds.
 func NewSpinLock() sync.Locker {
 	return new(spinLock)
 }

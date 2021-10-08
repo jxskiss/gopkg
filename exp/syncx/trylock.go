@@ -33,8 +33,7 @@ func (p *tryLock) TryLock() bool {
 // LockTimeout tries to acquire the lock.
 // It waits ctx.Done(), if the context is finished before it successfully
 // acquires the lock, it returns the error from ctx.Done().
-// A nil error means the lock is acquired successfully, else the error
-// will be one of context.Cancelled or context.DeadlineExceeded.
+// A nil error means the lock is acquired successfully.
 func (p *tryLock) LockTimeout(ctx context.Context) error {
 	select {
 	case <-ctx.Done():

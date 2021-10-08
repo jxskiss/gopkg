@@ -76,11 +76,15 @@ type Config struct {
 	Sampling *zap.SamplingConfig `json:"sampling" yaml:"sampling"`
 
 	// CtxFunc gets logging fields from ctx, it's optional.
+	// It works only with SetupGlobals, there's no obvious way to support
+	// different CtxFunc for non-global individual loggers.
 	CtxFunc func(ctx context.Context, args CtxArgs) CtxResult `json:"-" yaml:"-"`
 }
 
+// CtxArgs holds arguments passed to Config.CtxFunc.
 type CtxArgs struct{}
 
+// CtxResult holds values returned by Config.CtxFunc.
 type CtxResult struct {
 	Fields []zap.Field
 }

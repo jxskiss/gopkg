@@ -55,8 +55,7 @@ type Config struct {
 	EnableImplicitEnv bool
 
 	// EnvPrefix is used to prefix the auto-generated names to find
-	// environment variables.
-	// The default value is defined by DefaultEnvPrefix.
+	// environment variables. The default value is "Confr".
 	EnvPrefix string
 
 	// CustomLoader optionally loads fields which have a `custom` tag,
@@ -143,12 +142,12 @@ func (p *Loader) loadFiles(config interface{}, files ...string) error {
 
 func (p *Loader) processFile(config interface{}, file string) error {
 	if info, err := os.Stat(file); err != nil || !info.Mode().IsRegular() {
-		return fmt.Errorf("invalid config file: %s", file)
+		return fmt.Errorf("invalid configuration file: %s", file)
 	}
 
 	var unmarshalFunc func(data []byte, v interface{}, disallowUnknownFields bool) error
 	extname := path.Ext(file)
-	switch extname {
+	switch strings.ToLower(extname) {
 	case ".json":
 		unmarshalFunc = unmarshalJSON
 	case ".yaml", ".yml":

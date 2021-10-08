@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Map is an map of string key and interface{} value.
+// Map is a map of string key and interface{} value.
 // It provides many useful methods to manipulate map[string]interface{}.
 type Map map[string]interface{}
 
@@ -29,7 +29,7 @@ func NewSafeMap() *SafeMap {
 }
 
 // Set is used to store a new key/value pair exclusively in the map.
-// It also lazy initializes the map if it was not used previously.
+// It also lazily initializes the map if it was not used previously.
 func (p *Map) Set(key string, value interface{}) {
 	if *p == nil {
 		*p = make(Map)
@@ -38,7 +38,7 @@ func (p *Map) Set(key string, value interface{}) {
 }
 
 // Get returns the value for the given key, ie: (value, true).
-// If the value does not exists it returns (nil, false)
+// If the value does not exist it returns (nil, false)
 func (p Map) Get(key string) (value interface{}, exists bool) {
 	value, exists = p[key]
 	return
@@ -76,7 +76,7 @@ func (p Map) GetBytes(key string) []byte {
 	return nil
 }
 
-// GetBool returns the value associated with the key as a boolean.
+// GetBool returns the value associated with the key as a boolean value.
 func (p Map) GetBool(key string) bool {
 	val, _ := p[key].(bool)
 	return val

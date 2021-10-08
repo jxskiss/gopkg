@@ -28,7 +28,7 @@ func NewCache(capacity int) *Cache {
 	return c
 }
 
-// Cache is a in-memory cache using LRU algorithm.
+// Cache is an in-memory cache using LRU algorithm.
 //
 // It implements Interface in this package, see Interface for detailed
 // api documents.

@@ -194,7 +194,7 @@ func (b *LinkBuffer) WriteString(s string) (int, error) {
 	return n, nil
 }
 
-// Reset resets the the LinkBuffer to empty and returns the underlying
+// Reset resets the LinkBuffer to empty and returns the underlying
 // byte buffers to the pool for reusing.
 func (b *LinkBuffer) Reset() {
 	poolIdx := b.getPoolIdx()
@@ -232,7 +232,7 @@ func (b *LinkBuffer) String() string {
 // PutLinkBuffer puts back a LinkBuffer to the pool for reusing.
 //
 // The buf mustn't be touched after returning it to the pool.
-// Otherwise data races will occur.
+// Otherwise, data races will occur.
 func PutLinkBuffer(buf *LinkBuffer) {
 	poolIdx := buf.poolIdx
 	for _, bb := range buf.bufs {

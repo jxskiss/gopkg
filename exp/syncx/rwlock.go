@@ -1,9 +1,10 @@
 package syncx
 
 import (
-	"github.com/jxskiss/gopkg/internal/linkname"
 	"runtime"
 	"sync"
+
+	"github.com/jxskiss/gopkg/internal/linkname"
 )
 
 const cacheLineSize = 64
@@ -48,7 +49,7 @@ func (p RWLock) Unlock() {
 // the resource protected by the lock.
 //
 // The caller must hold the returned locker and calls it's Unlock method
-// when it don't need the lock.
+// when it finishes work with the lock.
 func (p RWLock) RLocker() sync.Locker {
 	pid := linkname.Runtime_procPin()
 	linkname.Runtime_procUnpin()

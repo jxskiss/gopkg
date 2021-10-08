@@ -39,7 +39,7 @@ func Get(length int, capacity ...int) *Buffer {
 // Put puts back a byte buffer to the pool for reusing.
 //
 // The buf mustn't be touched after retuning it to the pool.
-// Otherwise data races will occur.
+// Otherwise, data races will occur.
 func Put(buf *Buffer) {
 	if !buf.noReuse {
 		put(buf.B)
@@ -78,7 +78,7 @@ func Grow(buf []byte, capacity ...int) []byte {
 // PutSlice puts back a byte slice which is obtained from function Grow.
 //
 // The byte slice mustn't be touched after returning it to the pool.
-// Otherwise data races will occur.
+// Otherwise, data races will occur.
 func PutSlice(buf []byte) { put(buf) }
 
 const (

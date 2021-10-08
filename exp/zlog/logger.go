@@ -35,37 +35,37 @@ const _stdLogDepth = 2
 
 func (_ stdLogger) Debugf(format string, args ...interface{}) {
 	if GetLevel() <= DebugLevel {
-		log_std.Output(_stdLogDepth, fmt.Sprintf("[Debug] "+format, args...))
+		log_std.Output(_stdLogDepth, fmt.Sprintf(debugPrefix+format, args...))
 	}
 }
 
 func (_ stdLogger) Infof(format string, args ...interface{}) {
 	if GetLevel() <= InfoLevel {
-		log_std.Output(_stdLogDepth, fmt.Sprintf("[Info] "+format, args...))
+		log_std.Output(_stdLogDepth, fmt.Sprintf(infoPrefix+format, args...))
 	}
 }
 
 func (_ stdLogger) Warnf(format string, args ...interface{}) {
 	if GetLevel() <= WarnLevel {
-		log_std.Output(_stdLogDepth, fmt.Sprintf("[Warn] "+format, args...))
+		log_std.Output(_stdLogDepth, fmt.Sprintf(warnPrefix+format, args...))
 	}
 }
 
 func (_ stdLogger) Errorf(format string, args ...interface{}) {
 	if GetLevel() <= ErrorLevel {
-		log_std.Output(_stdLogDepth, fmt.Sprintf("[Error] "+format, args...))
+		log_std.Output(_stdLogDepth, fmt.Sprintf(errorPrefix+format, args...))
 	}
 }
 
 func (_ stdLogger) Fatalf(format string, args ...interface{}) {
-	log_std.Output(_stdLogDepth, fmt.Sprintf("[Fatal] "+format, args...))
+	log_std.Output(_stdLogDepth, fmt.Sprintf(fatalPrefix+format, args...))
 	Sync()
 	os.Exit(1)
 }
 
 // -------- nop logger -------- //
 
-// NopLogger is a logger which discards anything it received.
+// NopLogger is a logger which discards anything it receives.
 var NopLogger Logger = &nopLogger{}
 
 type nopLogger struct{}

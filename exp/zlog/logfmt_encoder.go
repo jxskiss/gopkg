@@ -1,5 +1,8 @@
 package zlog
 
+// This file is forked from https://github.com/jsternberg/zap-logfmt.
+// It's originally published by Jonathan A. Sternberg with MIT license.
+
 import (
 	"bytes"
 	"encoding/base64"

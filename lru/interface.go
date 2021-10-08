@@ -12,7 +12,7 @@ type Interface interface {
 	Len() int
 
 	// Has checks if a key is in the cache and whether it is expired,
-	// without updating it's LRU score.
+	// without updating its LRU score.
 	Has(key interface{}) (exists, expired bool)
 
 	// Get returns the cached value for the given key and updates its LRU score.

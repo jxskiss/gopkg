@@ -33,6 +33,10 @@ reasonable API compatibility and versioning.
 1. `exp/syncx` contains some synchronization primitives as an addition to the standard library,
    for better performance or alternative APIs.
 
+1. `exp/zlog` provides a common logger interface which is implemented by
+   many logging libraries, and some opinionated logging facilities wrapped around
+   [zap](https://github.com/uber-go/zap).
+
 1. `fastrand` exported a set of pseudo-random generator methods wrapped around the fastrand
    function from the Go runtime. There is a generator per-M (physical thread), thus it doesn't
    need to do synchronization when generate random sequence, which makes it very scalable.
