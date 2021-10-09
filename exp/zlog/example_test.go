@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func testHelperReplaceGlobalToStdout(ctxFunc func(ctx context.Context, args CtxArgs) CtxResult) func() {
+func testHelperReplaceGlobalsToStdout(ctxFunc func(ctx context.Context, args CtxArgs) CtxResult) func() {
 	oldL, oldP := gL, gP
 	cfg := &Config{
 		Level:             "trace",
@@ -29,13 +29,13 @@ func testHelperReplaceGlobalToStdout(ctxFunc func(ctx context.Context, args CtxA
 }
 
 func ExampleBuilder() {
-	defer testHelperReplaceGlobalToStdout(nil)()
+	defer testHelperReplaceGlobalsToStdout(nil)()
 
-	logger := B().
+	logger := B(context.TODO()).
 		Named("example_builder").
 		Method().
 		With(zap.String("k1", "v1"), zap.Int64("k2", 54321)).
-		Build()
+		L()
 	logger.Info("example builder")
 
 	// Output:
@@ -43,26 +43,25 @@ func ExampleBuilder() {
 }
 
 func ExampleWithBuilder() {
-	defer testHelperReplaceGlobalToStdout(nil)()
+	defer testHelperReplaceGlobalsToStdout(nil)()
 
 	// Make a Builder.
-	builder := B().
+	builder := B(context.TODO()).
 		Method().
 		With(zap.String("k1", "v1"), zap.Int64("k2", 54321))
-	builder.Build().Info("with builder")
+	builder.L().Info("with builder")
 
 	// Pass it to another function or goroutine.
 	ctx := WithBuilder(context.Background(), builder)
 
 	func(ctx context.Context) {
-		builder := B().
-			Ctx(ctx).                       // get Builder from ctx
-			Method().                       // override the method name
-			With(zap.String("k1", "inner")) // override "k1"
+		builder := B(ctx). // get Builder from ctx
+					Method().                       // override the method name
+					With(zap.String("k1", "inner")) // override "k1"
 
 		// do something
 
-		builder.Build().Info("another function")
+		builder.L().Info("another function")
 	}(ctx)
 
 	// Output:
@@ -71,7 +70,7 @@ func ExampleWithBuilder() {
 }
 
 func ExampleWith() {
-	defer testHelperReplaceGlobalToStdout(nil)()
+	defer testHelperReplaceGlobalsToStdout(nil)()
 
 	With(zap.String("k1", "v1"), zap.Int64("k2", 54321)).
 		Info("example with")
@@ -87,7 +86,7 @@ func ExampleWithCtx() {
 			Fields: []zap.Field{zap.String("ctx1", "v1"), zap.Int64("ctx2", 123)},
 		}
 	}
-	defer testHelperReplaceGlobalToStdout(demoCtxFunc)()
+	defer testHelperReplaceGlobalsToStdout(demoCtxFunc)()
 
 	logger := WithCtx(context.Background(),
 		zap.String("k3", "v3"),         // add a new field

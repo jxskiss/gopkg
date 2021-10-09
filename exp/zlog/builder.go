@@ -2,15 +2,43 @@ package zlog
 
 import (
 	"context"
-	"sync"
+	"sync/atomic"
 
 	"go.uber.org/zap"
 )
 
 var baseBuilder = &Builder{}
 
-// B returns an empty Builder.
-func B() *Builder { return baseBuilder }
+type ctxBuilderKey struct{}
+
+func getCtxBuilder(ctx context.Context) *Builder {
+	builder, _ := ctx.Value(ctxBuilderKey{}).(*Builder)
+	return builder
+}
+
+// B returns a Builder with given ctx.
+// If the ctx is created by WithBuilder, then it carries a Builder instance,
+// this function returns that Builder.
+// If ctx is not nil and Config.CtxFunc is configured globally, it calls
+// the CtxFunc to extract fields from ctx and adds the fields to the builder.
+// If ctx is nil, it returns an empty Builder.
+func B(ctx context.Context) *Builder {
+	builder := baseBuilder
+	if ctx != nil {
+		if ctxBuilder := getCtxBuilder(ctx); ctxBuilder != nil {
+			builder = ctxBuilder
+		} else if ctxFunc := gP.cfg.CtxFunc; ctxFunc != nil {
+			builder = builder.Ctx(ctx)
+		}
+	}
+	return builder
+}
+
+// WithBuilder returns a copy of parent ctx with builder associated.
+// The associated builder can be accessed by B or WithCtx.
+func WithBuilder(ctx context.Context, builder *Builder) context.Context {
+	return context.WithValue(ctx, ctxBuilderKey{}, builder)
+}
 
 // Builder provides chaining methods to build a logger.
 // Different with calling zap.Logger's methods, it does not write the context
@@ -21,15 +49,15 @@ func B() *Builder { return baseBuilder }
 // A Builder is safe for concurrent use, it will copy data if necessary.
 // User may pass a Builder across functions to handle duplicate.
 //
-// A zero value for Builder is ready to use.
+// A zero value for Builder is ready to use. A Builder must not be copied
+// after first use.
 type Builder struct {
 	base       *zap.Logger
 	fields     []zap.Field
 	name       string
 	methodName string
 
-	mu    sync.Mutex
-	final *zap.Logger
+	final atomic.Value
 }
 
 func (b *Builder) clone() *Builder {
@@ -49,18 +77,22 @@ func (b *Builder) getBaseLogger() *zap.Logger {
 	return L()
 }
 
+// Base sets the base logger to build upon.
+func (b *Builder) Base(logger *zap.Logger) *Builder {
+	if logger == nil {
+		return b
+	}
+	out := b.clone()
+	out.base = logger
+	return out
+}
+
 // Ctx adds fields extracted from ctx to the builder.
-//
-// If the ctx is created by WithBuilder, it carries a Builder instance,
-// this function returns that Builder, else it uses Config.CtxFunc to
-// extract fields from ctx. In case Config.CtxFunc is not configured,
-// it logs an error message at DPANIC level.
+// It calls Config.CtxFunc to extract fields from ctx. In case Config.CtxFunc
+// is not configured globally, it logs an error message at DPANIC level.
 func (b *Builder) Ctx(ctx context.Context) *Builder {
 	if ctx == nil {
 		return b
-	}
-	if builder := getCtxBuilder(ctx); builder != nil {
-		return builder
 	}
 	ctxFunc := gP.cfg.CtxFunc
 	if ctxFunc == nil {
@@ -69,16 +101,6 @@ func (b *Builder) Ctx(ctx context.Context) *Builder {
 	}
 	ctxResult := ctxFunc(ctx, CtxArgs{})
 	return b.With(ctxResult.Fields...)
-}
-
-// Logger sets the base logger to build upon.
-func (b *Builder) Logger(logger *zap.Logger) *Builder {
-	if logger == nil {
-		return b
-	}
-	out := b.clone()
-	out.base = logger
-	return out
 }
 
 // With adds extra fields to the builder. Duplicate keys override
@@ -110,13 +132,9 @@ func (b *Builder) Named(name string) *Builder {
 	return out
 }
 
-// Build builds and returns the final logger.
-func (b *Builder) Build() *zap.Logger {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	if b.final != nil {
-		return b.final
+func (b *Builder) getFinalLogger() *zap.Logger {
+	if final := b.final.Load(); final != nil {
+		return final.(*zap.Logger)
 	}
 	final := b.getBaseLogger()
 	if b.name != "" {
@@ -128,19 +146,16 @@ func (b *Builder) Build() *zap.Logger {
 		fields := append([]zap.Field{zap.String(MethodKey, b.methodName)}, b.fields...)
 		final = final.With(fields...)
 	}
-	b.final = final
+	b.final.Store(final)
 	return final
 }
 
-type ctxBuilderKey struct{}
-
-func getCtxBuilder(ctx context.Context) *Builder {
-	builder, _ := ctx.Value(ctxBuilderKey{}).(*Builder)
-	return builder
+// L builds and returns the final zap logger.
+func (b *Builder) L() *zap.Logger {
+	return b.getFinalLogger()
 }
 
-// WithBuilder returns a copy of parent ctx with builder associated.
-// The associated builder can be accessed by WithCtx or Builder.Ctx.
-func WithBuilder(ctx context.Context, builder *Builder) context.Context {
-	return context.WithValue(ctx, ctxBuilderKey{}, builder)
+// S builds and returns the final zap sugared logger.
+func (b *Builder) S() *zap.SugaredLogger {
+	return b.getFinalLogger().Sugar()
 }

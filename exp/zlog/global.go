@@ -192,18 +192,19 @@ func With(fields ...zap.Field) *zap.Logger {
 	return L().With(fields...)
 }
 
-// WithCtx creates a child logger and adds fields extracted from ctx and extra.
+// WithCtx creates a child logger and adds fields extracted from ctx
+// and extra.
 //
 // If the ctx is created by WithBuilder, it carries a Builder instance,
-// this function uses that Builder to build the logger, else it uses
+// this function uses that Builder to build the logger, else it calls
 // Config.CtxFunc to extract fields from ctx. In case Config.CtxFunc is
-// not configured, it logs an error message at DPANIC level.
+// not configured globally, it logs an error message at DPANIC level.
 func WithCtx(ctx context.Context, extra ...zap.Field) *zap.Logger {
 	if ctx == nil {
 		return L().With(extra...)
 	}
 	if builder := getCtxBuilder(ctx); builder != nil {
-		return builder.With(extra...).Build()
+		return builder.With(extra...).L()
 	}
 	ctxFunc := gP.cfg.CtxFunc
 	if ctxFunc == nil {
