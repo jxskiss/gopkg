@@ -53,6 +53,7 @@ func WithBuilder(ctx context.Context, builder *Builder) context.Context {
 // after first use.
 type Builder struct {
 	base       *zap.Logger
+	level      *Level
 	fields     []zap.Field
 	name       string
 	methodName string
@@ -64,6 +65,7 @@ func (b *Builder) clone() *Builder {
 	n := len(b.fields)
 	return &Builder{
 		base:       b.base,
+		level:      b.level,
 		fields:     b.fields[:n:n],
 		name:       b.name,
 		methodName: b.methodName,
@@ -87,8 +89,11 @@ func (b *Builder) Base(logger *zap.Logger) *Builder {
 	return out
 }
 
-// Ctx adds fields extracted from ctx to the builder.
-// It calls Config.CtxFunc to extract fields from ctx. In case Config.CtxFunc
+// Ctx customizes the logger's behavior using context data (e.g. adding
+// fields, dynamically change logging level, etc.)
+// See Config.CtxFunc, CtxArgs and CtxResult for details.
+//
+// It calls Config.CtxFunc to get CtxResult from ctx, in case Config.CtxFunc
 // is not configured globally, it logs an error message at DPANIC level.
 func (b *Builder) Ctx(ctx context.Context) *Builder {
 	if ctx == nil {
@@ -100,7 +105,19 @@ func (b *Builder) Ctx(ctx context.Context) *Builder {
 		return b
 	}
 	ctxResult := ctxFunc(ctx, CtxArgs{})
-	return b.With(ctxResult.Fields...)
+	return b.withCtxResult(ctxResult)
+}
+
+func (b *Builder) withCtxResult(ctxResult CtxResult) *Builder {
+	if len(ctxResult.Fields) == 0 && ctxResult.Level == nil {
+		return b
+	}
+	out := b.clone()
+	out.fields = appendFields(out.fields, ctxResult.Fields)
+	if ctxResult.Level != nil {
+		out.level = ctxResult.Level
+	}
+	return out
 }
 
 // With adds extra fields to the builder. Duplicate keys override
@@ -132,6 +149,12 @@ func (b *Builder) Named(name string) *Builder {
 	return out
 }
 
+func (b *Builder) Level(level Level) *Builder {
+	out := b.clone()
+	out.level = &level
+	return out
+}
+
 func (b *Builder) getFinalLogger() *zap.Logger {
 	if final := b.final.Load(); final != nil {
 		return final.(*zap.Logger)
@@ -146,16 +169,19 @@ func (b *Builder) getFinalLogger() *zap.Logger {
 		fields := append([]zap.Field{zap.String(MethodKey, b.methodName)}, b.fields...)
 		final = final.With(fields...)
 	}
+	if b.level != nil {
+		final = final.WithOptions(zap.WrapCore(tryChangeLevel(*b.level)))
+	}
 	b.final.Store(final)
 	return final
 }
 
-// L builds and returns the final zap logger.
-func (b *Builder) L() *zap.Logger {
+// Build builds and returns the final logger.
+func (b *Builder) Build() *zap.Logger {
 	return b.getFinalLogger()
 }
 
-// S builds and returns the final zap sugared logger.
-func (b *Builder) S() *zap.SugaredLogger {
+// Sugared builds and returns the final sugared logger.
+func (b *Builder) Sugared() *zap.SugaredLogger {
 	return b.getFinalLogger().Sugar()
 }

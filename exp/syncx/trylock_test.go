@@ -29,7 +29,7 @@ func TestTryLock_TryLock(t *testing.T) {
 
 var (
 	rCount    = 100
-	sleepTime = 100 * time.Millisecond
+	sleepTime = 10 * time.Millisecond
 	totalTime = time.Duration(rCount) * sleepTime
 )
 

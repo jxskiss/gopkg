@@ -35,7 +35,7 @@ func ExampleBuilder() {
 		Named("example_builder").
 		Method().
 		With(zap.String("k1", "v1"), zap.Int64("k2", 54321)).
-		L()
+		Build()
 	logger.Info("example builder")
 
 	// Output:
@@ -49,7 +49,7 @@ func ExampleWithBuilder() {
 	builder := B(context.TODO()).
 		Method().
 		With(zap.String("k1", "v1"), zap.Int64("k2", 54321))
-	builder.L().Info("with builder")
+	builder.Build().Info("with builder")
 
 	// Pass it to another function or goroutine.
 	ctx := WithBuilder(context.Background(), builder)
@@ -61,7 +61,7 @@ func ExampleWithBuilder() {
 
 		// do something
 
-		builder.L().Info("another function")
+		builder.Build().Info("another function")
 	}(ctx)
 
 	// Output:

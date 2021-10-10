@@ -19,7 +19,7 @@ var (
 )
 
 func init() {
-	replaceGlobals(MustNewLogger(&Config{}))
+	replaceGlobals(mustNewGlobalLogger(&Config{}))
 }
 
 // Properties records some information about zap.
@@ -46,7 +46,7 @@ func SetupGlobals(cfg *Config, redirectStdLog bool) {
 	first := false
 	setupOnce.Do(func() {
 		first = true
-		replaceGlobals(MustNewLogger(cfg))
+		replaceGlobals(mustNewGlobalLogger(cfg))
 		if redirectStdLog {
 			RedirectStdLog()
 		}
@@ -54,6 +54,14 @@ func SetupGlobals(cfg *Config, redirectStdLog bool) {
 	if !first {
 		panic("SetupGlobals called more than once")
 	}
+}
+
+func mustNewGlobalLogger(cfg *Config, opts ...zap.Option) (*zap.Logger, *Properties) {
+	logger, props, err := NewLogger(cfg, opts...)
+	if err != nil {
+		panic(fmt.Sprintf("invalid config to initialize logger: %v", err))
+	}
+	return logger, props
 }
 
 func replaceGlobals(logger *zap.Logger, props *Properties) {
@@ -71,65 +79,6 @@ func replaceGlobals(logger *zap.Logger, props *Properties) {
 // logger to the global logger in this package. It returns a function to
 // restore the original behavior of the standard library.
 func RedirectStdLog() func() { return zap.RedirectStdLog(L()) }
-
-// MustNewLogger initializes a zap logger, if error occurs it panics.
-func MustNewLogger(cfg *Config, opts ...zap.Option) (*zap.Logger, *Properties) {
-	logger, props, err := NewLogger(cfg, opts...)
-	if err != nil {
-		panic(fmt.Sprintf("invalid config to initialize logger: %v", err))
-	}
-	return logger, props
-}
-
-// NewLogger initializes a zap logger.
-func NewLogger(cfg *Config, opts ...zap.Option) (*zap.Logger, *Properties, error) {
-	if cfg == nil {
-		cfg = &Config{}
-	}
-	cfg.fillDefaults()
-	var output zapcore.WriteSyncer
-	if len(cfg.File.Filename) > 0 {
-		out, err := cfg.buildFileLogger()
-		if err != nil {
-			return nil, nil, err
-		}
-		output = zapcore.AddSync(out)
-	} else {
-		stderr, _, err := zap.Open("stderr")
-		if err != nil {
-			return nil, nil, err
-		}
-		output = stderr
-	}
-	return NewLoggerWithSyncer(cfg, output, opts...)
-}
-
-// NewLoggerWithSyncer initializes a zap logger with given write syncer.
-func NewLoggerWithSyncer(cfg *Config, output zapcore.WriteSyncer, opts ...zap.Option) (*zap.Logger, *Properties, error) {
-	if cfg == nil {
-		cfg = &Config{}
-	}
-	cfg.fillDefaults()
-	level := newAtomicLevel()
-	err := level.UnmarshalText([]byte(cfg.Level))
-	if err != nil {
-		return nil, nil, err
-	}
-	encoder, err := cfg.buildEncoder()
-	if err != nil {
-		return nil, nil, err
-	}
-	core := zapcore.NewCore(encoder, output, level.zl)
-	opts = append(cfg.buildOptions(output), opts...)
-	lg := zap.New(core, opts...)
-	prop := &Properties{
-		cfg:    cfg,
-		level:  level,
-		core:   core,
-		syncer: output,
-	}
-	return lg, prop, nil
-}
 
 // GetLevel gets the global logging level.
 func GetLevel() Level { return gP.level.Level() }
@@ -192,19 +141,21 @@ func With(fields ...zap.Field) *zap.Logger {
 	return L().With(fields...)
 }
 
-// WithCtx creates a child logger and adds fields extracted from ctx
-// and extra.
+// WithCtx creates a child logger and customizes its behavior using context
+// data (e.g. adding fields, dynamically change logging level, etc.)
 //
 // If the ctx is created by WithBuilder, it carries a Builder instance,
 // this function uses that Builder to build the logger, else it calls
-// Config.CtxFunc to extract fields from ctx. In case Config.CtxFunc is
+// Config.CtxFunc to get CtxResult from ctx. In case Config.CtxFunc is
 // not configured globally, it logs an error message at DPANIC level.
+//
+// Also see Config.CtxFunc, CtxArgs and CtxResult for more details.
 func WithCtx(ctx context.Context, extra ...zap.Field) *zap.Logger {
 	if ctx == nil {
 		return L().With(extra...)
 	}
 	if builder := getCtxBuilder(ctx); builder != nil {
-		return builder.With(extra...).L()
+		return builder.With(extra...).Build()
 	}
 	ctxFunc := gP.cfg.CtxFunc
 	if ctxFunc == nil {
@@ -212,7 +163,7 @@ func WithCtx(ctx context.Context, extra ...zap.Field) *zap.Logger {
 		return L().With(extra...)
 	}
 	ctxResult := ctxFunc(ctx, CtxArgs{})
-	return L().With(appendFields(ctxResult.Fields, extra)...)
+	return B(nil).withCtxResult(ctxResult).With(extra...).Build()
 }
 
 // WithMethod creates a child logger and adds the caller's method name and
