@@ -45,6 +45,10 @@ var mapZapLevels = [...]zapcore.Level{
 
 func (l Level) toZapLevel() zapcore.Level { return mapZapLevels[l] }
 
+func (l Level) Enabled(lvl zapcore.Level) bool {
+	return lvl >= l.toZapLevel()
+}
+
 func (l *Level) unmarshalText(text []byte) bool {
 	switch string(text) {
 	case "trace", "TRACE":

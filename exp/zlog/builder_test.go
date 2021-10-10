@@ -71,6 +71,6 @@ func BenchmarkBuilder(b *testing.B) {
 			zap.Int64("some1", 1),
 			zap.String("some2", "value"),
 			zap.String("some3", "value"),
-		).L()
+		).Build()
 	}
 }
