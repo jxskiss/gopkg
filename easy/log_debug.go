@@ -1,15 +1,14 @@
-// +build !release
-
 package easy
 
 import (
 	"context"
-	"github.com/davecgh/go-spew/spew"
 	"reflect"
 	"strings"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
-type stringer func(v interface{}) string
+type stringerFunc func(v interface{}) string
 
 /*
 DEBUG is debug message logger which do nothing if debug level is not enabled (the default).
@@ -116,11 +115,11 @@ func DUMPSkip(skip int, args ...interface{}) {
 	logdebug(skip+1, stringer, args...)
 }
 
-func logdebug(skip int, stringer stringer, args ...interface{}) {
+func logdebug(skip int, stringer stringerFunc, args ...interface{}) {
 	if _logcfg.EnableDebug == nil || !_logcfg.EnableDebug() {
 		return
 	}
-	var logger DebugLogger = stdLogger{}
+	var logger DebugLogger
 	if len(args) > 0 {
 		if arg0, ok := args[0].(func()); ok {
 			arg0()
@@ -128,10 +127,13 @@ func logdebug(skip int, stringer stringer, args ...interface{}) {
 		}
 		logger, args = parseLogger(args)
 	}
+	if logger == nil {
+		logger = _logcfg.getLogger(nil)
+	}
 	outputDebugLog(skip+1, logger, stringer, args)
 }
 
-func outputDebugLog(skip int, logger DebugLogger, stringer stringer, args []interface{}) {
+func outputDebugLog(skip int, logger DebugLogger, stringer stringerFunc, args []interface{}) {
 	caller, file, line := Caller(skip + 1)
 	callerPrefix := "[" + caller + "] "
 	if len(args) > 0 {
@@ -173,9 +175,6 @@ func parseLogger(args []interface{}) (DebugLogger, []interface{}) {
 			}
 			args = args[1:]
 		}
-	}
-	if logger == nil {
-		logger = stdLogger{}
 	}
 	return logger, args
 }

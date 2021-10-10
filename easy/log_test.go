@@ -10,8 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jxskiss/gopkg/ptr"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/jxskiss/gopkg/ptr"
 )
 
 type simple struct {
@@ -36,7 +37,7 @@ func TestCaller(t *testing.T) {
 	name, file, line := Caller(0)
 	assert.Equal(t, "easy.TestCaller", name)
 	assert.Equal(t, "easy/log_test.go", file)
-	assert.Equal(t, 36, line)
+	assert.Equal(t, 37, line)
 }
 
 func TestJSON(t *testing.T) {
@@ -113,7 +114,7 @@ var prettyTestWant = strings.TrimSpace(`
 
 func TestPretty(t *testing.T) {
 	test := map[string]interface{}{
-		"1":   123,
+		"1": 123,
 		"b": "<html>",
 	}
 	jsonString := JSON(test)
@@ -177,11 +178,17 @@ func TestDEBUG_logger_interface(t *testing.T) {
 	assert.Contains(t, got, "1 2 3")
 }
 
+type testStdLogger struct{}
+
+func (t testStdLogger) Debugf(format string, args ...interface{}) {
+	log.Printf(format, args...)
+}
+
 func TestDEBUG_logger_func(t *testing.T) {
 	// test logger function
 	configTestLog(true, nil, nil)
-	logger := func() *stdLogger {
-		return &stdLogger{}
+	logger := func() testStdLogger {
+		return testStdLogger{}
 	}
 	msg := "test DEBUG_logger_func"
 	got := CopyStdLog(func() {

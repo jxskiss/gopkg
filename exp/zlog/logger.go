@@ -27,37 +27,51 @@ type Logger interface {
 
 // StdLogger is a default implementation of Logger which sends log messages
 // to the standard library.
-var StdLogger Logger = &stdLogger{}
+var StdLogger Logger = stdLogger{}
 
-type stdLogger struct{}
+var StdLoggerAtDebugLevel = func() Logger {
+	var debugLevel = DebugLevel
+	return stdLogger{&debugLevel}
+}()
+
+type stdLogger struct {
+	level *Level
+}
+
+func (l stdLogger) getLevel() Level {
+	if l.level != nil {
+		return *l.level
+	}
+	return GetLevel()
+}
 
 const _stdLogDepth = 2
 
-func (_ stdLogger) Debugf(format string, args ...interface{}) {
-	if GetLevel() <= DebugLevel {
+func (l stdLogger) Debugf(format string, args ...interface{}) {
+	if l.getLevel() <= DebugLevel {
 		log_std.Output(_stdLogDepth, fmt.Sprintf(debugPrefix+format, args...))
 	}
 }
 
-func (_ stdLogger) Infof(format string, args ...interface{}) {
-	if GetLevel() <= InfoLevel {
+func (l stdLogger) Infof(format string, args ...interface{}) {
+	if l.getLevel() <= InfoLevel {
 		log_std.Output(_stdLogDepth, fmt.Sprintf(infoPrefix+format, args...))
 	}
 }
 
-func (_ stdLogger) Warnf(format string, args ...interface{}) {
-	if GetLevel() <= WarnLevel {
+func (l stdLogger) Warnf(format string, args ...interface{}) {
+	if l.getLevel() <= WarnLevel {
 		log_std.Output(_stdLogDepth, fmt.Sprintf(warnPrefix+format, args...))
 	}
 }
 
-func (_ stdLogger) Errorf(format string, args ...interface{}) {
-	if GetLevel() <= ErrorLevel {
+func (l stdLogger) Errorf(format string, args ...interface{}) {
+	if l.getLevel() <= ErrorLevel {
 		log_std.Output(_stdLogDepth, fmt.Sprintf(errorPrefix+format, args...))
 	}
 }
 
-func (_ stdLogger) Fatalf(format string, args ...interface{}) {
+func (l stdLogger) Fatalf(format string, args ...interface{}) {
 	log_std.Output(_stdLogDepth, fmt.Sprintf(fatalPrefix+format, args...))
 	Sync()
 	os.Exit(1)

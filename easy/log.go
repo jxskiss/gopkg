@@ -14,6 +14,7 @@ import (
 	"sync"
 	"unicode/utf8"
 
+	"github.com/jxskiss/gopkg/exp/zlog"
 	"github.com/jxskiss/gopkg/internal/unsafeheader"
 	"github.com/jxskiss/gopkg/json"
 	"github.com/jxskiss/gopkg/reflectx"
@@ -23,6 +24,8 @@ import (
 func ConfigLog(cfg LogCfg) {
 	_logcfg = cfg
 }
+
+var _defaultStdLogger = zlog.StdLoggerAtDebugLevel
 
 var _logcfg LogCfg
 
@@ -43,13 +46,8 @@ func (p LogCfg) getLogger(ctxp *context.Context) ErrDebugLogger {
 			return lg
 		}
 	}
-	return stdLogger{}
+	return _defaultStdLogger
 }
-
-type stdLogger struct{}
-
-func (p stdLogger) Debugf(format string, args ...interface{}) { log.Printf("DEBUG: "+format, args...) }
-func (p stdLogger) Errorf(format string, args ...interface{}) { log.Printf("ERROR: "+format, args...) }
 
 // ErrLogger is an interface which log an message at ERROR level.
 // It's implemented by *logrus.Logger, *logrus.Entry, *zap.SugaredLogger,
@@ -198,30 +196,39 @@ func Logfmt(v interface{}) string {
 		return ""
 	}
 
-	buf := strings.Builder{}
+	buf := &strings.Builder{}
 	needSpace := false
 	for i := 0; i < len(keyValues); i += 2 {
 		k, v := keyValues[i], keyValues[i+1]
 		if needSpace {
 			buf.WriteByte(' ')
 		}
-		buf.WriteString(fmt.Sprint(k))
-		buf.WriteString("=")
-		vstr, ok := v.(string)
-		if !ok {
-			vstr = fmt.Sprint(v)
-		}
-		if strings.IndexFunc(vstr, needsQuoteValueRune) != -1 {
-			vstr = JSON(vstr)
-		}
-		buf.WriteString(vstr)
+		addLogfmtString(buf, k)
+		buf.WriteByte('=')
+		addLogfmtString(buf, v)
 		needSpace = true
 	}
 	return buf.String()
 }
 
+func addLogfmtString(buf *strings.Builder, val interface{}) {
+	str, ok := val.(string)
+	if !ok {
+		str = fmt.Sprint(val)
+	}
+	if strings.IndexFunc(str, needsQuoteValueRune) != -1 {
+		str = JSON(str)
+	}
+	buf.WriteString(str)
+}
+
 func needsQuoteValueRune(r rune) bool {
-	return r <= ' ' || r == '=' || r == '"' || r == utf8.RuneError
+	switch r {
+	case '\\', '"', '=', '\n', '\r', '\t':
+		return true
+	default:
+		return r <= ' '
+	}
 }
 
 // Pretty converts given object to a pretty formatted json string.
@@ -341,7 +348,7 @@ func CopyStdLog(f func()) []byte {
 	return buf.Bytes()
 }
 
-func formatArgs(stringer stringer, args []interface{}) []interface{} {
+func formatArgs(stringer stringerFunc, args []interface{}) []interface{} {
 	retArgs := make([]interface{}, 0, len(args))
 	for _, v := range args {
 		x := v
