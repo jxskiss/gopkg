@@ -4,12 +4,16 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/jxskiss/gopkg/internal"
 	"github.com/jxskiss/gopkg/internal/linkname"
 )
 
 const cacheLineSize = 64
 
-var shardsLen int
+var (
+	shardsLen  int
+	shardsMask int = 1
+)
 
 // RWLock holds a group of sharded RWMutex, it gives better performance
 // in read-heavy workloads by reducing lock contention, but the performance
@@ -23,6 +27,10 @@ type rwlockShard struct {
 
 func init() {
 	shardsLen = runtime.GOMAXPROCS(0)
+	shardsLen = internal.NextPowerOfTwo(shardsLen)
+	if shardsLen > 1 {
+		shardsMask = shardsLen - 1
+	}
 }
 
 // NewRWLock creates a new RWLock.
@@ -45,13 +53,13 @@ func (p RWLock) Unlock() {
 	}
 }
 
-// RLocker returns a reading locker, preparing for sharing access to
-// the resource protected by the lock.
-//
+// RLock acquires a non-exclusive reader lock, and returns the locker.
 // The caller must hold the returned locker and calls it's Unlock method
 // when it finishes work with the lock.
-func (p RWLock) RLocker() sync.Locker {
+func (p RWLock) RLock() sync.Locker {
 	pid := linkname.Runtime_procPin()
 	linkname.Runtime_procUnpin()
-	return p[pid%shardsLen].RLocker()
+	locker := p[pid&shardsMask].RLocker()
+	locker.Lock()
+	return locker
 }
