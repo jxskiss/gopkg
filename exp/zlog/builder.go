@@ -184,8 +184,9 @@ func (b *Builder) Build() *zap.Logger {
 	return b.getFinalLogger()
 }
 
-// Sugared builds and returns the final sugared logger.
-func (b *Builder) Sugared() *zap.SugaredLogger {
+// Sugar builds and returns the final sugared logger.
+// It's a shortcut for Builder.Build().Sugar()
+func (b *Builder) Sugar() *zap.SugaredLogger {
 	return b.getFinalLogger().Sugar()
 }
 

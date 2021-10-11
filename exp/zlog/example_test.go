@@ -12,7 +12,7 @@ func testHelperReplaceGlobalsToStdout(ctxFunc func(ctx context.Context, args Ctx
 	oldL, oldP := gL, gP
 	cfg := &Config{
 		Level:             "trace",
-		Format:            "logfmt",
+		Format:            "json",
 		DisableTimestamp:  true,
 		DisableCaller:     true,
 		DisableStacktrace: true,
@@ -39,7 +39,7 @@ func ExampleBuilder() {
 	logger.Info("example builder")
 
 	// Output:
-	// level=info logger=example_builder msg="example builder" method=zlog.ExampleBuilder k1=v1 k2=54321
+	// {"level":"info","logger":"example_builder","msg":"example builder","method":"zlog.ExampleBuilder","k1":"v1","k2":54321}
 }
 
 func ExampleBuilder_namespace() {
@@ -52,7 +52,7 @@ func ExampleBuilder_namespace() {
 	builder.Build().Info("example builder namespace")
 
 	// Output:
-	// level=info msg="example builder namespace" k1=v1 k2=v2 subns.k1=sub1 subns.k2=sub2
+	// {"level":"info","msg":"example builder namespace","k1":"v1","k2":"v2","subns":{"k1":"sub1","k2":"sub2"}}
 }
 
 func ExampleBuilder_newNamespace() {
@@ -67,7 +67,7 @@ func ExampleBuilder_newNamespace() {
 	builder.Build().Info("example builder new namespace")
 
 	// Output:
-	// level=info msg="example builder new namespace" k1=override k2=v2 subns.k1=sub1 subns.k2=sub2
+	// {"level":"info","msg":"example builder new namespace","k1":"override","k2":"v2","subns":{"k1":"sub1","k2":"sub2"}}
 }
 
 func ExampleWithBuilder() {
@@ -93,8 +93,8 @@ func ExampleWithBuilder() {
 	}(ctx)
 
 	// Output:
-	// level=info msg="with builder" method=zlog.ExampleWithBuilder k1=v1 k2=54321
-	// level=info msg="another function" method=zlog.ExampleWithBuilder.func1 k1=inner k2=54321
+	// {"level":"info","msg":"with builder","method":"zlog.ExampleWithBuilder","k1":"v1","k2":54321}
+	// {"level":"info","msg":"another function","method":"zlog.ExampleWithBuilder.func1","k1":"inner","k2":54321}
 }
 
 func ExampleWith() {
@@ -104,7 +104,7 @@ func ExampleWith() {
 		Info("example with")
 
 	// Output:
-	// level=info msg="example with" k1=v1 k2=54321
+	// {"level":"info","msg":"example with","k1":"v1","k2":54321}
 }
 
 func ExampleWithCtx() {
@@ -123,5 +123,5 @@ func ExampleWithCtx() {
 	logger.Info("example with ctx")
 
 	// Output:
-	// level=info msg="example with ctx" ctx1=v1 ctx2=override k3=v3
+	// {"level":"info","msg":"example with ctx","ctx1":"v1","ctx2":"override","k3":"v3"}
 }
