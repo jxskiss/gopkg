@@ -128,8 +128,8 @@ func Breaker(name string) Option {
 // than zero, else the default value 0.1 will be used.
 //
 // NOTE: generally, the default overload ratio 0.1 or even smaller value
-//       should be used, a big overload ratio will not really protect
-//       the backend system.
+// should be used, a big overload ratio will not really protect the
+// backend system.
 //
 // Reference: https://sre.google/sre-book/handling-overload/
 func BreakerWithOverloadRatio(name string, overloadRatio float64) Option {

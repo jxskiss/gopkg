@@ -5,9 +5,9 @@ type Int64List []int64
 // MarshalProto marshals the integer array in format of the following
 // protobuf message:
 //
-// message Int64List {
-//     repeated int64 values = 1;
-// }
+//   message Int64List {
+//       repeated int64 values = 1;
+//   }
 func (m Int64List) MarshalProto() (dAtA []byte, err error) {
 	size := m.ProtoSize()
 	dAtA = make([]byte, size)
@@ -64,9 +64,9 @@ func (m Int64List) ProtoSize() (n int) {
 // UnmarshalProto unmarshalls the integer array in format of the following
 // protobuf message:
 //
-// message Int64List {
-//     repeated int64 values = 1;
-// }
+//   message Int64List {
+//       repeated int64 values = 1;
+//   }
 func (m *Int64List) UnmarshalProto(dAtA []byte) error {
 	slice := *m
 	l := len(dAtA)

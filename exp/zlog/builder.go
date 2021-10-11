@@ -18,11 +18,12 @@ func getCtxBuilder(ctx context.Context) *Builder {
 }
 
 // B returns a Builder with given ctx.
-// If the ctx is created by WithBuilder, then it carries a Builder instance,
-// this function returns that Builder.
-// If ctx is not nil and Config.CtxFunc is configured globally, it calls
-// the CtxFunc to extract fields from ctx and adds the fields to the builder.
-// If ctx is nil, it returns an empty Builder.
+//
+// If ctx is nil, it returns an empty Builder, else if the ctx is created
+// by WithBuilder, then it carries a Builder instance, this function
+// returns that Builder.
+// Otherwise, if the ctx is not nil and Config.CtxFunc is configured globally,
+// it calls the CtxFunc to get CtxResult from ctx.
 func B(ctx context.Context) *Builder {
 	builder := baseBuilder
 	if ctx != nil {

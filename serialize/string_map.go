@@ -5,9 +5,9 @@ type StringMap map[string]string
 // MarshalProto marshals the string map in format of the following
 // protobuf message:
 //
-// message StringMap {
-//     map<string, string> Map = 1;
-// }
+//   message StringMap {
+//       map<string, string> Map = 1;
+//   }
 func (m StringMap) MarshalProto() (dAtA []byte, err error) {
 	size := m.ProtoSize()
 	dAtA = make([]byte, size)
@@ -62,9 +62,9 @@ func (m StringMap) ProtoSize() (n int) {
 // UnmarshalProto unmarshalls the string map in format of the following
 // protobuf message:
 //
-// message StringMap {
-//     map<string, string> Map = 1;
-// }
+//   message StringMap {
+//       map<string, string> Map = 1;
+//   }
 func (m *StringMap) UnmarshalProto(dAtA []byte) error {
 	_map := *m
 	l := len(dAtA)

@@ -5,9 +5,9 @@ type StringList []string
 // MarshalProto marshals the string array in format of the following
 // protobuf message:
 //
-// message StringList {
-//     repeated string values = 1;
-// }
+//   message StringList {
+//       repeated string values = 1;
+//   }
 func (m StringList) MarshalProto() (dAtA []byte, err error) {
 	size := m.ProtoSize()
 	dAtA = make([]byte, size)
@@ -54,9 +54,9 @@ func (m StringList) ProtoSize() (n int) {
 // UnmarshalProto unmarshalls the string array in format of the following
 // protobuf message:
 //
-// message StringList {
-//     repeated string values = 1;
-// }
+//   message StringList {
+//       repeated string values = 1;
+//   }
 func (m *StringList) UnmarshalProto(dAtA []byte) error {
 	slice := *m
 	l := len(dAtA)

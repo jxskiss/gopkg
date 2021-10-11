@@ -3,14 +3,19 @@
 // Features:
 //
 // 1. Load from command line flags defined by field tag `flag`;
+//
 // 2. Load by custom loader function for fields which have a `custom` tag,
-//    this is useful where you may have configuration values stored in a
-//    centric repository or a remote config center;
+// this is useful where you may have configuration values stored in a
+// centric repository or a remote config center;
+//
 // 3. Load from environment variables by explicitly defined `env` tag or
-//    auto-generated names implicitly;
+// auto-generated names implicitly;
+//
 // 4. Load from multiple configuration fields with priority and overriding;
+//
 // 5. Set default values by field tag `default` if a configuration field
-//    is not given by any of the higher priority source;
+// is not given by any of the higher priority source;
+//
 // 6. Minimal dependency;
 //
 // You may check Config and Loader for more details.
@@ -74,11 +79,15 @@ type Config struct {
 // The priority in descending order is:
 //
 // 1. command line flag defined by field tag `flag`;
+//
 // 2. custom loader function defined by field tag `custom`;
+//
 // 3. environment variables;
+//
 // 4. config files, if multiple files are given to Load, files appeared
-//    first takes higher priority, if a config field appears in more
-//    than one files, only the first has effect.
+// first takes higher priority, if a config field appears in more
+// than one files, only the first has effect.
+//
 // 5. default values defined by field tag `default`;
 type Loader struct {
 	*Config

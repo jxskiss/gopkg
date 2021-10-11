@@ -1,8 +1,9 @@
 package fastrand
 
 import (
-	"github.com/jxskiss/gopkg/internal/linkname"
 	"math/bits"
+
+	"github.com/jxskiss/gopkg/internal/linkname"
 )
 
 // PCG64 is an implementation of a 64-bit permuted congruential
@@ -106,8 +107,9 @@ func (p *PCG64) Int() int {
 // It panics if n <= 0.
 //
 // For implementation details, see:
+//
 // https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction
-// https://lemire.me/blog/2016/06/30/fast-random-shuffling
+// and https://lemire.me/blog/2016/06/30/fast-random-shuffling
 func (p *PCG64) Int63n(n int64) int64 {
 	if n <= 0 {
 		panic("invalid argument to Int63n")
@@ -129,8 +131,9 @@ func (p *PCG64) Int63n(n int64) int64 {
 // It panics if n <= 0.
 //
 // For implementation details, see:
+//
 // https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction
-// https://lemire.me/blog/2016/06/30/fast-random-shuffling
+// and https://lemire.me/blog/2016/06/30/fast-random-shuffling
 func (p *PCG64) Int31n(n int32) int32 {
 	if n <= 0 {
 		panic("invalid argument to Int32n")

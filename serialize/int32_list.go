@@ -5,9 +5,9 @@ type Int32List []int32
 // MarshalProto marshals the integer array in format of the following
 // protobuf message:
 //
-// message Int32List {
-//     repeated int32 values = 1;
-// }
+//   message Int32List {
+//       repeated int32 values = 1;
+//   }
 func (m Int32List) MarshalProto() (dAtA []byte, err error) {
 	size := m.ProtoSize()
 	dAtA = make([]byte, size)
@@ -64,9 +64,9 @@ func (m Int32List) ProtoSize() (n int) {
 // UnmarshalProto unmarshalls the integer array in format of the following
 // protobuf message:
 //
-// message Int32List {
-//     repeated int32 values = 1;
-// }
+//   message Int32List {
+//       repeated int32 values = 1;
+//   }
 func (m *Int32List) UnmarshalProto(dAtA []byte) error {
 	slice := *m
 	l := len(dAtA)
