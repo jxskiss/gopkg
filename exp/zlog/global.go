@@ -197,32 +197,3 @@ func getFunctionName(skip int) (name string, ok bool) {
 	}
 	return
 }
-
-func appendFields(old []zap.Field, new []zap.Field) []zap.Field {
-	if len(new) == 0 {
-		return old
-	}
-	result := make([]zap.Field, len(old), len(old)+len(new))
-	copy(result, old)
-
-	// check namespace
-	nsIdx := 0
-	for i := len(result) - 1; i >= 0; i-- {
-		if result[i].Type == zapcore.NamespaceType {
-			nsIdx = i + 1
-			break
-		}
-	}
-
-loop:
-	for _, f := range new {
-		for i := nsIdx; i < len(result); i++ {
-			if result[i].Key == f.Key {
-				result[i] = f
-				continue loop
-			}
-		}
-		result = append(result, f)
-	}
-	return result
-}

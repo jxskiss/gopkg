@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 var baseBuilder = &Builder{}
@@ -149,6 +150,8 @@ func (b *Builder) Named(name string) *Builder {
 	return out
 }
 
+// Level optionally changes the level of a logger. By default,
+// a child logger has same level with its parent.
 func (b *Builder) Level(level Level) *Builder {
 	out := b.clone()
 	out.level = &level
@@ -184,4 +187,41 @@ func (b *Builder) Build() *zap.Logger {
 // Sugared builds and returns the final sugared logger.
 func (b *Builder) Sugared() *zap.SugaredLogger {
 	return b.getFinalLogger().Sugar()
+}
+
+func appendFields(old []zap.Field, new []zap.Field) []zap.Field {
+	if len(new) == 0 {
+		return old
+	}
+	result := make([]zap.Field, len(old), len(old)+len(new))
+	copy(result, old)
+
+	// check namespace
+	nsIdx := 0
+	for i := len(result) - 1; i >= 0; i-- {
+		if result[i].Type == zapcore.NamespaceType {
+			nsIdx = i + 1
+			break
+		}
+	}
+
+	var hasNewNamespace bool
+loop:
+	for _, f := range new {
+		if !hasNewNamespace {
+			if f.Type == zapcore.NamespaceType {
+				hasNewNamespace = true
+				result = append(result, f)
+				continue loop
+			}
+			for i := nsIdx; i < len(result); i++ {
+				if result[i].Key == f.Key {
+					result[i] = f
+					continue loop
+				}
+			}
+		}
+		result = append(result, f)
+	}
+	return result
 }

@@ -127,7 +127,7 @@ func (enc *logfmtEncoder) AddString(key, value string) {
 }
 
 func (enc *logfmtEncoder) AddTime(key string, value time.Time) {
-	enc.addKey(key)
+	enc.addKeyWithoutNamespace(key)
 	enc.AppendTime(value)
 }
 
@@ -280,7 +280,7 @@ func (enc *logfmtEncoder) EncodeEntry(ent zapcore.Entry, fields []zapcore.Field)
 		final.AddTime(final.TimeKey, ent.Time)
 	}
 	if final.LevelKey != "" {
-		final.addKey(final.LevelKey)
+		final.addKeyWithoutNamespace(final.LevelKey)
 		cur := final.buf.Len()
 		final.EncodeLevel(ent.Level, final)
 		if cur == final.buf.Len() {
@@ -290,7 +290,7 @@ func (enc *logfmtEncoder) EncodeEntry(ent zapcore.Entry, fields []zapcore.Field)
 		}
 	}
 	if ent.LoggerName != "" && final.NameKey != "" {
-		final.addKey(final.NameKey)
+		final.addKeyWithoutNamespace(final.NameKey)
 		cur := final.buf.Len()
 		nameEncoder := final.EncodeName
 		if nameEncoder == nil {
@@ -304,7 +304,7 @@ func (enc *logfmtEncoder) EncodeEntry(ent zapcore.Entry, fields []zapcore.Field)
 		}
 	}
 	if ent.Caller.Defined && final.CallerKey != "" {
-		final.addKey(final.CallerKey)
+		final.addKeyWithoutNamespace(final.CallerKey)
 		cur := final.buf.Len()
 		final.EncodeCaller(ent.Caller, final)
 		if cur == final.buf.Len() {
@@ -314,7 +314,7 @@ func (enc *logfmtEncoder) EncodeEntry(ent zapcore.Entry, fields []zapcore.Field)
 		}
 	}
 	if final.MessageKey != "" {
-		final.addKey(enc.MessageKey)
+		final.addKeyWithoutNamespace(enc.MessageKey)
 		final.AppendString(ent.Message)
 	}
 	if enc.buf.Len() > 0 {
@@ -323,7 +323,8 @@ func (enc *logfmtEncoder) EncodeEntry(ent zapcore.Entry, fields []zapcore.Field)
 	}
 	addFields(final, fields)
 	if ent.Stack != "" && final.StacktraceKey != "" {
-		final.AddString(final.StacktraceKey, ent.Stack)
+		final.addKeyWithoutNamespace(final.StacktraceKey)
+		final.AppendString(ent.Stack)
 	}
 	if final.LineEnding != "" {
 		final.buf.AppendString(final.LineEnding)
@@ -348,6 +349,14 @@ func (enc *logfmtEncoder) addKey(key string) {
 	for _, ns := range enc.namespaces {
 		enc.safeAddString(ns)
 		enc.buf.AppendByte('.')
+	}
+	enc.safeAddString(key)
+	enc.buf.AppendByte('=')
+}
+
+func (enc *logfmtEncoder) addKeyWithoutNamespace(key string) {
+	if enc.buf.Len() > 0 {
+		enc.buf.AppendByte(' ')
 	}
 	enc.safeAddString(key)
 	enc.buf.AppendByte('=')

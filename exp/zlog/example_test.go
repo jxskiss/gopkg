@@ -42,6 +42,34 @@ func ExampleBuilder() {
 	// level=info logger=example_builder msg="example builder" method=zlog.ExampleBuilder k1=v1 k2=54321
 }
 
+func ExampleBuilder_namespace() {
+	defer testHelperReplaceGlobalsToStdout(nil)()
+
+	builder := B(nil).
+		With(zap.String("k1", "v1"), zap.String("k2", "v2")).
+		With(zap.Namespace("subns"))
+	builder = builder.With(zap.String("k1", "sub1"), zap.String("k2", "sub2"))
+	builder.Build().Info("example builder namespace")
+
+	// Output:
+	// level=info msg="example builder namespace" k1=v1 k2=v2 subns.k1=sub1 subns.k2=sub2
+}
+
+func ExampleBuilder_newNamespace() {
+	defer testHelperReplaceGlobalsToStdout(nil)()
+
+	builder := B(nil)
+	builder = builder.With(zap.String("k1", "v1"), zap.String("k2", "v2"))
+	builder = builder.With(
+		zap.String("k1", "override"),
+		zap.Namespace("subns"),
+		zap.String("k1", "sub1"), zap.String("k2", "sub2"))
+	builder.Build().Info("example builder new namespace")
+
+	// Output:
+	// level=info msg="example builder new namespace" k1=override k2=v2 subns.k1=sub1 subns.k2=sub2
+}
+
 func ExampleWithBuilder() {
 	defer testHelperReplaceGlobalsToStdout(nil)()
 
