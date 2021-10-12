@@ -14,7 +14,10 @@ const (
 	TraceLevel Level = iota
 	DebugLevel
 	InfoLevel
-	_NoticeLevel // not implemented
+
+	// NoticeLevel is not implemented.
+	NoticeLevel
+
 	WarnLevel
 	ErrorLevel
 	DPanicLevel
@@ -58,7 +61,7 @@ func (l *Level) unmarshalText(text []byte) bool {
 	case "info", "INFO":
 		*l = InfoLevel
 	case "notice", "NOTICE":
-		*l = _NoticeLevel
+		*l = NoticeLevel
 	case "warn", "warning", "WARN", "WARNING":
 		*l = WarnLevel
 	case "error", "ERROR":
@@ -97,8 +100,17 @@ func (l *atomicLevel) SetLevel(lvl Level) {
 func (l *atomicLevel) UnmarshalText(text []byte) error {
 	var _lvl Level
 	if !_lvl.unmarshalText(text) {
-		return fmt.Errorf("unrecognized level: %q", text)
+		return fmt.Errorf("unrecognized level: %s", text)
 	}
 	l.SetLevel(_lvl)
 	return nil
+}
+
+func getLevelFromEnabler(enab zapcore.LevelEnabler) Level {
+	for i, lvl := range mapZapLevels {
+		if enab.Enabled(lvl) {
+			return Level(i)
+		}
+	}
+	return InfoLevel
 }

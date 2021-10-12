@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 var (
@@ -22,12 +21,11 @@ func init() {
 	replaceGlobals(mustNewGlobalLogger(&Config{}))
 }
 
-// Properties records some information about zap.
+// Properties records some information about a zap logger.
 type Properties struct {
-	cfg    *Config
-	level  atomicLevel
-	core   zapcore.Core
-	syncer zapcore.WriteSyncer
+	functionKey string
+	ctxFunc     CtxFunc
+	level       atomicLevel
 }
 
 // SetupGlobals setups the global loggers in this package and zap library.
@@ -57,7 +55,7 @@ func SetupGlobals(cfg *Config, redirectStdLog bool) {
 }
 
 func mustNewGlobalLogger(cfg *Config, opts ...zap.Option) (*zap.Logger, *Properties) {
-	logger, props, err := NewLogger(cfg, opts...)
+	logger, props, err := New(cfg, opts...)
 	if err != nil {
 		panic(fmt.Sprintf("invalid config to initialize logger: %v", err))
 	}
@@ -157,7 +155,7 @@ func WithCtx(ctx context.Context, extra ...zap.Field) *zap.Logger {
 	if builder := getCtxBuilder(ctx); builder != nil {
 		return builder.With(extra...).Build()
 	}
-	ctxFunc := gP.cfg.CtxFunc
+	ctxFunc := gP.ctxFunc
 	if ctxFunc == nil {
 		L().DPanic("calling WithCtx without CtxFunc configured")
 		return L().With(extra...)
@@ -169,7 +167,7 @@ func WithCtx(ctx context.Context, extra ...zap.Field) *zap.Logger {
 // WithMethod creates a child logger and adds the caller's method name and
 // extra fields.
 func WithMethod(extra ...zap.Field) *zap.Logger {
-	if gP.cfg.FunctionKey != "" {
+	if gP.functionKey != "" {
 		return L().With(extra...)
 	}
 	methodName, ok := getFunctionName(1)

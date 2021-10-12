@@ -12,7 +12,7 @@ import (
 
 func TestDynamicLevelCore(t *testing.T) {
 	buf := &bytes.Buffer{}
-	logger, _, err := NewLoggerWithSyncer(&Config{Development: false, Level: "error"}, zapcore.AddSync(buf))
+	logger, _, err := NewWithOutput(&Config{Development: false, Level: "error"}, zapcore.AddSync(buf))
 	assert.Nil(t, err)
 
 	// assert we get a dynamicLevelCore
@@ -64,7 +64,7 @@ func TestDynamicLevelCore_ChangeLevelWithCtx(t *testing.T) {
 				return result
 			},
 		}
-		l, p, err := NewLoggerWithSyncer(cfg, zapcore.AddSync(buf))
+		l, p, err := NewWithOutput(cfg, zapcore.AddSync(buf))
 		if err != nil {
 			panic(err)
 		}
@@ -133,7 +133,7 @@ func (w *discardWriter) Sync() error {
 }
 
 func newBenchmarkZapIoCoreLogger() *zap.Logger {
-	logger, _, err := NewLoggerWithSyncer(&Config{Development: false, Level: "debug"}, &discardWriter{})
+	logger, _, err := NewWithOutput(&Config{Development: false, Level: "debug"}, &discardWriter{})
 	if err != nil {
 		panic(err)
 	}
@@ -150,7 +150,7 @@ func newBenchmarkZapIoCoreLogger() *zap.Logger {
 }
 
 func newBenchmarkDynamicLevelCoreLogger() *zap.Logger {
-	logger, _, err := NewLoggerWithSyncer(&Config{Development: false, Level: "warn"}, &discardWriter{})
+	logger, _, err := NewWithOutput(&Config{Development: false, Level: "warn"}, &discardWriter{})
 	if err != nil {
 		panic(err)
 	}

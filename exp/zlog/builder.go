@@ -29,7 +29,7 @@ func B(ctx context.Context) *Builder {
 	if ctx != nil {
 		if ctxBuilder := getCtxBuilder(ctx); ctxBuilder != nil {
 			builder = ctxBuilder
-		} else if ctxFunc := gP.cfg.CtxFunc; ctxFunc != nil {
+		} else if ctxFunc := gP.ctxFunc; ctxFunc != nil {
 			builder = builder.Ctx(ctx)
 		}
 	}
@@ -101,7 +101,7 @@ func (b *Builder) Ctx(ctx context.Context) *Builder {
 	if ctx == nil {
 		return b
 	}
-	ctxFunc := gP.cfg.CtxFunc
+	ctxFunc := gP.ctxFunc
 	if ctxFunc == nil {
 		L().DPanic("calling Builder.Ctx without CtxFunc configured")
 		return b
@@ -135,7 +135,7 @@ func (b *Builder) With(fields ...zap.Field) *Builder {
 
 // Method adds the caller's method name to the builder.
 func (b *Builder) Method() *Builder {
-	if gP.cfg.FunctionKey != "" {
+	if gP.functionKey != "" {
 		return b
 	}
 	out := b.clone()

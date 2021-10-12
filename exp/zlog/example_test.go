@@ -18,7 +18,7 @@ func testHelperReplaceGlobalsToStdout(ctxFunc func(ctx context.Context, args Ctx
 		DisableStacktrace: true,
 		CtxFunc:           ctxFunc,
 	}
-	l, p, err := NewLoggerWithSyncer(cfg, zapcore.AddSync(os.Stdout))
+	l, p, err := NewWithOutput(cfg, zapcore.AddSync(os.Stdout))
 	if err != nil {
 		panic(err)
 	}
