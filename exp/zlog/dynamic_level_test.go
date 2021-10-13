@@ -53,7 +53,6 @@ func TestDynamicLevelCore(t *testing.T) {
 func TestDynamicLevelCore_ChangeLevelWithCtx(t *testing.T) {
 	var buf = &bytes.Buffer{}
 	var _replace = func(buf *bytes.Buffer) func() {
-		oldL, oldP := gL, gP
 		cfg := &Config{
 			Level: "warn",
 			CtxFunc: func(ctx context.Context, args CtxArgs) (result CtxResult) {
@@ -68,10 +67,7 @@ func TestDynamicLevelCore_ChangeLevelWithCtx(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		replaceGlobals(l, p)
-		return func() {
-			replaceGlobals(oldL, oldP)
-		}
+		return replaceGlobals(l, p)
 	}
 	defer _replace(buf)()
 

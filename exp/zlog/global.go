@@ -62,7 +62,9 @@ func mustNewGlobalLogger(cfg *Config, opts ...zap.Option) (*zap.Logger, *Propert
 	return logger, props
 }
 
-func replaceGlobals(logger *zap.Logger, props *Properties) {
+func replaceGlobals(logger *zap.Logger, props *Properties) func() {
+	oldL, oldP := gL, gP
+
 	gL = logger
 	gS = logger.Sugar()
 	gP = props
@@ -71,6 +73,10 @@ func replaceGlobals(logger *zap.Logger, props *Properties) {
 	gS_1 = logger.WithOptions(zap.AddCallerSkip(1)).Sugar()
 
 	zap.ReplaceGlobals(logger)
+
+	return func() {
+		replaceGlobals(oldL, oldP)
+	}
 }
 
 // RedirectStdLog redirects output from the standard library's package-global

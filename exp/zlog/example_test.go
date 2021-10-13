@@ -9,7 +9,6 @@ import (
 )
 
 func testHelperReplaceGlobalsToStdout(ctxFunc func(ctx context.Context, args CtxArgs) CtxResult) func() {
-	oldL, oldP := gL, gP
 	cfg := &Config{
 		Level:             "trace",
 		Format:            "json",
@@ -22,10 +21,7 @@ func testHelperReplaceGlobalsToStdout(ctxFunc func(ctx context.Context, args Ctx
 	if err != nil {
 		panic(err)
 	}
-	replaceGlobals(l, p)
-	return func() {
-		replaceGlobals(oldL, oldP)
-	}
+	return replaceGlobals(l, p)
 }
 
 func ExampleBuilder() {
