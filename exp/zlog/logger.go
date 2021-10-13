@@ -5,6 +5,8 @@ import (
 	"os"
 
 	"go.uber.org/zap"
+
+	"github.com/jxskiss/gopkg/internal/linkname"
 )
 
 var _ Logger = (*zap.SugaredLogger)(nil)
@@ -29,44 +31,34 @@ type Logger interface {
 // to the standard library.
 var StdLogger Logger = stdLogger{}
 
-var StdLoggerAtDebugLevel = func() Logger {
-	var debugLevel = DebugLevel
-	return stdLogger{&debugLevel}
-}()
+type stdLogger struct{}
 
-type stdLogger struct {
-	level *Level
-}
-
-func (l stdLogger) getLevel() Level {
-	if l.level != nil {
-		return *l.level
-	}
-	return GetLevel()
-}
+// log_std links to log.std to get correct caller depth for both
+// with and without calling RedirectStdLog.
+var log_std = linkname.LogStd
 
 const _stdLogDepth = 2
 
 func (l stdLogger) Debugf(format string, args ...interface{}) {
-	if l.getLevel() <= DebugLevel {
+	if GetLevel() <= DebugLevel {
 		log_std.Output(_stdLogDepth, fmt.Sprintf(debugPrefix+format, args...))
 	}
 }
 
 func (l stdLogger) Infof(format string, args ...interface{}) {
-	if l.getLevel() <= InfoLevel {
+	if GetLevel() <= InfoLevel {
 		log_std.Output(_stdLogDepth, fmt.Sprintf(infoPrefix+format, args...))
 	}
 }
 
 func (l stdLogger) Warnf(format string, args ...interface{}) {
-	if l.getLevel() <= WarnLevel {
+	if GetLevel() <= WarnLevel {
 		log_std.Output(_stdLogDepth, fmt.Sprintf(warnPrefix+format, args...))
 	}
 }
 
 func (l stdLogger) Errorf(format string, args ...interface{}) {
-	if l.getLevel() <= ErrorLevel {
+	if GetLevel() <= ErrorLevel {
 		log_std.Output(_stdLogDepth, fmt.Sprintf(errorPrefix+format, args...))
 	}
 }

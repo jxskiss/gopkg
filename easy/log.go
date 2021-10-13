@@ -14,7 +14,7 @@ import (
 	"sync"
 	"unicode/utf8"
 
-	"github.com/jxskiss/gopkg/exp/zlog"
+	"github.com/jxskiss/gopkg/internal/linkname"
 	"github.com/jxskiss/gopkg/internal/unsafeheader"
 	"github.com/jxskiss/gopkg/json"
 	"github.com/jxskiss/gopkg/reflectx"
@@ -24,8 +24,6 @@ import (
 func ConfigLog(cfg LogCfg) {
 	_logcfg = cfg
 }
-
-var _defaultStdLogger = zlog.StdLoggerAtDebugLevel
 
 var _logcfg LogCfg
 
@@ -46,7 +44,21 @@ func (p LogCfg) getLogger(ctxp *context.Context) ErrDebugLogger {
 			return lg
 		}
 	}
-	return _defaultStdLogger
+	return stdLogger{}
+}
+
+var log_std = linkname.LogStd
+
+type stdLogger struct{}
+
+const _stdLogDepth = 2
+
+func (_ stdLogger) Debugf(format string, args ...interface{}) {
+	log_std.Output(_stdLogDepth, fmt.Sprintf("[DEBUG]: "+format, args...))
+}
+
+func (_ stdLogger) Errorf(format string, args ...interface{}) {
+	log_std.Output(_stdLogDepth, fmt.Sprintf("[ERROR]: "+format, args...))
 }
 
 // ErrLogger is an interface which log an message at ERROR level.

@@ -164,8 +164,9 @@ func WithCtx(ctx context.Context, extra ...zap.Field) *zap.Logger {
 	return B(nil).withCtxResult(ctxResult).With(extra...).Build()
 }
 
-// WithMethod creates a child logger and adds the caller's method name and
-// extra fields.
+// WithMethod creates a child logger and adds the caller's method name
+// to the logger if Config.FunctionKey is not configured.
+// It will also add extra to the logger's fields.
 func WithMethod(extra ...zap.Field) *zap.Logger {
 	if gP.functionKey != "" {
 		return L().With(extra...)

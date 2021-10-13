@@ -17,15 +17,3 @@ func TestStdLogger(t *testing.T) {
 	// Fatalf will log the message and exit the program.
 	// StdLogger.Fatalf("some fatal message, %v, %v", "abc", "123")
 }
-
-func TestStdLoggerAtDebugLevel(t *testing.T) {
-	// StdLoggerAtDebugLevel is configured at debug level, thus the following
-	// messages will all be logged.
-	StdLoggerAtDebugLevel.Debugf("some debug message, %v, %v", "abc", "123")
-	StdLoggerAtDebugLevel.Infof("some info message, %v, %v", "abc", "123")
-	StdLoggerAtDebugLevel.Warnf("some warn message, %v, %v", "abc", "123")
-	StdLoggerAtDebugLevel.Errorf("some error message, %v, %v", "abc", "123")
-
-	// Fatalf will log the message and exit the program.
-	//StdLoggerAtDebugLevel.Debugf("some debug message, %v, %v", "abc", "123")
-}

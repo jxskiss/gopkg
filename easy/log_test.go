@@ -178,17 +178,11 @@ func TestDEBUG_logger_interface(t *testing.T) {
 	assert.Contains(t, got, "1 2 3")
 }
 
-type testStdLogger struct{}
-
-func (t testStdLogger) Debugf(format string, args ...interface{}) {
-	log.Printf(format, args...)
-}
-
 func TestDEBUG_logger_func(t *testing.T) {
 	// test logger function
 	configTestLog(true, nil, nil)
-	logger := func() testStdLogger {
-		return testStdLogger{}
+	logger := func() stdLogger {
+		return stdLogger{}
 	}
 	msg := "test DEBUG_logger_func"
 	got := CopyStdLog(func() {

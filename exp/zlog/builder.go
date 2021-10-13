@@ -133,7 +133,8 @@ func (b *Builder) With(fields ...zap.Field) *Builder {
 	return out
 }
 
-// Method adds the caller's method name to the builder.
+// Method adds the caller's method name to the builder if Config.FunctionKey
+// is not configured.
 func (b *Builder) Method() *Builder {
 	if gP.functionKey != "" {
 		return b
