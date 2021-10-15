@@ -121,6 +121,12 @@ func Sync() error {
 func _l() *zap.Logger        { return gL_1 }
 func _s() *zap.SugaredLogger { return gS_1 }
 
+func Trace(msg string, fields ...zap.Field) {
+	if GetLevel() <= TraceLevel {
+		_l().Debug(tracePrefix+msg, fields...)
+	}
+}
+
 func Debug(msg string, fields ...zap.Field)  { _l().Debug(msg, fields...) }
 func Info(msg string, fields ...zap.Field)   { _l().Info(msg, fields...) }
 func Warn(msg string, fields ...zap.Field)   { _l().Warn(msg, fields...) }
@@ -128,6 +134,12 @@ func Error(msg string, fields ...zap.Field)  { _l().Error(msg, fields...) }
 func DPanic(msg string, fields ...zap.Field) { _l().DPanic(msg, fields...) }
 func Panic(msg string, fields ...zap.Field)  { _l().Panic(msg, fields...) }
 func Fatal(msg string, fields ...zap.Field)  { _l().Fatal(msg, fields...) }
+
+func Tracef(format string, args ...interface{}) {
+	if GetLevel() <= TraceLevel {
+		_s().Debugf(tracePrefix+format, args...)
+	}
+}
 
 func Debugf(format string, args ...interface{})  { _s().Debugf(format, args...) }
 func Infof(format string, args ...interface{})   { _s().Infof(format, args...) }
@@ -177,7 +189,7 @@ func WithMethod(extra ...zap.Field) *zap.Logger {
 	if gP.functionKey != "" {
 		return L().With(extra...)
 	}
-	methodName, ok := getFunctionName(1)
+	methodName, _, _, ok := getCaller(1)
 	if !ok {
 		return L().With(extra...)
 	}
@@ -188,8 +200,8 @@ func WithMethod(extra ...zap.Field) *zap.Logger {
 	return L().With(fields...)
 }
 
-func getFunctionName(skip int) (name string, ok bool) {
-	pc, _, _, ok := runtime.Caller(skip + 1)
+func getCaller(skip int) (name, file string, line int, ok bool) {
+	pc, file, line, ok := runtime.Caller(skip + 1)
 	if !ok {
 		return
 	}
@@ -198,6 +210,16 @@ func getFunctionName(skip int) (name string, ok bool) {
 		if name[i] == '/' {
 			name = name[i+1:]
 			break
+		}
+	}
+	pathSepCnt := 0
+	for i := len(file) - 1; i >= 0; i-- {
+		if file[i] == '/' {
+			pathSepCnt++
+			if pathSepCnt == 2 {
+				file = file[i+1:]
+				break
+			}
 		}
 	}
 	return

@@ -140,7 +140,7 @@ func (b *Builder) Method() *Builder {
 		return b
 	}
 	out := b.clone()
-	out.methodName, _ = getFunctionName(1)
+	out.methodName, _, _, _ = getCaller(1)
 	return out
 }
 

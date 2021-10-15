@@ -15,10 +15,6 @@ DEBUG is debug message logger which do nothing if debug level is not enabled (th
 It gives best performance for production deployment by eliminating unnecessary
 parameter evaluation and control flows.
 
-For sake of best performance, you may add "release" tag to the `go build` command,
-then the debug calling is all empty functions, which will be eliminated by the
-compiler and won't be compiled into the final binary file. It happens at compile-time.
-
 DEBUG accepts very flexible arguments to help development, see the following examples:
 
 	// func()
