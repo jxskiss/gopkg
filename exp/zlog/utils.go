@@ -24,22 +24,6 @@ func TRACESkip(skip int, args ...interface{}) {
 	}
 }
 
-func DEBUG(args ...interface{}) {
-	if GetLevel() <= DebugLevel {
-		logger, msg, fields := parseLoggerAndParams(args)
-		msg = addCallerPrefix(0, "DEBUG", msg)
-		logger.Debug(msg, fields...)
-	}
-}
-
-func DEBUGSkip(skip int, args ...interface{}) {
-	if GetLevel() <= DebugLevel {
-		logger, msg, fields := parseLoggerAndParams(args)
-		msg = addCallerPrefix(skip, "DEBUG", msg)
-		logger.WithOptions(zap.AddCallerSkip(skip)).Debug(msg, fields...)
-	}
-}
-
 func parseLoggerAndParams(args []interface{}) (*zap.Logger, string, []zap.Field) {
 	if len(args) == 0 {
 		return _l(), "", nil

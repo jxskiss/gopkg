@@ -244,7 +244,7 @@ func needsQuoteValueRune(r rune) bool {
 }
 
 // Pretty converts given object to a pretty formatted json string.
-// If the input is an json string, it will be formatted using json.Indent
+// If the input is a json string, it will be formatted using json.Indent
 // with four space characters as indent.
 func Pretty(v interface{}) string {
 	var src []byte

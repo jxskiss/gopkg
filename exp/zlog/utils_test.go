@@ -9,7 +9,7 @@ import (
 )
 
 func TestTRACE(t *testing.T) {
-	defer replaceGlobals(mustNewGlobalLogger(&Config{Level: "trace"}))()
+	defer replaceGlobals(mustNewGlobalLogger(&Config{Level: "trace", Development: true}))()
 
 	TRACE()
 	TRACE(context.Background())
@@ -25,15 +25,6 @@ func TestTRACE(t *testing.T) {
 	TRACE(context.Background(), "a=%v, b=%v, c=%v", 1, 2, 3)
 	TRACE(L(), "a=%v, b=%v, c=%v", 1, 2, 3)
 	TRACE(S(), "a=%v, b=%v, c=%v", 1, 2, 3)
-}
-
-func TestDEBUG(t *testing.T) {
-	defer replaceGlobals(mustNewGlobalLogger(&Config{Level: "trace"}))()
-
-	DEBUG()
-	DEBUG(context.Background())
-	DEBUG(L())
-	DEBUG(S())
 }
 
 func TestTRACESkip(t *testing.T) {
