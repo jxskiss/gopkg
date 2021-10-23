@@ -20,18 +20,24 @@ const (
 
 	WarnLevel
 	ErrorLevel
+
+	// CriticalLevel is not implemented.
+	CriticalLevel
+
 	DPanicLevel
 	PanicLevel
 	FatalLevel
 )
 
 const (
-	tracePrefix = "[Trace] "
-	debugPrefix = "[Debug] "
-	infoPrefix  = "[Info] "
-	warnPrefix  = "[Warn] "
-	errorPrefix = "[Error] "
-	fatalPrefix = "[Fatal] "
+	tracePrefix    = "[Trace] "
+	debugPrefix    = "[Debug] "
+	infoPrefix     = "[Info] "
+	noticePrefix   = "[Notice] "
+	warnPrefix     = "[Warn] "
+	errorPrefix    = "[Error] "
+	criticalPrefix = "[Critical] "
+	fatalPrefix    = "[Fatal] "
 )
 
 var mapZapLevels = [...]zapcore.Level{
@@ -40,6 +46,7 @@ var mapZapLevels = [...]zapcore.Level{
 	zap.InfoLevel,
 	zap.InfoLevel,
 	zap.WarnLevel,
+	zap.ErrorLevel,
 	zap.ErrorLevel,
 	zap.DPanicLevel,
 	zap.PanicLevel,
@@ -66,6 +73,8 @@ func (l *Level) unmarshalText(text []byte) bool {
 		*l = WarnLevel
 	case "error", "ERROR":
 		*l = ErrorLevel
+	case "critical", "CRITICAL":
+		*l = CriticalLevel
 	case "dpanic", "DPANIC":
 		*l = DPanicLevel
 	case "panic", "PANIC":
