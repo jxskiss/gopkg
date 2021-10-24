@@ -284,13 +284,13 @@ func NewWithOutput(cfg *Config, output zapcore.WriteSyncer, opts ...zap.Option) 
 // integrate with Sentry or Graylog, or output to multiple sinks).
 func NewWithCore(
 	core zapcore.Core,
-	level zapcore.LevelEnabler,
+	level Level,
 	ctxFunc CtxFunc,
 	hooks []func(zapcore.Entry) error,
 	opts ...zap.Option,
 ) (*zap.Logger, *Properties, error) {
 	atomLevel := newAtomicLevel()
-	atomLevel.SetLevel(getLevelFromEnabler(level))
+	atomLevel.SetLevel(level)
 	opts = append(opts, zap.WrapCore(func(core zapcore.Core) zapcore.Core {
 		return &dynamicLevelCore{
 			Core:  core,

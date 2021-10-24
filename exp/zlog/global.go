@@ -28,6 +28,12 @@ type Properties struct {
 	level       atomicLevel
 }
 
+// GetLevel gets the logging level of the logger.
+func (p *Properties) GetLevel() Level { return p.level.Level() }
+
+// SetLevel modifies the logging level of the logger.
+func (p *Properties) SetLevel(lvl Level) { p.level.SetLevel(lvl) }
+
 // SetupGlobals setups the global loggers in this package and zap library.
 // By default, global loggers are set with default configuration with info
 // level and json format, you may use this function to change the default
@@ -85,11 +91,11 @@ func replaceGlobals(logger *zap.Logger, props *Properties) func() {
 func RedirectStdLog() func() { return zap.RedirectStdLog(L()) }
 
 // GetLevel gets the global logging level.
-func GetLevel() Level { return gP.level.Level() }
+func GetLevel() Level { return gP.GetLevel() }
 
 // SetLevel modifies the global logging level on the fly.
 // It's safe for concurrent use.
-func SetLevel(lvl Level) { gP.level.SetLevel(lvl) }
+func SetLevel(lvl Level) { gP.SetLevel(lvl) }
 
 // L returns the global Logger, which can be reconfigured with
 // SetupGlobals.
