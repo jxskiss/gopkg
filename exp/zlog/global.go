@@ -127,6 +127,7 @@ func Sync() error {
 func _l() *zap.Logger        { return gL_1 }
 func _s() *zap.SugaredLogger { return gS_1 }
 
+// Trace logs a message at TraceLevel if it's enabled.
 func Trace(msg string, fields ...zap.Field) {
 	if GetLevel() <= TraceLevel {
 		_l().Debug(tracePrefix+msg, fields...)
@@ -141,6 +142,7 @@ func DPanic(msg string, fields ...zap.Field) { _l().DPanic(msg, fields...) }
 func Panic(msg string, fields ...zap.Field)  { _l().Panic(msg, fields...) }
 func Fatal(msg string, fields ...zap.Field)  { _l().Fatal(msg, fields...) }
 
+// Tracef uses fmt.Sprintf to log a message at TraceLevel if it's enabled.
 func Tracef(format string, args ...interface{}) {
 	if GetLevel() <= TraceLevel {
 		_s().Debugf(tracePrefix+format, args...)
@@ -154,6 +156,18 @@ func Errorf(format string, args ...interface{})  { _s().Errorf(format, args...) 
 func DPanicf(format string, args ...interface{}) { _s().DPanicf(format, args...) }
 func Panicf(format string, args ...interface{})  { _s().Panicf(format, args...) }
 func Fatalf(format string, args ...interface{})  { _s().Fatalf(format, args...) }
+
+// Print uses fmt.Sprint to log a message at InfoLevel if it's enabled.
+//
+// It has same signature with log.Print, which helps to change from the
+// standard library to this package.
+func Print(args ...interface{}) { _l().Info(fmt.Sprint(args...)) }
+
+// Printf logs a message at InfoLevel if it's enabled.
+//
+// It has same signature with log.Printf, which helps to change from the
+// standard library to this package.
+func Printf(format string, args ...interface{}) { _s().Infof(format, args...) }
 
 // -------- utility functions -------- //
 
