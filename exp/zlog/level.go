@@ -112,14 +112,14 @@ const (
 )
 
 const (
-	tracePrefix    = "[Trace] "
-	debugPrefix    = "[Debug] "
-	infoPrefix     = "[Info] "
-	noticePrefix   = "[Notice] "
-	warnPrefix     = "[Warn] "
-	errorPrefix    = "[Error] "
-	criticalPrefix = "[Critical] "
-	fatalPrefix    = "[Fatal] "
+	TracePrefix    = "[TRACE] "
+	DebugPrefix    = "[DEBUG] "
+	InfoPrefix     = "[INFO] "
+	NoticePrefix   = "[NOTICE] "
+	WarnPrefix     = "[WARN] "
+	ErrorPrefix    = "[ERROR] "
+	CriticalPrefix = "[CRITICAL] "
+	FatalPrefix    = "[FATAL] "
 )
 
 const levelPrefixMinLen = 6
@@ -240,35 +240,35 @@ func fromZapLevel(lvl zapcore.Level) Level {
 func detectLevel(message string) (Level, bool) {
 	switch message[1] {
 	case 'T':
-		if strings.HasPrefix(message, tracePrefix) {
+		if strings.HasPrefix(message, TracePrefix) {
 			return TraceLevel, true
 		}
 	case 'D':
-		if strings.HasPrefix(message, debugPrefix) {
+		if strings.HasPrefix(message, DebugPrefix) {
 			return DebugLevel, true
 		}
 	case 'I':
-		if strings.HasPrefix(message, infoPrefix) {
+		if strings.HasPrefix(message, InfoPrefix) {
 			return InfoLevel, true
 		}
 	case 'N':
-		if strings.HasPrefix(message, noticePrefix) {
+		if strings.HasPrefix(message, NoticePrefix) {
 			return NoticeLevel, true
 		}
 	case 'W':
-		if strings.HasPrefix(message, warnPrefix) {
+		if strings.HasPrefix(message, WarnPrefix) {
 			return WarnLevel, true
 		}
 	case 'E':
-		if strings.HasPrefix(message, errorPrefix) {
+		if strings.HasPrefix(message, ErrorPrefix) {
 			return ErrorLevel, true
 		}
 	case 'C':
-		if strings.HasPrefix(message, criticalPrefix) {
+		if strings.HasPrefix(message, CriticalPrefix) {
 			return CriticalLevel, true
 		}
 	case 'F':
-		if strings.HasPrefix(message, fatalPrefix) {
+		if strings.HasPrefix(message, FatalPrefix) {
 			return FatalLevel, true
 		}
 	}

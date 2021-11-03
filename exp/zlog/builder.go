@@ -22,14 +22,14 @@ func getCtxBuilder(ctx context.Context) *Builder {
 // If ctx is nil, it returns an empty Builder, else if the ctx is created
 // by WithBuilder, then it carries a Builder instance, this function
 // returns that Builder.
-// Otherwise, if the ctx is not nil and Config.CtxFunc is configured globally,
-// it calls the CtxFunc to get CtxResult from ctx.
+// Otherwise, if the ctx is not nil and GlobalConfig.CtxFunc is configured
+// globally, it calls the CtxFunc to get CtxResult from ctx.
 func B(ctx context.Context) *Builder {
 	builder := baseBuilder
 	if ctx != nil {
 		if ctxBuilder := getCtxBuilder(ctx); ctxBuilder != nil {
 			builder = ctxBuilder
-		} else if ctxFunc := gP.ctxFunc; ctxFunc != nil {
+		} else if ctxFunc := gP.cfg.CtxFunc; ctxFunc != nil {
 			builder = builder.Ctx(ctx)
 		}
 	}
@@ -93,15 +93,16 @@ func (b *Builder) Base(logger *zap.Logger) *Builder {
 
 // Ctx customizes the logger's behavior using context data (e.g. adding
 // fields, dynamically change logging level, etc.)
-// See Config.CtxFunc, CtxArgs and CtxResult for details.
+// See GlobalConfig.CtxFunc, CtxArgs and CtxResult for details.
 //
-// It calls Config.CtxFunc to get CtxResult from ctx, in case Config.CtxFunc
-// is not configured globally, it logs an error message at DPANIC level.
+// It calls GlobalConfig.CtxFunc to get CtxResult from ctx, in case that
+// GlobalConfig.CtxFunc is not configured globally, it logs an error
+// message at DPANIC level.
 func (b *Builder) Ctx(ctx context.Context) *Builder {
 	if ctx == nil {
 		return b
 	}
-	ctxFunc := gP.ctxFunc
+	ctxFunc := gP.cfg.CtxFunc
 	if ctxFunc == nil {
 		L().DPanic("calling Builder.Ctx without CtxFunc configured")
 		return b
@@ -122,8 +123,8 @@ func (b *Builder) withCtxResult(ctxResult CtxResult) *Builder {
 	return out
 }
 
-// With adds extra fields to the builder. Duplicate keys override
-// the old ones within a namespace.
+// With adds extra fields to the builder.
+// Duplicate keys override the old ones within a namespace.
 func (b *Builder) With(fields ...zap.Field) *Builder {
 	if len(fields) == 0 {
 		return b
@@ -133,12 +134,8 @@ func (b *Builder) With(fields ...zap.Field) *Builder {
 	return out
 }
 
-// Method adds the caller's method name to the builder if Config.FunctionKey
-// is not configured.
+// Method adds the caller's method name to the builder.
 func (b *Builder) Method() *Builder {
-	if gP.functionKey != "" {
-		return b
-	}
 	out := b.clone()
 	out.methodName, _, _, _ = getCaller(1)
 	return out
@@ -171,7 +168,8 @@ func (b *Builder) getFinalLogger() *zap.Logger {
 	if b.methodName == "" {
 		final = final.With(b.fields...)
 	} else {
-		fields := append([]zap.Field{zap.String(MethodKey, b.methodName)}, b.fields...)
+		methodNameKey := gP.cfg.MethodNameKey
+		fields := append([]zap.Field{zap.String(methodNameKey, b.methodName)}, b.fields...)
 		final = final.With(fields...)
 	}
 	if b.level != nil {

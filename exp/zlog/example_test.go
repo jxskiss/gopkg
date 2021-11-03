@@ -15,13 +15,15 @@ func testHelperReplaceGlobalsToStdout(ctxFunc func(ctx context.Context, args Ctx
 		DisableTimestamp:  true,
 		DisableCaller:     true,
 		DisableStacktrace: true,
-		CtxFunc:           ctxFunc,
+		GlobalConfig: GlobalConfig{
+			CtxFunc: ctxFunc,
+		},
 	}
 	l, p, err := NewWithOutput(cfg, zapcore.AddSync(os.Stdout))
 	if err != nil {
 		panic(err)
 	}
-	return replaceGlobals(l, p)
+	return ReplaceGlobals(l, p)
 }
 
 func ExampleBuilder() {
@@ -35,7 +37,7 @@ func ExampleBuilder() {
 	logger.Info("example builder")
 
 	// Output:
-	// {"level":"info","logger":"example_builder","msg":"example builder","method":"zlog.ExampleBuilder","k1":"v1","k2":54321}
+	// {"level":"info","logger":"example_builder","msg":"example builder","methodName":"zlog.ExampleBuilder","k1":"v1","k2":54321}
 }
 
 func ExampleBuilder_namespace() {
@@ -89,8 +91,8 @@ func ExampleWithBuilder() {
 	}(ctx)
 
 	// Output:
-	// {"level":"info","msg":"with builder","method":"zlog.ExampleWithBuilder","k1":"v1","k2":54321}
-	// {"level":"info","msg":"another function","method":"zlog.ExampleWithBuilder.func1","k1":"inner","k2":54321}
+	// {"level":"info","msg":"with builder","methodName":"zlog.ExampleWithBuilder","k1":"v1","k2":54321}
+	// {"level":"info","msg":"another function","methodName":"zlog.ExampleWithBuilder.func1","k1":"inner","k2":54321}
 }
 
 func ExampleWith() {

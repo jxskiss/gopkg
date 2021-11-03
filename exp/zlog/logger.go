@@ -16,7 +16,8 @@ var _ Logger = (*zap.SugaredLogger)(nil)
 // zap.SugaredLogger, etc.
 //
 // Within this package, StdLogger is a default implementation which sends
-// log messages to the standard library.
+// log messages to the standard library, it also adds the level prefix to
+// the output message.
 type Logger interface {
 	Debugf(format string, args ...interface{})
 	Infof(format string, args ...interface{})
@@ -39,32 +40,32 @@ var log_std = linkname.LogStd
 
 const _stdLogDepth = 2
 
-func (l stdLogger) Debugf(format string, args ...interface{}) {
+func (_ stdLogger) Debugf(format string, args ...interface{}) {
 	if GetLevel() <= DebugLevel {
-		log_std.Output(_stdLogDepth, fmt.Sprintf(debugPrefix+format, args...))
+		log_std.Output(_stdLogDepth, fmt.Sprintf(DebugPrefix+format, args...))
 	}
 }
 
-func (l stdLogger) Infof(format string, args ...interface{}) {
+func (_ stdLogger) Infof(format string, args ...interface{}) {
 	if GetLevel() <= InfoLevel {
-		log_std.Output(_stdLogDepth, fmt.Sprintf(infoPrefix+format, args...))
+		log_std.Output(_stdLogDepth, fmt.Sprintf(InfoPrefix+format, args...))
 	}
 }
 
-func (l stdLogger) Warnf(format string, args ...interface{}) {
+func (_ stdLogger) Warnf(format string, args ...interface{}) {
 	if GetLevel() <= WarnLevel {
-		log_std.Output(_stdLogDepth, fmt.Sprintf(warnPrefix+format, args...))
+		log_std.Output(_stdLogDepth, fmt.Sprintf(WarnPrefix+format, args...))
 	}
 }
 
-func (l stdLogger) Errorf(format string, args ...interface{}) {
+func (_ stdLogger) Errorf(format string, args ...interface{}) {
 	if GetLevel() <= ErrorLevel {
-		log_std.Output(_stdLogDepth, fmt.Sprintf(errorPrefix+format, args...))
+		log_std.Output(_stdLogDepth, fmt.Sprintf(ErrorPrefix+format, args...))
 	}
 }
 
-func (l stdLogger) Fatalf(format string, args ...interface{}) {
-	log_std.Output(_stdLogDepth, fmt.Sprintf(fatalPrefix+format, args...))
+func (_ stdLogger) Fatalf(format string, args ...interface{}) {
+	log_std.Output(_stdLogDepth, fmt.Sprintf(FatalPrefix+format, args...))
 	Sync()
 	os.Exit(1)
 }

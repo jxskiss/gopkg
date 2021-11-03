@@ -70,6 +70,7 @@ func TestPerLoggerLevels(t *testing.T) {
 	assert.Contains(t, got, "zlog info message 2")
 	assert.Contains(t, got, "zlog debug message 3")
 	assert.Contains(t, got, "zlog info message 4")
+	assert.Contains(t, got, "zlog TRACE message")
 	assert.NotContains(t, got, "zlog info message 5")
 	assert.NotContains(t, got, "zlog warn message 6")
 	assert.Contains(t, got, "zlog error message 7")
