@@ -55,19 +55,21 @@ func TestDynamicLevelCore_ChangeLevelWithCtx(t *testing.T) {
 	var _replace = func(buf *bytes.Buffer) func() {
 		cfg := &Config{
 			Level: "warn",
-			CtxFunc: func(ctx context.Context, args CtxArgs) (result CtxResult) {
-				if ctx.Value("level") != nil {
-					level := ctx.Value("level").(Level)
-					result.Level = &level
-				}
-				return result
+			GlobalConfig: GlobalConfig{
+				CtxFunc: func(ctx context.Context, args CtxArgs) (result CtxResult) {
+					if ctx.Value("level") != nil {
+						level := ctx.Value("level").(Level)
+						result.Level = &level
+					}
+					return result
+				},
 			},
 		}
 		l, p, err := NewWithOutput(cfg, zapcore.AddSync(buf))
 		if err != nil {
 			panic(err)
 		}
-		return replaceGlobals(l, p)
+		return ReplaceGlobals(l, p)
 	}
 	defer _replace(buf)()
 

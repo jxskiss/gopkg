@@ -2,6 +2,7 @@ package zlog
 
 import (
 	"fmt"
+	"strings"
 
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -111,15 +112,17 @@ const (
 )
 
 const (
-	tracePrefix    = "[Trace] "
-	debugPrefix    = "[Debug] "
-	infoPrefix     = "[Info] "
-	noticePrefix   = "[Notice] "
-	warnPrefix     = "[Warn] "
-	errorPrefix    = "[Error] "
-	criticalPrefix = "[Critical] "
-	fatalPrefix    = "[Fatal] "
+	TracePrefix    = "[TRACE] "
+	DebugPrefix    = "[DEBUG] "
+	InfoPrefix     = "[INFO] "
+	NoticePrefix   = "[NOTICE] "
+	WarnPrefix     = "[WARN] "
+	ErrorPrefix    = "[ERROR] "
+	CriticalPrefix = "[CRITICAL] "
+	FatalPrefix    = "[FATAL] "
 )
+
+const levelPrefixMinLen = 6
 
 var mapZapLevels = [...]zapcore.Level{
 	zap.DebugLevel,
@@ -134,7 +137,22 @@ var mapZapLevels = [...]zapcore.Level{
 	zap.FatalLevel,
 }
 
+var levelNames = [...]string{
+	"trace",
+	"debug",
+	"info",
+	"notice",
+	"warn",
+	"error",
+	"critical",
+	"dpanic",
+	"panic",
+	"fatal",
+}
+
 func (l Level) toZapLevel() zapcore.Level { return mapZapLevels[l] }
+
+func (l Level) String() string { return levelNames[l] }
 
 func (l Level) Enabled(lvl zapcore.Level) bool {
 	return lvl >= l.toZapLevel()
@@ -194,4 +212,65 @@ func (l *atomicLevel) UnmarshalText(text []byte) error {
 	}
 	l.SetLevel(_lvl)
 	return nil
+}
+
+func fromZapLevel(lvl zapcore.Level) Level {
+	switch lvl {
+	case zapcore.DebugLevel:
+		return DebugLevel
+	case zapcore.InfoLevel:
+		return InfoLevel
+	case zapcore.WarnLevel:
+		return WarnLevel
+	case zapcore.ErrorLevel:
+		return ErrorLevel
+	case zapcore.DPanicLevel:
+		return DPanicLevel
+	case zap.PanicLevel:
+		return PanicLevel
+	case zap.FatalLevel:
+		return FatalLevel
+	}
+	if lvl < zapcore.DebugLevel {
+		return TraceLevel
+	}
+	return FatalLevel
+}
+
+func detectLevel(message string) (Level, bool) {
+	switch message[1] {
+	case 'T':
+		if strings.HasPrefix(message, TracePrefix) {
+			return TraceLevel, true
+		}
+	case 'D':
+		if strings.HasPrefix(message, DebugPrefix) {
+			return DebugLevel, true
+		}
+	case 'I':
+		if strings.HasPrefix(message, InfoPrefix) {
+			return InfoLevel, true
+		}
+	case 'N':
+		if strings.HasPrefix(message, NoticePrefix) {
+			return NoticeLevel, true
+		}
+	case 'W':
+		if strings.HasPrefix(message, WarnPrefix) {
+			return WarnLevel, true
+		}
+	case 'E':
+		if strings.HasPrefix(message, ErrorPrefix) {
+			return ErrorLevel, true
+		}
+	case 'C':
+		if strings.HasPrefix(message, CriticalPrefix) {
+			return CriticalLevel, true
+		}
+	case 'F':
+		if strings.HasPrefix(message, FatalPrefix) {
+			return FatalLevel, true
+		}
+	}
+	return 0, false
 }

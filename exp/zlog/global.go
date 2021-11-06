@@ -18,14 +18,23 @@ var (
 )
 
 func init() {
-	replaceGlobals(mustNewGlobalLogger(&Config{}))
+	ReplaceGlobals(mustNewGlobalLogger(&Config{}))
 }
 
-// Properties records some information about a zap logger.
+// Properties records some information about the global config.
 type Properties struct {
-	functionKey string
-	ctxFunc     CtxFunc
-	level       atomicLevel
+	cfg   GlobalConfig
+	level atomicLevel
+}
+
+func (p *Properties) setup() {
+	if p.cfg.MethodNameKey == "" {
+		p.cfg.MethodNameKey = defaultMethodNameKey
+	}
+	if p.cfg.RedirectStdLog {
+		zap.RedirectStdLog(L())
+	}
+	disableTrace = p.cfg.DisableTrace
 }
 
 // GetLevel gets the logging level of the logger.
@@ -46,14 +55,11 @@ func (p *Properties) SetLevel(lvl Level) { p.level.SetLevel(lvl) }
 // This function must not be called more than once, else it panics.
 // It should be called only in main function at program startup, library
 // code shall not touch this.
-func SetupGlobals(cfg *Config, redirectStdLog bool) {
+func SetupGlobals(cfg *Config) {
 	first := false
 	setupOnce.Do(func() {
 		first = true
-		replaceGlobals(mustNewGlobalLogger(cfg))
-		if redirectStdLog {
-			RedirectStdLog()
-		}
+		ReplaceGlobals(mustNewGlobalLogger(cfg))
 	})
 	if !first {
 		panic("SetupGlobals called more than once")
@@ -68,7 +74,9 @@ func mustNewGlobalLogger(cfg *Config, opts ...zap.Option) (*zap.Logger, *Propert
 	return logger, props
 }
 
-func replaceGlobals(logger *zap.Logger, props *Properties) func() {
+// ReplaceGlobals replaces the global Logger and SugaredLogger, and returns a
+// function to restore the original values.
+func ReplaceGlobals(logger *zap.Logger, props *Properties) func() {
 	oldL, oldP := gL, gP
 
 	gL = logger
@@ -76,19 +84,15 @@ func replaceGlobals(logger *zap.Logger, props *Properties) func() {
 	gP = props
 
 	gL_1 = logger.WithOptions(zap.AddCallerSkip(1))
-	gS_1 = logger.WithOptions(zap.AddCallerSkip(1)).Sugar()
+	gS_1 = gL_1.Sugar()
 
+	props.setup()
 	zap.ReplaceGlobals(logger)
 
 	return func() {
-		replaceGlobals(oldL, oldP)
+		ReplaceGlobals(oldL, oldP)
 	}
 }
-
-// RedirectStdLog redirects output from the standard library's package-global
-// logger to the global logger in this package. It returns a function to
-// restore the original behavior of the standard library.
-func RedirectStdLog() func() { return zap.RedirectStdLog(L()) }
 
 // GetLevel gets the global logging level.
 func GetLevel() Level { return gP.GetLevel() }
@@ -98,11 +102,11 @@ func GetLevel() Level { return gP.GetLevel() }
 func SetLevel(lvl Level) { gP.SetLevel(lvl) }
 
 // L returns the global Logger, which can be reconfigured with
-// SetupGlobals.
+// SetupGlobals and ReplaceGlobals.
 func L() *zap.Logger { return gL }
 
 // S returns the global SugaredLogger, which can be reconfigured with
-// SetupGlobals.
+// SetupGlobals and ReplaceGlobals.
 func S() *zap.SugaredLogger { return gS }
 
 // Sync flushes any buffered log entries.
@@ -127,13 +131,6 @@ func Sync() error {
 func _l() *zap.Logger        { return gL_1 }
 func _s() *zap.SugaredLogger { return gS_1 }
 
-// Trace logs a message at TraceLevel if it's enabled.
-func Trace(msg string, fields ...zap.Field) {
-	if GetLevel() <= TraceLevel {
-		_l().Debug(tracePrefix+msg, fields...)
-	}
-}
-
 func Debug(msg string, fields ...zap.Field)  { _l().Debug(msg, fields...) }
 func Info(msg string, fields ...zap.Field)   { _l().Info(msg, fields...) }
 func Warn(msg string, fields ...zap.Field)   { _l().Warn(msg, fields...) }
@@ -141,13 +138,6 @@ func Error(msg string, fields ...zap.Field)  { _l().Error(msg, fields...) }
 func DPanic(msg string, fields ...zap.Field) { _l().DPanic(msg, fields...) }
 func Panic(msg string, fields ...zap.Field)  { _l().Panic(msg, fields...) }
 func Fatal(msg string, fields ...zap.Field)  { _l().Fatal(msg, fields...) }
-
-// Tracef uses fmt.Sprintf to log a message at TraceLevel if it's enabled.
-func Tracef(format string, args ...interface{}) {
-	if GetLevel() <= TraceLevel {
-		_s().Debugf(tracePrefix+format, args...)
-	}
-}
 
 func Debugf(format string, args ...interface{})  { _s().Debugf(format, args...) }
 func Infof(format string, args ...interface{})   { _s().Infof(format, args...) }
@@ -159,13 +149,13 @@ func Fatalf(format string, args ...interface{})  { _s().Fatalf(format, args...) 
 
 // Print uses fmt.Sprint to log a message at InfoLevel if it's enabled.
 //
-// It has same signature with log.Print, which helps to change from the
+// It has same signature with log.Print, which helps to migrate from the
 // standard library to this package.
 func Print(args ...interface{}) { _l().Info(fmt.Sprint(args...)) }
 
 // Printf logs a message at InfoLevel if it's enabled.
 //
-// It has same signature with log.Printf, which helps to change from the
+// It has same signature with log.Printf, which helps to migrate from the
 // standard library to this package.
 func Printf(format string, args ...interface{}) { _s().Infof(format, args...) }
 
@@ -182,10 +172,11 @@ func With(fields ...zap.Field) *zap.Logger {
 //
 // If the ctx is created by WithBuilder, it carries a Builder instance,
 // this function uses that Builder to build the logger, else it calls
-// Config.CtxFunc to get CtxResult from ctx. In case Config.CtxFunc is
-// not configured globally, it logs an error message at DPANIC level.
+// GlobalConfig.CtxFunc to get CtxResult from ctx. In case that
+// GlobalConfig.CtxFunc is not configured globally, it logs an error
+// message at DPANIC level.
 //
-// Also see Config.CtxFunc, CtxArgs and CtxResult for more details.
+// Also see GlobalConfig.CtxFunc, CtxArgs and CtxResult for more details.
 func WithCtx(ctx context.Context, extra ...zap.Field) *zap.Logger {
 	if ctx == nil {
 		return L().With(extra...)
@@ -193,7 +184,7 @@ func WithCtx(ctx context.Context, extra ...zap.Field) *zap.Logger {
 	if builder := getCtxBuilder(ctx); builder != nil {
 		return builder.With(extra...).Build()
 	}
-	ctxFunc := gP.ctxFunc
+	ctxFunc := gP.cfg.CtxFunc
 	if ctxFunc == nil {
 		L().DPanic("calling WithCtx without CtxFunc configured")
 		return L().With(extra...)
@@ -203,21 +194,26 @@ func WithCtx(ctx context.Context, extra ...zap.Field) *zap.Logger {
 }
 
 // WithMethod creates a child logger and adds the caller's method name
-// to the logger if Config.FunctionKey is not configured.
-// It will also add extra to the logger's fields.
+// to the logger.
+// It also adds the given extra fields to the logger.
 func WithMethod(extra ...zap.Field) *zap.Logger {
-	if gP.functionKey != "" {
-		return L().With(extra...)
-	}
 	methodName, _, _, ok := getCaller(1)
 	if !ok {
 		return L().With(extra...)
 	}
+	methodNameKey := gP.cfg.MethodNameKey
 	if len(extra) == 0 {
-		return L().With(zap.String(MethodKey, methodName))
+		return L().With(zap.String(methodNameKey, methodName))
 	}
-	fields := append([]zap.Field{zap.String(MethodKey, methodName)}, extra...)
+	fields := append([]zap.Field{zap.String(methodNameKey, methodName)}, extra...)
 	return L().With(fields...)
+}
+
+// Named creates a child logger and adds a new name segment to the logger's
+// name. By default, loggers are unnamed.
+// It also adds the given extra fields to the logger.
+func Named(name string, extra ...zap.Field) *zap.Logger {
+	return L().Named(name).With(extra...)
 }
 
 func getCaller(skip int) (name, file string, line int, ok bool) {

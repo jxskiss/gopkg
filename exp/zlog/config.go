@@ -14,7 +14,7 @@ import (
 
 const defaultLogMaxSize = 300 // MB
 
-const MethodKey = "method"
+const defaultMethodNameKey = "methodName"
 
 // FileLogConfig serializes file log related config in json/yaml.
 type FileLogConfig struct {
@@ -34,10 +34,39 @@ type FileLogConfig struct {
 	MaxBackups int `json:"maxBackups" yaml:"maxBackups"`
 }
 
+// GlobalConfig configures some global behavior of this package.
+type GlobalConfig struct {
+	// RedirectStdLog redirects output from the standard library's
+	// package-global logger to the global logger in this package.
+	RedirectStdLog bool `json:"redirectStdLog" yaml:"redirectStdLog"`
+
+	// DisableTrace disables trace level messages.
+	//
+	// Disabling trace level messages makes the trace logging functions no-op,
+	// it gives better performance when you definitely don't need TraceLevel
+	// messages (e.g. in production deployment).
+	DisableTrace bool `json:"disableTrace" yaml:"disableTrace"`
+
+	// MethodNameKey specifies the key to use when adding caller's method
+	// name to logging messages. It defaults to "methodName".
+	MethodNameKey string `json:"methodNameKey" yaml:"methodNameKey"`
+
+	// CtxFunc gets additional logging information from ctx, it's optional.
+	//
+	// See also CtxArgs, CtxResult, WithCtx and Builder.Ctx.
+	CtxFunc CtxFunc `json:"-" yaml:"-"`
+}
+
 // Config serializes log related config in json/yaml.
 type Config struct {
-	// Level sets the minimum enabled logging level.
+	// Level sets the default logging level for the logger.
 	Level string `json:"level" yaml:"level"`
+
+	// PerLoggerLevels optionally configures logging level by logger names.
+	// The format is "loggerName.subLogger=level".
+	// If a level is configured for a parent logger, but not configured for
+	// a child logger, the child logger will derive the level from its parent.
+	PerLoggerLevels []string `json:"perLoggerLevels" yaml:"perLoggerLevels"`
 
 	// Format sets the logger's encoding format.
 	// Valid values are "json", "console", and "logfmt".
@@ -82,13 +111,6 @@ type Config struct {
 	// Values configured here are per-second. See zapcore.NewSampler for details.
 	Sampling *zap.SamplingConfig `json:"sampling" yaml:"sampling"`
 
-	// CtxFunc gets additional logging information from ctx, it's optional.
-	// It works only with SetupGlobals, there's no obvious way to support
-	// different CtxFunc for non-global individual loggers.
-	//
-	// See also CtxArgs, CtxResult, WithCtx and Builder.Ctx.
-	CtxFunc CtxFunc `json:"-" yaml:"-"`
-
 	// Hooks registers functions which will be called each time the Logger
 	// writes out an Entry. Repeated use of Hooks is additive.
 	//
@@ -97,6 +119,11 @@ type Config struct {
 	//
 	// See zap.Hooks and zapcore.RegisterHooks for details.
 	Hooks []func(zapcore.Entry) error `json:"-" yaml:"-"`
+
+	// GlobalConfig configures some global behavior of this package.
+	// It works with SetupGlobals and ReplaceGlobals, it has no effect for
+	// non-global individual loggers.
+	GlobalConfig `yaml:",inline"`
 }
 
 // CtxArgs holds arguments passed to Config.CtxFunc.
@@ -260,20 +287,52 @@ func NewWithOutput(cfg *Config, output zapcore.WriteSyncer, opts ...zap.Option) 
 	if len(cfg.Hooks) > 0 {
 		core = zapcore.RegisterHooks(core, cfg.Hooks...)
 	}
+
+	// build per logger level rules
+	_, perLoggerLevelFn, err := buildPerLoggerLevelFunc(cfg.PerLoggerLevels)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// wrap the base core with dynamic level
 	opts = append(opts, zap.WrapCore(func(core zapcore.Core) zapcore.Core {
 		return &dynamicLevelCore{
-			Core:  core,
-			level: level.zl,
+			Core:      core,
+			baseLevel: level.zl,
+			levelFunc: perLoggerLevelFn,
 		}
 	}))
 	lg := zap.New(core, opts...)
 	prop := &Properties{
-		functionKey: cfg.FunctionKey,
-		ctxFunc:     cfg.CtxFunc,
-		level:       level,
+		cfg:   cfg.GlobalConfig,
+		level: level,
 	}
 	return lg, prop, nil
+}
+
+type WrapCoreConfig struct {
+	// Level sets the default logging level for the logger.
+	Level Level
+
+	// PerLoggerLevels optionally configures logging level by logger names.
+	// The format is "loggerName.subLogger=level".
+	// If a level is configured for a parent logger, but not configured for
+	// a child logger, the child logger will derive the level from its parent.
+	PerLoggerLevels []string
+
+	// Hooks registers functions which will be called each time the Logger
+	// writes out an Entry. Repeated use of Hooks is additive.
+	//
+	// This offers users an easy way to register simple callbacks (e.g.,
+	// metrics collection) without implementing the full Core interface.
+	//
+	// See zap.Hooks and zapcore.RegisterHooks for details.
+	Hooks []func(zapcore.Entry) error
+
+	// GlobalConfig configures some global behavior of this package.
+	// It works with SetupGlobals and ReplaceGlobals, it has no effect for
+	// non-global individual loggers.
+	GlobalConfig `yaml:",inline"`
 }
 
 // NewWithCore initializes a zap logger with given core and level.
@@ -282,29 +341,36 @@ func NewWithOutput(cfg *Config, output zapcore.WriteSyncer, opts ...zap.Option) 
 //
 // You may use this function to integrate with custom cores (e.g. to
 // integrate with Sentry or Graylog, or output to multiple sinks).
-func NewWithCore(
-	core zapcore.Core,
-	level Level,
-	ctxFunc CtxFunc,
-	hooks []func(zapcore.Entry) error,
-	opts ...zap.Option,
-) (*zap.Logger, *Properties, error) {
+func NewWithCore(cfg *WrapCoreConfig, core zapcore.Core, opts ...zap.Option) (*zap.Logger, *Properties, error) {
+	if cfg == nil {
+		cfg = &WrapCoreConfig{Level: InfoLevel}
+	}
+
 	atomLevel := newAtomicLevel()
-	atomLevel.SetLevel(level)
+	atomLevel.SetLevel(cfg.Level)
+
+	if len(cfg.Hooks) > 0 {
+		core = zapcore.RegisterHooks(core, cfg.Hooks...)
+	}
+
+	_, perLoggerLevelFn, err := buildPerLoggerLevelFunc(cfg.PerLoggerLevels)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// wrap the base core with dynamic level
 	opts = append(opts, zap.WrapCore(func(core zapcore.Core) zapcore.Core {
 		return &dynamicLevelCore{
-			Core:  core,
-			level: atomLevel.zl,
+			Core:      core,
+			baseLevel: atomLevel.zl,
+			levelFunc: perLoggerLevelFn,
 		}
 	}))
-	if len(hooks) > 0 {
-		core = zapcore.RegisterHooks(core, hooks...)
-	}
+
 	lg := zap.New(core, opts...)
 	prop := &Properties{
-		functionKey: "",
-		ctxFunc:     ctxFunc,
-		level:       atomLevel,
+		cfg:   cfg.GlobalConfig,
+		level: atomLevel,
 	}
 	return lg, prop, nil
 }

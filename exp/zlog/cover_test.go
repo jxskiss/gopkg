@@ -13,7 +13,7 @@ func Test_Cover_globalLoggingFunctions(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	defer replaceGlobals(l, p)()
+	defer ReplaceGlobals(l, p)()
 
 	msg := "cover message"
 	Trace(msg)
