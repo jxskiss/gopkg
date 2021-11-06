@@ -39,6 +39,12 @@ type Config struct {
 	// Level sets the minimum enabled logging level.
 	Level string `json:"level" yaml:"level"`
 
+	// PerLoggerLevels optionally configures logging level by logger names.
+	// The format is "loggerName.subLogger=level".
+	// If a level is configured for a parent logger, but not configured for
+	// a child logger, the child logger will derive the level from its parent.
+	PerLoggerLevels []string `json:"perLoggerLevels" yaml:"perLoggerLevels"`
+
 	// Format sets the logger's encoding format.
 	// Valid values are "json", "console", and "logfmt".
 	Format string `json:"format" yaml:"format"`
@@ -260,11 +266,19 @@ func NewWithOutput(cfg *Config, output zapcore.WriteSyncer, opts ...zap.Option) 
 	if len(cfg.Hooks) > 0 {
 		core = zapcore.RegisterHooks(core, cfg.Hooks...)
 	}
+
+	// build per logger level rules
+	_, perLoggerLevelFn, err := buildPerLoggerLevelFunc(cfg.PerLoggerLevels)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// wrap the base core with dynamic level
 	opts = append(opts, zap.WrapCore(func(core zapcore.Core) zapcore.Core {
 		return &dynamicLevelCore{
-			Core:  core,
-			level: level.zl,
+			Core:      core,
+			baseLevel: level.zl,
+			levelFunc: perLoggerLevelFn,
 		}
 	}))
 	lg := zap.New(core, opts...)
@@ -293,8 +307,8 @@ func NewWithCore(
 	atomLevel.SetLevel(level)
 	opts = append(opts, zap.WrapCore(func(core zapcore.Core) zapcore.Core {
 		return &dynamicLevelCore{
-			Core:  core,
-			level: atomLevel.zl,
+			Core:      core,
+			baseLevel: atomLevel.zl,
 		}
 	}))
 	if len(hooks) > 0 {

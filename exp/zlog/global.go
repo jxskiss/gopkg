@@ -220,6 +220,13 @@ func WithMethod(extra ...zap.Field) *zap.Logger {
 	return L().With(fields...)
 }
 
+// Named creates a child logger and adds a new name segment to the logger's
+// name. By default, loggers are unnamed.
+// It also adds the given extra fields to the logger.
+func Named(name string, extra ...zap.Field) *zap.Logger {
+	return L().Named(name).With(extra...)
+}
+
 func getCaller(skip int) (name, file string, line int, ok bool) {
 	pc, file, line, ok := runtime.Caller(skip + 1)
 	if !ok {
