@@ -143,7 +143,10 @@ type CtxResult struct {
 // to attach to the logging entry, or change the logging level dynamically.
 type CtxFunc func(ctx context.Context, args CtxArgs) CtxResult
 
-func (cfg *Config) fillDefaults() {
+func (cfg *Config) fillDefaults() *Config {
+	if cfg == nil {
+		cfg = &Config{}
+	}
 	if cfg.Level == "" {
 		if cfg.Development {
 			cfg.Level = "debug"
@@ -168,6 +171,7 @@ func (cfg *Config) fillDefaults() {
 	if cfg.File.Filename != "" && cfg.File.MaxSize == 0 {
 		cfg.File.MaxSize = defaultLogMaxSize
 	}
+	return cfg
 }
 
 func (cfg *Config) buildEncoder() (zapcore.Encoder, error) {
@@ -237,11 +241,17 @@ func (cfg *Config) buildOptions() ([]zap.Option, error) {
 }
 
 // New initializes a zap logger.
+//
+// If Config.File is configured, the log messages will be written to the
+// specified file with rotation, else they will be written to stderr.
+//
+// The returned zap.Logger supports dynamic level, see Config.PerLoggerLevels
+// and GlobalConfig.CtxFunc for details about dynamic level.
+// The returned zap.Logger and Properties may be passed to ReplaceGlobals
+// to change the global logger and customize some global behavior of this
+// package.
 func New(cfg *Config, opts ...zap.Option) (*zap.Logger, *Properties, error) {
-	if cfg == nil {
-		cfg = &Config{}
-	}
-	cfg.fillDefaults()
+	cfg = cfg.fillDefaults()
 	var output zapcore.WriteSyncer
 	if len(cfg.File.Filename) > 0 {
 		out, err := cfg.buildFileLogger()
@@ -259,12 +269,16 @@ func New(cfg *Config, opts ...zap.Option) (*zap.Logger, *Properties, error) {
 	return NewWithOutput(cfg, output, opts...)
 }
 
-// NewWithOutput initializes a zap logger with given write syncer.
+// NewWithOutput initializes a zap logger with given write syncer as output
+// destination.
+//
+// The returned zap.Logger supports dynamic level, see Config.PerLoggerLevels
+// and GlobalConfig.CtxFunc for details about dynamic level.
+// The returned zap.Logger and Properties may be passed to ReplaceGlobals
+// to change the global logger and customize some global behavior of this
+// package.
 func NewWithOutput(cfg *Config, output zapcore.WriteSyncer, opts ...zap.Option) (*zap.Logger, *Properties, error) {
-	if cfg == nil {
-		cfg = &Config{}
-	}
-	cfg.fillDefaults()
+	cfg = cfg.fillDefaults()
 	encoder, err := cfg.buildEncoder()
 	if err != nil {
 		return nil, nil, err
@@ -335,12 +349,20 @@ type WrapCoreConfig struct {
 	GlobalConfig `yaml:",inline"`
 }
 
-// NewWithCore initializes a zap logger with given core and level.
-// If you want to use the dynamic level feature, the provided core must be
-// configured to logging low level messages.
+// NewWithCore initializes a zap logger with given core.
 //
 // You may use this function to integrate with custom cores (e.g. to
 // integrate with Sentry or Graylog, or output to multiple sinks).
+//
+// The returned zap.Logger supports dynamic level, see
+// WrapCoreConfig.PerLoggerLevels and GlobalConfig.CtxFunc for details
+// about dynamic level. Note that if you want to use the dynamic level
+// feature, the provided core must be configured to log low level messages
+// (e.g. debug).
+//
+// The returned zap.Logger and Properties may be passed to ReplaceGlobals
+// to change the global logger and customize some global behavior of this
+// package.
 func NewWithCore(cfg *WrapCoreConfig, core zapcore.Core, opts ...zap.Option) (*zap.Logger, *Properties, error) {
 	if cfg == nil {
 		cfg = &WrapCoreConfig{Level: InfoLevel}

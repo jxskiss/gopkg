@@ -48,18 +48,16 @@ func (p *Properties) SetLevel(lvl Level) { p.level.SetLevel(lvl) }
 // level and json format, you may use this function to change the default
 // loggers.
 //
-// If redirectStdLog is true, it calls RedirectStdLog to redirect output
-// from the standard library's package-global logger to the global logger
-// configured by this function.
+// See Config and GlobalConfig for available configurations.
 //
 // This function must not be called more than once, else it panics.
 // It should be called only in main function at program startup, library
 // code shall not touch this.
-func SetupGlobals(cfg *Config) {
+func SetupGlobals(cfg *Config, opts ...zap.Option) {
 	first := false
 	setupOnce.Do(func() {
 		first = true
-		ReplaceGlobals(mustNewGlobalLogger(cfg))
+		ReplaceGlobals(mustNewGlobalLogger(cfg, opts...))
 	})
 	if !first {
 		panic("SetupGlobals called more than once")
