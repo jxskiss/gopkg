@@ -42,6 +42,14 @@ import (
 
 const DefaultEnvPrefix = "Confr"
 
+const (
+	ConfrTag        = "confr"
+	CustomTag       = "custom"
+	DefaultValueTag = "default"
+	EnvTag          = "env"
+	FlagTag         = "flag"
+)
+
 // Config provides options to configure the behavior of Loader.
 type Config struct {
 
@@ -211,8 +219,11 @@ func (p *Loader) processDefaults(config interface{}) error {
 		if !fieldVal.CanAddr() || !fieldVal.CanInterface() {
 			continue
 		}
+		if field.Tag.Get(ConfrTag) == "-" {
+			continue
+		}
 
-		defaultValue := field.Tag.Get("default")
+		defaultValue := field.Tag.Get(DefaultValueTag)
 		if defaultValue != "" {
 			if p.Verbose {
 				log.Printf("processing default value for field %s.%s", configTyp.Name(), field.Name)
@@ -265,8 +276,11 @@ func (p *Loader) processFlags(config interface{}) error {
 		if !fieldVal.CanAddr() || !fieldVal.CanInterface() {
 			continue
 		}
+		if field.Tag.Get(ConfrTag) == "-" {
+			continue
+		}
 
-		flagName := field.Tag.Get("flag")
+		flagName := field.Tag.Get(FlagTag)
 		if flagName != "" && flagName != "-" {
 			if p.Verbose {
 				log.Printf("processing flag for field %s.%s", configTyp.Name(), field.Name)
@@ -315,9 +329,12 @@ func (p *Loader) processEnv(config interface{}, prefix string) error {
 		if !fieldVal.CanAddr() || !fieldVal.CanInterface() {
 			continue
 		}
+		if field.Tag.Get(ConfrTag) == "-" {
+			continue
+		}
 
 		var envNames []string
-		envTag := field.Tag.Get("env")
+		envTag := field.Tag.Get(EnvTag)
 		if envTag != "" {
 			envNames = append(envNames, envTag)
 		} else if p.EnableImplicitEnv {
@@ -384,8 +401,11 @@ func (p *Loader) processCustom(config interface{}) error {
 		if !fieldVal.CanAddr() || !fieldVal.CanInterface() {
 			continue
 		}
+		if field.Tag.Get(ConfrTag) == "-" {
+			continue
+		}
 
-		customTag := field.Tag.Get("custom")
+		customTag := field.Tag.Get(CustomTag)
 		if customTag != "" && customTag != "-" {
 			if p.Verbose {
 				log.Printf("processing custom loader for field %s.%s", configTyp.Name(), field.Name)
@@ -445,17 +465,7 @@ func assignFieldValue(dst reflect.Value, value interface{}) error {
 	var val interface{}
 	switch dst.Interface().(type) {
 	case bool:
-		if strval, ok := value.(string); ok {
-			switch strval {
-			case "", "0", "f", "false", "no", "off":
-				value = false
-			case "1", "t", "true", "yes", "on":
-				value = true
-			default:
-				return fmt.Errorf("invalid boolean value: %s", strval)
-			}
-		}
-		val, err = cast.ToBoolE(value)
+		val, err = toBooleanE(value)
 	case int:
 		val, err = cast.ToIntE(value)
 	case []int:
@@ -500,6 +510,20 @@ func assignFieldValue(dst reflect.Value, value interface{}) error {
 		ptrDest.Set(dst.Addr())
 	}
 	return nil
+}
+
+func toBooleanE(v interface{}) (bool, error) {
+	if strval, ok := v.(string); ok {
+		switch strval {
+		case "", "0", "f", "false", "no", "off":
+			return false, nil
+		case "1", "t", "true", "yes", "on":
+			return true, nil
+		default:
+			return false, fmt.Errorf("invalid boolean value: %s", strval)
+		}
+	}
+	return cast.ToBoolE(v)
 }
 
 func toInt64SliceE(v interface{}) ([]int64, error) {
