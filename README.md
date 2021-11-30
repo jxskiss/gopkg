@@ -4,6 +4,12 @@ This repository collects many frequently used small packages, it is designed
 to have reasonable trade-off between generic, performance and API friendliness.
 It helps to make life easier!
 
+## Status
+
+There shall be no further changes to the v1 API.
+
+A new v2 branch is being built, featuring generics avalailable in Go 1.18+.
+
 ## Code layout
 
 Packages under `exp` directory are considered experimental and unreliable,
@@ -21,21 +27,14 @@ reasonable API compatibility and versioning.
 
 1. `bbp` provides efficient byte buffer pools with anti-memory-waste protection.
 
+1. `confr` provides a simple but powerful configuration loader.
+
 1. `easy` contains many handy utilities as a complementary to the standard library,
    it really makes life easier.
 
 1. `encrypt` contains some encryption utilities.
 
 1. `errcode` provides a registry to manage error codes and messages.
-
-1. `exp/confr` provides a simple but powerful configuration loader.
-
-1. `exp/syncx` contains some synchronization primitives as an addition to the standard library,
-   for better performance or alternative APIs.
-
-1. `exp/zlog` provides a common logger interface which is implemented by
-   many logging libraries, and some opinionated logging facilities wrapped around
-   [zap](https://github.com/uber-go/zap).
 
 1. `fastrand` exported a set of pseudo-random generator methods wrapped around the fastrand
    function from the Go runtime. There is a generator per-M (physical thread), thus it doesn't
@@ -87,8 +86,11 @@ reasonable API compatibility and versioning.
 1. `strutil` provides utilities to work with string data as supplement to the standard
    libraries `strings` and `unicode/utf8`.
 
+1. `syncx` contains some synchronization primitives as an addition to the standard library,
+   for better performance or alternative APIs.
+
+1. `zlog` provides a common logger interface which is implemented by
+   many logging libraries, and some opinionated logging facilities wrapped around
+   [zap](https://github.com/uber-go/zap).
+
 See https://pkg.go.dev/github.com/jxskiss/gopkg for detailed online docs.
-
-## TODO
-
-[ ] More tests and documents to ship a stable release.

@@ -2,12 +2,14 @@ package confr
 
 import (
 	"flag"
-	"github.com/jxskiss/gopkg/easy"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"reflect"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/jxskiss/gopkg/easy"
 )
 
 type DBConfig struct {
