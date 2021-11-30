@@ -1,8 +1,8 @@
 package easy
 
 import (
-	"github.com/jxskiss/gopkg/ptr"
-	"github.com/jxskiss/gopkg/reflectx"
+	"github.com/jxskiss/gopkg/v2/ptr"
+	"github.com/jxskiss/gopkg/v2/reflectx"
 	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"

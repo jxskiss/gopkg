@@ -3,7 +3,7 @@ package fastrand
 import (
 	"math/bits"
 
-	"github.com/jxskiss/gopkg/internal/linkname"
+	"github.com/jxskiss/gopkg/v2/internal/linkname"
 )
 
 // PCG64 is an implementation of a 64-bit permuted congruential

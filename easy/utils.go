@@ -1,7 +1,7 @@
 package easy
 
 import (
-	"github.com/jxskiss/gopkg/reflectx"
+	"github.com/jxskiss/gopkg/v2/reflectx"
 	"reflect"
 )
 

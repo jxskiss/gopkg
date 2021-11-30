@@ -1,7 +1,7 @@
 package reflectx
 
 import (
-	"github.com/jxskiss/gopkg/internal/linkname"
+	"github.com/jxskiss/gopkg/v2/internal/linkname"
 	"reflect"
 	"unsafe"
 )

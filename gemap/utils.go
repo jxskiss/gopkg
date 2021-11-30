@@ -2,8 +2,8 @@ package gemap
 
 import (
 	"fmt"
-	"github.com/jxskiss/gopkg/internal"
-	"github.com/jxskiss/gopkg/internal/linkname"
+	"github.com/jxskiss/gopkg/v2/internal"
+	"github.com/jxskiss/gopkg/v2/internal/linkname"
 	"reflect"
 )
 

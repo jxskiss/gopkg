@@ -1,6 +1,6 @@
-module github.com/jxskiss/gopkg
+module github.com/jxskiss/gopkg/v2
 
-go 1.16
+go 1.18
 
 require (
 	github.com/BurntSushi/toml v0.4.1
@@ -13,4 +13,10 @@ require (
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.4.0
+)
+
+require (
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	go.uber.org/multierr v1.6.0 // indirect
+	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )

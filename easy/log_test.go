@@ -12,7 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/jxskiss/gopkg/ptr"
+	"github.com/jxskiss/gopkg/v2/ptr"
 )
 
 type simple struct {

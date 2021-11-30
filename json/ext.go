@@ -1,7 +1,7 @@
 package json
 
 import (
-	"github.com/jxskiss/gopkg/json/extparser"
+	"github.com/jxskiss/gopkg/v2/json/extparser"
 	"io/ioutil"
 	"os"
 )

@@ -47,7 +47,7 @@ reasonable API compatibility and versioning.
 1. `gemap` contains some utilities to manipulate map data structure.
 
 1. `json` provides a drop-in replacement of `encoding/json` and extended features.
-   When compiled with tag `gojson`, it uses the `goccy/go-json` in underlying, which has
+   When compiled with tag `unsafejson`, it uses the `goccy/go-json` in underlying, which has
    much better performance then `encoding/json` and many other third-party libraries.
    Check json/README.md for detailed introduction.
 

@@ -1,4 +1,4 @@
-// +build !gojson,!jsoniter
+// +build !unsafejson
 
 package json
 

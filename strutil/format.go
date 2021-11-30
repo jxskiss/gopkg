@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"unsafe"
 
-	"github.com/jxskiss/gopkg/reflectx"
+	"github.com/jxskiss/gopkg/v2/reflectx"
 )
 
 // Format mimics subset features of the python string.format function.

@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/jxskiss/gopkg/easy"
+	"github.com/jxskiss/gopkg/v2/easy"
 )
 
 type DBConfig struct {

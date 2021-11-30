@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jxskiss/gopkg/internal/unsafeheader"
-	"github.com/jxskiss/gopkg/json"
+	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
+	"github.com/jxskiss/gopkg/v2/json"
 )
 
 var (

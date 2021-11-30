@@ -8,9 +8,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/jxskiss/gopkg/internal"
-	"github.com/jxskiss/gopkg/structtag"
-	"github.com/jxskiss/gopkg/strutil"
+	"github.com/jxskiss/gopkg/v2/internal"
+	"github.com/jxskiss/gopkg/v2/structtag"
+	"github.com/jxskiss/gopkg/v2/strutil"
 )
 
 // InsertOptions holds options to use with batch inserting operation.

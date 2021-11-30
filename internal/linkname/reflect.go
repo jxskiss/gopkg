@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"unsafe"
 
-	"github.com/jxskiss/gopkg/internal/unsafeheader"
+	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
 
 //go:linkname Reflect_typelinks reflect.typelinks

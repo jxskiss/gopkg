@@ -1,6 +1,6 @@
 package easy
 
-import "github.com/jxskiss/gopkg/gemap"
+import "github.com/jxskiss/gopkg/v2/gemap"
 
 type (
 	Map     = gemap.Map

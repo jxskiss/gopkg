@@ -5,7 +5,7 @@
 This package provides a drop-in replacement of `encoding/json`.
 Any incompatible behavior with `encoding/json` is considered a bug.
 
-To get better performance, you can build your application with tag `gojson`
+To get better performance, you can build your application with tag `unsafejson`
 to use [go-json], which is a fully compatible drop-in replacement
 of `encoding/json` but with high performance.
 
@@ -16,18 +16,18 @@ of `encoding/json` but with high performance.
 By default, this package uses `encoding/json` from the standard library.
 It gives the best compatibility but not best performance.
 
-You can build your application with tag `gojson` to switch to `goccy/go-json`,
+You can build your application with tag `unsafejson` to switch to `goccy/go-json`,
 which has much better performance than `encoding/json` and many other
 third-party JSON libraries.
 
 `goccy/go-json` is announced and tested as 100% drop-in replacement of `encoding/json`,
-but if you encounter some incompatible behavior unfortunately, you may remove the `gojson`
+but if you encounter some incompatible behavior unfortunately, you may remove the `unsafejson`
 build tag to quickly switch to `encoding/json`, and please
 [submit an issue](https://github.com/goccy/go-json/issues) to `goccy/go-json`.
 
 For marshalling map data where key ordering does not matter, you may use the shortcut
 function `MarshalMapUnordered`, which disables map key ordering to get even better performance
-(this is only available with `gojson` tag, not the standard library implementation).
+(this is only available with `unsafejson` tag, not the standard library implementation).
 
 ## Extension
 

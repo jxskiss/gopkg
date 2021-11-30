@@ -2,8 +2,8 @@ package forceexport
 
 import (
 	"fmt"
-	"github.com/jxskiss/gopkg/internal/linkname"
-	"github.com/jxskiss/gopkg/reflectx"
+	"github.com/jxskiss/gopkg/v2/internal/linkname"
+	"github.com/jxskiss/gopkg/v2/reflectx"
 	"reflect"
 	"strings"
 )

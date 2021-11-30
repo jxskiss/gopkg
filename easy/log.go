@@ -14,11 +14,11 @@ import (
 	"sync"
 	"unicode/utf8"
 
-	"github.com/jxskiss/gopkg/internal/linkname"
-	"github.com/jxskiss/gopkg/internal/unsafeheader"
-	"github.com/jxskiss/gopkg/json"
-	"github.com/jxskiss/gopkg/reflectx"
-	"github.com/jxskiss/gopkg/strutil"
+	"github.com/jxskiss/gopkg/v2/internal/linkname"
+	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
+	"github.com/jxskiss/gopkg/v2/json"
+	"github.com/jxskiss/gopkg/v2/reflectx"
+	"github.com/jxskiss/gopkg/v2/strutil"
 )
 
 func ConfigLog(cfg LogCfg) {

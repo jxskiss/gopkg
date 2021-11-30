@@ -1,8 +1,8 @@
 package lru
 
 import (
-	"github.com/jxskiss/gopkg/internal"
-	"github.com/jxskiss/gopkg/rthash"
+	"github.com/jxskiss/gopkg/v2/internal"
+	"github.com/jxskiss/gopkg/v2/rthash"
 	"reflect"
 	"time"
 )

@@ -1,7 +1,7 @@
 package forceexport
 
 import (
-	"github.com/jxskiss/gopkg/reflectx"
+	"github.com/jxskiss/gopkg/v2/reflectx"
 	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
@@ -25,10 +25,10 @@ func TestRuntimeModuledata(t *testing.T) {
 }
 
 func TestTypeEquality(t *testing.T) {
-	ifacetype := GetType("github.com/jxskiss/gopkg/forceexport.iface").ToType()
+	ifacetype := GetType("github.com/jxskiss/gopkg/v2/forceexport.iface").ToType()
 	assert.Equal(t, reflect.TypeOf(iface{}), ifacetype)
 
-	structtype := GetType("github.com/jxskiss/gopkg/forceexport.TestStruct").ToType()
+	structtype := GetType("github.com/jxskiss/gopkg/v2/forceexport.TestStruct").ToType()
 	assert.Equal(t, reflect.TypeOf(TestStruct{}), structtype)
 }
 

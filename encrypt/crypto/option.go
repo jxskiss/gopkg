@@ -107,26 +107,3 @@ func decodeBase64(data []byte) ([]byte, error) {
 	}
 	return out[:n], nil
 }
-
-// "golang.org/x/text/encoding/charmap"
-// Be safe with legacy python code by convert arbitrary bytes to utf8.
-
-//func latin1ToUTF8(data []byte) ([]byte, error) {
-//	return charmap.ISO8859_1.NewDecoder().Bytes(data)
-//}
-//
-//func utf8ToLatin1(data []byte) ([]byte, error) {
-//	return charmap.ISO8859_1.NewEncoder().Bytes(data)
-//}
-
-// "github.com/jxskiss/base62"
-// Convert arbitrary bytes to Base62 and vice-versa.
-
-//func encodeBase62(data []byte) ([]byte, error) {
-//	out := base62.Encode(data)
-//	return out, nil
-//}
-//
-//func decodeBase62(data []byte) ([]byte, error) {
-//	return base62.Decode(data)
-//}

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jxskiss/gopkg/monkey"
-	"github.com/jxskiss/gopkg/monkey/testpkg"
+	"github.com/jxskiss/gopkg/v2/monkey"
+	"github.com/jxskiss/gopkg/v2/monkey/testpkg"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -135,7 +135,7 @@ func TestNotCompatible(t *testing.T) {
 }
 
 func TestPatchByTargetName(t *testing.T) {
-	testpkg_a := "github.com/jxskiss/gopkg/monkey/testpkg.a"
+	testpkg_a := "github.com/jxskiss/gopkg/v2/monkey/testpkg.a"
 
 	monkey.UnpatchByName(testpkg_a)
 	assert.Equal(t, "testpkg.a", testpkg.A())

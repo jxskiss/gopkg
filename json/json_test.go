@@ -3,7 +3,7 @@ package json
 import (
 	"bytes"
 	stdjson "encoding/json"
-	"github.com/jxskiss/gopkg/ptr"
+	"github.com/jxskiss/gopkg/v2/ptr"
 	"github.com/stretchr/testify/assert"
 	"math"
 	"net"

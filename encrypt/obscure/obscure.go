@@ -6,8 +6,8 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"github.com/jxskiss/gopkg/fastrand"
-	"github.com/jxskiss/gopkg/internal/unsafeheader"
+	"github.com/jxskiss/gopkg/v2/fastrand"
+	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
 
 const (

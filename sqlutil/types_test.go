@@ -5,8 +5,8 @@ import (
 	"database/sql/driver"
 	"testing"
 
-	"github.com/jxskiss/gopkg/gemap"
-	"github.com/jxskiss/gopkg/serialize"
+	"github.com/jxskiss/gopkg/v2/gemap"
+	"github.com/jxskiss/gopkg/v2/serialize"
 	"github.com/stretchr/testify/assert"
 )
 

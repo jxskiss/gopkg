@@ -5,9 +5,9 @@ import (
 	"database/sql/driver"
 	"fmt"
 
-	"github.com/jxskiss/gopkg/gemap"
-	"github.com/jxskiss/gopkg/internal/unsafeheader"
-	"github.com/jxskiss/gopkg/json"
+	"github.com/jxskiss/gopkg/v2/gemap"
+	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
+	"github.com/jxskiss/gopkg/v2/json"
 )
 
 var emptyObject = []byte("{}")

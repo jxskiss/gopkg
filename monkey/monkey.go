@@ -2,8 +2,8 @@ package monkey
 
 import (
 	"fmt"
-	"github.com/jxskiss/gopkg/forceexport"
-	"github.com/jxskiss/gopkg/internal/linkname"
+	"github.com/jxskiss/gopkg/v2/forceexport"
+	"github.com/jxskiss/gopkg/v2/internal/linkname"
 	"reflect"
 )
 

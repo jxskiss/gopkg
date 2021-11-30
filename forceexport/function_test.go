@@ -29,7 +29,7 @@ func TestAddOne(t *testing.T) {
 
 	var addOneFunc func(x int) int
 	assert.NotPanics(t, func() {
-		GetFunc(&addOneFunc, "github.com/jxskiss/gopkg/forceexport.addOne")
+		GetFunc(&addOneFunc, "github.com/jxskiss/gopkg/v2/forceexport.addOne")
 	})
 	assert.Equal(t, 4, addOneFunc(3))
 }
@@ -37,7 +37,7 @@ func TestAddOne(t *testing.T) {
 func TestGetSelf(t *testing.T) {
 	var getFunc func(interface{}, string)
 	assert.NotPanics(t, func() {
-		GetFunc(&getFunc, "github.com/jxskiss/gopkg/forceexport.GetFunc")
+		GetFunc(&getFunc, "github.com/jxskiss/gopkg/v2/forceexport.GetFunc")
 	})
 
 	_p := func(fn interface{}) string { return fmt.Sprintf("%p", fn) }
@@ -48,7 +48,7 @@ func TestGetSelf(t *testing.T) {
 
 	// Call it again on itself!
 	assert.NotPanics(t, func() {
-		getFunc(&getFunc, "github.com/jxskiss/gopkg/forceexport.GetFunc")
+		getFunc(&getFunc, "github.com/jxskiss/gopkg/v2/forceexport.GetFunc")
 	})
 	assert.Equal(t, _p(getFunc), _p(GetFunc))
 }

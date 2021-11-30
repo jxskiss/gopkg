@@ -4,8 +4,8 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/jxskiss/gopkg/internal"
-	"github.com/jxskiss/gopkg/internal/linkname"
+	"github.com/jxskiss/gopkg/v2/internal"
+	"github.com/jxskiss/gopkg/v2/internal/linkname"
 )
 
 const cacheLineSize = 64

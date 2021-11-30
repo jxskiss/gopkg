@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"unsafe"
 
-	"github.com/jxskiss/gopkg/internal/linkname"
-	"github.com/jxskiss/gopkg/reflectx"
+	"github.com/jxskiss/gopkg/v2/internal/linkname"
+	"github.com/jxskiss/gopkg/v2/reflectx"
 )
 
 // GetFunc gets the function defined by the given fully-qualified name.

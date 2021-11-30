@@ -2,8 +2,8 @@ package json
 
 import (
 	"encoding/json"
-	"github.com/jxskiss/gopkg/bbp"
-	"github.com/jxskiss/gopkg/internal/unsafeheader"
+	"github.com/jxskiss/gopkg/v2/bbp"
+	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 	"io"
 	"os"
 )
