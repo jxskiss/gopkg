@@ -2,11 +2,12 @@ package forceexport
 
 import (
 	"fmt"
-	"github.com/jxskiss/gopkg/internal/linkname"
-	"github.com/jxskiss/gopkg/reflectx"
 	"reflect"
 	"runtime"
 	"unsafe"
+
+	"github.com/jxskiss/gopkg/internal/linkname"
+	"github.com/jxskiss/gopkg/reflectx"
 )
 
 // GetFunc gets the function defined by the given fully-qualified name.
@@ -93,11 +94,6 @@ func (p *moduledata) pclntable() []byte {
 
 func (p *moduledata) ftab() []functab {
 	return *(*[]functab)(unsafe.Pointer(uintptr(p.p) + moduledata_ftabOffset))
-}
-
-type functab struct {
-	entry   uintptr
-	funcoff uintptr
 }
 
 var (

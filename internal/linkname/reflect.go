@@ -1,9 +1,10 @@
 package linkname
 
 import (
-	"github.com/jxskiss/gopkg/internal/unsafeheader"
 	"reflect"
 	"unsafe"
+
+	"github.com/jxskiss/gopkg/internal/unsafeheader"
 )
 
 //go:linkname Reflect_typelinks reflect.typelinks
@@ -160,13 +161,6 @@ func Reflect_typedslicecopy(elemRType unsafe.Pointer, dst, src unsafeheader.Slic
 //go:noescape
 //go:linkname Reflect_maplen reflect.maplen
 func Reflect_maplen(m unsafe.Pointer) int
-
-// Reflect_mapiterinit .
-// m escapes into the return value, but the caller of Reflect_mapiterinit
-// doesn't let the return value escape.
-//go:noescape
-//go:linkname Reflect_mapiterinit reflect.mapiterinit
-func Reflect_mapiterinit(rtype unsafe.Pointer, m unsafe.Pointer) unsafe.Pointer
 
 //go:noescape
 //go:linkname Reflect_mapiterkey reflect.mapiterkey
