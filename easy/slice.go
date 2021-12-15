@@ -891,7 +891,7 @@ func JoinInt64s(slice []int64, sep string) string {
 		buf = append(buf, sep...)
 		buf = strconv.AppendInt(buf, x, 10)
 	}
-	return unsafeheader.BtoS(buf)
+	return unsafeheader.BytesToString(buf)
 }
 
 // IJ represents a slice index of I, J.

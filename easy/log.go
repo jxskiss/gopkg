@@ -100,7 +100,7 @@ func JSON(v interface{}) string {
 		return fmt.Sprintf("<error: %v>", err)
 	}
 	b = bytes.TrimSpace(b)
-	return unsafeheader.BtoS(b)
+	return unsafeheader.BytesToString(b)
 }
 
 // Logfmt converts given object to a string in logfmt format, it never
@@ -115,7 +115,7 @@ func Logfmt(v interface{}) string {
 	case []byte:
 		src = v
 	case string:
-		src = unsafeheader.StoB(v)
+		src = unsafeheader.StringToBytes(v)
 	}
 	if src != nil && utf8.Valid(src) {
 		srcstr := string(src)
@@ -247,30 +247,40 @@ func needsQuoteValueRune(r rune) bool {
 // If the input is a json string, it will be formatted using json.Indent
 // with four space characters as indent.
 func Pretty(v interface{}) string {
+	return prettyIndent(v, "    ")
+}
+
+// Pretty2 is like Pretty, but it uses two space characters as indent,
+// instead of four.
+func Pretty2(v interface{}) string {
+	return prettyIndent(v, "  ")
+}
+
+func prettyIndent(v interface{}, indent string) string {
 	var src []byte
 	switch v := v.(type) {
 	case []byte:
 		src = v
 	case string:
-		src = unsafeheader.StoB(v)
+		src = unsafeheader.StringToBytes(v)
 	}
 	if src != nil {
 		if json.Valid(src) {
 			buf := bytes.NewBuffer(nil)
-			_ = json.Indent(buf, src, "", "    ")
-			return unsafeheader.BtoS(buf.Bytes())
+			_ = json.Indent(buf, src, "", indent)
+			return unsafeheader.BytesToString(buf.Bytes())
 		}
 		if utf8.Valid(src) {
 			return string(src)
 		}
 		return "<pretty: non-printable bytes>"
 	}
-	buf, err := json.MarshalNoHTMLEscape(v, "", "    ")
+	buf, err := json.MarshalNoHTMLEscape(v, "", indent)
 	if err != nil {
 		return fmt.Sprintf("<error: %v>", err)
 	}
 	buf = bytes.TrimSpace(buf)
-	return unsafeheader.BtoS(buf)
+	return unsafeheader.BytesToString(buf)
 }
 
 // Caller returns function name, filename, and the line number of the caller.

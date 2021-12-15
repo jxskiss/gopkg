@@ -2,10 +2,11 @@ package json
 
 import (
 	"encoding/json"
-	"github.com/jxskiss/gopkg/bbp"
-	"github.com/jxskiss/gopkg/internal/unsafeheader"
 	"io"
 	"os"
+
+	"github.com/jxskiss/gopkg/bbp"
+	"github.com/jxskiss/gopkg/internal/unsafeheader"
 )
 
 // Marshaler is an alias name of encoding/json.Marshaler.
@@ -79,7 +80,7 @@ func MarshalToString(v interface{}) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return unsafeheader.BtoS(buf), nil
+	return unsafeheader.BytesToString(buf), nil
 }
 
 // MarshalIndent is like Marshal but applies Indent to format the output.
@@ -128,7 +129,7 @@ func Unmarshal(data []byte, v interface{}) error {
 //
 // See encoding/json.Unmarshal for detailed document.
 func UnmarshalFromString(data string, v interface{}) error {
-	buf := unsafeheader.StoB(data)
+	buf := unsafeheader.StringToBytes(data)
 	return _Unmarshal(buf, v)
 }
 

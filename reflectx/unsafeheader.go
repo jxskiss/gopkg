@@ -2,9 +2,10 @@ package reflectx
 
 import (
 	"fmt"
-	"github.com/jxskiss/gopkg/internal/unsafeheader"
 	"reflect"
 	"unsafe"
+
+	"github.com/jxskiss/gopkg/internal/unsafeheader"
 )
 
 // StringHeader is the runtime representation of a string.
@@ -26,20 +27,20 @@ type EmptyInterface struct {
 	Word  unsafe.Pointer // data pointer
 }
 
-// StoB converts a string to []byte without copying memory.
+// StringToBytes converts a string to []byte without copying memory.
 //
 // It uses unsafe tricks, it may panic your program or result
 // unpredictable behavior.
-func StoB(s string) []byte {
-	return unsafeheader.StoB(s)
+func StringToBytes(s string) []byte {
+	return unsafeheader.StringToBytes(s)
 }
 
-// BtoS converts a []byte to string without copying memory.
+// BytesToString converts a []byte to string without copying memory.
 //
 // It uses unsafe tricks, it may panic your program or result
 // unpredictable behavior.
-func BtoS(b []byte) string {
-	return unsafeheader.BtoS(b)
+func BytesToString(b []byte) string {
+	return unsafeheader.BytesToString(b)
 }
 
 // EfaceOf casts the empty interface{} pointer to an EmptyInterface pointer.

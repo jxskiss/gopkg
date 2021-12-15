@@ -109,7 +109,7 @@ func (p *Obscure) EncodeToString(src []byte) string {
 		return ""
 	}
 	dst := p.EncodeToBytes(src)
-	return unsafeheader.BtoS(dst)
+	return unsafeheader.BytesToString(dst)
 }
 
 func (p *Obscure) DecodedLen(n int) int {
@@ -148,6 +148,6 @@ func (p *Obscure) DecodeBytes(src []byte) ([]byte, error) {
 }
 
 func (p *Obscure) DecodeString(src string) ([]byte, error) {
-	buf := unsafeheader.StoB(src)
+	buf := unsafeheader.StringToBytes(src)
 	return p.DecodeBytes(buf)
 }

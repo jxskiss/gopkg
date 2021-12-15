@@ -274,7 +274,7 @@ func (p *Request) prepareRequest(method string) (err error) {
 		case []byte:
 			bodyBuf = data
 		case string:
-			bodyBuf = unsafeheader.StoB(data)
+			bodyBuf = unsafeheader.StringToBytes(data)
 		default:
 			err = fmt.Errorf("unsupported body data type: %T", data)
 			return err
@@ -375,7 +375,7 @@ func marshalForm(v interface{}) ([]byte, error) {
 		return nil, err
 	}
 	encoded := form.Encode()
-	buf := unsafeheader.StoB(encoded)
+	buf := unsafeheader.StringToBytes(encoded)
 	return buf, nil
 }
 
