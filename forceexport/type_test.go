@@ -1,15 +1,31 @@
 package forceexport
 
 import (
-	"github.com/jxskiss/gopkg/reflectx"
-	"github.com/stretchr/testify/assert"
 	"reflect"
+	"strings"
 	"testing"
 	"unsafe"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/jxskiss/gopkg/reflectx"
 )
 
 type TestStruct struct {
 	// pass
+}
+
+func TestScanType(t *testing.T) {
+	got := make([]string, 0)
+	ScanType(func(name string, typ *reflectx.RType) {
+		if strings.HasPrefix(name, "github.com/jxskiss/gopkg") {
+			got = append(got, name)
+		}
+	})
+	assert.Contains(t, got, "github.com/jxskiss/gopkg/forceexport.iface")
+	assert.Contains(t, got, "github.com/jxskiss/gopkg/forceexport.moduledata")
+	assert.Contains(t, got, "github.com/jxskiss/gopkg/forceexport.TestStruct")
+	assert.Contains(t, got, "github.com/jxskiss/gopkg/reflectx.RType")
 }
 
 func TestRuntimeModuledata(t *testing.T) {

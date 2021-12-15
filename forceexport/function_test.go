@@ -2,8 +2,9 @@ package forceexport
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTimeNow(t *testing.T) {
