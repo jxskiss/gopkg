@@ -30,6 +30,9 @@ type Logger interface {
 
 // StdLogger is a default implementation of Logger which sends log messages
 // to the standard library.
+//
+// It follows the global logging level of this package, the level can be
+// changed by calling SetLevel.
 var StdLogger Logger = stdLogger{}
 
 type stdLogger struct{}

@@ -36,8 +36,9 @@ type FileLogConfig struct {
 
 // GlobalConfig configures some global behavior of this package.
 type GlobalConfig struct {
-	// RedirectStdLog redirects output from the standard library's
-	// package-global logger to the global logger in this package.
+	// RedirectStdLog redirects output from the standard log library's
+	// package-global logger to the global logger in this package at
+	// InfoLevel.
 	RedirectStdLog bool `json:"redirectStdLog" yaml:"redirectStdLog"`
 
 	// DisableTrace disables trace level messages.
@@ -149,7 +150,7 @@ func (cfg *Config) fillDefaults() *Config {
 	}
 	if cfg.Level == "" {
 		if cfg.Development {
-			cfg.Level = "debug"
+			cfg.Level = "trace"
 		} else {
 			cfg.Level = "info"
 		}
