@@ -217,6 +217,7 @@ func parseFlag(cliTag, defaultValue string, rv reflect.Value) *_flag {
 	)
 	parts := strings.SplitN(cliTag, ",", 4)
 	st := modifier
+LOOP:
 	for i := 0; i < len(parts); i++ {
 		p := strings.TrimSpace(parts[i])
 		switch st {
@@ -267,7 +268,7 @@ func parseFlag(cliTag, defaultValue string, rv reflect.Value) *_flag {
 		case description:
 			p = strings.TrimSpace(strings.Join(parts[i:], ","))
 			f.description = p
-			return f
+			break LOOP
 		}
 	}
 	if f.short == f.name {
