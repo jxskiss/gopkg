@@ -19,9 +19,25 @@ type Command struct {
 	Hidden      bool
 
 	f func()
+
+	level int
+}
+
+func normalizeCmdName(name string) string {
+	name = strings.TrimSpace(name)
+	return strings.Join(strings.Fields(name), " ")
 }
 
 type commands []*Command
+
+func (p *commands) add(cmd *Command) {
+	cmd.Name = normalizeCmdName(cmd.Name)
+	if cmd.Name == "" {
+		panic("command name must not be empty")
+	}
+	cmd.level = len(strings.Fields(cmd.Name))
+	*p = append(*p, cmd)
+}
 
 func (p commands) sort() {
 	sort.Slice(p, func(i, j int) bool {
@@ -29,8 +45,8 @@ func (p commands) sort() {
 	})
 }
 
-func (p commands) search(cmdArgs []string) (cmd *Command, pars *parsing) {
-	pars = &parsing{}
+func (p commands) search(cmdArgs []string) (ctx *parsingContext) {
+	ctx = &parsingContext{}
 	flagIdx := len(cmdArgs)
 	for i, x := range cmdArgs {
 		if strings.HasPrefix(x, "-") {
@@ -38,13 +54,10 @@ func (p commands) search(cmdArgs []string) (cmd *Command, pars *parsing) {
 			break
 		}
 	}
-	hasFlags := flagIdx != len(cmdArgs)
-	if p[0].Name == "" {
-		cmd = p[0]
-	}
-	cmdIdx := 0
 	tryName := ""
+	ambiguousIdx := -1
 	args := cmdArgs[:]
+	var cmd *Command
 	for i := 0; i < len(cmdArgs); i++ {
 		arg := cmdArgs[i]
 		if strings.HasPrefix(arg, "-") {
@@ -58,38 +71,62 @@ func (p commands) search(cmdArgs []string) (cmd *Command, pars *parsing) {
 		idx := sort.Search(len(p), func(i int) bool {
 			return p[i].Name >= tryName
 		})
-		if idx < len(p) && p[idx].Name == tryName {
+		if idx < len(p) && strings.HasPrefix(p[idx].Name, tryName) {
+			ambiguousIdx = i + 1
 			cmd = p[idx]
-			pars.name = tryName
-			cmdIdx = i
+			ctx.name = tryName
 			continue
 		}
-		args = cmdArgs[i:]
-		if hasFlags {
-			invalidCmdName := strings.Join(cmdArgs[:flagIdx], " ")
-			cmd = nil
-			pars.name = invalidCmdName
-			pars.args = &args
-			return
+		if ambiguousIdx == -1 {
+			ambiguousIdx = i
 		}
+		args = cmdArgs[flagIdx:]
 	}
-	pars.args = &args
-	argIdx := cmdIdx + 1
-	if argIdx >= flagIdx {
-		argIdx = flagIdx
+	ctx.cmd = cmd
+	ctx.args = &args
+	if ambiguousIdx >= 0 {
+		ctx.ambiguousArgs = clip(cmdArgs[ambiguousIdx:flagIdx])
 	}
-	pars.maybeArguments = cmdArgs[argIdx:flagIdx]
-	pars.fs = flag.NewFlagSet("", flag.ExitOnError)
 	return
 }
 
-func (p commands) listSubCommands(name string, filterHidden bool) (sub commands) {
+func (p commands) listSubCommandsToPrint(name string) (sub commands) {
+	sub = p._listSubCommandsToPrint(name, false)
+	if len(sub) > 10 {
+		sub = p._listSubCommandsToPrint(name, true)
+	}
+	return sub
+}
+
+func (p commands) _listSubCommandsToPrint(name string, onlyNextLevel bool) (sub commands) {
+	name = normalizeCmdName(name)
+	wantLevel := len(strings.Fields(name)) + 1
+	var preCmd = &Command{}
 	for _, cmd := range p {
 		if cmd.Name != name && strings.HasPrefix(cmd.Name, name) {
-			if cmd.Hidden && filterHidden {
+			// Don't print hidden commands.
+			if cmd.Hidden {
 				continue
 			}
+			if onlyNextLevel {
+				if cmd.level < wantLevel {
+					continue
+				}
+				if cmd.level > wantLevel {
+					_names := strings.Fields(cmd.Name)
+					parentCmdName := strings.Join(_names[:wantLevel], " ")
+					if parentCmdName == preCmd.Name {
+						continue
+					}
+					cmd = &Command{
+						Name:        parentCmdName,
+						Description: "(Use -h to see available sub commands)",
+					}
+				}
+				// else cmd.Level == wantLevel
+			}
 			sub = append(sub, cmd)
+			preCmd = cmd
 		}
 	}
 	return
@@ -97,22 +134,246 @@ func (p commands) listSubCommands(name string, filterHidden bool) (sub commands)
 
 var state struct {
 	cmds commands
-	*parsing
+	*parsingContext
 }
 
-type parsing struct {
+type parsingContext struct {
 	name string
 	args *[]string
 
-	maybeArguments []string
+	ambiguousArgs []string
 
+	cmd      *Command
 	fs       *flag.FlagSet
+	flags    []*_flag
 	nonflags []*_flag
+}
+
+func getParsingContext() *parsingContext {
+	if state.parsingContext != nil {
+		return state.parsingContext
+	}
+	return &parsingContext{}
+}
+
+func (ctx *parsingContext) getFlagSet() *flag.FlagSet {
+	if ctx.fs == nil {
+		ctx.fs = flag.NewFlagSet("", flag.ExitOnError)
+		ctx.fs.Usage = ctx.printUsage
+	}
+	return ctx.fs
+}
+
+func (ctx *parsingContext) parseTags(rv reflect.Value) (err error) {
+	fs := ctx.getFlagSet()
+	flags, nonflags, unsupportedType := parseTags(fs, rv)
+	if unsupportedType != nil {
+		ctx.failf(&err, "unsupported flag value type: %v", unsupportedType)
+		return
+	}
+	ctx.flags = flags
+	ctx.nonflags = nonflags
+	return
+}
+
+func (ctx *parsingContext) parseNonflags() (err error) {
+	ambiguousArgs := ctx.ambiguousArgs
+	afterFlagArgs := ctx.getFlagSet().Args()
+	nonflags := ctx.nonflags
+	i, j := 0, 0
+	for i < len(nonflags) && j < len(ambiguousArgs) {
+		f := nonflags[i]
+		if f.rv.Kind() != reflect.Slice {
+			i++
+		}
+		j++
+	}
+	if j < len(ambiguousArgs) {
+		ctx.failf(&err, "cannot resolve ambiguous arguments: %q", ambiguousArgs)
+		return
+	}
+	i, j = 0, 0
+	allArgs := append(ambiguousArgs, afterFlagArgs...)
+	for i < len(nonflags) && j < len(allArgs) {
+		f := nonflags[i]
+		arg := allArgs[j]
+		e := f.Set(arg)
+		if e != nil {
+			ctx.failf(&err, "invalid value %q for argument %s: %v", arg, f.name, e)
+			return
+		}
+		if f.rv.Kind() != reflect.Slice {
+			i++
+		}
+		j++
+	}
+	return
+}
+
+func (ctx *parsingContext) tidyFlags() {
+	fs := ctx.getFlagSet()
+	flags := ctx.flags
+	nonflags := ctx.nonflags
+	m := make(map[string]*_flag)
+	for _, f := range flags {
+		m[f.name] = f
+		if f.short != "" {
+			m[f.short] = f
+		}
+		if f.isSlice() && f.hasDefault && f.isZero() {
+			for _, val := range splitSliceValues(f.defValue) {
+				applyValue(f.rv, val)
+			}
+		}
+	}
+	for _, f := range nonflags {
+		if f.isSlice() && f.hasDefault && f.isZero() {
+			for _, val := range splitSliceValues(f.defValue) {
+				applyValue(f.rv, val)
+			}
+		}
+	}
+
+	// This is awkward, but we can not simply call flag.Value's Set
+	// method, the Set operation may be not idempotent.
+	// Thus, we unsafely modify FlagSet's unexported internal data,
+	// this may break in a future Go release.
+
+	actual := _flagSet_getActual(fs)
+	formal := _flagSet_getFormal(fs)
+	fs.Visit(func(ff *flag.Flag) {
+		f := m[ff.Name]
+		if f.name != ff.Name {
+			formal[f.name].Value = ff.Value
+			actual[f.name] = formal[f.name]
+		}
+		if f.short != "" && f.short != ff.Name {
+			formal[f.short].Value = ff.Value
+			actual[f.short] = formal[f.short]
+		}
+	})
+}
+
+func (ctx *parsingContext) checkRequired() (err error) {
+	flags := ctx.flags
+	nonflags := ctx.nonflags
+	for _, f := range flags {
+		if f.required && f.isZero() {
+			ctx.failf(&err, "required flag not set: %v", f.name)
+			return
+		}
+	}
+	for _, f := range nonflags {
+		if f.required && f.isZero() {
+			ctx.failf(&err, "required argument not given: %v", f.name)
+			return
+		}
+	}
+	return
+}
+
+func (ctx *parsingContext) failf(errp *error, format string, a ...interface{}) {
+	fs := ctx.getFlagSet()
+	msg := fmt.Sprintf(format, a...)
+	fmt.Fprintln(fs.Output(), msg)
+	fs.Usage()
+	switch fs.ErrorHandling() {
+	case flag.ExitOnError:
+		os.Exit(2)
+	case flag.ContinueOnError:
+		if *errp == nil {
+			*errp = errors.New(msg)
+		}
+	case flag.PanicOnError:
+		panic(msg)
+	}
+}
+
+func (ctx *parsingContext) printUsage() {
+	cmds := state.cmds
+	fs := ctx.getFlagSet()
+	cmd := ctx.cmd
+	cmdName := ctx.name
+	flags := ctx.flags
+	nonflags := ctx.nonflags
+
+	flagCount := 0
+	hasShortFlag := false
+	for _, f := range flags {
+		if !f.hidden {
+			flagCount++
+			hasShortFlag = hasShortFlag || f.short != ""
+		}
+	}
+	subCmds := cmds.listSubCommandsToPrint(cmdName)
+
+	out := fs.Output()
+	progName := path.Base(os.Args[0])
+	hasFlags, hasNonflags := flagCount > 0, len(nonflags) > 0
+	hasSubCmds := len(subCmds) > 0
+	usage := ""
+	if cmd != nil && cmd.Description != "" {
+		usage += "\n" + cmd.Description + "\n"
+	}
+	usage += "\nUSAGE:\n  " + progName
+	if cmdName != "" {
+		usage += " " + cmdName
+	}
+	if hasFlags {
+		usage += " [flags]"
+	}
+	if hasNonflags {
+		for _, f := range nonflags {
+			name := f.name
+			if f.isSlice() {
+				name += "..."
+			}
+			if f.required {
+				usage += fmt.Sprintf(" <%s>", name)
+			} else {
+				usage += fmt.Sprintf(" [%s]", name)
+			}
+		}
+	}
+	if !hasFlags && !hasNonflags && hasSubCmds {
+		usage += " <command> ..."
+	}
+	fmt.Fprint(out, usage, "\n\n")
+
+	if flagCount > 0 {
+		var flagLines [][2]string
+		for _, f := range flags {
+			if f.hidden {
+				continue
+			}
+			prefix, usage := f.getUsage(hasShortFlag)
+			flagLines = append(flagLines, [2]string{prefix, usage})
+		}
+		fmt.Fprint(out, "FLAGS:\n")
+		printWithPadding(out, flagLines)
+		fmt.Fprint(out, "\n")
+	}
+
+	if len(nonflags) > 0 {
+		var nonflagLines [][2]string
+		for _, f := range nonflags {
+			prefix, usage := f.getUsage(false)
+			nonflagLines = append(nonflagLines, [2]string{prefix, usage})
+		}
+		fmt.Fprint(out, "ARGUMENTS:\n")
+		printWithPadding(out, nonflagLines)
+		fmt.Fprint(out, "\n")
+	}
+
+	if hasSubCmds {
+		printAvailableCommands(out, cmdName, cmds)
+		fmt.Fprint(out, "\n")
+	}
 }
 
 // Add adds a command to internal state.
 func Add(name string, f func(), description string) {
-	state.cmds = append(state.cmds, &Command{
+	state.cmds.add(&Command{
 		Name:        name,
 		Description: description,
 		f:           f,
@@ -122,7 +383,7 @@ func Add(name string, f func(), description string) {
 // AddHidden adds a command to internal state.
 // A hidden command won't be showed in usage doc.
 func AddHidden(name string, f func(), description string) {
-	state.cmds = append(state.cmds, &Command{
+	state.cmds.add(&Command{
 		Name:        name,
 		Description: description,
 		Hidden:      true,
@@ -133,7 +394,7 @@ func AddHidden(name string, f func(), description string) {
 // AddGroup adds a group to internal state.
 // A group is a common prefix for some commands.
 func AddGroup(name string, description string) {
-	state.cmds = append(state.cmds, &Command{
+	state.cmds.add(&Command{
 		Name:        name,
 		Description: description,
 		f:           groupCmd,
@@ -150,24 +411,39 @@ var groupCmd = func() {
 // for a registered command, it runs the command if a command is found,
 // else it will report an error and exit the program.
 func Run() {
-	cmds := state.cmds
-	sort.Slice(cmds, func(i, j int) bool {
-		return cmds[i].Name < cmds[j].Name
-	})
-	cmd, pars := cmds.search(os.Args[1:])
-	if cmd == nil {
-		if pars.name != "" {
-			fmt.Fprintf(os.Stderr, "command not found: %s\n", pars.name)
+	ctx, notFoundCmdName, ok := _search(os.Args[1:])
+	if !ok {
+		if notFoundCmdName != "" {
+			fmt.Fprintf(os.Stderr, "command not found: %s\n", notFoundCmdName)
 		}
-		printUsage(cmds, pars)()
+		ctx.printUsage()
 		return
 	}
-	state.parsing = pars
-	cmd.f()
+	ctx.cmd.f()
+}
+
+// _search helps to do testing.
+func _search(osArgs []string) (ctx *parsingContext, notFoundCmdName string, ok bool) {
+	cmds := state.cmds
+	cmds.sort()
+	ctx = cmds.search(osArgs)
+	if ctx.cmd == nil || ctx.cmd.Name != ctx.name {
+		notFoundCmdName = ctx.name
+		if notFoundCmdName != "" && len(ctx.ambiguousArgs) > 0 {
+			notFoundCmdName += " "
+		}
+		notFoundCmdName += strings.Join(ctx.ambiguousArgs, " ")
+		if ctx.cmd != nil && strings.HasPrefix(ctx.cmd.Name, notFoundCmdName) {
+			notFoundCmdName = ""
+		}
+		return ctx, notFoundCmdName, false
+	}
+	state.parsingContext = ctx
+	return ctx, "", true
 }
 
 func printAvailableCommands(out io.Writer, name string, cmds commands) {
-	if sub := cmds.listSubCommands(name, true); len(sub) > 0 {
+	if sub := cmds.listSubCommandsToPrint(name); len(sub) > 0 {
 		cmds = sub
 	}
 	if len(cmds) == 0 {
@@ -204,6 +480,10 @@ func printAvailableCommands(out io.Writer, name string, cmds commands) {
 // Parse parses the command line for flags and arguments.
 // v should be a pointer to a struct, else it panics.
 func Parse(v interface{}, opts ...ParseOpt) (fs *flag.FlagSet, err error) {
+	if v == nil {
+		var empty struct{}
+		v = &empty
+	}
 	options := &parseOptions{
 		errorHandling: flag.ExitOnError,
 	}
@@ -211,38 +491,19 @@ func Parse(v interface{}, opts ...ParseOpt) (fs *flag.FlagSet, err error) {
 		o(options)
 	}
 
-	cmds := state.cmds
-	pars := state.parsing
-	if pars == nil {
-		pars = &parsing{}
+	ctx := getParsingContext()
+	fs = ctx.getFlagSet()
+	fs.Init("", options.errorHandling)
+	if err = ctx.parseTags(reflect.ValueOf(v).Elem()); err != nil {
+		return fs, err
 	}
-
-	fs = flag.NewFlagSet("", options.errorHandling)
-	nonflags := parseTags(fs, reflect.ValueOf(v).Elem())
-
-	cmdName := options.cmdName
-	if cmdName == "" {
-		cmdName = pars.name
-	}
-	fs.Usage = printUsage(cmds, pars)
-	pars.fs = fs
-	pars.nonflags = nonflags
-
-	if len(pars.maybeArguments) > 0 {
-		if len(pars.nonflags) == 0 {
-			invalidCmdName := cmdName
-			if invalidCmdName != "" {
-				invalidCmdName += " "
-			}
-			invalidCmdName += strings.Join(pars.maybeArguments, " ")
-			failf(fs, &err, "command not found: %s", invalidCmdName)
-			return
-		}
+	if options.cmdName != "" {
+		ctx.name = options.cmdName
 	}
 
 	osArgs := os.Args[1:]
-	if pars.args != nil {
-		osArgs = *pars.args
+	if ctx.args != nil {
+		osArgs = *ctx.args
 	}
 	if options.args != nil {
 		osArgs = *options.args
@@ -251,67 +512,14 @@ func Parse(v interface{}, opts ...ParseOpt) (fs *flag.FlagSet, err error) {
 	if err = fs.Parse(osArgs); err != nil {
 		return fs, err
 	}
-	if err = parseNonflags(fs, pars.nonflags, fs.Args()); err != nil {
+	if err = ctx.parseNonflags(); err != nil {
 		return fs, err
 	}
-	if err = checkRequired(fs, pars.nonflags); err != nil {
+	if err = ctx.checkRequired(); err != nil {
 		return fs, err
 	}
+	ctx.tidyFlags()
 	return fs, err
-}
-
-func parseNonflags(fs *flag.FlagSet, nonflags []*_flag, args []string) (err error) {
-	i, j := 0, 0
-	for i < len(nonflags) && j < len(args) {
-		f := nonflags[i]
-		value := args[j]
-		e := f.Set(value)
-		if e != nil {
-			failf(fs, &err, "invalid value %q for argument %s: %v", value, f.name, e)
-			break
-		}
-		if f.rv.Kind() != reflect.Slice {
-			i++
-		}
-		j++
-	}
-	return
-}
-
-func checkRequired(fs *flag.FlagSet, nonflags []*_flag) (err error) {
-	fs.VisitAll(func(ff *flag.Flag) {
-		if err == nil {
-			f := ff.Value.(*_flag)
-			if f.required && reflect.Indirect(f.rv).IsZero() {
-				failf(fs, &err, "required flag not set: %v", f.name)
-			}
-		}
-	})
-	if err == nil {
-		for _, f := range nonflags {
-			if f.required && reflect.Indirect(f.rv).IsZero() {
-				failf(fs, &err, "required argument not set: %v", f.name)
-				break
-			}
-		}
-	}
-	return
-}
-
-func failf(fs *flag.FlagSet, errp *error, format string, a ...interface{}) {
-	msg := fmt.Sprintf(format, a...)
-	fmt.Fprintln(fs.Output(), msg)
-	fs.Usage()
-	switch fs.ErrorHandling() {
-	case flag.ExitOnError:
-		os.Exit(2)
-	case flag.ContinueOnError:
-		if *errp == nil {
-			*errp = errors.New(msg)
-		}
-	case flag.PanicOnError:
-		panic(msg)
-	}
 }
 
 type parseOptions struct {
@@ -346,123 +554,8 @@ func WithName(name string) ParseOpt {
 	}
 }
 
-func parseTags(fs *flag.FlagSet, rv reflect.Value) (nonflags []*_flag) {
-	rt := rv.Type()
-	for i := 0; i < rt.NumField(); i++ {
-		fv := rv.Field(i)
-		ft := rt.Field(i)
-		cliTag := ft.Tag.Get("cli")
-		defaultValue := ft.Tag.Get("default")
-		if isIgnoreTag(cliTag) {
-			continue
-		}
-		if fv.Kind() == reflect.Struct {
-			parseTags(fs, fv)
-			continue
-		}
-		if cliTag == "" {
-			continue
-		}
-		f := parseFlag(cliTag, defaultValue, fv)
-		if f == nil || f.name == "" {
-			continue
-		}
-		if f.nonflag {
-			nonflags = append(nonflags, f)
-			continue
-		}
-		fs.Var(f, f.name, f.description)
-		if f.short != "" {
-			fs.Var(f, f.short, f.description)
-		}
-	}
-	return
-}
-
-func printUsage(cmds commands, p *parsing) func() {
-	return func() {
-		fs := p.fs
-		cmdName := p.name
-		nonflags := p.nonflags
-
-		flagCount := 0
-		hasShortFlag := false
-		fs.VisitAll(func(ff *flag.Flag) {
-			f := ff.Value.(*_flag)
-			if !f.hidden {
-				flagCount++
-				hasShortFlag = hasShortFlag || f.short != ""
-			}
-		})
-		subCmds := cmds.listSubCommands(cmdName, true)
-
-		out := fs.Output()
-		progName := path.Base(os.Args[0])
-		hasFlags, hasNonflags := flagCount > 0, len(nonflags) > 0
-		hasSubCmds := len(subCmds) > 0
-		usage := "USAGE:\n  " + progName
-		if cmdName != "" {
-			usage += " " + cmdName
-		}
-		if hasFlags {
-			usage += " [flags]"
-		}
-		if hasNonflags {
-			for _, f := range nonflags {
-				name := f.name
-				if f.isSlice() {
-					name += "..."
-				}
-				if f.required {
-					usage += fmt.Sprintf(" <%s>", name)
-				} else {
-					usage += fmt.Sprintf(" [%s]", name)
-				}
-			}
-		}
-		if !hasFlags && !hasNonflags && hasSubCmds {
-			usage += " <command> ..."
-		}
-		fmt.Fprint(out, usage, "\n\n")
-
-		if flagCount > 0 {
-			var flagLines [][2]string
-			fs.VisitAll(func(ff *flag.Flag) {
-				f := ff.Value.(*_flag)
-				if f.hidden {
-					return
-				}
-				if f.name != ff.Name {
-					return
-				}
-				prefix, usage := f.getUsage(hasShortFlag)
-				flagLines = append(flagLines, [2]string{prefix, usage})
-			})
-			fmt.Fprint(out, "FLAGS:\n")
-			printWithPadding(out, flagLines)
-			fmt.Fprint(out, "\n")
-		}
-
-		if len(nonflags) > 0 {
-			var nonflagLines [][2]string
-			for _, f := range nonflags {
-				prefix, usage := f.getUsage(false)
-				nonflagLines = append(nonflagLines, [2]string{prefix, usage})
-			}
-			fmt.Fprint(out, "ARGUMENTS:\n")
-			printWithPadding(out, nonflagLines)
-			fmt.Fprint(out, "\n")
-		}
-
-		if hasSubCmds {
-			printAvailableCommands(out, cmdName, cmds)
-			fmt.Fprint(out, "\n")
-		}
-	}
-}
-
 func printWithPadding(out io.Writer, lines [][2]string) {
-	const _N = 30
+	const _N = 36
 	maxPrefixLen := 0
 	for _, line := range lines {
 		if n := len(line[0]); n > maxPrefixLen && n <= _N {
@@ -487,10 +580,10 @@ func printWithPadding(out io.Writer, lines [][2]string) {
 
 // PrintHelp prints usage doc of the current command to stderr.
 func PrintHelp() {
-	cmds := state.cmds
-	pars := state.parsing
-	if pars == nil {
-		pars = &parsing{fs: &flag.FlagSet{}}
-	}
-	printUsage(cmds, pars)()
+	ctx := getParsingContext()
+	ctx.printUsage()
+}
+
+func clip(s []string) []string {
+	return s[:len(s):len(s)]
 }
