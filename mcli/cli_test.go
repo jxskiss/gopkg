@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,6 +14,10 @@ import (
 func resetState() {
 	state.cmds = nil
 	state.parsingContext = nil
+	for _, env := range os.Environ() {
+		key := strings.SplitN(env, "=", 2)[0]
+		os.Unsetenv(key)
+	}
 }
 
 func dummyCmd() {
@@ -138,12 +144,12 @@ func TestParsing_CheckFlagSetValues(t *testing.T) {
 		{"f-flag", "fstr", "fstr"},
 		{"g", "5", uint(5)},
 		{"g-flag", "5", uint(5)},
-		{"H", "true, false, true, false", []bool{true, false, true, false}},
-		{"h-flag", "true, false, true, false", []bool{true, false, true, false}},
-		{"i", "5, 6, 7, 8", []uint{5, 6, 7, 8}},
-		{"i-flag", "5, 6, 7, 8", []uint{5, 6, 7, 8}},
-		{"j", `j1, j2, j\,3, j\,4\,5`, []string{"j1", "j2", "j,3", "j,4,5"}},
-		{"j-flag", `j1, j2, j\,3, j\,4\,5`, []string{"j1", "j2", "j,3", "j,4,5"}},
+		{"H", "[true,false,true,false]", []bool{true, false, true, false}},
+		{"h-flag", "[true,false,true,false]", []bool{true, false, true, false}},
+		{"i", "[5,6,7,8]", []uint{5, 6, 7, 8}},
+		{"i-flag", "[5,6,7,8]", []uint{5, 6, 7, 8}},
+		{"j", `["j1","j2","j,3","j,4,5"]`, []string{"j1", "j2", "j,3", "j,4,5"}},
+		{"j-flag", `["j1","j2","j,3","j,4,5"]`, []string{"j1", "j2", "j,3", "j,4,5"}},
 		{"v", "flagValueImpl2", []byte("abc123")},
 		{"v-flag", "flagValueImpl2", []byte("abc123")},
 	} {
@@ -170,11 +176,10 @@ func TestParsing_DefaultValues(t *testing.T) {
 		S3 string `cli:"-s3" default:"s3default"`
 
 		Slice1 []string `cli:"-slice1"`
-		Slice2 []string `cli:"-slice2" default:"a, b, c"`
-		Slice3 []string `cli:"-slice3" default:"a, b, c"`
+		Slice2 []string `cli:"-slice2"`
 
 		Arg1 []int `cli:"arg1"`
-		Arg2 []int `cli:"arg2" default:"11,12,13"`
+		Arg2 []int `cli:"arg2"`
 	}
 	_, err := Parse(&args, WithArgs([]string{
 		"-a1",
@@ -185,7 +190,7 @@ func TestParsing_DefaultValues(t *testing.T) {
 		"-slice2", "e",
 		"-slice2", "f",
 		"1", "2", "3",
-	}))
+	}), WithErrorHandling(flag.ContinueOnError))
 	assert.Nil(t, err)
 
 	assert.Equal(t, true, args.A1)
@@ -198,11 +203,61 @@ func TestParsing_DefaultValues(t *testing.T) {
 	assert.Equal(t, "s2arg", args.S2)     // override
 	assert.Equal(t, "s3default", args.S3) // default
 	assert.Nil(t, args.Slice1)
-	assert.Equal(t, []string{"d", "e", "f"}, args.Slice2) // override
-	assert.Equal(t, []string{"a", "b", "c"}, args.Slice3) // default
+	assert.Equal(t, []string{"d", "e", "f"}, args.Slice2)
 
-	assert.Equal(t, []int{1, 2, 3}, args.Arg1)    // from input args
-	assert.Equal(t, []int{11, 12, 13}, args.Arg2) // from default
+	assert.Equal(t, []int{1, 2, 3}, args.Arg1) // from input args
+	assert.Nil(t, args.Arg2)
+}
+
+func TestParse_EnvValues(t *testing.T) {
+	resetState()
+	var args struct {
+		A1 bool   `cli:"-a1"`
+		A2 bool   `cli:"-a2" default:"true" env:"A2_BOOL, A2_BOOL_1"`
+		A3 bool   `cli:"-a3" default:"true" env:"A3_BOOL, A3_BOOL_1"`
+		B1 string `cli:"-b1"`
+		B2 string `cli:"-b2" default:"b2default" env:"B2_STRING"`
+		B3 string `cli:"-b3" default:"b3default" env:"B3_STRING, B3_STRING_1"`
+		B4 string `cli:"-b4" default:"b4default" env:"B4_STRING, B4_STRING_1"`
+		C1 []int  `cli:"-c1"`
+		C2 []int  `cli:"-c2"`
+	}
+
+	os.Setenv("A2_BOOL_1", "false")
+	os.Setenv("B2_STRING", "b2env")
+	os.Setenv("B3_STRING", "b3env")
+
+	fs, err := Parse(&args, WithArgs([]string{
+		"-a3=0",
+		"-b3=b3arg",
+		"-c2=7", "-c2=8", "-c2=9",
+	}), WithErrorHandling(flag.ContinueOnError))
+	assert.Nil(t, err)
+
+	assert.Equal(t, false, args.A1)
+	assert.Equal(t, false, args.A2)
+	assert.Equal(t, false, args.A3)
+	assert.Equal(t, "", args.B1)
+	assert.Equal(t, "b2env", args.B2)
+	assert.Equal(t, "b3arg", args.B3)
+	assert.Equal(t, "b4default", args.B4)
+	assert.Equal(t, ([]int)(nil), args.C1)
+	assert.Equal(t, []int{7, 8, 9}, args.C2)
+
+	var buf bytes.Buffer
+	fs.SetOutput(&buf)
+	fs.Usage()
+
+	got := buf.String()
+	for _, x := range []string{
+		" (default true)",
+		` (env "A2_BOOL", "A2_BOOL_1")`,
+		` (default "b2default")`,
+		` (env "B2_STRING")`,
+	} {
+		_ = x
+		assert.Contains(t, got, x)
+	}
 }
 
 type SomeCommonFlags struct {
@@ -281,33 +336,34 @@ func Test_searchCommand(t *testing.T) {
 	Add("group1 cmd2", dummyCmd, "A group1 cmd2 description")
 	Add("group1 cmd3 sub1", dummyCmd, "A group1 cmd3 sub1 description")
 
-	ctx, _, ok := _search([]string{"cmd1"})
-	assert.True(t, ok)
+	ctx, _, found := _search([]string{"cmd1"})
+	assert.True(t, found)
 	assert.Equal(t, "cmd1", ctx.name)
 	assert.Equal(t, "cmd1", ctx.cmd.Name)
 
-	ctx, _, ok = _search([]string{"cmd2", "-h"})
-	assert.True(t, ok)
+	ctx, _, found = _search([]string{"cmd2", "-h"})
+	assert.True(t, found)
 	assert.Equal(t, "cmd2", ctx.name)
 	assert.Equal(t, "cmd2", ctx.cmd.Name)
 
-	ctx, _, ok = _search([]string{"group1"})
-	assert.True(t, ok)
+	ctx, _, found = _search([]string{"group1"})
+	assert.True(t, found)
 	assert.Equal(t, "group1", ctx.name)
 
-	ctx, _, ok = _search([]string{"group1", "cmd99"})
-	assert.True(t, ok)
+	ctx, _, found = _search([]string{"group1", "cmd99"})
+	assert.True(t, found)
 	assert.Equal(t, "group1", ctx.cmd.Name)
 
-	ctx, notFoundCmdName, ok := _search([]string{"cmd9", "sub1", "sub2"})
-	assert.False(t, ok)
-	assert.Equal(t, "cmd9 sub1 sub2", notFoundCmdName)
+	ctx, invalidCmdName, found := _search([]string{"cmd9", "sub1", "sub2"})
+	assert.False(t, found)
+	assert.Equal(t, "cmd9 sub1 sub2", invalidCmdName)
 
-	ctx, notFoundCmdName, ok = _search([]string{"group1", "cmd3", "sub2"})
-	assert.False(t, ok)
-	assert.Equal(t, "group1 cmd3 sub2", notFoundCmdName)
-	assert.Equal(t, "group1 cmd3 sub1", ctx.cmd.Name)
+	ctx, invalidCmdName, found = _search([]string{"group1", "cmd3", "sub2"})
+	assert.False(t, found)
+	assert.Nil(t, ctx.cmd)
+	assert.Equal(t, "", invalidCmdName)
 	assert.Equal(t, "group1 cmd3", ctx.name)
+	assert.Equal(t, []string{"sub2"}, ctx.ambiguousArgs)
 }
 
 func Test_runGroupCommand(t *testing.T) {
@@ -316,8 +372,8 @@ func Test_runGroupCommand(t *testing.T) {
 	AddGroup("group1", "Dummy group1 group")
 	Add("group1 cmd1", dummyCmd, "Dummy group1 cmd1 command")
 
-	ctx, _, ok := _search([]string{"group1"})
-	assert.True(t, ok)
+	ctx, _, found := _search([]string{"group1"})
+	assert.True(t, found)
 	assert.Equal(t, "group1", ctx.name)
 	assert.Equal(t, "group1", ctx.cmd.Name)
 
@@ -326,7 +382,7 @@ func Test_runGroupCommand(t *testing.T) {
 	ctx.cmd.f()
 
 	got := buf.String()
-	assert.NotContains(t, got, "not found")
+	assert.NotContains(t, got, "not a valid command")
 	for _, x := range []string{
 		"Dummy group1 group",
 		"USAGE:",
@@ -344,13 +400,13 @@ func Test_runCommandNotFound(t *testing.T) {
 	AddGroup("group1", "Dummy group1 group")
 	Add("group1 cmd1", dummyCmd, "Dummy group1 cmd1 command")
 
-	ctx, notFoundCmdName, ok := _search([]string{"group2", "cmd99"})
-	assert.False(t, ok)
+	ctx, invalidCmdName, found := _search([]string{"group2", "cmd99"})
+	assert.False(t, found)
 	assert.Nil(t, ctx.cmd)
-	assert.Equal(t, "group2 cmd99", notFoundCmdName)
+	assert.Equal(t, "group2 cmd99", invalidCmdName)
 
-	ctx, _, ok = _search([]string{"group1", "cmd99"})
-	assert.True(t, ok)
+	ctx, _, found = _search([]string{"group1", "cmd99"})
+	assert.True(t, found)
 	assert.Equal(t, "group1", ctx.cmd.Name)
 	assert.Equal(t, "group1", ctx.name)
 }
@@ -373,9 +429,9 @@ func Test_printAvailableCommands(t *testing.T) {
 	Add("git branch new", dummyCmd, "dummy git branch new command")
 	Add("gh pr submit", dummyCmd, "dummy gh pr submit command")
 
-	ctx, notFoundCmdName, ok := _search([]string{})
-	assert.False(t, ok)
-	assert.Equal(t, "", notFoundCmdName)
+	ctx, invalidCmdName, found := _search([]string{})
+	assert.False(t, found)
+	assert.Equal(t, "", invalidCmdName)
 	assert.Nil(t, ctx.cmd)
 
 	var buf bytes.Buffer
@@ -383,7 +439,7 @@ func Test_printAvailableCommands(t *testing.T) {
 	ctx.printUsage()
 
 	got := buf.String()
-	assert.NotContains(t, got, "not found")
+	assert.NotContains(t, got, "not a valid command")
 	for _, x := range []string{
 		"USAGE:",
 		"<command> ...",
@@ -407,10 +463,10 @@ func Test_printAvailableCommands(t *testing.T) {
 		assert.NotContains(t, got, x)
 	}
 
-	ctx, notFoundCmdName, ok = _search([]string{"git"})
-	assert.True(t, ok)
+	ctx, invalidCmdName, found = _search([]string{"git"})
+	assert.True(t, found)
 	assert.NotNil(t, ctx.cmd)
-	assert.Equal(t, "", notFoundCmdName)
+	assert.Equal(t, "", invalidCmdName)
 	assert.Equal(t, "git", ctx.name)
 
 	buf.Reset()
@@ -418,7 +474,7 @@ func Test_printAvailableCommands(t *testing.T) {
 	ctx.cmd.f()
 
 	got = buf.String()
-	assert.NotContains(t, got, "not found")
+	assert.NotContains(t, got, "not a valid command")
 	for _, x := range []string{
 		"USAGE:",
 		"<command> ...",
@@ -434,18 +490,19 @@ func Test_printAvailableCommands(t *testing.T) {
 	}
 	assert.NotContains(t, got, "gh pr")
 
-	ctx, notFoundCmdName, ok = _search([]string{"gh", "pr", "-h"})
-	assert.False(t, ok)
-	assert.NotNil(t, ctx.cmd)
-	assert.Equal(t, "", notFoundCmdName)
+	ctx, invalidCmdName, found = _search([]string{"gh", "pr", "-h"})
+	assert.False(t, found)
+	assert.Nil(t, ctx.cmd)
+	assert.Equal(t, "", invalidCmdName)
 	assert.Equal(t, "gh pr", ctx.name)
+	assert.Equal(t, 0, len(ctx.ambiguousArgs))
 
 	buf.Reset()
 	ctx.getFlagSet().SetOutput(&buf)
 	ctx.printUsage()
 
 	got = buf.String()
-	assert.NotContains(t, got, "not found")
+	assert.NotContains(t, got, "not a valid command")
 	assert.NotContains(t, got, "git branch")
 	assert.NotContains(t, got, "git remote")
 	assert.Contains(t, got, "gh pr submit")
@@ -507,10 +564,9 @@ func TestParse_UnsupportedType(t *testing.T) {
 	}
 
 	for _, args := range []interface{}{&args1, &args2, &args3} {
-		fs, err := Parse(args, WithErrorHandling(flag.ContinueOnError))
-		_ = fs
-		assert.NotNil(t, err)
-		assert.Contains(t, err.Error(), "unsupported flag value type")
+		assert.Panics(t, func() {
+			Parse(args)
+		})
 	}
 }
 
@@ -534,4 +590,44 @@ func TestWithName(t *testing.T) {
 	assert.Contains(t, got, "FLAGS:")
 	assert.Contains(t, got, "  -a value")
 	assert.Contains(t, got, "  -b value")
+}
+
+func TestShowHidden(t *testing.T) {
+	resetState()
+	Add("cmd1", dummyCmd, "A cmd1 description")
+	AddHidden("cmd2", dummyCmd, "A hidden cmd2 description")
+	AddGroup("group1", "A group1 description")
+	Add("group1 cmd1", dummyCmd, "A group1 cmd1 description")
+	Add("group1 cmd2", dummyCmd, "A group1 cmd2 description")
+	Add("group1 cmd3 sub1", dummyCmd, "A group1 cmd3 sub1 description")
+	AddHidden("group1 cmd4", dummyCmd, "A group1 cmd4 hidden command")
+
+	fs, err := Parse(&struct{}{},
+		WithErrorHandling(flag.ContinueOnError),
+		WithName("group1"),
+		WithArgs([]string{"-mcli-show-hidden"}))
+	assert.Nil(t, err)
+	assert.Equal(t, "true", fs.Lookup(showHiddenFlag).Value.String())
+
+	var buf bytes.Buffer
+	fs.SetOutput(&buf)
+	fs.Usage()
+	got := buf.String()
+	assert.Contains(t, got, "group1 cmd4 (HIDDEN)")
+
+	var args struct {
+		HiddenFlag1 string `cli:"#H, -a1"`
+	}
+	fs, err = Parse(&args,
+		WithErrorHandling(flag.ContinueOnError),
+		WithName("group1 cmd1"),
+		WithArgs([]string{"-mcli-show-hidden"}))
+	assert.Nil(t, err)
+	assert.Equal(t, "true", fs.Lookup(showHiddenFlag).Value.String())
+
+	buf.Reset()
+	fs.SetOutput(&buf)
+	fs.Usage()
+	got = buf.String()
+	assert.Contains(t, got, "-a1 string (HIDDEN)")
 }
