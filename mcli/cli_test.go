@@ -294,7 +294,7 @@ func TestParsing_TagSyntax(t *testing.T) {
 	}
 	_, err := Parse(&args, WithErrorHandling(flag.ContinueOnError), WithArgs([]string{}))
 	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "required flag not set")
+	assert.Contains(t, err.Error(), "flag is required but not set: -m1")
 
 	_, err = Parse(&args, WithErrorHandling(flag.ContinueOnError), WithArgs([]string{
 		"-i", "ignoredstr",

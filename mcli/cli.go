@@ -298,7 +298,7 @@ func (ctx *parsingContext) parseNonflags() (err error) {
 		arg := allArgs[j]
 		e := f.Set(arg)
 		if e != nil {
-			ctx.failf(&err, "invalid value %q for argument %s: %v", arg, f.name, e)
+			ctx.failf(&err, "invalid value %q for %s: %v", arg, f.helpName(), e)
 			return
 		}
 		if !(f.isSlice() || f.isMap()) {
@@ -391,13 +391,13 @@ func (ctx *parsingContext) checkRequired() (err error) {
 	nonflags := ctx.nonflags
 	for _, f := range flags {
 		if f.required && f.isZero() {
-			ctx.failf(&err, "required flag not set: %v", f.name)
+			ctx.failf(&err, "flag is required but not set: -%s", f.name)
 			return
 		}
 	}
 	for _, f := range nonflags {
 		if f.required && f.isZero() {
-			ctx.failf(&err, "required argument not given: %v", f.name)
+			ctx.failf(&err, "argument is required but not given: %v", f.name)
 			return
 		}
 	}
@@ -506,7 +506,7 @@ func (ctx *parsingContext) printUsage() {
 			flagLines = append(flagLines, [2]string{name, usage})
 		}
 		fmt.Fprint(out, "FLAGS:\n")
-		printWithPadding(out, flagLines)
+		printWithAlignment(out, flagLines)
 		fmt.Fprint(out, "\n")
 	}
 
@@ -517,7 +517,7 @@ func (ctx *parsingContext) printUsage() {
 			nonflagLines = append(nonflagLines, [2]string{name, usage})
 		}
 		fmt.Fprint(out, "ARGUMENTS:\n")
-		printWithPadding(out, nonflagLines)
+		printWithAlignment(out, nonflagLines)
 		fmt.Fprint(out, "\n")
 	}
 
@@ -562,10 +562,10 @@ func printAvailableCommands(out io.Writer, name string, cmds commands, showHidde
 		preName = cmd.Name
 	}
 	fmt.Fprint(out, "COMMANDS:\n")
-	printWithPadding(out, cmdLines)
+	printWithAlignment(out, cmdLines)
 }
 
-func printWithPadding(out io.Writer, lines [][2]string) {
+func printWithAlignment(out io.Writer, lines [][2]string) {
 	const _N = 36
 	maxPrefixLen := 0
 	for _, line := range lines {
