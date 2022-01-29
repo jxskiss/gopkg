@@ -3,6 +3,7 @@ package reflectx
 import (
 	"fmt"
 	"reflect"
+	"strings"
 )
 
 // IsIdenticalType checks whether the given two object types have same
@@ -17,7 +18,25 @@ import (
 func IsIdenticalType(a, b interface{}) (equal bool, diff string) {
 	typ1 := reflect.TypeOf(a)
 	typ2 := reflect.TypeOf(b)
-	return newTypecmp().isEqualType(typ1, typ2)
+	return newStrictTypecmp().isEqualType(typ1, typ2)
+}
+
+// IsIdenticalThriftType checks whether the given two object types have same
+// struct fields and memory layout, in case that a field's name does not
+// match, but the thrift tag's first two fields match, it also considers
+// the field matches.
+//
+// It is almost same with IsIdenticalType, but helps the situation that
+// different Thrift generators which generate different field names.
+//
+// If two types are identical, it is expected that unsafe pointer casting
+// between the two types won't crash the program.
+// If the given two types are not identical, the returned diff message
+// contains the detail difference.
+func IsIdenticalThriftType(a, b interface{}) (equal bool, diff string) {
+	typ1 := reflect.TypeOf(a)
+	typ2 := reflect.TypeOf(b)
+	return newThriftTypecmp().isEqualType(typ1, typ2)
 }
 
 type typ1typ2 struct {
@@ -37,10 +56,24 @@ type cmpresult struct {
 
 type typecmp struct {
 	seen map[typ1typ2]*cmpresult
+
+	fieldCmp func(typ reflect.Type, f1, f2 reflect.StructField) (bool, string)
 }
 
-func newTypecmp() *typecmp {
-	return &typecmp{seen: make(map[typ1typ2]*cmpresult)}
+func newStrictTypecmp() *typecmp {
+	cmp := &typecmp{
+		seen: make(map[typ1typ2]*cmpresult),
+	}
+	cmp.fieldCmp = cmp.isStrictEqualField
+	return cmp
+}
+
+func newThriftTypecmp() *typecmp {
+	cmp := &typecmp{
+		seen: make(map[typ1typ2]*cmpresult),
+	}
+	cmp.fieldCmp = cmp.isEqualThriftField
+	return cmp
 }
 
 func (p *typecmp) isEqualType(typ1, typ2 reflect.Type) (bool, string) {
@@ -92,7 +125,7 @@ func (p *typecmp) isEqualStruct(typ1, typ2 reflect.Type) (bool, string) {
 	for i := 0; i < fnum; i++ {
 		f1 := typ1.Field(i)
 		f2 := typ2.Field(i)
-		if equal, diff := p.isEqualField(typ1, f1, f2); !equal {
+		if equal, diff := p.fieldCmp(typ1, f1, f2); !equal {
 			diff = fmt.Sprintf("struct field not equal: %s", diff)
 			p.seen[typidx] = &cmpresult{notequal, diff}
 			return false, diff
@@ -102,7 +135,7 @@ func (p *typecmp) isEqualStruct(typ1, typ2 reflect.Type) (bool, string) {
 	return true, ""
 }
 
-func (p *typecmp) isEqualField(typ reflect.Type, field1, field2 reflect.StructField) (bool, string) {
+func (p *typecmp) isStrictEqualField(typ reflect.Type, field1, field2 reflect.StructField) (bool, string) {
 	if field1.Name != field2.Name {
 		return false, fmt.Sprintf("field name not equal: %s, %s", _f(typ, field1), _f(typ, field2))
 	}
@@ -124,6 +157,51 @@ func (p *typecmp) isEqualField(typ reflect.Type, field1, field2 reflect.StructFi
 		return true, ""
 	}
 	return false, fmt.Sprintf("field type not euqal: %s", diff)
+}
+
+func (p *typecmp) isEqualThriftField(typ reflect.Type, field1, field2 reflect.StructField) (bool, string) {
+	if field1.Name != field2.Name {
+		tag1 := field1.Tag.Get("thrift")
+		tag2 := field2.Tag.Get("thrift")
+		if !isEqualThriftTag(tag1, tag2) {
+			return false, fmt.Sprintf("field name and thrift tag both not equal: %s, %s", _f(typ, field1), _f(typ, field2))
+		}
+	}
+	if field1.Offset != field2.Offset {
+		return false, fmt.Sprintf("field offset not equal: %s, %s", _f(typ, field1), _f(typ, field2))
+	}
+
+	typ1 := field1.Type
+	typ2 := field2.Type
+	if typ1.Kind() != typ2.Kind() {
+		return false, fmt.Sprintf("field type not equal: %s, %s", _f(typ, field1), _f(typ, field2))
+	}
+	if typ1.Kind() == reflect.Ptr {
+		typ1 = typ1.Elem()
+		typ2 = typ2.Elem()
+	}
+	equal, diff := p.isEqualType(typ1, typ2)
+	if equal {
+		return true, ""
+	}
+	return false, fmt.Sprintf("field type not euqal: %s", diff)
+}
+
+func isEqualThriftTag(tag1, tag2 string) bool {
+	if tag1 == "" || tag2 == "" {
+		return false
+	}
+	if tag1 == tag2 {
+		return true
+	}
+	parts1 := strings.Split(tag1, ",")
+	parts2 := strings.Split(tag2, ",")
+	if len(parts1) >= 2 && len(parts2) >= 2 &&
+		parts1[0] == parts2[0] && // parts[0] is the field's name
+		parts1[1] == parts2[1] { // parts[1] is the field's id number
+		return true
+	}
+	return false
 }
 
 func (p *typecmp) isEqualSlice(typ1, typ2 reflect.Type) (bool, string) {

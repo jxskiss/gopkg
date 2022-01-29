@@ -1,8 +1,9 @@
 package reflectx
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type testtype1 struct {
@@ -62,6 +63,22 @@ func TestIsIdenticalType_Recursive(t *testing.T) {
 	assert.True(t, equal)
 
 	equal, msg = IsIdenticalType(&recurtype3{}, &recurtype4{})
+	t.Log(msg)
+	assert.True(t, equal)
+}
+
+type thriftType1 struct {
+	EntityID *int64  `thrift:"Entity,1"`
+	HtMLLink *string `thrift:"HtmlLink,2"`
+}
+
+type thriftType2 struct {
+	EntityId *int64  `thrift:"Entity,1"`
+	HtmlLink *string `thrift:"HtmlLink,2"`
+}
+
+func TestIsIdenticalThriftType(t *testing.T) {
+	equal, msg := IsIdenticalThriftType(&thriftType1{}, &thriftType2{})
 	t.Log(msg)
 	assert.True(t, equal)
 }
