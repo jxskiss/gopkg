@@ -8,7 +8,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -218,9 +217,9 @@ type Request struct {
 
 func (p *Request) buildClient() *http.Client {
 	if p.Client == nil && !p.DisableRedirect {
-		return NoHttp2Client
+		return http.DefaultClient
 	}
-	var client = *NoHttp2Client
+	var client = *http.DefaultClient
 	if p.Client != nil {
 		client = *p.Client
 	}
@@ -274,7 +273,7 @@ func (p *Request) prepareRequest(method string) (err error) {
 		case []byte:
 			bodyBuf = data
 		case string:
-			bodyBuf = unsafeheader.StoB(data)
+			bodyBuf = unsafeheader.StringToBytes(data)
 		default:
 			err = fmt.Errorf("unsupported body data type: %T", data)
 			return err
@@ -375,7 +374,7 @@ func marshalForm(v interface{}) ([]byte, error) {
 		return nil, err
 	}
 	encoded := form.Encode()
-	buf := unsafeheader.StoB(encoded)
+	buf := unsafeheader.StringToBytes(encoded)
 	return buf, nil
 }
 
@@ -417,7 +416,7 @@ func (p *Request) prepareHeaders() {
 //
 // For more powerful controls of a http request and handy utilities,
 // you may take a look at the awesome library `https://github.com/go-resty/resty/`.
-func DoRequest(req *Request) (respContent []byte, status int, err error) {
+func DoRequest(req *Request) (header http.Header, respContent []byte, status int, err error) {
 	if err = req.prepareRequest(""); err != nil {
 		return
 	}
@@ -448,6 +447,7 @@ func DoRequest(req *Request) (respContent []byte, status int, err error) {
 	}
 	defer httpResp.Body.Close()
 
+	header = httpResp.Header
 	status = httpResp.StatusCode
 	if req.DumpResponse {
 		var dump []byte
@@ -487,29 +487,4 @@ func DoRequest(req *Request) (respContent []byte, status int, err error) {
 		}
 	}
 	return
-}
-
-var zeroDialer net.Dialer
-
-// NoHttp2Client disables HTTP/2 feature by specifying a custom DialContext
-// function, otherwise it behaves exactly same with http.NoHttp2Client.
-//
-// HTTP/2 support in golang has many problematic corner cases where dead
-// connections would be kept and used in connection pools. See:
-//
-//   https://github.com/golang/go/issues/32388
-//   https://github.com/golang/go/issues/39337
-//   https://github.com/golang/go/issues/39750
-//
-// The deadlock reported by issue 32388 is observed in our production deployment,
-// thus we disable HTTP/2 to help to get a better sleep.
-var NoHttp2Client = &http.Client{
-	Transport: &http.Transport{
-		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			return zeroDialer.DialContext(ctx, network, addr)
-		},
-		Dial: func(network, addr string) (net.Conn, error) {
-			return zeroDialer.Dial(network, addr)
-		},
-	},
 }

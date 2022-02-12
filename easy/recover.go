@@ -19,28 +19,12 @@ func (p *PanicError) Error() string {
 	return fmt.Sprintf("panic: %v, location: %v", p.Exception, p.Location)
 }
 
-// Go calls the given function with panic recover, in case of panic happens,
-// the panic message, location and the calling stack will be logged using
-// the default logger configured by `ConfigLog` in this package.
-func Go(f func()) {
-	go func() {
-		defer Recover(nil, nil)
-		f()
-	}()
-}
-
-// Go1 calls the given function with panic recover, in case an error is returned,
-// or panic happens, the error message or panic information will be logged
-// using the default logger configured by `ConfigLog` in this package.
-func Go1(f func() error) {
-	go func() {
-		defer Recover(nil, nil)
-		err := f()
-		if err == nil {
-			return
-		}
-		_logcfg.getLogger(nil).Errorf("catch error: %v", err)
-	}()
+func (p *PanicError) Format(f fmt.State, c rune) {
+	if c == 'v' && f.Flag('+') {
+		fmt.Fprintf(f, "panic: %v, location: %v\n%s\n", p.Exception, p.Location, p.Stacktrace)
+	} else {
+		fmt.Fprint(f, p.Error())
+	}
 }
 
 // Safe returns an wrapped function with panic recover.
@@ -93,34 +77,28 @@ func Safe1(f func() error) func() error {
 	}
 }
 
-// Recover recovers unexpected panic, and log error messages using
-// logger associated with the given context, if `err` is not nil,
-// an wrapped `PanicError` will be assigned to it.
+// Recover returns a function which can be used to recover panics.
+// It accepts a panicErr handler function which may be used to log the
+// panic error and context information.
 //
-// Note that this function should not be wrapped be another function,
-// instead it should be called directly by the `defer` statement,
-// or it won't work as you may expect.
-func Recover(ctx context.Context, err *error) {
-	e := recover()
-	if e == nil {
-		return
+// Note that the returned function should not be wrapped by another
+// function, instead it should be called directly by the `defer` statement,
+// else it won't work as you may expect.
+func Recover(f func(ctx context.Context, panicErr *PanicError)) func(ctx context.Context) {
+	return func(ctx context.Context) {
+		e := recover()
+		if e == nil {
+			return
+		}
+		panicLoc := IdentifyPanic()
+		stack := debug.Stack()
+		pErr := &PanicError{
+			Exception:  e,
+			Location:   panicLoc,
+			Stacktrace: stack,
+		}
+		f(ctx, pErr)
 	}
-
-	panicLoc := IdentifyPanic()
-	stack := debug.Stack()
-	pErr := &PanicError{
-		Exception:  e,
-		Location:   panicLoc,
-		Stacktrace: stack,
-	}
-
-	// If the caller receives the error, we don't log it here,
-	// else we log the panic error with stack information.
-	if err != nil {
-		*err = pErr
-		return
-	}
-	_logcfg.getLogger(&ctx).Errorf("catch %v\n%s", pErr, stack)
 }
 
 // IdentifyPanic reports the panic location when a panic happens.
@@ -129,15 +107,24 @@ func IdentifyPanic() string {
 	var line int
 	var pc [16]uintptr
 
+	// Don't use runtime.FuncForPC here, it may give incorrect line number.
+	//
+	// From runtime.Callers' doc:
+	//
+	// To translate these PCs into symbolic information such as function
+	// names and line numbers, use CallersFrames. CallersFrames accounts
+	// for inlined functions and adjusts the return program counters into
+	// call program counters. Iterating over the returned slice of PCs
+	// directly is discouraged, as is using FuncForPC on any of the
+	// returned PCs, since these cannot account for inlining or return
+	// program counter adjustment.
+
 	n := runtime.Callers(3, pc[:])
-	for _, pc := range pc[:n] {
-		fn := runtime.FuncForPC(pc)
-		if fn == nil {
-			continue
-		}
-		file, line = fn.FileLine(pc)
-		name = fn.Name()
-		if !strings.HasPrefix(name, "runtime.") {
+	frames := runtime.CallersFrames(pc[:n])
+	for {
+		f, more := frames.Next()
+		name, file, line = f.Function, f.File, f.Line
+		if !more || !strings.HasPrefix(name, "runtime.") {
 			break
 		}
 	}
