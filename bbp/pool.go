@@ -31,34 +31,28 @@ const (
 // The zero value for Pool is ready to use. A Pool value shall not be
 // copied after initialized.
 type Pool struct {
+	r Recorder
+}
 
-	// DefaultSize optionally configs the initial default size of
-	// byte buffer. The value will be dynamically updated when the
-	// Pool is being used. Default is 64 (in bytes).
-	DefaultSize int
-
-	// CalibrateInterval optionally configs the interval to do calibrating.
-	// Default is one Minute.
-	CalibrateInterval time.Duration
-
-	poolIdx     uintptr
-	calls       [poolSize]int32
-	calibrating int64
-	preNano     int64
-	preCalls    int32
+// NewPool creates a new Pool instance using given params.
+//
+// In most cases, declaring a Pool variable is sufficient to initialize
+// a Pool.
+func NewPool(defaultSize int, calibrateInterval time.Duration) *Pool {
+	r := Recorder{
+		DefaultSize:       defaultSize,
+		CalibrateInterval: calibrateInterval,
+	}
+	return &Pool{r}
 }
 
 // Get returns a Buffer from the pool with dynamic calibrated default
 // capacity. The returned Buffer can be put back to the pool by calling
 // Pool.Put(buf) which may be reused later.
 func (p *Pool) Get() *Buffer {
-	//idx := atomic.LoadUintptr(&p.poolIdx)
-	idx := p.poolIdx
-	if idx == 0 {
-		idx = defaultPoolIdx
-	}
-	buf := getBuffer()
-	buf.B = sizedPools[idx].Get().([]byte)
+	idx := p.r.getPoolIdx()
+	buf := new(Buffer)
+	buf.buf = sizedPools[idx].Get().([]byte)
 	return buf
 }
 
@@ -67,36 +61,23 @@ func (p *Pool) Get() *Buffer {
 // The buf mustn't be touched after returning it to the pool.
 // Otherwise, data races will occur.
 func (p *Pool) Put(buf *Buffer) {
-	idx := indexGet(len(buf.B))
-	if idx >= poolSize {
-		idx = poolSize - 1
-	}
-	if atomic.AddInt32(&p.calls[idx], -1) < 0 {
-		p.calibrate()
-	}
+	p.r.Record(len(buf.buf))
 
 	// manually inline the Put function
 	if !buf.noReuse {
-		put(buf.B)
+		put(buf.buf)
 	}
-	buf.B = nil
-	buf.noReuse = false
-	bpool.Put(buf)
 }
 
 // GetLinkBuffer returns a LinkBuffer from the pool with dynamic calibrated
 // default capacity. The returned LinkBuffer can be put back to the pool
 // by calling Pool.PutLinkBuffer(buf) which may be reused later.
 func (p *Pool) GetLinkBuffer() *LinkBuffer {
-	idx := p.poolIdx
-	if idx == 0 {
-		idx = defaultPoolIdx
+	idx := p.r.getPoolIdx()
+	buf := &LinkBuffer{
+		blockSize: 1 << idx,
+		poolIdx:   int(idx),
 	}
-	buf := getLinkBuffer()
-	buf.blockSize = 1 << idx
-	buf.poolIdx = int(idx)
-	buf.size = 0
-	buf.cap = 0
 	return buf
 }
 
@@ -105,25 +86,69 @@ func (p *Pool) GetLinkBuffer() *LinkBuffer {
 // The buf mustn't be touched after returning it to the pool.
 // Otherwise, data races will occur.
 func (p *Pool) PutLinkBuffer(buf *LinkBuffer) {
-	idx := indexGet(buf.size)
-	if idx >= poolSize {
-		idx = poolSize - 1
-	}
-	if atomic.AddInt32(&p.calls[idx], -1) < 0 {
-		p.calibrate()
-	}
+	p.r.Record(buf.size)
 
 	// manually inline the PutLinkBuffer function
 	poolIdx := buf.poolIdx
 	for _, bb := range buf.bufs {
 		sizedPools[poolIdx].Put(bb[:0])
 	}
-	buf.bufs = nil
-	linkBufferPool.Put(buf)
 }
 
-func (p *Pool) calibrate() {
-	if !atomic.CompareAndSwapInt64(&p.calibrating, 0, 1) {
+// Recorder helps to record most frequently used buffer size.
+// It calibrates the recorded size data in running, thus it can dynamically
+// adjust according to recent workload.
+type Recorder struct {
+
+	// DefaultSize optionally configs the initial default size to be used.
+	// Default is 64 (in bytes).
+	DefaultSize int
+
+	// CalibrateInterval optionally configs the interval to do calibrating.
+	// Default is one minute.
+	CalibrateInterval time.Duration
+
+	poolIdx uintptr
+
+	calls       [poolSize]int32
+	calibrating uintptr
+	preNano     int64
+	preCalls    int32
+}
+
+// Size returns the current most frequently used buffer size.
+func (p *Recorder) Size() int {
+	idx := atomic.LoadUintptr(&p.poolIdx)
+	if idx == 0 {
+		idx = defaultPoolIdx
+	}
+	return 1 << idx
+}
+
+// Record records a used buffer size n.
+//
+// The max recordable size is 32MB, if n is larger than 32MB, it records
+// 32MB.
+func (p *Recorder) Record(n int) {
+	idx := indexGet(n)
+	if idx >= poolSize {
+		idx = poolSize - 1
+	}
+	if atomic.AddInt32(&p.calls[idx], -1) < 0 {
+		p.calibrate()
+	}
+}
+
+func (p *Recorder) getPoolIdx() uintptr {
+	idx := atomic.LoadUintptr(&p.poolIdx)
+	if idx == 0 {
+		idx = defaultPoolIdx
+	}
+	return idx
+}
+
+func (p *Recorder) calibrate() {
+	if !atomic.CompareAndSwapUintptr(&p.calibrating, 0, 1) {
 		return
 	}
 
@@ -134,7 +159,7 @@ func (p *Pool) calibrate() {
 		if p.CalibrateInterval > 0 {
 			interval = p.CalibrateInterval
 		}
-		nextCalls = int32(float64(p.preCalls) / float64(nowNano-p.preNano) * float64(interval))
+		nextCalls = int32(float64(p.preCalls) * float64(interval) / float64(nowNano-p.preNano))
 		if nextCalls < defaultCalibrateCalls {
 			nextCalls = defaultCalibrateCalls
 		} else if nextCalls > math.MaxInt32 {
@@ -155,5 +180,5 @@ func (p *Pool) calibrate() {
 	}
 	atomic.StoreUintptr(&p.poolIdx, uintptr(poolIdx))
 
-	atomic.StoreInt64(&p.calibrating, 0)
+	atomic.StoreUintptr(&p.calibrating, 0)
 }

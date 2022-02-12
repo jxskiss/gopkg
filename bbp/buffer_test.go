@@ -2,10 +2,10 @@ package bbp
 
 import (
 	"bytes"
-	"github.com/stretchr/testify/assert"
 	"strings"
-	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBufferWrite(t *testing.T) {
@@ -47,24 +47,4 @@ func BenchmarkBytesBufferWrite(b *testing.B) {
 			buf.Reset()
 		}
 	})
-}
-
-var testpool = sync.Pool{
-	New: func() interface{} { return &Buffer{} },
-}
-
-func BenchmarkSyncPoolWithNew(b *testing.B) {
-	b.ResetTimer()
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		_ = testpool.Get().(*Buffer)
-	}
-}
-
-func BenchmarkNewBuffer(b *testing.B) {
-	b.ResetTimer()
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		_ = getBuffer()
-	}
 }

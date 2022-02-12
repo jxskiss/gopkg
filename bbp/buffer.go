@@ -2,7 +2,6 @@ package bbp
 
 import (
 	"io"
-	"sync"
 	"unicode/utf8"
 	"unsafe"
 )
@@ -20,9 +19,10 @@ const MinRead = 512
 // In most cases, Get(length, capacity), new(Buffer), or just declaring
 // a Buffer variable is sufficient to initialize a Buffer.
 func NewBuffer(buf []byte) *Buffer {
-	b := getBuffer()
+	b := &Buffer{
+		buf: buf,
+	}
 	if buf != nil {
-		b.B = buf
 		b.noReuse = true
 	}
 	return b
@@ -37,24 +37,20 @@ func NewBuffer(buf []byte) *Buffer {
 // Use Get for obtaining an empty byte buffer.
 // The zero value for Buffer is an empty buffer ready to use.
 type Buffer struct {
-
-	// B is a byte buffer to use in append-like workloads.
-	// See example code for details.
-	B []byte
-
+	buf     []byte
 	noReuse bool
 }
 
 // Len returns the size of the byte buffer.
 func (b *Buffer) Len() int {
-	return len(b.B)
+	return len(b.buf)
 }
 
 // ReadFrom implements io.ReaderFrom.
 //
 // The function appends all the data read from r to b.
 func (b *Buffer) ReadFrom(r io.Reader) (int64, error) {
-	bb := b.B
+	bb := b.buf
 	nStart := len(bb)
 	nMax := cap(bb)
 	n := nStart
@@ -73,7 +69,7 @@ func (b *Buffer) ReadFrom(r io.Reader) (int64, error) {
 		nn, err := r.Read(bb[n:])
 		n += nn
 		if err != nil {
-			b.B = bb[:n]
+			b.buf = bb[:n]
 			n -= nStart
 			if err == io.EOF {
 				return int64(n), nil
@@ -85,7 +81,7 @@ func (b *Buffer) ReadFrom(r io.Reader) (int64, error) {
 
 // WriteTo implements io.WriterTo.
 func (b *Buffer) WriteTo(w io.Writer) (int64, error) {
-	n, err := w.Write(b.B)
+	n, err := w.Write(b.buf)
 	return int64(n), err
 }
 
@@ -100,11 +96,11 @@ func (b *Buffer) Write(p []byte) (int, error) {
 //
 // The function always returns nil.
 func (b *Buffer) WriteByte(c byte) error {
-	want := len(b.B) + 1
-	if want > cap(b.B) {
-		b.B = grow(b.B, want)
+	want := len(b.buf) + 1
+	if want > cap(b.buf) {
+		b.buf = grow(b.buf, want)
 	}
-	b.B = append(b.B, c)
+	b.buf = append(b.buf, c)
 	return nil
 }
 
@@ -114,83 +110,84 @@ func (b *Buffer) WriteByte(c byte) error {
 //
 // The function always returns nil.
 func (b *Buffer) WriteRune(r rune) (n int, err error) {
-	lenb := len(b.B)
+	lenb := len(b.buf)
 	want := lenb + utf8.UTFMax
-	if want > cap(b.B) {
-		b.B = grow(b.B, want)
+	if want > cap(b.buf) {
+		b.buf = grow(b.buf, want)
 	}
-	n = utf8.EncodeRune(b.B[lenb:lenb+utf8.UTFMax], r)
-	b.B = b.B[:lenb+n]
+	n = utf8.EncodeRune(b.buf[lenb:lenb+utf8.UTFMax], r)
+	b.buf = b.buf[:lenb+n]
 	return n, nil
 }
 
 // WriteString appends s to the underlying byte slice.
 func (b *Buffer) WriteString(s string) (int, error) {
-	lenb, lens := len(b.B), len(s)
+	lenb, lens := len(b.buf), len(s)
 	want := lenb + lens
-	if want > cap(b.B) {
-		b.B = grow(b.B, want)
+	if want > cap(b.buf) {
+		b.buf = grow(b.buf, want)
 	}
-	b.B = b.B[:want]
-	copy(b.B[lenb:], s)
+	b.buf = b.buf[:want]
+	copy(b.buf[lenb:], s)
 	return lens, nil
 }
 
-// Set first re-slice the underlying byte slice to emtpy,
+// Set first re-slice the underlying byte slice to empty,
 // then write p to the buffer.
 func (b *Buffer) Set(p []byte) {
-	b.B = b.B[:0]
+	b.buf = b.buf[:0]
 	b.WriteString(b2s(p))
 }
 
 // SetString sets Buffer.B to s.
 func (b *Buffer) SetString(s string) {
-	b.B = b.B[:0]
+	b.buf = b.buf[:0]
 	b.WriteString(s)
 }
 
 // Reset re-slice the underlying byte slice to empty.
 func (b *Buffer) Reset() {
-	b.B = b.B[:0]
+	b.buf = b.buf[:0]
 }
 
-// Bytes returns b.B, i.e. all the bytes accumulated in the buffer.
+// Bytes returns the underlying byte slice, i.e. all the bytes accumulated
+// in the buffer.
 //
 // Note that this method doesn't copy the underlying byte slice, the caller
 // should either copy the byte slice explicitly or don't return the Buffer
 // back to the pool, otherwise data race will occur.
-// If you want a copy of the underlying byte slice, you can use Buffer.Copy
-// or copy Buffer.B manually.
-//
-// The purpose of this function is bytes.Buffer compatibility.
+// You may use Buffer.Copy to get a copy of the underlying byte slice.
 func (b *Buffer) Bytes() []byte {
-	return b.B
+	return b.buf
 }
 
 // Copy returns a copy of the underlying byte slice.
 func (b *Buffer) Copy() []byte {
-	buf := make([]byte, len(b.B))
-	copy(buf, b.B)
+	buf := make([]byte, len(b.buf))
+	copy(buf, b.buf)
 	return buf
 }
 
 // String returns a string copy of the underlying byte slice.
 func (b *Buffer) String() string {
-	return string(b.B)
+	return string(b.buf)
+}
+
+// StringUnsafe is equivalent to String, but the string that it returns
+// is _not_ copied, so modifying this buffer after calling StringUnsafe
+// will lead to undefined behavior.
+func (b *Buffer) StringUnsafe() string {
+	return b2s(b.buf)
+}
+
+// Reader returns a Reader reading from the Buffer's underlying byte buffer.
+//
+// When the returned Reader is being used, modifying this Buffer will lead
+// to undefined behavior.
+func (b *Buffer) Reader() *Reader {
+	return NewReader(b.buf)
 }
 
 func b2s(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
-}
-
-var bpool sync.Pool
-
-// getBuffer helps to eliminate unnecessary type assertions and memory
-// allocation, it will be inlined into the callers.
-func getBuffer() *Buffer {
-	buf := bpool.Get()
-	if buf != nil {
-		return buf.(*Buffer)
-	}
-	return &Buffer{}
 }
