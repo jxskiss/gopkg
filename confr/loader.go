@@ -336,7 +336,12 @@ func (p *Loader) processEnv(config interface{}, prefix string) error {
 		var envNames []string
 		envTag := field.Tag.Get(EnvTag)
 		if envTag != "" {
-			envNames = append(envNames, envTag)
+			for _, name := range strings.Split(envTag, ",") {
+				name = strings.TrimSpace(name)
+				if name != "" {
+					envNames = append(envNames, name)
+				}
+			}
 		} else if p.EnableImplicitEnv {
 			tmp := p.getEnvName(prefix, field.Name)
 			envNames = append(envNames, tmp, strings.ToUpper(tmp))
@@ -431,14 +436,17 @@ func (p *Loader) processCustom(config interface{}) error {
 	return nil
 }
 
-func assignFlagValue(dst reflect.Value, value *flag.Flag, isSet bool) error {
+func assignFlagValue(dst reflect.Value, ff *flag.Flag, isSet bool) error {
 	if isSet {
-		return assignFieldValue(dst, value.Value.String())
+		if getter, ok := ff.Value.(flag.Getter); ok {
+			return assignFieldValue(dst, getter.Get())
+		}
+		return assignFieldValue(dst, ff.Value.String())
 	}
 
 	// default value
-	if dst.IsZero() && value.DefValue != "" {
-		return assignFieldValue(dst, value.DefValue)
+	if dst.IsZero() && ff.DefValue != "" {
+		return assignFieldValue(dst, ff.DefValue)
 	}
 	return nil
 }

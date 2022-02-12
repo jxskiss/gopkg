@@ -48,13 +48,17 @@ func (p *LazyBinary) Scan(src interface{}) error {
 		// and should not be retained. Their underlying memory is owned by the driver.
 		// If retention is necessary, copy their values before the next call to Scan.
 
-		b, ok := src.([]byte)
-		if !ok {
-			return fmt.Errorf("sqlutil: wants []byte but got %T", src)
+		var b []byte
+		switch tmp := src.(type) {
+		case string:
+			b = []byte(tmp)
+		case []byte:
+			b = make([]byte, len(tmp))
+			copy(b, tmp)
+		default:
+			return fmt.Errorf("sqlutil: wants string/[]byte but got %T", src)
 		}
-		tmp := make([]byte, len(b))
-		copy(tmp, b)
-		p.raw = tmp
+		p.raw = b
 		atomic.StorePointer(&p.obj, nil)
 	}
 	return nil

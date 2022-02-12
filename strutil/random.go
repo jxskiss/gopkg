@@ -21,43 +21,11 @@ func random(table string, length int) []byte {
 	return buf
 }
 
+// Random returns a random string of length consisting of characters
+// from table.
 func Random(table string, length int) string {
 	buf := random(table, length)
 	return b2s(buf)
-}
-
-// RandLetters returns a random string containing lowercase and uppercase
-// alphabetic characters.
-func RandLetters(length int) string {
-	return Random(Letters, length)
-}
-
-// RandLowerLetters returns a random string containing only lowercase
-// alphabetic characters.
-func RandLowerLetters(length int) string {
-	return Random(LowerLetters, length)
-}
-
-// RandUpperLetters returns a random string containing only uppercase
-// alphabetic characters.
-func RandUpperLetters(length int) string {
-	return Random(UpperLetters, length)
-}
-
-// RandDigits returns a random string containing only digit numbers, the
-// first character is guaranteed to be not zero.
-func RandDigits(length int) string {
-	out := random(Digits, length)
-	if out[0] == '0' {
-		out[0] = Digits[rand.Intn(9)+1] // 1-9, no zero
-	}
-	return b2s(out)
-}
-
-// RandAlphaDigits returns a random string containing only characters from
-// lowercase, uppercase alphabetic characters or digit numbers.
-func RandAlphaDigits(length int) string {
-	return Random(AlphaDigits, length)
 }
 
 func cryptoRandom(table string, length int) []byte {
@@ -74,17 +42,9 @@ func cryptoRandom(table string, length int) []byte {
 	return buf
 }
 
-// RandPassword returns a random string containing lowercase and uppercase
-// alphabetic characters to be used as a password.
-func RandPassword(length int) string {
-	buf := cryptoRandom(AlphaDigits, length)
-	return b2s(buf)
-}
-
-// RandStrongPassword returns a random string containing lowercase and uppercase
-// alphabetic characters and punctuation to be used as a password.
-func RandStrongPassword(length int) string {
-	table := AlphaDigits + PunctNoEscape
+// RandomCrypto returns a random string of length consisting of
+// characters from table.
+func RandomCrypto(table string, length int) string {
 	buf := cryptoRandom(table, length)
 	return b2s(buf)
 }

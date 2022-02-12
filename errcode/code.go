@@ -19,7 +19,7 @@ type ErrCode interface {
 	Message() string
 
 	// Details returns the error details attached to the Code.
-	// It may return nil if no details is attached.
+	// It returns nil if no details are attached.
 	Details() []interface{}
 }
 
@@ -59,6 +59,10 @@ func (e *Code) Message() string {
 	return e.reg.getMessage(e.code)
 }
 
+// Details returns the error details attached to the Code.
+// It returns nil if no details are attached.
+func (e *Code) Details() []interface{} { return e.details }
+
 func (e *Code) clone() *Code {
 	detailsLen := len(e.details)
 	return &Code{
@@ -69,12 +73,16 @@ func (e *Code) clone() *Code {
 	}
 }
 
-// Details returns the error details attached to the Code.
-// It may return nil if no details is attached.
-func (e *Code) Details() []interface{} { return e.details }
+// WithMessage returns a copy of Code with the given message.
+func (e *Code) WithMessage(msg string) (code *Code) {
+	code = e.clone()
+	code.msg = msg
+	return
+}
 
-// WithDetails returns a copy of Code with new error details attached.
-func (e *Code) WithDetails(details ...interface{}) (code *Code) {
+// AddDetails returns a copy of Code with new error details attached
+// to the returned Code.
+func (e *Code) AddDetails(details ...interface{}) (code *Code) {
 	code = e.clone()
 	code.details = append(code.details, details...)
 	return
@@ -90,18 +98,6 @@ func (e *Code) RemoveDetails() (code *Code) {
 		return e
 	}
 	return &Code{code: e.code, msg: e.msg, reg: e.reg}
-}
-
-// WithMessage returns a copy of Code with the given message.
-// If error details are given, the new error details will be attached
-// to the returned Code.
-func (e *Code) WithMessage(msg string, details ...interface{}) (code *Code) {
-	code = e.clone()
-	code.msg = msg
-	if len(details) > 0 {
-		code.details = append(code.details, details...)
-	}
-	return
 }
 
 type jsonCode struct {

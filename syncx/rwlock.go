@@ -27,7 +27,7 @@ type rwlockShard struct {
 
 func init() {
 	shardsLen = runtime.GOMAXPROCS(0)
-	shardsLen = internal.NextPowerOfTwo(shardsLen)
+	shardsLen = int(internal.NextPowerOfTwo(uint(shardsLen)))
 	if shardsLen > 1 {
 		shardsMask = shardsLen - 1
 	}

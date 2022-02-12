@@ -44,7 +44,7 @@ func (p *JSON) Scan(src interface{}) error {
 	case []byte:
 		data = v
 	case string:
-		data = unsafeheader.StoB(v)
+		data = unsafeheader.StringToBytes(v)
 	default:
 		return fmt.Errorf("sqlutil: wants []byte/string but got %T", src)
 	}

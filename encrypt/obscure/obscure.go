@@ -78,6 +78,9 @@ func (p *Obscure) Table() [61]string {
 }
 
 func (p *Obscure) EncodedLen(n int) int {
+	if n <= 0 {
+		return 0
+	}
 	return 1 + p.encodings[0].EncodedLen(n)
 }
 
@@ -93,17 +96,26 @@ func (p *Obscure) Encode(dst, src []byte) {
 }
 
 func (p *Obscure) EncodeToBytes(src []byte) []byte {
+	if len(src) == 0 {
+		return nil
+	}
 	dst := make([]byte, p.EncodedLen(len(src)))
 	p.Encode(dst, src)
 	return dst
 }
 
 func (p *Obscure) EncodeToString(src []byte) string {
+	if len(src) == 0 {
+		return ""
+	}
 	dst := p.EncodeToBytes(src)
-	return unsafeheader.BtoS(dst)
+	return unsafeheader.BytesToString(dst)
 }
 
 func (p *Obscure) DecodedLen(n int) int {
+	if n <= 1 {
+		return 0
+	}
 	return p.encodings[0].DecodedLen(n - 1)
 }
 
@@ -124,6 +136,9 @@ func (p *Obscure) Decode(dst, src []byte) (n int, err error) {
 }
 
 func (p *Obscure) DecodeBytes(src []byte) ([]byte, error) {
+	if len(src) == 0 {
+		return nil, nil
+	}
 	dst := make([]byte, p.DecodedLen(len(src)))
 	n, err := p.Decode(dst, src)
 	if err != nil {
@@ -133,6 +148,6 @@ func (p *Obscure) DecodeBytes(src []byte) ([]byte, error) {
 }
 
 func (p *Obscure) DecodeString(src string) ([]byte, error) {
-	buf := unsafeheader.StoB(src)
+	buf := unsafeheader.StringToBytes(src)
 	return p.DecodeBytes(buf)
 }

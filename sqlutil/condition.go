@@ -63,6 +63,12 @@ func (p *Condition) And(clause string, args ...interface{}) *Condition {
 	return p
 }
 
+// AndCond combines the given Condition using "AND" operator.
+func (p *Condition) AndCond(c *Condition) *Condition {
+	clause, args := c.Build()
+	return p.And(clause, args...)
+}
+
 // Or combines the given query filter to Condition using "OR" operator.
 func (p *Condition) Or(clause string, args ...interface{}) *Condition {
 	if clause == "" {
@@ -88,6 +94,12 @@ func (p *Condition) Or(clause string, args ...interface{}) *Condition {
 	return p
 }
 
+// OrCond combines the given Condition using "OR" operator.
+func (p *Condition) OrCond(c *Condition) *Condition {
+	clause, args := c.Build()
+	return p.Or(clause, args...)
+}
+
 // IfAnd checks cond, if cond is true, it combines the query filter
 // to Condition using "AND" operator.
 func (p *Condition) IfAnd(cond bool, clause string, args ...interface{}) *Condition {
@@ -97,11 +109,27 @@ func (p *Condition) IfAnd(cond bool, clause string, args ...interface{}) *Condit
 	return p
 }
 
+// IfAndCond checks cond, if cond is true, it combines the given Condition
+// using "AND" operator.
+func (p *Condition) IfAndCond(cond bool, c *Condition) *Condition {
+	if cond {
+		return p.AndCond(c)
+	}
+	return p
+}
+
 // IfOr checks cond, it cond is true, it combines the query filter
 // to Condition using "OR" operator.
 func (p *Condition) IfOr(cond bool, clause string, args ...interface{}) *Condition {
 	if cond {
 		return p.Or(clause, args...)
+	}
+	return p
+}
+
+func (p *Condition) IfOrCond(cond bool, c *Condition) *Condition {
+	if cond {
+		return p.OrCond(c)
 	}
 	return p
 }
