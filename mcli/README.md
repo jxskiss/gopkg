@@ -56,7 +56,7 @@ ARGUMENTS:
 exit status 2
 
 $ go run say.go hello
-Say to alice: hello
+Say to tom: hello
 ```
 
 Use with sub-commands:

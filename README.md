@@ -6,9 +6,12 @@ It helps to make life easier!
 
 ## Status
 
-There shall be no further changes to the v1 API.
+This v1 branch is the legacy code which is released as versions v0.x.x.
 
-A new v2 branch is being built, featuring generics avalailable in Go 1.18+.
+There shall be no further changes to the v1 APIs.
+
+A new v2 branch is being built, which will be released as "github.com/jxskiss/gopkg/v2".
+v2 requires Go 1.18+, users are recommended to upgrade to v2 when the generics feature is stable.
 
 ## Code layout
 
