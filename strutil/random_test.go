@@ -1,48 +1,49 @@
 package strutil
 
 import (
-	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestRandPassword(t *testing.T) {
+func TestRandomCrypto(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		length := 3 + rand.Intn(1024)
-		pwd := RandPassword(length)
+		pwd := RandomCrypto(AlphaDigits, length)
 		assert.True(t, IsASCII(pwd))
 	}
 
 	for i := 0; i < 10; i++ {
 		length := 3 + rand.Intn(1024)
-		pwd := RandStrongPassword(length)
+		pwd := RandomCrypto(AlphaDigits+PasswordSpecial, length)
 		assert.True(t, IsASCII(pwd))
 	}
 }
 
-func TestRandASCII(t *testing.T) {
+func TestRandom(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		length := 3 + rand.Intn(1024)
-		letters := RandLetters(length)
+		letters := Random(Letters, length)
 		assert.True(t, IsPrintable(letters))
 	}
 
 	for i := 0; i < 10; i++ {
 		length := 3 + rand.Intn(1024)
-		lower := RandLowerLetters(length)
+		lower := Random(LowerLetters, length)
 		t.Log("lower:", lower)
 		assert.True(t, IsLower(lower))
 	}
 
 	for i := 0; i < 10; i++ {
 		length := 3 + rand.Intn(1024)
-		upper := RandUpperLetters(length)
+		upper := Random(UpperLetters, length)
 		assert.True(t, IsUpper(upper))
 	}
 
 	for i := 0; i < 10; i++ {
 		length := 3 + rand.Intn(1024)
-		digits := RandDigits(length)
+		digits := Random(Digits, length)
 		assert.NotEqual(t, digits[0], '0')
 		assert.True(t, IsASCIIDigit(digits))
 		assert.True(t, IsDigit(digits))
@@ -50,7 +51,7 @@ func TestRandASCII(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		length := 3 + rand.Intn(1024)
-		str := RandAlphaDigits(length)
+		str := Random(AlphaDigits, length)
 		assert.True(t, IsASCII(str))
 		assert.True(t, IsPrintable(str))
 	}

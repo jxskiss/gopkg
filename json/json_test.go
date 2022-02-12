@@ -3,11 +3,13 @@ package json
 import (
 	"bytes"
 	stdjson "encoding/json"
-	"github.com/jxskiss/gopkg/ptr"
-	"github.com/stretchr/testify/assert"
 	"math"
 	"net"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/jxskiss/gopkg/v2/ptr"
 )
 
 type testSSMap map[string]string

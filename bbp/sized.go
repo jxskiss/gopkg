@@ -27,12 +27,13 @@ func Get(length int, capacity ...int) *Buffer {
 	}
 	if cap_ > MaxSize {
 		return &Buffer{
-			B:       make([]byte, length, cap_),
+			buf:     make([]byte, length, cap_),
 			noReuse: true,
 		}
 	}
-	buf := getBuffer()
-	buf.B = get(length, cap_)
+	buf := &Buffer{
+		buf: get(length, cap_),
+	}
 	return buf
 }
 
@@ -42,11 +43,8 @@ func Get(length int, capacity ...int) *Buffer {
 // Otherwise, data races will occur.
 func Put(buf *Buffer) {
 	if !buf.noReuse {
-		put(buf.B)
+		put(buf.buf)
 	}
-	buf.B = nil
-	buf.noReuse = false
-	bpool.Put(buf)
 }
 
 // Grow returns a new byte buffer from the pool which guarantees it's

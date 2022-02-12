@@ -24,4 +24,7 @@ func compileRuntimeFunctions() {
 	call(Runtime_activeModules)
 	call(Runtime_readUnaligned32)
 	call(Runtime_readUnaligned64)
+	call(Runtime_mmap)
+	call(Runtime_sysAlloc)
+	call(Runtime_sysFree)
 }

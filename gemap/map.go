@@ -9,23 +9,42 @@ import (
 )
 
 // Map is a map of string key and interface{} value.
-// It provides many useful methods to manipulate map[string]interface{}.
+// It provides many useful methods to work with map[string]interface{}.
 type Map map[string]interface{}
 
-// SafeMap wraps a RWMutex with Map to provide concurrent safety.
+// SafeMap wraps a Map with a RWMutex to provide concurrent safety.
 type SafeMap struct {
 	sync.RWMutex
-	Map Map
+	Map
 }
 
-// NewMap returns a new initialized Map instance.
+// NewMap returns a new initialized Map.
 func NewMap() Map {
 	return make(Map)
 }
 
-// NewSafeMap returns a new initialized SafeMap instance.
+// NewSafeMap returns a new initialized SafeMap.
 func NewSafeMap() *SafeMap {
 	return &SafeMap{Map: make(Map)}
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (p Map) MarshalJSON() ([]byte, error) {
+	x := map[string]interface{}(p)
+	return json.Marshal(x)
+}
+
+// MarshalJSONPretty returns its marshaled data as `[]byte` with
+// indentation using two spaces.
+func (p Map) MarshalJSONPretty() ([]byte, error) {
+	x := map[string]interface{}(p)
+	return json.MarshalIndent(x, "", "  ")
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (p *Map) UnmarshalJSON(data []byte) error {
+	x := (*map[string]interface{})(p)
+	return json.Unmarshal(data, x)
 }
 
 // Set is used to store a new key/value pair exclusively in the map.
@@ -224,8 +243,8 @@ func (p Map) GetMap(key string) Map {
 	return nil
 }
 
-// GetStrstrMap returns the value associated with the key as a map of (map[string]string).
-func (p Map) GetStrstrMap(key string) map[string]string {
+// GetStringMap returns the value associated with the key as a map of (map[string]string).
+func (p Map) GetStringMap(key string) map[string]string {
 	if val, ok := p[key].(map[string]string); ok {
 		return val
 	}

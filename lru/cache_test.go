@@ -8,8 +8,8 @@ import (
 	"time"
 )
 
-func createFilledCache(ttl time.Duration) *Cache {
-	c := NewCache(1000)
+func createFilledCache(ttl time.Duration) *Cache[int64, int64] {
+	c := NewCache[int64, int64](1000)
 	for i := 0; i < 1000; i++ {
 		key := int64(rand.Intn(5000))
 		c.Set(key, key, ttl)
@@ -27,7 +27,7 @@ func createRandInts(size int) []int64 {
 
 func TestBasicEviction(t *testing.T) {
 	t.Parallel()
-	c := NewCache(3)
+	c := NewCache[string, string](3)
 	if _, ok, _ := c.Get("a"); ok {
 		t.Error("a")
 	}
@@ -73,8 +73,8 @@ func TestBasicEviction(t *testing.T) {
 		t.Errorf("invalid length, want= 3, got= %v", l)
 	}
 
-	c.Del("missing")
-	c.Del("g")
+	c.Delete("missing")
+	c.Delete("g")
 	if l := c.Len(); l != 2 {
 		t.Errorf("invalid length, want= 2, got= %v", l)
 	}
@@ -92,12 +92,12 @@ func TestBasicEviction(t *testing.T) {
 	}
 
 	// h/i, i/h, d, [h, i]
-	m := c.MGetString("h", "i")
+	m := c.MGet("h", "i")
 	if m["h"] != "vh" {
-		t.Error("expecting MSetString and MGetString to work")
+		t.Error("expecting MSet and MGet to work")
 	}
 	if m["i"] != "vi" {
-		t.Error("expecting MSetString and MGetString to work")
+		t.Error("expecting MSet and MGet to work")
 	}
 
 	if v, _, _ := c.GetQuiet("d"); v != "vd" {
@@ -119,7 +119,7 @@ func TestConcurrentGet(t *testing.T) {
 		for i := 0; i < 5000; i++ {
 			key := s[i]
 			v, exists, _ := c.Get(key)
-			if exists && v.(int64) != key {
+			if exists && v != key {
 				t.Errorf("value not match: want= %v, got= %v", key, v)
 			}
 		}
@@ -167,7 +167,7 @@ func TestConcurrentGetSet(t *testing.T) {
 		for i := 0; i < 5000; i++ {
 			key := s[i]
 			v, exists, _ := c.Get(key)
-			if exists && v.(int64) != key {
+			if exists && v != key {
 				t.Errorf("value not match: want= %v, got= %v", key, v)
 			}
 		}

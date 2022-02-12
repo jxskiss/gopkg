@@ -1,30 +1,112 @@
 package lru
 
 import (
-	"github.com/jxskiss/gopkg/internal"
-	"github.com/jxskiss/gopkg/rthash"
 	"reflect"
 	"time"
+	"unsafe"
+
+	"github.com/jxskiss/gopkg/v2/internal"
+	"github.com/jxskiss/gopkg/v2/rthash"
 )
 
 var shardingHash = rthash.New()
+
+func buildHashFunction[K comparable]() func(x K) uintptr {
+	var _k K
+	typ := reflect.TypeOf((interface{})(_k))
+	if typ == nil {
+		return func(x K) uintptr {
+			return shardingHash.Interface(x)
+		}
+	}
+	switch typ.Kind() {
+	case reflect.String:
+		return func(x K) uintptr {
+			return shardingHash.String(*(*string)(unsafe.Pointer(&x)))
+		}
+	case reflect.Int8:
+		return func(x K) uintptr {
+			return shardingHash.Int8(*(*int8)(unsafe.Pointer(&x)))
+		}
+	case reflect.Uint8:
+		return func(x K) uintptr {
+			return shardingHash.Uint8(*(*uint8)(unsafe.Pointer(&x)))
+		}
+	case reflect.Int16:
+		return func(x K) uintptr {
+			return shardingHash.Int16(*(*int16)(unsafe.Pointer(&x)))
+		}
+	case reflect.Uint16:
+		return func(x K) uintptr {
+			return shardingHash.Uint16(*(*uint16)(unsafe.Pointer(&x)))
+		}
+	case reflect.Int32:
+		return func(x K) uintptr {
+			return shardingHash.Int32(*(*int32)(unsafe.Pointer(&x)))
+		}
+	case reflect.Uint32:
+		return func(x K) uintptr {
+			return shardingHash.Uint32(*(*uint32)(unsafe.Pointer(&x)))
+		}
+	case reflect.Int64:
+		return func(x K) uintptr {
+			return shardingHash.Int64(*(*int64)(unsafe.Pointer(&x)))
+		}
+	case reflect.Uint64:
+		return func(x K) uintptr {
+			return shardingHash.Uint64(*(*uint64)(unsafe.Pointer(&x)))
+		}
+	case reflect.Int:
+		return func(x K) uintptr {
+			return shardingHash.Int(*(*int)(unsafe.Pointer(&x)))
+		}
+	case reflect.Uint:
+		return func(x K) uintptr {
+			return shardingHash.Uint(*(*uint)(unsafe.Pointer(&x)))
+		}
+	case reflect.Uintptr:
+		return func(x K) uintptr {
+			return shardingHash.Uintptr(*(*uintptr)(unsafe.Pointer(&x)))
+		}
+	case reflect.Float32:
+		return func(x K) uintptr {
+			return shardingHash.Float32(*(*float32)(unsafe.Pointer(&x)))
+		}
+	case reflect.Float64:
+		return func(x K) uintptr {
+			return shardingHash.Float64(*(*float64)(unsafe.Pointer(&x)))
+		}
+	case reflect.Complex64:
+		return func(x K) uintptr {
+			return shardingHash.Complex64(*(*complex64)(unsafe.Pointer(&x)))
+		}
+	case reflect.Complex128:
+		return func(x K) uintptr {
+			return shardingHash.Complex128(*(*complex128)(unsafe.Pointer(&x)))
+		}
+	}
+	return func(x K) uintptr {
+		return shardingHash.Interface(x)
+	}
+}
 
 // NewShardedCache returns a hash-sharded lru cache instance which is suitable
 // to use for heavy lock contention use-case. It keeps same interface with
 // the lru cache instance returned by NewCache function.
 // Generally NewCache should be used instead of this unless you are sure that
 // you are facing the lock contention problem.
-func NewShardedCache(buckets, bucketCapacity int) *ShardedCache {
-	buckets = internal.NextPowerOfTwo(buckets)
+func NewShardedCache[K comparable, V any](buckets, bucketCapacity int) *ShardedCache[K, V] {
+	buckets = int(internal.NextPowerOfTwo(uint(buckets)))
 	mask := uintptr(buckets - 1)
-	mc := &ShardedCache{
+	mc := &ShardedCache[K, V]{
 		buckets: uintptr(buckets),
 		mask:    mask,
-		cache:   make([]*Cache, buckets),
+		cache:   make([]*Cache[K, V], buckets),
 	}
 	for i := 0; i < buckets; i++ {
-		mc.cache[i] = NewCache(bucketCapacity)
+		mc.cache[i] = NewCache[K, V](bucketCapacity)
 	}
+	mc.hashFunc = buildHashFunction[K]()
 	return mc
 }
 
@@ -35,57 +117,59 @@ func NewShardedCache(buckets, bucketCapacity int) *ShardedCache {
 //
 // It implements Interface in this package, see Interface for detailed
 // api documents.
-type ShardedCache struct {
+type ShardedCache[K comparable, V any] struct {
 	buckets uintptr
 	mask    uintptr
-	cache   []*Cache
+	cache   []*Cache[K, V]
+
+	hashFunc func(K) uintptr
 }
 
-func (c *ShardedCache) Len() (n int) {
+func (c *ShardedCache[K, V]) Len() (n int) {
 	for _, c := range c.cache {
 		n += c.Len()
 	}
 	return
 }
 
-func (c *ShardedCache) Has(key interface{}) (exists, expired bool) {
-	h := shardingHash.Hash(key)
+func (c *ShardedCache[K, V]) Has(key K) (exists, expired bool) {
+	h := c.hashFunc(key)
 	return c.cache[h&c.mask].Has(key)
 }
 
-func (c *ShardedCache) Get(key interface{}) (v interface{}, exists, expired bool) {
-	h := shardingHash.Hash(key)
+func (c *ShardedCache[K, V]) Get(key K) (v V, exists, expired bool) {
+	h := c.hashFunc(key)
 	return c.cache[h&c.mask].Get(key)
 }
 
-func (c *ShardedCache) GetWithTTL(key interface{}) (v interface{}, exists bool, ttl *time.Duration) {
-	h := shardingHash.Hash(key)
+func (c *ShardedCache[K, V]) GetWithTTL(key K) (v V, exists bool, ttl *time.Duration) {
+	h := c.hashFunc(key)
 	return c.cache[h&c.mask].GetWithTTL(key)
 }
 
-func (c *ShardedCache) GetQuiet(key interface{}) (v interface{}, exists, expired bool) {
-	h := shardingHash.Hash(key)
+func (c *ShardedCache[K, V]) GetQuiet(key K) (v V, exists, expired bool) {
+	h := c.hashFunc(key)
 	return c.cache[h&c.mask].GetQuiet(key)
 }
 
-func (c *ShardedCache) GetNotStale(key interface{}) (v interface{}, exists bool) {
-	h := shardingHash.Hash(key)
+func (c *ShardedCache[K, V]) GetNotStale(key K) (v V, exists bool) {
+	h := c.hashFunc(key)
 	return c.cache[h&c.mask].GetNotStale(key)
 }
 
-func (c *ShardedCache) MGet(keys ...interface{}) map[interface{}]interface{} {
+func (c *ShardedCache[K, V]) MGet(keys ...K) map[K]V {
 	return c.mget(false, keys...)
 }
 
-func (c *ShardedCache) MGetNotStale(keys ...interface{}) map[interface{}]interface{} {
+func (c *ShardedCache[K, V]) MGetNotStale(keys ...K) map[K]V {
 	return c.mget(true, keys...)
 }
 
-func (c *ShardedCache) mget(notStale bool, keys ...interface{}) map[interface{}]interface{} {
+func (c *ShardedCache[K, V]) mget(notStale bool, keys ...K) map[K]V {
 	grpKeys := c.groupKeys(keys)
 	nowNano := time.Now().UnixNano()
 
-	var res map[interface{}]interface{}
+	var res map[K]V
 	for idx, keys := range grpKeys {
 		grp := c.cache[idx].mget(notStale, nowNano, keys...)
 		if res == nil {
@@ -99,210 +183,34 @@ func (c *ShardedCache) mget(notStale bool, keys ...interface{}) map[interface{}]
 	return res
 }
 
-func (c *ShardedCache) MGetInt(keys ...int) map[int]interface{} {
-	return c.mgetInt(false, keys...)
-}
-
-func (c *ShardedCache) MGetIntNotStale(keys ...int) map[int]interface{} {
-	return c.mgetInt(true, keys...)
-}
-
-func (c *ShardedCache) mgetInt(notStale bool, keys ...int) map[int]interface{} {
-	grpKeys := c.groupIntKeys(keys)
-	nowNano := time.Now().UnixNano()
-
-	var res map[int]interface{}
-	for idx, keys := range grpKeys {
-		grp := c.cache[idx].mgetInt(notStale, nowNano, keys...)
-		if res == nil {
-			res = grp
-		} else {
-			for k, v := range grp {
-				res[k] = v
-			}
-		}
-	}
-	return res
-}
-
-func (c *ShardedCache) MGetInt64(keys ...int64) map[int64]interface{} {
-	return c.mgetInt64(false, keys...)
-}
-
-func (c *ShardedCache) MGetInt64NotStale(keys ...int64) map[int64]interface{} {
-	return c.mgetInt64(true, keys...)
-}
-
-func (c *ShardedCache) mgetInt64(notStale bool, keys ...int64) map[int64]interface{} {
-	grpKeys := c.groupInt64Keys(keys)
-	nowNano := time.Now().UnixNano()
-
-	var res map[int64]interface{}
-	for idx, keys := range grpKeys {
-		grp := c.cache[idx].mgetInt64(notStale, nowNano, keys...)
-		if res == nil {
-			res = grp
-		} else {
-			for k, v := range grp {
-				res[k] = v
-			}
-		}
-	}
-	return res
-}
-
-func (c *ShardedCache) MGetUint64(keys ...uint64) map[uint64]interface{} {
-	return c.mgetUint64(false, keys...)
-}
-
-func (c *ShardedCache) MGetUint64NotStale(keys ...uint64) map[uint64]interface{} {
-	return c.mgetUint64(true, keys...)
-}
-
-func (c *ShardedCache) mgetUint64(notStale bool, keys ...uint64) map[uint64]interface{} {
-	grpKeys := c.groupUint64Keys(keys)
-	nowNano := time.Now().UnixNano()
-
-	var res map[uint64]interface{}
-	for idx, keys := range grpKeys {
-		grp := c.cache[idx].mgetUint64(notStale, nowNano, keys...)
-		if res == nil {
-			res = grp
-		} else {
-			for k, v := range grp {
-				res[k] = v
-			}
-		}
-	}
-	return res
-}
-
-func (c *ShardedCache) MGetString(keys ...string) map[string]interface{} {
-	return c.mgetString(false, keys...)
-}
-
-func (c *ShardedCache) MGetStringNotStale(keys ...string) map[string]interface{} {
-	return c.mgetString(true, keys...)
-}
-
-func (c *ShardedCache) mgetString(notStale bool, keys ...string) map[string]interface{} {
-	grpKeys := c.groupStringKeys(keys)
-	nowNano := time.Now().UnixNano()
-
-	var res map[string]interface{}
-	for idx, keys := range grpKeys {
-		grp := c.cache[idx].mgetString(notStale, nowNano, keys...)
-		if res == nil {
-			res = grp
-		} else {
-			for k, v := range grp {
-				res[k] = v
-			}
-		}
-	}
-	return res
-}
-
-func (c *ShardedCache) Set(key, value interface{}, ttl time.Duration) {
-	h := shardingHash.Hash(key)
+func (c *ShardedCache[K, V]) Set(key K, value V, ttl time.Duration) {
+	h := c.hashFunc(key)
 	c.cache[h&c.mask].Set(key, value, ttl)
 }
 
-func (c *ShardedCache) MSet(kvmap interface{}, ttl time.Duration) {
-	m := reflect.ValueOf(kvmap)
-	keys := m.MapKeys()
-
-	for _, key := range keys {
-		value := m.MapIndex(key)
-		c.Set(key.Interface(), value.Interface(), ttl)
+func (c *ShardedCache[K, V]) MSet(kvmap map[K]V, ttl time.Duration) {
+	for key, val := range kvmap {
+		c.Set(key, val, ttl)
 	}
 }
 
-func (c *ShardedCache) Del(key interface{}) {
-	h := shardingHash.Hash(key)
-	c.cache[h&c.mask].Del(key)
+func (c *ShardedCache[K, V]) Delete(key K) {
+	h := c.hashFunc(key)
+	c.cache[h&c.mask].Delete(key)
 }
 
-func (c *ShardedCache) MDel(keys ...interface{}) {
+func (c *ShardedCache[K, V]) MDelete(keys ...K) {
 	grpKeys := c.groupKeys(keys)
 
 	for idx, keys := range grpKeys {
-		c.cache[idx].MDel(keys...)
+		c.cache[idx].MDelete(keys...)
 	}
 }
 
-func (c *ShardedCache) MDelInt(keys ...int) {
-	grpKeys := c.groupIntKeys(keys)
-
-	for idx, keys := range grpKeys {
-		c.cache[idx].MDelInt(keys...)
-	}
-}
-
-func (c *ShardedCache) MDelInt64(keys ...int64) {
-	grpKeys := c.groupInt64Keys(keys)
-
-	for idx, keys := range grpKeys {
-		c.cache[idx].MDelInt64(keys...)
-	}
-}
-
-func (c *ShardedCache) MDelUint64(keys ...uint64) {
-	grpKeys := c.groupUint64Keys(keys)
-
-	for idx, keys := range grpKeys {
-		c.cache[idx].MDelUint64(keys...)
-	}
-}
-
-func (c *ShardedCache) MDelString(keys ...string) {
-	grpKeys := c.groupStringKeys(keys)
-
-	for idx, keys := range grpKeys {
-		c.cache[idx].MDelString(keys...)
-	}
-}
-
-func (c *ShardedCache) groupKeys(keys []interface{}) map[uintptr][]interface{} {
-	grpKeys := make(map[uintptr][]interface{})
+func (c *ShardedCache[K, V]) groupKeys(keys []K) map[uintptr][]K {
+	grpKeys := make(map[uintptr][]K)
 	for _, key := range keys {
-		idx := shardingHash.Interface(key) & c.mask
-		grpKeys[idx] = append(grpKeys[idx], key)
-	}
-	return grpKeys
-}
-
-func (c *ShardedCache) groupIntKeys(keys []int) map[uintptr][]int {
-	grpKeys := make(map[uintptr][]int)
-	for _, key := range keys {
-		idx := shardingHash.Int(key) & c.mask
-		grpKeys[idx] = append(grpKeys[idx], key)
-	}
-	return grpKeys
-}
-
-func (c *ShardedCache) groupInt64Keys(keys []int64) map[uintptr][]int64 {
-	grpKeys := make(map[uintptr][]int64)
-	for _, key := range keys {
-		idx := shardingHash.Int64(key) & c.mask
-		grpKeys[idx] = append(grpKeys[idx], key)
-	}
-	return grpKeys
-}
-
-func (c *ShardedCache) groupUint64Keys(keys []uint64) map[uintptr][]uint64 {
-	grpKeys := make(map[uintptr][]uint64)
-	for _, key := range keys {
-		idx := shardingHash.Uint64(key) & c.mask
-		grpKeys[idx] = append(grpKeys[idx], key)
-	}
-	return grpKeys
-}
-
-func (c *ShardedCache) groupStringKeys(keys []string) map[uintptr][]string {
-	grpKeys := make(map[uintptr][]string)
-	for _, key := range keys {
-		idx := shardingHash.String(key) & c.mask
+		idx := c.hashFunc(key) & c.mask
 		grpKeys[idx] = append(grpKeys[idx], key)
 	}
 	return grpKeys

@@ -1,7 +1,7 @@
 package benchmark
 
 import (
-	"github.com/jxskiss/gopkg/internal/linkname"
+	"github.com/jxskiss/gopkg/v2/internal/linkname"
 	"reflect"
 	"testing"
 	"unsafe"

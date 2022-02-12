@@ -2,7 +2,7 @@ package unsafeheader
 
 import "unsafe"
 
-func StoB(s string) []byte {
+func StringToBytes(s string) []byte {
 	sh := (*String)(unsafe.Pointer(&s))
 	bh := &Slice{
 		Data: sh.Data,
@@ -12,6 +12,6 @@ func StoB(s string) []byte {
 	return *(*[]byte)(unsafe.Pointer(bh))
 }
 
-func BtoS(b []byte) string {
+func BytesToString(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
 }

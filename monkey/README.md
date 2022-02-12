@@ -13,3 +13,10 @@ Notes
    don't allow memory pages to be both write and execute at the same time.
    With the current approach there's not really a reliable fix for this.
 3. Monkey is super unsafe, be sure you know what you are doing.
+
+References
+
+1. https://github.com/bouk/monkey
+2. https://github.com/brahma-adshonor/gohook
+3. https://www.cnblogs.com/catch/p/10973611.html
+4. https://onedrive.live.com/View.aspx?resid=7804A3BDAEB13A9F!58083&authkey=!AKVlLS9s9KYh07s

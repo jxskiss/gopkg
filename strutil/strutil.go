@@ -113,9 +113,11 @@ func ContainsFold(s, substr string) bool {
 func Reverse(s string) string {
 	runes := []rune(s)
 	length := len(runes)
-	for i := 0; i < length/2; i++ {
-		j := length - 1 - i
+	i, j := 0, length-1
+	for i < j {
 		runes[i], runes[j] = runes[j], runes[i]
+		i++
+		j--
 	}
 	return string(runes)
 }

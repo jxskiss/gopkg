@@ -1,8 +1,9 @@
 package bbp
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -12,10 +13,10 @@ const (
 
 func TestGet(t *testing.T) {
 	buf := Get(_4K)
-	t.Log(cap(buf.B))
+	t.Log(cap(buf.buf))
 
 	buf = Get(_10M)
-	t.Log(cap(buf.B))
+	t.Log(cap(buf.buf))
 }
 
 func Test_indexGet(t *testing.T) {

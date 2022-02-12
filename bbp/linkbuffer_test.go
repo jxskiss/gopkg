@@ -2,9 +2,10 @@ package bbp
 
 import (
 	"bytes"
-	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestLinkBufferWrite(t *testing.T) {

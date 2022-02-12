@@ -4,8 +4,8 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/jxskiss/gopkg/internal"
-	"github.com/jxskiss/gopkg/internal/linkname"
+	"github.com/jxskiss/gopkg/v2/internal"
+	"github.com/jxskiss/gopkg/v2/internal/linkname"
 )
 
 const cacheLineSize = 64
@@ -27,7 +27,7 @@ type rwlockShard struct {
 
 func init() {
 	shardsLen = runtime.GOMAXPROCS(0)
-	shardsLen = internal.NextPowerOfTwo(shardsLen)
+	shardsLen = int(internal.NextPowerOfTwo(uint(shardsLen)))
 	if shardsLen > 1 {
 		shardsMask = shardsLen - 1
 	}

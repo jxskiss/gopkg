@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/jxskiss/gopkg/easy"
+	"github.com/jxskiss/gopkg/v2/internal/slices"
 )
 
 type DBConfig struct {
@@ -114,7 +114,7 @@ func assertSingleFileConfig(t *testing.T, cfg *TestConfig, exclude ...string) {
 		{"override_env_var", int64(12345), cfg.OverrideEnvVar},
 	}
 	for _, tf := range testFields {
-		if !easy.InStrings(exclude, tf.Key) {
+		if !slices.Contains(exclude, tf.Key) {
 			assert.Equal(t, tf.Expected, tf.Actual)
 		}
 	}

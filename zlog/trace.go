@@ -17,7 +17,10 @@ var disableTrace = false
 // is a no-op.
 func Trace(msg string, fields ...zap.Field) {
 	if !disableTrace {
-		_l().Debug(TracePrefix+msg, fields...)
+		msg = TracePrefix + msg
+		if ce := _l().Check(TraceLevel.toZapLevel(), msg); ce != nil {
+			ce.Write(fields...)
+		}
 	}
 }
 
@@ -28,7 +31,11 @@ func Trace(msg string, fields ...zap.Field) {
 // is a no-op.
 func Tracef(format string, args ...interface{}) {
 	if !disableTrace {
-		_s().Debugf(TracePrefix+format, args...)
+		msg := formatMessage(format, args)
+		msg = TracePrefix + msg
+		if ce := _l().Check(TraceLevel.toZapLevel(), msg); ce != nil {
+			ce.Write()
+		}
 	}
 }
 
@@ -68,7 +75,9 @@ func TRACESkip(skip int, args ...interface{}) {
 func _slowPathTRACE(skip int, args ...interface{}) {
 	logger, msg, fields := parseLoggerAndParams(skip, args)
 	msg = addCallerPrefix(skip, TracePrefix, msg)
-	logger.Debug(msg, fields...)
+	if ce := logger.Check(TraceLevel.toZapLevel(), msg); ce != nil {
+		ce.Write(fields...)
+	}
 }
 
 func parseLoggerAndParams(skip int, args []interface{}) (*zap.Logger, string, []zap.Field) {
@@ -108,9 +117,6 @@ func parseLoggerAndParams(skip int, args []interface{}) (*zap.Logger, string, []
 	if s, ok := args[0].(string); ok && strings.IndexByte(s, '%') >= 0 {
 		template = s
 		args = args[1:]
-		if len(args) == 0 {
-			return logger, template, nil
-		}
 	}
 	return logger, formatMessage(template, args), nil
 }
@@ -151,6 +157,5 @@ func formatMessage(template string, fmtArgs []interface{}) string {
 			return str
 		}
 	}
-	template = "%v" + strings.Repeat(" %v", len(fmtArgs)-1)
-	return fmt.Sprintf(template, fmtArgs...)
+	return fmt.Sprint(fmtArgs...)
 }

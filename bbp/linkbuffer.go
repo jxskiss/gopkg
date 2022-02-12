@@ -2,7 +2,6 @@ package bbp
 
 import (
 	"io"
-	"sync"
 	"unicode/utf8"
 )
 
@@ -31,11 +30,10 @@ func NewLinkBuffer(blockSize int) *LinkBuffer {
 	poolIdx := indexGet(blockSize)
 	blockSize = 1 << poolIdx
 
-	buf := getLinkBuffer()
-	buf.blockSize = blockSize
-	buf.poolIdx = poolIdx
-	buf.size = 0
-	buf.cap = 0
+	buf := &LinkBuffer{
+		blockSize: blockSize,
+		poolIdx:   poolIdx,
+	}
 	return buf
 }
 
@@ -229,6 +227,14 @@ func (b *LinkBuffer) String() string {
 	return b2s(buf)
 }
 
+// Reader returns a Reader reading from the Buffer's underlying byte buffers.
+//
+// When the returned Reader is being used, modifying this LinkBuffer will
+// lead to undefined behavior.
+func (b *LinkBuffer) Reader() *Reader {
+	return NewReader(b.bufs...)
+}
+
 // PutLinkBuffer puts back a LinkBuffer to the pool for reusing.
 //
 // The buf mustn't be touched after returning it to the pool.
@@ -239,17 +245,4 @@ func PutLinkBuffer(buf *LinkBuffer) {
 		sizedPools[poolIdx].Put(bb[:0])
 	}
 	buf.bufs = nil
-	linkBufferPool.Put(buf)
-}
-
-var linkBufferPool sync.Pool
-
-// getLinkBuffer helps to eliminate unnecessary type assertions and memory
-// allocation, it will be inlined into the callers.
-func getLinkBuffer() *LinkBuffer {
-	buf := linkBufferPool.Get()
-	if buf != nil {
-		return buf.(*LinkBuffer)
-	}
-	return &LinkBuffer{}
 }

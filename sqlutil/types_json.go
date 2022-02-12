@@ -5,9 +5,9 @@ import (
 	"database/sql/driver"
 	"fmt"
 
-	"github.com/jxskiss/gopkg/gemap"
-	"github.com/jxskiss/gopkg/internal/unsafeheader"
-	"github.com/jxskiss/gopkg/json"
+	"github.com/jxskiss/gopkg/v2/gemap"
+	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
+	"github.com/jxskiss/gopkg/v2/json"
 )
 
 var emptyObject = []byte("{}")
@@ -44,7 +44,7 @@ func (p *JSON) Scan(src interface{}) error {
 	case []byte:
 		data = v
 	case string:
-		data = unsafeheader.StoB(v)
+		data = unsafeheader.StringToBytes(v)
 	default:
 		return fmt.Errorf("sqlutil: wants []byte/string but got %T", src)
 	}

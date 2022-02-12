@@ -6,7 +6,7 @@ package unsafeheader_test
 
 import (
 	"bytes"
-	"github.com/jxskiss/gopkg/internal/unsafeheader"
+	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 	"reflect"
 	"testing"
 	"unsafe"

@@ -2,6 +2,7 @@ package zlog
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"go.uber.org/atomic"
@@ -22,7 +23,7 @@ const (
 	// You can expect this logging level to be very verbose. You can use it
 	// for example to annotate each step in the algorithm or each individual
 	// query with parameters in your code.
-	TraceLevel Level = iota
+	TraceLevel Level = iota - 2
 
 	// DebugLevel logs are less granular compared to TraceLevel, but it is
 	// more than you will need in everyday use. DebugLevel should be used
@@ -119,14 +120,13 @@ const (
 	WarnPrefix     = "[WARN] "
 	ErrorPrefix    = "[ERROR] "
 	CriticalPrefix = "[CRITICAL] "
+	PanicPrefix    = "[PANIC] "
 	FatalPrefix    = "[FATAL] "
 )
 
 const levelPrefixMinLen = 6
 
 var mapZapLevels = [...]zapcore.Level{
-	zap.DebugLevel,
-	zap.DebugLevel,
 	zap.InfoLevel,
 	zap.InfoLevel,
 	zap.WarnLevel,
@@ -137,22 +137,66 @@ var mapZapLevels = [...]zapcore.Level{
 	zap.FatalLevel,
 }
 
-var levelNames = [...]string{
-	"trace",
-	"debug",
-	"info",
-	"notice",
-	"warn",
-	"error",
-	"critical",
-	"dpanic",
-	"panic",
-	"fatal",
+func (l Level) toZapLevel() zapcore.Level {
+	if l < 0 {
+		return zapcore.Level(l)
+	}
+	return mapZapLevels[l]
 }
 
-func (l Level) toZapLevel() zapcore.Level { return mapZapLevels[l] }
+func (l Level) String() string {
+	switch l {
+	case TraceLevel:
+		return "trace"
+	case DebugLevel:
+		return "debug"
+	case InfoLevel:
+		return "info"
+	case NoticeLevel:
+		return "notice"
+	case WarnLevel:
+		return "warn"
+	case ErrorLevel:
+		return "error"
+	case CriticalLevel:
+		return "critical"
+	case DPanicLevel:
+		return "dpanic"
+	case PanicLevel:
+		return "panic"
+	case FatalLevel:
+		return "fatal"
+	default:
+		return strconv.FormatInt(int64(l), 10)
+	}
+}
 
-func (l Level) String() string { return levelNames[l] }
+func (l Level) CapitalString() string {
+	switch l {
+	case TraceLevel:
+		return "TRACE"
+	case DebugLevel:
+		return "DEBUG"
+	case InfoLevel:
+		return "INFO"
+	case NoticeLevel:
+		return "NOTICE"
+	case WarnLevel:
+		return "WARN"
+	case ErrorLevel:
+		return "ERROR"
+	case CriticalLevel:
+		return "CRITICAL"
+	case DPanicLevel:
+		return "DPANIC"
+	case PanicLevel:
+		return "PANIC"
+	case FatalLevel:
+		return "FATAL"
+	default:
+		return strconv.FormatInt(int64(l), 10)
+	}
+}
 
 func (l Level) Enabled(lvl zapcore.Level) bool {
 	return lvl >= l.toZapLevel()
@@ -266,6 +310,10 @@ func detectLevel(message string) (Level, bool) {
 	case 'C':
 		if strings.HasPrefix(message, CriticalPrefix) {
 			return CriticalLevel, true
+		}
+	case 'P':
+		if strings.HasPrefix(message, PanicPrefix) {
+			return PanicLevel, true
 		}
 	case 'F':
 		if strings.HasPrefix(message, FatalPrefix) {

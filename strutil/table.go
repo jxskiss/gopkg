@@ -3,18 +3,15 @@ package strutil
 import "unicode"
 
 const (
-	Letters      = UpperLetters + LowerLetters
-	UpperLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	LowerLetters = "abcdefghijklmnopqrstuvwxyz"
 	Digits       = "0123456789"
 	HexDigits    = "0123456789abcdefABCDEF"
 	OctDigits    = "01234567"
+	UpperLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	LowerLetters = "abcdefghijklmnopqrstuvwxyz"
+	Letters      = UpperLetters + LowerLetters
 	AlphaDigits  = Letters + Digits
-	Punctuation  = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
-	Whitespace   = " \t\n\r\x0b\x0c"
-	Printable    = AlphaDigits + Punctuation + Whitespace
 
-	PunctNoEscape = "!#$%&()*+,-./:;<=>?@[]^_{|}~" // without " ' ` \
+	PasswordSpecial = "!#$%&()*+,-./:;<=>?@[]^_{|}~"
 )
 
 // IsASCII returns true if the string is empty or all characters in the

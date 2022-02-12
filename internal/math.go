@@ -1,6 +1,6 @@
 package internal
 
-func NextPowerOfTwo(x int) int {
+func NextPowerOfTwo(x uint) uint {
 	if x <= 1 {
 		return 1
 	}

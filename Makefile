@@ -17,8 +17,7 @@ test_monkey:
 
 test_json:
 	go test ./json
-	go test --tags gojson ./json
-	go test --tags jsoniter ./json
+	go test --tags unsafejson ./json
 
 test_coverage:
 	mkdir -p _output/

@@ -30,8 +30,8 @@ zlog.filtertest=warn`, strings.TrimSpace(root.dumpTree("")))
 		{"some.module_1", ErrorLevel, true},
 		{"some.module_1.pkg_0", ErrorLevel, true},
 		{"some.module_1.pkg_1", WarnLevel, true},
-		{"some.module_2", TraceLevel, false},
-		{"some.module_2.pkg_0", TraceLevel, false},
+		{"some.module_2", InfoLevel, false},
+		{"some.module_2.pkg_0", InfoLevel, false},
 		{"some.module_2.pkg_1", InfoLevel, true},
 		{"some.module_2.pkg_2", DebugLevel, true},
 	}

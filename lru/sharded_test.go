@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-func createFilledShardedCache(ttl time.Duration) *ShardedCache {
-	c := NewShardedCache(8, 500)
+func createFilledShardedCache(ttl time.Duration) *ShardedCache[int64, int64] {
+	c := NewShardedCache[int64, int64](8, 500)
 	for i := 0; i < 1000; i++ {
 		key := int64(rand.Intn(5000))
 		c.Set(key, key, ttl)
@@ -18,7 +18,7 @@ func createFilledShardedCache(ttl time.Duration) *ShardedCache {
 
 func TestShardedBasicEviction(t *testing.T) {
 	t.Parallel()
-	c := NewShardedCache(4, 3)
+	c := NewShardedCache[string, string](4, 3)
 	if _, ok, _ := c.Get("a"); ok {
 		t.Error("")
 	}
@@ -45,12 +45,12 @@ func TestShardedBasicEviction(t *testing.T) {
 		t.Error("vi")
 	}
 
-	m := c.MGetString("h", "i")
+	m := c.MGet("h", "i")
 	if m["h"] != "vh" {
-		t.Error("expecting MSetString and MGetString to work")
+		t.Error("expecting MSet and NGet to work")
 	}
 	if m["i"] != "vi" {
-		t.Error("expecting MSetString and MGetString to work")
+		t.Error("expecting MSet and MGet to work")
 	}
 }
 
@@ -64,7 +64,7 @@ func TestShardedConcurrentGet(t *testing.T) {
 		for i := 0; i < 5000; i++ {
 			key := s[i]
 			v, exists, _ := c.Get(key)
-			if exists && v.(int64) != key {
+			if exists && v != key {
 				t.Errorf("value not match: want= %v, got= %v", key, v)
 			}
 		}
@@ -112,7 +112,7 @@ func TestShardedConcurrentGetSet(t *testing.T) {
 		for i := 0; i < 5000; i++ {
 			key := s[i]
 			v, exists, _ := c.Get(key)
-			if exists && v.(int64) != key {
+			if exists && v != key {
 				t.Errorf("value not match: want= %v, got= %v", key, v)
 			}
 		}

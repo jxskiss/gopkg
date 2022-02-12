@@ -2,8 +2,6 @@ package easy
 
 import (
 	"bytes"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +9,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSingleJoin(t *testing.T) {
@@ -103,19 +104,16 @@ func TestDoRequest(t *testing.T) {
 	var status int
 	var err error
 
-	logbuf := CopyStdLog(func() {
-		respText, status, err = DoRequest(&Request{
-			Req:          req,
-			Timeout:      time.Second,
-			DumpRequest:  true,
-			DumpResponse: true,
-		})
+	_, respText, status, err = DoRequest(&Request{
+		Req:          req,
+		Timeout:      time.Second,
+		DumpRequest:  true,
+		DumpResponse: true,
 	})
+
 	assert.Nil(t, err)
 	assert.Equal(t, 200, status)
 	assert.Contains(t, string(respText), data)
-	count := bytes.Count(logbuf, []byte(data))
-	assert.Equal(t, 2, count)
 }
 
 func testHttpHandler(w http.ResponseWriter, r *http.Request) {

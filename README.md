@@ -1,14 +1,16 @@
 # gopkg
 
-This repository collects many frequently used small packages, it is designed
+This repository contains many frequently used small packages, it is designed
 to have reasonable trade-off between generic, performance and API friendliness.
 It helps to make life easier!
 
 ## Status
 
-There shall be no further changes to the v1 API.
+The v1 branch contains the legacy code.
+there shall be no further changes to the v1 APIs.
 
-A new v2 branch is being built, featuring generics avalailable in Go 1.18+.
+The master branch (v2) requires Go 1.18+, it uses the generics feature available in Go 1.18+.
+For version compatibility policy, please refer to the following docs.
 
 ## Code layout
 
@@ -36,6 +38,8 @@ reasonable API compatibility and versioning.
 
 1. `errcode` provides a registry to manage error codes and messages.
 
+1. `exp/kvutil` contains utilities to work with key-value cache.
+
 1. `fastrand` exported a set of pseudo-random generator methods wrapped around the fastrand
    function from the Go runtime. There is a generator per-M (physical thread), thus it doesn't
    need to do synchronization when generate random sequence, which makes it very scalable.
@@ -47,7 +51,7 @@ reasonable API compatibility and versioning.
 1. `gemap` contains some utilities to manipulate map data structure.
 
 1. `json` provides a drop-in replacement of `encoding/json` and extended features.
-   When compiled with tag `gojson`, it uses the `goccy/go-json` in underlying, which has
+   When compiled with tag `unsafejson`, it uses the `goccy/go-json` in underlying, which has
    much better performance then `encoding/json` and many other third-party libraries.
    Check json/README.md for detailed introduction.
 
@@ -69,9 +73,7 @@ reasonable API compatibility and versioning.
 
 1. `rthash` exposes the various hash functions in runtime package.
 
-1. `serialize` contains serialization utilities to work with some frequently used types.
-
-1. `set` provides a generic set data structure, and some most frequently used concrete types.
+1. `set` provides generic set data structures.
 
 1. `singleflight` contains an async cache which can be used to fetch and update the
    latest data periodically and supports expiring a key if it's unused for a period.
@@ -94,3 +96,26 @@ reasonable API compatibility and versioning.
    [zap](https://github.com/uber-go/zap).
 
 See https://pkg.go.dev/github.com/jxskiss/gopkg for detailed online docs.
+
+Also note that the following packages, which were originally located in this repository,
+have been moved to standalone repositories:
+
+1. `base62` is a compact and high performance implementation of base62 algorithm for Golang.
+   It has been moved to https://github.com/jxskiss/base62.
+
+1. `mcli` is a minimal but very powerful cli library for Go.
+   It has been moved to https://github.com/jxskiss/mcli.
+
+1. `timingwheel` is an experimental implementation of the timing wheel algorithm.
+   It has been moved to https://github.com/jxskiss/timingwheel.
+
+1. `extjson` is a powerful parser for extended JSON data, such as trailing comma,
+   comments, and many more extended features, it helps in many scenes (e.g.
+   data driven testing by JSON files).
+
+   The code which is originally located in package `json`, has been moved to
+   its own repository at https://github.com/jxskiss/extjson.
+
+1. `ezdbg` provides easy to use utilities which helps to do quick development.
+   The code is originally located in package `easy`, but has been moved to its own
+   repository at http://github.com/jxskiss/ezdbg.

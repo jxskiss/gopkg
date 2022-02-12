@@ -3,7 +3,6 @@ package bbp
 import (
 	"fmt"
 	"testing"
-	"time"
 )
 
 func TestExampleGet(t *testing.T) {
@@ -11,7 +10,7 @@ func TestExampleGet(t *testing.T) {
 	buf.WriteString("first line\n")
 	buf.Write([]byte("second line\n"))
 
-	fmt.Printf("buffer.B = %q\n", buf.B)
+	fmt.Printf("buffer.B = %q\n", buf.Bytes())
 
 	// It is safe to release byte buffer now, since it is
 	// no longer used.
@@ -31,15 +30,12 @@ func TestExampleGrow(t *testing.T) {
 }
 
 func TestExamplePool(t *testing.T) {
-	var pool = &Pool{
-		DefaultSize:       64,
-		CalibrateInterval: time.Minute,
-	}
+	var pool Pool
 	buf := pool.Get()
 	buf.WriteString("first line\n")
 	buf.Write([]byte("second line\n"))
 
-	fmt.Printf("buffer.B = %q\n", buf.B)
+	fmt.Printf("buffer.B = %q\n", buf.Bytes())
 
 	// It is safe to release byte buffer now, since it is
 	// no longer used.
@@ -50,9 +46,9 @@ func TestExampleBuffer(t *testing.T) {
 	var buf Buffer
 	buf.WriteString("first line\n")
 	buf.Write([]byte("second line\n"))
-	buf.B = append(buf.B, "third line\n"...)
+	buf.buf = append(buf.buf, "third line\n"...)
 
-	fmt.Printf("buffer.B = %q\n", buf.B)
+	fmt.Printf("buffer.B = %q\n", buf.buf)
 
 	// It is safe to release byte buffer now, since it is
 	// no longer used.

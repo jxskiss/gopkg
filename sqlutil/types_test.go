@@ -3,11 +3,12 @@ package sqlutil
 import (
 	"database/sql"
 	"database/sql/driver"
+	"encoding/json"
 	"testing"
 
-	"github.com/jxskiss/gopkg/gemap"
-	"github.com/jxskiss/gopkg/serialize"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/jxskiss/gopkg/v2/gemap"
 )
 
 func TestTypes(t *testing.T) {
@@ -40,12 +41,12 @@ type Record struct {
 	Extra   LazyBinary `json:"extra" db:"extra"`     // blob
 }
 
-func (p *Record) GetExtra() (map[string]string, error) {
+func (p *Record) GetExtra() (map[string]interface{}, error) {
 	unmarshaler := func(b []byte) (interface{}, error) {
-		var out = map[string]string{}
+		var out = map[string]interface{}{}
 		var err error
 		if len(b) > 0 {
-			err = (*serialize.StringMap)(&out).UnmarshalProto(b)
+			err = json.Unmarshal(b, &out)
 		}
 		return out, err
 	}
@@ -54,21 +55,21 @@ func (p *Record) GetExtra() (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return extra.(map[string]string), nil
+	return extra.(map[string]interface{}), nil
 }
 
-func (p *Record) SetExtra(extra map[string]string) {
-	buf, _ := serialize.StringMap(extra).MarshalProto()
+func (p *Record) SetExtra(extra map[string]interface{}) {
+	buf, _ := json.Marshal(extra)
 	p.Extra.Set(buf, extra)
 }
 
 func TestLazyBinary(t *testing.T) {
-	extra := map[string]string{
+	extra := map[string]interface{}{
 		"a": "123",
 		"b": "234",
 		"c": "345",
 	}
-	extraBuf, _ := serialize.StringMap(extra).MarshalProto()
+	extraBuf, _ := json.Marshal(extra)
 
 	row := &Record{}
 	assert.Len(t, row.Extra.GetBytes(), 0)

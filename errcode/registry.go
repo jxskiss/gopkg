@@ -31,7 +31,7 @@ func NewWithReserved(reserveFunc func(code int32) bool) *Registry {
 	return p
 }
 
-// Register register an error code to the registry.
+// Register registers an error code to the registry.
 // If the registry is created by NewWithReserved, it checks the code with
 // the reserve function and panics if the code is reserved.
 func (p *Registry) Register(code int32, msg string) *Code {
@@ -41,8 +41,8 @@ func (p *Registry) Register(code int32, msg string) *Code {
 	return p.add(code, msg)
 }
 
-// RegisterReserved register an error code to the registry.
-// It does not checks the reserve function, but simply adds the code
+// RegisterReserved registers an error code to the registry.
+// It does not check the reserve function, but simply adds the code
 // to the register.
 func (p *Registry) RegisterReserved(code int32, msg string) *Code {
 	return p.add(code, msg)

@@ -1,10 +1,11 @@
 package easy
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"log"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,12 +16,27 @@ var _ = log.Println
 var wantPanicLoc string
 
 func willPanic() {
-	wantPanicLoc = "gopkg/easy.willPanic:18"
+	wantPanicLoc = "gopkg/v2/easy.willPanic:20"
 	panic("oops...")
 }
 
 func willPanicCaller() {
 	willPanic()
+}
+
+func TestRecover(t *testing.T) {
+	var got string
+	recoverfn := Recover(func(ctx context.Context, panicErr *PanicError) {
+		got = fmt.Sprintf("%+v", panicErr)
+	})
+	func() {
+		defer recoverfn(context.Background())
+		willPanic()
+	}()
+	t.Log(got)
+	assert.Contains(t, got, "panic: oops...")
+	assert.Contains(t, got, wantPanicLoc)
+	assert.Contains(t, got, "gopkg/v2/easy.Recover.func1(")
 }
 
 func TestIdentifyPanicLoc(t *testing.T) {
@@ -32,6 +48,7 @@ func TestIdentifyPanicLoc(t *testing.T) {
 		}()
 		willPanic()
 	}()
+	t.Log(panicLoc1)
 	assert.True(t, strings.HasSuffix(panicLoc1, wantPanicLoc))
 
 	var panicLoc2 string
@@ -42,50 +59,8 @@ func TestIdentifyPanicLoc(t *testing.T) {
 		}()
 		willPanicCaller()
 	}()
+	t.Log(panicLoc2)
 	assert.True(t, strings.HasSuffix(panicLoc2, wantPanicLoc))
-}
-
-type syncLogger struct {
-	bufLogger
-	wg sync.WaitGroup
-}
-
-func (p *syncLogger) Errorf(format string, args ...interface{}) {
-	p.bufLogger.Errorf(format, args...)
-	p.wg.Done()
-}
-
-func TestGoroutineRecover(t *testing.T) {
-	var logger = &syncLogger{}
-	configTestLog(false, logger, nil)
-
-	logger.wg.Add(1)
-	Go(func() { willPanic() })
-	logger.wg.Wait()
-	logText := logger.buf.String()
-	assert.Contains(t, logText, "catch panic:")
-	assert.Contains(t, logText, "gopkg/easy.TestGoroutineRecover")
-
-	logger.buf.Reset()
-	logger.wg.Add(1)
-	Go1(func() error {
-		willPanicCaller()
-		return nil
-	})
-	logger.wg.Wait()
-	logText = logger.buf.String()
-	assert.Contains(t, logText, "catch panic:")
-	assert.Contains(t, logText, "gopkg/easy.TestGoroutineRecover")
-
-	logger.buf.Reset()
-	logger.wg.Add(1)
-	Go1(func() error {
-		return errors.New("dummy error")
-	})
-	logger.wg.Wait()
-	logText = logger.buf.String()
-	assert.Contains(t, logText, "catch error:")
-	assert.Contains(t, logText, "dummy error")
 }
 
 func TestPanicOnError(t *testing.T) {

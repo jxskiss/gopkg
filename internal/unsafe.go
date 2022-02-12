@@ -1,8 +1,8 @@
 package internal
 
 import (
-	"github.com/jxskiss/gopkg/internal/linkname"
-	"github.com/jxskiss/gopkg/internal/unsafeheader"
+	"github.com/jxskiss/gopkg/v2/internal/linkname"
+	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 	"reflect"
 	"unsafe"
 )
