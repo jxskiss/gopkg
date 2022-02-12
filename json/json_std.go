@@ -1,8 +1,11 @@
-// +build !unsafejson
+//go:build !unafejson
 
 package json
 
-import "encoding/json"
+import (
+	"bytes"
+	"encoding/json"
+)
 
 type (
 	Delim      = json.Delim
@@ -20,18 +23,27 @@ type (
 	UnsupportedValueError = json.UnsupportedValueError
 )
 
-var (
-	_Marshal             = json.Marshal
-	_MarshalIndent       = json.MarshalIndent
-	_MarshalMapUnordered = json.Marshal
-	_Unmarshal           = json.Unmarshal
-)
+func Compact(dst *bytes.Buffer, src []byte) error {
+	return json.Compact(dst, src)
+}
+
+func HTMLEscape(dst *bytes.Buffer, src []byte) {
+	json.HTMLEscape(dst, src)
+}
+
+func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
+	return json.Indent(dst, src, prefix, indent)
+}
+
+func Valid(data []byte) bool {
+	return json.Valid(data)
+}
 
 var (
-	Compact    = json.Compact
-	HTMLEscape = json.HTMLEscape
-	Indent     = json.Indent
-	Valid      = json.Valid
+	_Marshal              = json.Marshal
+	_MarshalNoMapOrdering = json.Marshal
+	_MarshalIndent        = json.MarshalIndent
+	_Unmarshal            = json.Unmarshal
 )
 
 type (
@@ -43,3 +55,7 @@ var (
 	_NewEncoder = json.NewEncoder
 	_NewDecoder = json.NewDecoder
 )
+
+func _encoderEncode(enc *aliasEncoder, disableMapOrdering bool, v interface{}) error {
+	return enc.Encode(v)
+}

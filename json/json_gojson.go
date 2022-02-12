@@ -1,8 +1,12 @@
-// +build unsafejson
+//go:build unsafejson
 
 package json
 
-import "github.com/goccy/go-json"
+import (
+	"bytes"
+
+	"github.com/goccy/go-json"
+)
 
 type (
 	Delim      = json.Delim
@@ -20,22 +24,31 @@ type (
 	UnsupportedValueError = json.UnsupportedValueError
 )
 
+func Compact(dst *bytes.Buffer, src []byte) error {
+	return json.Compact(dst, src)
+}
+
+func HTMLEscape(dst *bytes.Buffer, src []byte) {
+	json.HTMLEscape(dst, src)
+}
+
+func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
+	return json.Indent(dst, src, prefix, indent)
+}
+
+func Valid(data []byte) bool {
+	return json.Valid(data)
+}
+
 var (
 	_Marshal       = json.Marshal
 	_MarshalIndent = json.MarshalIndent
 	_Unmarshal     = json.Unmarshal
 )
 
-func _MarshalMapUnordered(v interface{}) ([]byte, error) {
+func _MarshalNoMapOrdering(v interface{}) ([]byte, error) {
 	return json.MarshalWithOption(v, json.UnorderedMap())
 }
-
-var (
-	Compact    = json.Compact
-	HTMLEscape = json.HTMLEscape
-	Indent     = json.Indent
-	Valid      = json.Valid
-)
 
 type (
 	aliasEncoder = json.Encoder
@@ -46,3 +59,10 @@ var (
 	_NewEncoder = json.NewEncoder
 	_NewDecoder = json.NewDecoder
 )
+
+func _encoderEncode(enc *aliasEncoder, disableMapOrdering bool, v interface{}) error {
+	if disableMapOrdering {
+		return enc.EncodeWithOption(v, json.UnorderedMap())
+	}
+	return enc.Encode(v)
+}
