@@ -2,10 +2,11 @@ package forceexport
 
 import (
 	"fmt"
-	"github.com/jxskiss/gopkg/v2/internal/linkname"
-	"github.com/jxskiss/gopkg/v2/reflectx"
 	"reflect"
 	"strings"
+
+	"github.com/jxskiss/gopkg/v2/internal/linkname"
+	"github.com/jxskiss/gopkg/v2/reflectx"
 )
 
 // GetType gets the type defined by the given fully-qualified name.
@@ -30,6 +31,30 @@ func GetType(name string) *reflectx.RType {
 		}
 	}
 	panic(fmt.Sprintf("forceexport: cannot find type %s, maybe inactive", name))
+}
+
+// ScanType scans type information which are available from reflect.typelinks.
+// For each type, it calls f with the type's fully-qualified name and type.
+func ScanType(f func(name string, typ *reflectx.RType)) {
+	sections, offsets := linkname.Reflect_typelinks()
+	for i, base := range sections {
+		for _, offset := range offsets[i] {
+			typ := (*reflectx.RType)(linkname.Reflect_resolveTypeOff(base, offset))
+			for typ.Name() == "" && typ.Kind() == reflect.Ptr {
+				typ = typ.Elem()
+			}
+			typName := typ.Name()
+			if typName == "" {
+				continue
+			}
+			pkgPath := removeVendorPrefix(typ.PkgPath())
+			if pkgPath == "" {
+				continue
+			}
+			fullName := fmt.Sprintf("%s.%s", pkgPath, typName)
+			f(fullName, typ)
+		}
+	}
 }
 
 func removeVendorPrefix(path string) string {
