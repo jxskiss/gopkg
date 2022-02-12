@@ -2,11 +2,11 @@ package zlog
 
 import (
 	"fmt"
+	"log"
 	"os"
+	_ "unsafe"
 
 	"go.uber.org/zap"
-
-	"github.com/jxskiss/gopkg/v2/internal/linkname"
 )
 
 var _ Logger = (*zap.SugaredLogger)(nil)
@@ -30,13 +30,17 @@ type Logger interface {
 
 // StdLogger is a default implementation of Logger which sends log messages
 // to the standard library.
+//
+// It follows the global logging level of this package, the level can be
+// changed by calling SetLevel.
 var StdLogger Logger = stdLogger{}
 
 type stdLogger struct{}
 
 // log_std links to log.std to get correct caller depth for both
-// with and without calling RedirectStdLog.
-var log_std = linkname.LogStd
+// with and without setting GlobalConfig.RedirectStdLog.
+//go:linkname log_std log.std
+var log_std *log.Logger
 
 const _stdLogDepth = 2
 

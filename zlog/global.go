@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"runtime"
-	"sync"
 
 	"go.uber.org/zap"
 )
@@ -13,8 +12,6 @@ var (
 	gL, gL_1 *zap.Logger
 	gS, gS_1 *zap.SugaredLogger
 	gP       *Properties
-
-	setupOnce sync.Once
 )
 
 func init() {
@@ -27,14 +24,23 @@ type Properties struct {
 	level atomicLevel
 }
 
-func (p *Properties) setup() {
+func (p *Properties) setup() func() {
 	if p.cfg.MethodNameKey == "" {
 		p.cfg.MethodNameKey = defaultMethodNameKey
 	}
+	var resetStdLog = func() {}
 	if p.cfg.RedirectStdLog {
-		zap.RedirectStdLog(L())
+		resetStdLog = zap.RedirectStdLog(L())
+	}
+	oldDisableTrace := disableTrace
+	var resetDisableTrace = func() {
+		disableTrace = oldDisableTrace
 	}
 	disableTrace = p.cfg.DisableTrace
+	return func() {
+		resetDisableTrace()
+		resetStdLog()
+	}
 }
 
 // GetLevel gets the logging level of the logger.
@@ -50,18 +56,10 @@ func (p *Properties) SetLevel(lvl Level) { p.level.SetLevel(lvl) }
 //
 // See Config and GlobalConfig for available configurations.
 //
-// This function must not be called more than once, else it panics.
-// It should be called only in main function at program startup, library
-// code shall not touch this.
+// It should be called at program startup, library code shall not touch
+// this function.
 func SetupGlobals(cfg *Config, opts ...zap.Option) {
-	first := false
-	setupOnce.Do(func() {
-		first = true
-		ReplaceGlobals(mustNewGlobalLogger(cfg, opts...))
-	})
-	if !first {
-		panic("SetupGlobals called more than once")
-	}
+	ReplaceGlobals(mustNewGlobalLogger(cfg, opts...))
 }
 
 func mustNewGlobalLogger(cfg *Config, opts ...zap.Option) (*zap.Logger, *Properties) {
@@ -74,6 +72,9 @@ func mustNewGlobalLogger(cfg *Config, opts ...zap.Option) (*zap.Logger, *Propert
 
 // ReplaceGlobals replaces the global Logger and SugaredLogger, and returns a
 // function to restore the original values.
+//
+// It should be called at program startup, library code shall not touch
+// this function.
 func ReplaceGlobals(logger *zap.Logger, props *Properties) func() {
 	oldL, oldP := gL, gP
 
@@ -84,12 +85,26 @@ func ReplaceGlobals(logger *zap.Logger, props *Properties) func() {
 	gL_1 = logger.WithOptions(zap.AddCallerSkip(1))
 	gS_1 = gL_1.Sugar()
 
-	props.setup()
+	resetProps := props.setup()
 	zap.ReplaceGlobals(logger)
 
 	return func() {
+		resetProps()
 		ReplaceGlobals(oldL, oldP)
 	}
+}
+
+// SetDevelopment sets the global logger in development mode, and redirects
+// output from the standard log library's package-global logger to the
+// global logger in this package.
+//
+// It should only be called at program startup, when you run in development
+// mode, for production mode, please check SetupGlobals and ReplaceGlobals.
+func SetDevelopment() {
+	cfg := &Config{}
+	cfg.Development = true
+	cfg.RedirectStdLog = true
+	ReplaceGlobals(mustNewGlobalLogger(cfg))
 }
 
 // GetLevel gets the global logging level.

@@ -10,6 +10,8 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
+
+	"github.com/jxskiss/gopkg/v2/clock"
 )
 
 const defaultLogMaxSize = 300 // MB
@@ -36,8 +38,9 @@ type FileLogConfig struct {
 
 // GlobalConfig configures some global behavior of this package.
 type GlobalConfig struct {
-	// RedirectStdLog redirects output from the standard library's
-	// package-global logger to the global logger in this package.
+	// RedirectStdLog redirects output from the standard log library's
+	// package-global logger to the global logger in this package at
+	// InfoLevel.
 	RedirectStdLog bool `json:"redirectStdLog" yaml:"redirectStdLog"`
 
 	// DisableTrace disables trace level messages.
@@ -149,7 +152,7 @@ func (cfg *Config) fillDefaults() *Config {
 	}
 	if cfg.Level == "" {
 		if cfg.Development {
-			cfg.Level = "debug"
+			cfg.Level = "trace"
 		} else {
 			cfg.Level = "info"
 		}
@@ -176,6 +179,9 @@ func (cfg *Config) fillDefaults() *Config {
 
 func (cfg *Config) buildEncoder() (zapcore.Encoder, error) {
 	encConfig := zap.NewProductionEncoderConfig()
+	encConfig.EncodeLevel = func(lv zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
+		enc.AppendString(Level(lv).String())
+	}
 	if cfg.Development {
 		encConfig = zap.NewDevelopmentEncoderConfig()
 	}
@@ -187,6 +193,9 @@ func (cfg *Config) buildEncoder() (zapcore.Encoder, error) {
 	case "json":
 		return zapcore.NewJSONEncoder(encConfig), nil
 	case "console":
+		encConfig.EncodeLevel = func(lv zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
+			enc.AppendString(Level(lv).CapitalString())
+		}
 		return zapcore.NewConsoleEncoder(encConfig), nil
 	case "logfmt":
 		return NewLogfmtEncoder(encConfig), nil
@@ -228,7 +237,8 @@ func (cfg *Config) buildOptions() ([]zap.Option, error) {
 		opts = append(opts, zap.AddStacktrace(stackLevel))
 	}
 	if cfg.UseMilliClock > 0 {
-		opts = append(opts, zap.WithClock(newMilliClock(cfg.UseMilliClock)))
+		_clock := clockWrapper{clock.NewMilliClock(cfg.UseMilliClock)}
+		opts = append(opts, zap.WithClock(_clock))
 	}
 	if cfg.Sampling != nil {
 		opts = append(opts, zap.WrapCore(func(core zapcore.Core) zapcore.Core {
@@ -395,4 +405,12 @@ func NewWithCore(cfg *WrapCoreConfig, core zapcore.Core, opts ...zap.Option) (*z
 		level: atomLevel,
 	}
 	return lg, prop, nil
+}
+
+type clockWrapper struct {
+	clock.Clock
+}
+
+func (c clockWrapper) NewTicker(duration time.Duration) *time.Ticker {
+	return time.NewTicker(duration)
 }
