@@ -56,7 +56,7 @@ func TestSet_DiffSlice(t *testing.T) {
 func TestSet_FilterInclude(t *testing.T) {
 	set := NewSet(1, 2, 4, 6)
 	slice := []int{2, 3, 4, 5}
-	got := set.FilterInclude(slice).([]int)
+	got := set.FilterContains(slice).([]int)
 	want := []int{2, 4}
 	if !reflect.DeepEqual(want, got) {
 		t.Errorf("failed filter include")
@@ -66,7 +66,7 @@ func TestSet_FilterInclude(t *testing.T) {
 func TestSet_FilterExclude(t *testing.T) {
 	set := NewSet(1, 2, 4, 6)
 	slice := []int{2, 3, 4, 5}
-	got := set.FilterExclude(slice).([]int)
+	got := set.FilterNotContains(slice).([]int)
 	want := []int{3, 5}
 	if !reflect.DeepEqual(want, got) {
 		t.Errorf("failed filter exclude")

@@ -1,13 +1,14 @@
 package set
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 )
 
 const minSize = 8
 
-// Set is set collection of general type.
+// Set is a set collection of interface{} type.
 // The zero value of Set is an empty instance ready to use. A zero Set
 // value shall not be copied, or it may result incorrect behavior.
 type Set struct {
@@ -33,7 +34,7 @@ func NewSet(vals ...interface{}) Set {
 	return set
 }
 
-// NewSetWithSize creates Set instance with given initial size.
+// NewSetWithSize creates a Set instance with given initial size.
 func NewSetWithSize(size int) Set {
 	set := Set{
 		m: make(map[interface{}]struct{}, size),
@@ -45,7 +46,7 @@ func NewSetWithSize(size int) Set {
 func (s Set) Size() int { return len(s.m) }
 
 // Add adds the given values into the set.
-// If given only one param and which is a slice, the elements of the slice
+// If given only one param which is a slice, the elements of the slice
 // will be added into the set using reflection.
 func (s *Set) Add(vals ...interface{}) {
 	if s.m == nil {
@@ -66,7 +67,14 @@ func (s *Set) Add(vals ...interface{}) {
 }
 
 // Del deletes values from the set.
+//
+// Deprecated: Del has been renamed to Delete.
 func (s *Set) Del(vals ...interface{}) {
+	s.Delete(vals...)
+}
+
+// Delete deletes values from the set.
+func (s *Set) Delete(vals ...interface{}) {
 	if len(vals) == 1 && reflect.TypeOf(vals[0]).Kind() == reflect.Slice {
 		values := reflect.ValueOf(vals[0])
 		for i := 0; i < values.Len(); i++ {
@@ -80,16 +88,7 @@ func (s *Set) Del(vals ...interface{}) {
 	}
 }
 
-// Pop pops an element from the set, in no particular order.
-func (s *Set) Pop() interface{} {
-	for val := range s.m {
-		delete(s.m, val)
-		return val
-	}
-	return nil
-}
-
-// Iterate iterates the set in no particular order and call the given
+// Iterate iterates the set in no particular order and calls the given
 // function for each set element.
 func (s Set) Iterate(fn func(interface{})) {
 	for val := range s.m {
@@ -120,7 +119,7 @@ func (s Set) ContainsAny(vals ...interface{}) bool {
 	return false
 }
 
-// Diff returns new Set about the values which other sets don't contain.
+// Diff returns a new Set about the values which other sets don't contain.
 func (s Set) Diff(other Set) Set {
 	res := NewSetWithSize(s.Size())
 
@@ -175,11 +174,21 @@ func (s Set) DiffSlice(other interface{}) Set {
 	}
 }
 
-// FilterInclude returns a new slice which contains values that present in
-// the provided slice and also present in the Set.
+// FilterInclude returns a new slice which contains values that present
+// in the provided slice and also present in the Set.
 // Param slice must be a slice of []interface{} or slice of the concrete
 // element type, else it panics.
+//
+// Deprecated: FilterInclude has been renamed to FilterContains.
 func (s Set) FilterInclude(slice interface{}) interface{} {
+	return s.FilterContains(slice)
+}
+
+// FilterContains returns a new slice which contains values that present
+// in the provided slice and also present in the Set.
+// Param slice must be a slice of []interface{} or slice of the concrete
+// element type, else it panics.
+func (s Set) FilterContains(slice interface{}) interface{} {
 	sliceTyp := reflect.TypeOf(slice)
 	if sliceTyp == nil || sliceTyp.Kind() != reflect.Slice {
 		panic(fmt.Sprintf("invalid slice type %T", slice))
@@ -197,11 +206,21 @@ func (s Set) FilterInclude(slice interface{}) interface{} {
 	return res.Interface()
 }
 
-// FilterExclude returns a new slice which contains values that present in
-// the provided slice but don't present in the Set.
+// FilterExclude returns a new slice which contains values that present
+// in the provided slice but don't present in the Set.
 // Param slice must be a slice of []interface{} or slice of the concrete
 // element type, else it panics.
+//
+// Deprecated: FilterExclude has been renamed to FilterNotContains.
 func (s Set) FilterExclude(slice interface{}) interface{} {
+	return s.FilterNotContains(slice)
+}
+
+// FilterNotContains returns a new slice which contains values that present
+// in the provided slice but don't present in the Set.
+// Param slice must be a slice of []interface{} or slice of the concrete
+// element type, else it panics.
+func (s Set) FilterNotContains(slice interface{}) interface{} {
 	sliceTyp := reflect.TypeOf(slice)
 	if sliceTyp == nil || sliceTyp.Kind() != reflect.Slice {
 		panic(fmt.Sprintf("invalid slice type %T", slice))
@@ -296,7 +315,7 @@ func (s Set) UnionSlice(other interface{}) Set {
 	return res
 }
 
-// Slice converts set into a []interface{} slice.
+// Slice converts set into a slice of type []interface{}.
 func (s Set) Slice() []interface{} {
 	res := make([]interface{}, 0, len(s.m))
 	for val := range s.m {
@@ -305,13 +324,49 @@ func (s Set) Slice() []interface{} {
 	return res
 }
 
-// Map converts set into map[interface{}]bool.
+// Map converts set into a map of type map[interface{}]bool.
 func (s Set) Map() map[interface{}]bool {
 	res := make(map[interface{}]bool, len(s.m))
 	for val := range s.m {
 		res[val] = true
 	}
 	return res
+}
+
+// MarshalJSON implements json.Marshaler interface, the set will be
+// marshaled as a slice []interface{}.
+func (s Set) MarshalJSON() ([]byte, error) {
+	res := s.Slice()
+	return json.Marshal(res)
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface, it will unmarshal
+// a slice []interface{} to the set.
+func (s *Set) UnmarshalJSON(b []byte) error {
+	vals := make([]interface{}, 0)
+	err := json.Unmarshal(b, &vals)
+	if err == nil {
+		s.Add(vals...)
+	}
+	return err
+}
+
+// MarshalYAML implements yaml.Marshaler interface of the yaml package,
+// the set will be marshaled as a slice []interface{}.
+func (s Set) MarshalYAML() (interface{}, error) {
+	res := s.Slice()
+	return res, nil
+}
+
+// UnmarshalYAML implements yaml.Unmarshaler interface of the yaml package,
+// it will unmarshal a slice []interface{} to the set.
+func (s *Set) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	vals := make([]interface{}, 0)
+	err := unmarshal(&vals)
+	if err == nil {
+		s.Add(vals...)
+	}
+	return err
 }
 
 func min(a, b int) int {
