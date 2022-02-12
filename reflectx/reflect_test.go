@@ -1,13 +1,18 @@
 package reflectx
 
 import (
-	"github.com/stretchr/testify/assert"
 	"math"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestIsNilInterface(t *testing.T) {
+type dummyError struct{}
+
+func (_ *dummyError) Error() string { return "dummyError" }
+
+func TestIsNil(t *testing.T) {
 	testcases := []struct {
 		v    interface{}
 		want bool
@@ -17,6 +22,7 @@ func TestIsNilInterface(t *testing.T) {
 		{([]string)(nil), true},
 		{(*int)(nil), true},
 		{(*simple)(nil), true},
+		{error((*dummyError)(nil)), true},
 		{map[string]int{}, false},
 		{[]string{}, false},
 		{1, false},
@@ -25,7 +31,7 @@ func TestIsNilInterface(t *testing.T) {
 		{&simple{}, false},
 	}
 	for i, tc := range testcases {
-		got := IsNilInterface(tc.v)
+		got := IsNil(tc.v)
 		assert.Equalf(t, tc.want, got, "i= %v, v = %q", i, tc.v)
 	}
 }

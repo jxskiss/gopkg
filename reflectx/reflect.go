@@ -1,13 +1,14 @@
 package reflectx
 
 import (
-	"github.com/jxskiss/gopkg/v2/internal"
 	"reflect"
 	"unsafe"
+
+	"github.com/jxskiss/gopkg/v2/internal"
 )
 
-// IsNilInterface tells whether v is nil or the underlying data is nil.
-func IsNilInterface(v interface{}) bool {
+// IsNil tells whether v is nil or the underlying data is nil.
+func IsNil(v interface{}) bool {
 	if v == nil {
 		return true
 	}
