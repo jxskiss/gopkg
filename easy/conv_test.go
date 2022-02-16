@@ -8,6 +8,13 @@ import (
 	"github.com/jxskiss/gopkg/v2/ptr"
 )
 
+func TestConvInts(t *testing.T) {
+	slice1 := []int{1, 2, 3, -3, -2, -1}
+	want := []int32{1, 2, 3, -3, -2, -1}
+	got := ConvInts[int, int32](slice1)
+	assert.Equal(t, want, got)
+}
+
 func TestToInterfaceSlice(t *testing.T) {
 	slice1 := []int{1, 2, 3}
 	want := []interface{}{1, 2, 3}
