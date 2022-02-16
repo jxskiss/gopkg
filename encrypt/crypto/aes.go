@@ -136,15 +136,16 @@ func GCMDecrypt(ciphertext, key []byte, opts ...Option) (plaintext []byte, err e
 func CBCEncrypt(plaintext, key []byte, opts ...Option) (ciphertext []byte, err error) {
 	opt := (&options{}).apply(opts...)
 	key = KeyPadding(key)
-	plaintext = PKCS5Padding(plaintext, len(key))
 
-	buf := make([]byte, len(key)+len(plaintext))
-	nonce := buf[:len(key)]
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return nil, err
-	}
 	block, err := aes.NewCipher(key)
 	if err != nil {
+		return nil, err
+	}
+	blockSize := block.BlockSize()
+	plaintext = PKCS5Padding(plaintext, blockSize)
+	buf := make([]byte, blockSize+len(plaintext))
+	nonce := buf[:blockSize]
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return nil, err
 	}
 	encrypter := cipher.NewCBCEncrypter(block, nonce)
@@ -164,12 +165,13 @@ func CBCDecrypt(ciphertext, key []byte, opts ...Option) (plaintext []byte, err e
 	if err != nil {
 		return nil, err
 	}
-	nonce := ciphertext[:len(key)]
-	ciphertext = ciphertext[len(key):]
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
+	blockSize := block.BlockSize()
+	nonce := ciphertext[:blockSize]
+	ciphertext = ciphertext[blockSize:]
 	decrypter := cipher.NewCBCDecrypter(block, nonce)
 	plaintext = make([]byte, len(ciphertext))
 	decrypter.CryptBlocks(plaintext, ciphertext)
@@ -185,13 +187,14 @@ func CFBEncrypt(plaintext, key []byte, opts ...Option) ([]byte, error) {
 	opt := (&options{}).apply(opts...)
 	key = KeyPadding(key)
 
-	buf := make([]byte, len(key)+len(plaintext))
-	nonce := buf[:len(key)]
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return nil, err
-	}
 	block, err := aes.NewCipher(key)
 	if err != nil {
+		return nil, err
+	}
+	blockSize := block.BlockSize()
+	buf := make([]byte, blockSize+len(plaintext))
+	nonce := buf[:blockSize]
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return nil, err
 	}
 	encrypter := cipher.NewCFBEncrypter(block, nonce)
@@ -211,12 +214,13 @@ func CFBDecrypt(ciphertext, key []byte, opts ...Option) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	nonce := ciphertext[:len(key)]
-	ciphertext = ciphertext[len(key):]
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
+	blockSize := block.BlockSize()
+	nonce := ciphertext[:blockSize]
+	ciphertext = ciphertext[blockSize:]
 	decrypter := cipher.NewCFBDecrypter(block, nonce)
 	plaintext := make([]byte, len(ciphertext))
 	decrypter.XORKeyStream(plaintext, ciphertext)

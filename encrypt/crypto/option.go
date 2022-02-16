@@ -1,14 +1,11 @@
 package crypto
 
 import (
+	"encoding/base32"
 	"encoding/base64"
-)
 
-// B64Encoding is used by the Base64 Option which specifies the encoder
-// and decoder function.
-// URLEncoding instead of RawURLEncoding is chosen here to be nice with other
-// languages, such as python which don't support no-padding in stdlib.
-var B64Encoding = base64.URLEncoding
+	"github.com/jxskiss/base62"
+)
 
 type options struct {
 	// encode will be called to transform the encrypted data
@@ -77,33 +74,80 @@ func Encoder(f func([]byte) ([]byte, error)) Option {
 	return func(opt *options) { opt.encoder = f }
 }
 
-// Decoder optionally specifies an decoder function to decode the encrypted
+// Decoder optionally specifies a decoder function to decode the encrypted
 // ciphertext, it returns an Option.
 //
 // The decoder function should transform bytes returned by the corresponding
-// encoder function to it's original bytes.
+// encoder function to its original bytes.
 func Decoder(f func([]byte) ([]byte, error)) Option {
 	return func(opt *options) { opt.decoder = f }
 }
 
-// Base64 is an Option which specifies URL encoding as the encoder and
-// decoder function.
-func Base64(opt *options) {
-	opt.encoder = encodeBase64
-	opt.decoder = decodeBase64
-}
-
-func encodeBase64(data []byte) ([]byte, error) {
-	out := make([]byte, B64Encoding.EncodedLen(len(data)))
-	B64Encoding.Encode(out, data)
-	return out, nil
-}
-
-func decodeBase64(data []byte) ([]byte, error) {
-	out := make([]byte, B64Encoding.DecodedLen(len(data)))
-	n, err := B64Encoding.Decode(out, data)
-	if err != nil {
-		return nil, err
+// Base64 specifies the encoder and decoder to use the provided base64
+// encoding, it returns an Option.
+//
+// If enc is nil, it uses base64.StdEncoding.
+func Base64(enc *base64.Encoding) Option {
+	if enc == nil {
+		enc = base64.StdEncoding
 	}
-	return out[:n], nil
+	return func(opt *options) {
+		opt.encoder = func(src []byte) ([]byte, error) {
+			dst := make([]byte, enc.EncodedLen(len(src)))
+			enc.Encode(dst, src)
+			return dst, nil
+		}
+		opt.decoder = func(src []byte) ([]byte, error) {
+			dst := make([]byte, enc.DecodedLen(len(src)))
+			n, err := enc.Decode(dst, src)
+			if err != nil {
+				return nil, err
+			}
+			return dst[:n], nil
+		}
+	}
+}
+
+// Base32 specifies the encoder and decoder to use the provided base32
+// encoding, it returns an Option.
+//
+// If enc is nil, it uses base32.StdEncoding.
+func Base32(enc *base32.Encoding) Option {
+	if enc == nil {
+		enc = base32.StdEncoding
+	}
+	return func(opt *options) {
+		opt.encoder = func(src []byte) ([]byte, error) {
+			dst := make([]byte, enc.EncodedLen(len(src)))
+			enc.Encode(dst, src)
+			return dst, nil
+		}
+		opt.decoder = func(src []byte) ([]byte, error) {
+			dst := make([]byte, enc.DecodedLen(len(src)))
+			n, err := enc.Decode(dst, src)
+			if err != nil {
+				return nil, err
+			}
+			return dst[:n], nil
+		}
+	}
+}
+
+// Base62 specifies the encoder and decoder to use the provided base62
+// encoding, it returns an Option.
+//
+// If enc is nil, it uses base62.StdEncoding.
+func Base62(enc *base62.Encoding) Option {
+	if enc == nil {
+		enc = base62.StdEncoding
+	}
+	return func(opt *options) {
+		opt.encoder = func(src []byte) ([]byte, error) {
+			dst := enc.Encode(src)
+			return dst, nil
+		}
+		opt.decoder = func(src []byte) ([]byte, error) {
+			return enc.Decode(src)
+		}
+	}
 }

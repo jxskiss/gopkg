@@ -1,23 +1,29 @@
 package crypto
 
 import (
-	"github.com/stretchr/testify/assert"
-	"regexp"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var (
-	testkey   = []byte("_test_test_test_")
+	testKeyList = [][]byte{
+		[]byte("_test_test_test_"),                 // 16 bytes
+		[]byte("_test_test_test_12345678"),         // 24 bytes
+		[]byte("_test_test_test_1234567890abcdef"), // 32 bytes
+	}
 	plaintext = []byte("hello 世界")
 )
 
 func Test_GCM(t *testing.T) {
-	ciphertext, err := GCMEncrypt(plaintext, testkey)
-	assert.Nil(t, err)
+	for _, testkey := range testKeyList {
+		ciphertext, err := GCMEncrypt(plaintext, testkey)
+		assert.Nil(t, err)
 
-	decrypted, err := GCMDecrypt(ciphertext, testkey)
-	assert.Nil(t, err)
-	assert.Equal(t, plaintext, decrypted)
+		decrypted, err := GCMDecrypt(ciphertext, testkey)
+		assert.Nil(t, err)
+		assert.Equal(t, plaintext, decrypted)
+	}
 }
 
 func Test_GCM_EmptyKey(t *testing.T) {
@@ -40,30 +46,25 @@ func Test_GCM_NewKey(t *testing.T) {
 }
 
 func Test_CBC(t *testing.T) {
-	ciphertext, err := CBCEncrypt(plaintext, testkey)
-	assert.Nil(t, err)
+	for _, testkey := range testKeyList {
+		ciphertext, err := CBCEncrypt(plaintext, testkey)
+		assert.Nil(t, err)
 
-	decrypted, err := CBCDecrypt(ciphertext, testkey)
-	assert.Nil(t, err)
-	assert.Equal(t, plaintext, decrypted)
+		decrypted, err := CBCDecrypt(ciphertext, testkey)
+		assert.Nil(t, err)
+		assert.Equal(t, plaintext, decrypted)
+	}
 }
 
 func Test_CFB(t *testing.T) {
-	ciphertext, err := CFBEncrypt(plaintext, testkey)
-	assert.Nil(t, err)
+	for _, testkey := range testKeyList {
+		ciphertext, err := CFBEncrypt(plaintext, testkey)
+		assert.Nil(t, err)
 
-	decrypted, err := CFBDecrypt(ciphertext, testkey)
-	assert.Nil(t, err)
-	assert.Equal(t, plaintext, decrypted)
-}
-
-func Test_Option_Base64(t *testing.T) {
-	ciphertext, err := CFBEncrypt(plaintext, testkey, Base64)
-	assert.Nil(t, err)
-
-	t.Log(string(ciphertext))
-	base64Pattern := regexp.MustCompile(`^[A-Za-z0-9_\-]+=*$`)
-	assert.Regexp(t, base64Pattern, string(ciphertext))
+		decrypted, err := CFBDecrypt(ciphertext, testkey)
+		assert.Nil(t, err)
+		assert.Equal(t, plaintext, decrypted)
+	}
 }
 
 func Test_KeyPadding(t *testing.T) {

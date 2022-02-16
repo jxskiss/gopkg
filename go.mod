@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/BurntSushi/toml v0.4.1
 	github.com/goccy/go-json v0.9.4
+	github.com/jxskiss/base62 v1.1.0
 	github.com/spf13/cast v1.4.1
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/atomic v1.9.0
