@@ -1,4 +1,4 @@
-//go:build !unafejson
+//go:build !unsafejson
 
 package json
 
