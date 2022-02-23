@@ -66,24 +66,6 @@ func ToMap[S ~[]E, E comparable](slice S) map[E]bool {
 	return out
 }
 
-// ToSlice returns a slice consisting keys from the given map
-// whose value are true.
-//
-// If you need all keys in the map without checking the values, you should
-// use maps.Keys(m).
-func ToSlice[M ~map[K]bool, K comparable](m M) []K {
-	if len(m) == 0 {
-		return nil
-	}
-	out := make([]K, 0, len(m))
-	for k, val := range m {
-		if val {
-			out = append(out, k)
-		}
-	}
-	return out
-}
-
 // ToInterfaceSlice returns a []interface{} containing elements from slice.
 func ToInterfaceSlice[S ~[]E, E any](slice S) []interface{} {
 	if len(slice) == 0 {
