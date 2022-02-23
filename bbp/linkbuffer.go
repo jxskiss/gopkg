@@ -177,6 +177,34 @@ func (b *LinkBuffer) WriteString(s string) (int, error) {
 	}
 
 	blockSize := b.getBlockSize()
+	return b.copyString(blockSize, s), nil
+}
+
+// WriteStrings appends a slice of strings to the underlying byte buffers.
+func (b *LinkBuffer) WriteStrings(strs []string) (int, error) {
+	lens := 0
+	for i := 0; i < len(strs); i++ {
+		lens += len(strs[i])
+	}
+	if lens == 0 {
+		return 0, nil
+	}
+
+	want := b.size + lens
+	if want > b.cap {
+		b.grow(lens)
+	}
+
+	blockSize := b.getBlockSize()
+	n := 0
+	for _, s := range strs {
+		n += b.copyString(blockSize, s)
+	}
+	return n, nil
+}
+
+func (b *LinkBuffer) copyString(blockSize int, s string) int {
+	lens := len(s)
 	idx := b.size / blockSize
 	n := 0
 	for lens > 0 {
@@ -189,7 +217,7 @@ func (b *LinkBuffer) WriteString(s string) (int, error) {
 		idx += 1
 		lens -= nn
 	}
-	return n, nil
+	return n
 }
 
 // Reset resets the LinkBuffer to empty and returns the underlying

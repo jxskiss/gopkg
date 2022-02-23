@@ -87,6 +87,9 @@ func (b *Buffer) WriteTo(w io.Writer) (int64, error) {
 
 // Write implements io.Writer - it appends p to the underlying byte buffer.
 func (b *Buffer) Write(p []byte) (int, error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
 	return b.WriteString(b2s(p))
 }
 
@@ -129,6 +132,23 @@ func (b *Buffer) WriteString(s string) (int, error) {
 	}
 	b.buf = b.buf[:want]
 	copy(b.buf[lenb:], s)
+	return lens, nil
+}
+
+// WriteStrings appends a slice of strings to the underlying byte slice.
+func (b *Buffer) WriteStrings(s []string) (int, error) {
+	lenb := len(b.buf)
+	lens := 0
+	for i := 0; i < len(s); i++ {
+		lens += len(s[i])
+	}
+	want := lenb + lens
+	if want > cap(b.buf) {
+		b.buf = grow(b.buf, want)
+	}
+	for i := 0; i < len(s); i++ {
+		lenb += copy(b.buf[lenb:], s[i])
+	}
 	return lens, nil
 }
 

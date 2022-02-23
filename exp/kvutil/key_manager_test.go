@@ -179,6 +179,17 @@ func Benchmark_Key_Sprintf(b *testing.B) {
 	}
 }
 
+func Benchmark_Key_Sprintf_Parallel(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			for j := 0; j < len(benchmarkData); j++ {
+				_ = benchmarkSprintfKeys[j](benchmarkData[j].args...)
+			}
+		}
+	})
+}
+
 func Benchmark_Key_Builder(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
@@ -186,4 +197,15 @@ func Benchmark_Key_Builder(b *testing.B) {
 			_ = benchmarkBuilderKeys[j](benchmarkData[j].args...)
 		}
 	}
+}
+
+func Benchmark_Key_Builder_Parallel(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			for j := 0; j < len(benchmarkData); j++ {
+				_ = benchmarkBuilderKeys[j](benchmarkData[j].args...)
+			}
+		}
+	})
 }
