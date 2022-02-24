@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/jxskiss/gopkg/v2/easy"
 	"github.com/jxskiss/gopkg/v2/lru"
 )
 
@@ -126,6 +127,93 @@ func TestCacheWithLRUCache(t *testing.T) {
 	assert.False(t, exists1 || expired1)
 }
 
+func TestCacheWithLoader(t *testing.T) {
+	mc := makeTestingCache("TestCacheWithLoader",
+		func(m *TestModel) int64 {
+			return m.IntId
+		})
+	mc.config.LRUCache = lru.NewShardedCache[int64, *TestModel](4, 30)
+	mc.config.LRUExpiration = time.Second
+	mc.config.Loader = testLoaderFunc
+	mc.config.CacheExpiration = time.Hour
+
+	ctx := context.Background()
+	var modelList []*TestModel
+	var modelMap = make(map[int64]*TestModel)
+	var err error
+
+	modelList, err = mc.MGetSlice(ctx, []int64{111, 112, 113})
+	assert.Nil(t, err)
+	assert.Len(t, modelList, 2)
+	assert.Equal(t, 2, mc.config.LRUCache.Len())
+	_, exists := mc.config.LRUCache.GetNotStale(int64(111))
+	assert.True(t, exists)
+	_, exists = mc.config.LRUCache.GetNotStale(int64(112))
+	assert.False(t, exists)
+	_, exists = mc.config.LRUCache.GetNotStale(int64(113))
+	assert.True(t, exists)
+
+	time.Sleep(mc.config.LRUExpiration)
+	_, exists = mc.config.LRUCache.GetNotStale(int64(111))
+	assert.False(t, exists)
+	_, exists = mc.config.LRUCache.GetNotStale(int64(112))
+	assert.False(t, exists)
+	_, exists = mc.config.LRUCache.GetNotStale(int64(113))
+	assert.False(t, exists)
+
+	moreIntIds := []int64{111, 112, 113, 114, 115, 116, 117}
+	modelMap, err = mc.MGetMap(ctx, moreIntIds)
+	assert.Nil(t, err)
+	assert.Len(t, modelMap, 4)
+	assert.Equal(t, 4, mc.config.LRUCache.Len())
+	assert.ElementsMatch(t, []int64{111, 113, 115, 117}, easy.Keys(modelMap, nil))
+
+	cacheKeys := make([]string, len(moreIntIds))
+	for i, id := range moreIntIds {
+		cacheKeys[i] = mc.config.KeyFunc(id)
+	}
+	fromCache, err := mc.config.Storage(ctx).MGet(ctx, cacheKeys...)
+	assert.Nil(t, err)
+	assert.Len(t, fromCache, len(cacheKeys))
+	valid := easy.Filter(func(_ int, elem []byte) bool { return len(elem) > 0 }, fromCache)
+	assert.Len(t, valid, 4)
+}
+
+func TestCacheSingleKeyValue(t *testing.T) {
+	mc := makeTestingCache("TestCacheSingleKeyValue",
+		func(m *TestModel) int64 {
+			return m.IntId
+		})
+	mc.config.LRUCache = lru.NewCache[int64, *TestModel](5)
+	mc.config.LRUExpiration = time.Second
+	mc.config.Loader = testLoaderFunc
+	mc.config.CacheExpiration = time.Hour
+
+	ctx := context.Background()
+	val111, err := mc.Get(ctx, 111)
+	assert.Nil(t, err)
+	assert.Equal(t, int64(111), val111.IntId)
+	_, exists := mc.config.LRUCache.GetNotStale(111)
+	assert.True(t, exists)
+
+	mc.config.LRUCache.Delete(111)
+	val111, err = mc.Get(ctx, 111)
+	assert.Nil(t, err)
+	assert.Equal(t, int64(111), val111.IntId)
+	_, exists = mc.config.LRUCache.GetNotStale(111)
+
+	val112, err := mc.Get(ctx, 112)
+	assert.Equal(t, ErrDataNotFound, err)
+	assert.Nil(t, val112)
+	_, exists = mc.config.LRUCache.GetNotStale(112)
+	assert.False(t, exists)
+
+	err = mc.Delete(ctx, 111)
+	assert.Nil(t, err)
+	_, exists = mc.config.LRUCache.GetNotStale(111)
+	assert.False(t, exists)
+}
+
 func makeTestingCache[K comparable, V Model](testName string, idFunc func(V) K) *Cache[K, V] {
 	km := KeyManager{}
 	return NewCache(&CacheConfig[K, V]{
@@ -138,13 +226,8 @@ func makeTestingCache[K comparable, V Model](testName string, idFunc func(V) K) 
 	})
 }
 
-var testStorage = make(map[string]map[string][]byte)
-
 func testClientFunc(testName string) func(ctx context.Context) Storage {
-	if testStorage[testName] == nil {
-		testStorage[testName] = make(map[string][]byte)
-	}
-	data := testStorage[testName]
+	data := make(map[string][]byte)
 	return func(ctx context.Context) Storage {
 		return &memoryStorage{data: data}
 	}
@@ -192,4 +275,18 @@ func (t *TestModel) UnmarshalBinary(b []byte) error {
 	t.IntId, _ = strconv.ParseInt(string(b[:3]), 10, 64)
 	t.StrId = string(b[3:6])
 	return nil
+}
+
+func testLoaderFunc(ctx context.Context, ids []int64) (map[int64]*TestModel, error) {
+	out := make(map[int64]*TestModel, len(ids))
+	for _, id := range ids {
+		if id%2 == 0 {
+			continue
+		}
+		out[id] = &TestModel{
+			IntId: id,
+			StrId: strconv.FormatInt(id, 10),
+		}
+	}
+	return out, nil
 }
