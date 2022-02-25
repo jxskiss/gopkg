@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	defaultPoolIdx           = 6 // 64 bytes
+	defaultPoolIdx           = minPoolIdx // 64 bytes
 	defaultCalibrateCalls    = 1000
 	defaultCalibrateInterval = time.Minute
 )
@@ -23,10 +23,10 @@ const (
 // are recommended, the dynamic calibrating will help to reduce memory waste.
 //
 // All Pool instances share the same underlying sized byte slice pools.
-// The byte buffers provided by Pool has minimum and maximum limit (see
-// `MinSize` and `MaxSize`), byte slice with size not in the range
-// will be allocated directly from the operating system, and won't be
-// recycled for reuse.
+// The byte buffers provided by Pool has a minimum limit of 64B and a
+// maximum limit of 32MB, byte slice with size not in the range will be
+// allocated directly from the operating system, and won't be recycled
+// for reuse.
 //
 // The zero value for Pool is ready to use. A Pool value shall not be
 // copied after initialized.
@@ -62,11 +62,7 @@ func (p *Pool) Get() *Buffer {
 // Otherwise, data races will occur.
 func (p *Pool) Put(buf *Buffer) {
 	p.r.Record(len(buf.buf))
-
-	// manually inline the Put function
-	if !buf.noReuse {
-		put(buf.buf)
-	}
+	put(buf.buf)
 }
 
 // GetLinkBuffer returns a LinkBuffer from the pool with dynamic calibrated

@@ -21,6 +21,18 @@ func TestBufferWrite(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
+func TestBufferWriteStrings(t *testing.T) {
+	strs := []string{
+		"hello ",
+		"world",
+	}
+	buf := Get(0, 0)
+	buf.WriteStrings(strs)
+	want := "hello world"
+	assert.Equal(t, 11, buf.Len())
+	assert.Equal(t, want, buf.String())
+}
+
 func BenchmarkBufferWrite(b *testing.B) {
 	s := []byte("foobarbaz")
 	b.ReportAllocs()

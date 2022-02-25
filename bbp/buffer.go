@@ -10,20 +10,21 @@ import (
 const MinRead = 512
 
 // NewBuffer creates and initializes a new Buffer using buf as its
-// initial contents. The new Buffer takes ownership of buf, and the
-// caller may not use buf after this call. NewBuffer is intended to
-// prepare a Buffer to read existing data. It can also be used to set
-// the initial size of the internal buffer for writing. To do that,
-// buf should have the desired capacity but a length of zero.
+// initial contents.
+//
+// **Note that the new Buffer takes ownership of buf, and the caller may
+// not use buf after this call.**
+//
+// NewBuffer is intended to prepare a Buffer to read existing data.
+// It can also be used to set the initial size of the internal buffer
+// for writing. To do that, buf should have the desired capacity but
+// a length of zero.
 //
 // In most cases, Get(length, capacity), new(Buffer), or just declaring
 // a Buffer variable is sufficient to initialize a Buffer.
 func NewBuffer(buf []byte) *Buffer {
 	b := &Buffer{
 		buf: buf,
-	}
-	if buf != nil {
-		b.noReuse = true
 	}
 	return b
 }
@@ -37,8 +38,7 @@ func NewBuffer(buf []byte) *Buffer {
 // Use Get for obtaining an empty byte buffer.
 // The zero value for Buffer is an empty buffer ready to use.
 type Buffer struct {
-	buf     []byte
-	noReuse bool
+	buf []byte
 }
 
 // Len returns the size of the byte buffer.
@@ -63,7 +63,7 @@ func (b *Buffer) ReadFrom(r io.Reader) (int64, error) {
 	for {
 		if n == nMax {
 			nMax *= 2
-			bb = grow(bb, nMax)
+			bb = grow(bb, nMax, true)
 			bb = bb[:nMax]
 		}
 		nn, err := r.Read(bb[n:])
@@ -101,7 +101,7 @@ func (b *Buffer) Write(p []byte) (int, error) {
 func (b *Buffer) WriteByte(c byte) error {
 	want := len(b.buf) + 1
 	if want > cap(b.buf) {
-		b.buf = grow(b.buf, want)
+		b.buf = grow(b.buf, want, true)
 	}
 	b.buf = append(b.buf, c)
 	return nil
@@ -116,7 +116,7 @@ func (b *Buffer) WriteRune(r rune) (n int, err error) {
 	lenb := len(b.buf)
 	want := lenb + utf8.UTFMax
 	if want > cap(b.buf) {
-		b.buf = grow(b.buf, want)
+		b.buf = grow(b.buf, want, true)
 	}
 	n = utf8.EncodeRune(b.buf[lenb:lenb+utf8.UTFMax], r)
 	b.buf = b.buf[:lenb+n]
@@ -128,7 +128,7 @@ func (b *Buffer) WriteString(s string) (int, error) {
 	lenb, lens := len(b.buf), len(s)
 	want := lenb + lens
 	if want > cap(b.buf) {
-		b.buf = grow(b.buf, want)
+		b.buf = grow(b.buf, want, true)
 	}
 	b.buf = b.buf[:want]
 	copy(b.buf[lenb:], s)
@@ -144,8 +144,9 @@ func (b *Buffer) WriteStrings(s []string) (int, error) {
 	}
 	want := lenb + lens
 	if want > cap(b.buf) {
-		b.buf = grow(b.buf, want)
+		b.buf = grow(b.buf, want, true)
 	}
+	b.buf = b.buf[:want]
 	for i := 0; i < len(s); i++ {
 		lenb += copy(b.buf[lenb:], s[i])
 	}

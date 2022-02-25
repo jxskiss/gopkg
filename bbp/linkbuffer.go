@@ -13,9 +13,9 @@ const (
 	linkBufferDefaultBlockSize = 1 << linkBufferDefaultPoolIdx // 4096
 )
 
-// NewLinkBuffer creates and initializes a new LinkBuffer, blockSize will
-// be round up to the next power of two, and limited in between MinSize
-// and MaxSize, if bockSize <= 0, a default value 512 will be used.
+// NewLinkBuffer creates and initializes a new LinkBuffer, blockSize
+// will be round up to the next power of two, and limited in between
+// 1KB and 32MB, if bockSize <= 0, a default value 4096 will be used.
 func NewLinkBuffer(blockSize int) *LinkBuffer {
 	if blockSize <= 0 {
 		blockSize = linkBufferDefaultBlockSize
@@ -23,8 +23,8 @@ func NewLinkBuffer(blockSize int) *LinkBuffer {
 	if blockSize < linkBufferMinBlockSize {
 		blockSize = linkBufferMinBlockSize
 	}
-	if blockSize > MaxSize {
-		blockSize = MaxSize
+	if blockSize > maxSize {
+		blockSize = maxSize
 	}
 
 	poolIdx := indexGet(blockSize)

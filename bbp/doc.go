@@ -7,7 +7,7 @@
 //
 // Within this package, `Get`, `Set` and all `Pool` instances share the same
 // underlying sized byte slice pools. The byte buffers provided by this
-// package has minimum and maximum limit (see `MinSize` and `MaxSize`),
+// package has a minimum limit of 64B and a maximum limit of 32MB,
 // byte slice with size not in the range will be allocated directly from
 // the operating system, and won't be recycled for reuse.
 package bbp

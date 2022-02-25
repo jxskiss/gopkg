@@ -6,33 +6,34 @@ import (
 )
 
 const (
-	// MinSize is the minimum buffer size (64B) provided in this package.
-	MinSize = 1 << minPoolIdx
+	// at least 1<<6 = 64B, a CPU cache line size
+	minPoolIdx = 6
 
-	// MaxSize is the maximum buffer size (32MB) provided in this package.
-	MaxSize = 1 << (poolSize - 1)
+	// max 1<<25 = 32MB
+	poolSize = 26
+)
+
+const (
+	// minSize is the minimum buffer size (64B) provided in this package.
+	minSize = 1 << minPoolIdx
+
+	// maxSize is the maximum buffer size (32MB) provided in this package.
+	maxSize = 1 << (poolSize - 1)
 )
 
 // Get returns a byte buffer from the pool with specified length and capacity.
-// The returned byte buffer's capacity is of at least 8.
+// The returned byte buffer's capacity is at least 64.
 //
 // The returned byte buffer can be put back to the pool by calling Put(buf),
 // which may be reused later. This reduces memory allocations and GC pressure.
-func Get(length int, capacity ...int) *Buffer {
-	cap_ := length
-	if len(capacity) == 1 {
-		cap_ = capacity[0]
-	} else if len(capacity) > 1 {
-		panic("too many arguments to bbp.Get")
-	}
-	if cap_ > MaxSize {
+func Get(length int, capacity int) *Buffer {
+	if capacity > maxSize {
 		return &Buffer{
-			buf:     make([]byte, length, cap_),
-			noReuse: true,
+			buf: make([]byte, length, capacity),
 		}
 	}
 	buf := &Buffer{
-		buf: get(length, cap_),
+		buf: get(length, capacity),
 	}
 	return buf
 }
@@ -42,50 +43,28 @@ func Get(length int, capacity ...int) *Buffer {
 // The buf mustn't be touched after retuning it to the pool.
 // Otherwise, data races will occur.
 func Put(buf *Buffer) {
-	if !buf.noReuse {
-		put(buf.buf)
-	}
+	put(buf.buf)
 }
 
 // Grow returns a new byte buffer from the pool which guarantees it's
 // at least of specified capacity.
 //
-// If capacity is not specified, the returned slice is at least twice
-// of the given buf slice length.
-// The returned byte buffer's capacity is always power of two, which
-// can be put back to the pool after usage.
-//
-// Note that the old buf will be put into the pool for reusing,
-// so it mustn't be touched after calling this function, otherwise
-// data races will occur.
-func Grow(buf []byte, capacity ...int) []byte {
-	if len(capacity) > 1 {
-		panic("too many arguments to bbp.Grow")
-	}
-	l, c := len(buf), cap(buf)
-	newCap := 2 * l
-	if len(capacity) > 0 {
-		newCap = capacity[0]
-	}
-	if c >= newCap {
+// If cap(buf) >= capacity, it returns buf directly, else it returns a
+// new byte buffer with data of buf copied.
+func Grow(buf []byte, capacity int) []byte {
+	if cap(buf) >= capacity {
 		return buf
 	}
-	return grow(buf, newCap)
+	return grow(buf, capacity, false)
 }
 
-// PutSlice puts back a byte slice which is obtained from function Grow.
+// PutSlice puts back a byte slice to the pool.
 //
-// The byte slice mustn't be touched after returning it to the pool.
-// Otherwise, data races will occur.
+// The byte slice mustn't be touched after returning it to the pool,
+// otherwise data races will occur.
 func PutSlice(buf []byte) { put(buf) }
 
-const (
-	// at least 1<<6 = 64B, a CPU cache line size
-	minPoolIdx = 6
-
-	// max 1<<25 = 32MB
-	poolSize = 26
-)
+// -------- sized pools -------- //
 
 // power of two sized pools
 var sizedPools [poolSize]sync.Pool
@@ -100,7 +79,7 @@ func init() {
 	}
 }
 
-// callers must guarantee that capacity is not greater than MaxSize.
+// callers must guarantee that capacity is not greater than maxSize.
 func get(length, capacity int) []byte {
 	idx := indexGet(capacity)
 	out := sizedPools[idx].Get().([]byte)
@@ -109,38 +88,31 @@ func get(length, capacity int) []byte {
 
 func put(buf []byte) {
 	cap_ := cap(buf)
-	if shouldReuse(cap_) {
+	if cap_ >= minSize && cap_ <= maxSize {
 		idx := indexPut(cap_)
 		buf = buf[:0]
 		sizedPools[idx].Put(buf)
 	}
 }
 
-func shouldReuse(cap int) bool {
-	return cap >= MinSize && cap <= MaxSize
-}
-
-func grow(buf []byte, capacity int) []byte {
-	len_, cap_ := len(buf), cap(buf)
-	if double := 2 * cap_; capacity < double {
-		capacity = double
-	}
-
+func grow(buf []byte, capacity int, reuse bool) []byte {
 	var newBuf []byte
-	if capacity > MaxSize {
-		newBuf = make([]byte, len_, capacity)
+	if capacity > maxSize {
+		newBuf = make([]byte, len(buf), capacity)
 	} else {
-		newBuf = get(len_, capacity)
+		newBuf = get(len(buf), capacity)
 	}
 	copy(newBuf, buf)
-	put(buf)
+	if reuse {
+		put(buf)
+	}
 	return newBuf
 }
 
 // indexGet finds the pool index for the given size to get buffer from,
 // if size is not power of tow, it returns the next power of tow index.
 func indexGet(size int) int {
-	if size <= MinSize {
+	if size <= minSize {
 		return minPoolIdx
 	}
 	idx := bsr(size)

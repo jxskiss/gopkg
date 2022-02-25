@@ -24,6 +24,21 @@ func TestLinkBufferWrite(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
+func TestLinkBufferWriteStrings(t *testing.T) {
+	strs := []string{
+		"hello ",
+		"world",
+	}
+	for i := 0; i < 100; i++ {
+		strs = append(strs, strs[i%2])
+	}
+	buf := NewLinkBuffer(64)
+	buf.WriteStrings(strs)
+	want := strings.Join(strs, "")
+	assert.Equal(t, len(want), buf.Len())
+	assert.Equal(t, want, buf.String())
+}
+
 func TestLinkBufferReadFrom(t *testing.T) {
 	str := "abc"
 	want := ""
