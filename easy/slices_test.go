@@ -32,18 +32,18 @@ func TestDiff(t *testing.T) {
 	s1 := []int{1, 2, 3, 4, 5, 6}
 	s2 := []int{2, 4, 6, 8, 10}
 
-	got1 := Diff(s1, s2)
+	got1 := Diff(false, s1, s2)
 	assert.Equal(t, []int{1, 3, 5}, got1)
 	assert.Equal(t, []int{1, 2, 3, 4, 5, 6}, s1)
 	assert.Equal(t, []int{2, 4, 6, 8, 10}, s2)
 
-	got2 := Diff(s2, s1)
+	got2 := Diff(false, s2, s1)
 	assert.Equal(t, []int{8, 10}, got2)
 	assert.Equal(t, []int{1, 2, 3, 4, 5, 6}, s1)
 	assert.Equal(t, []int{2, 4, 6, 8, 10}, s2)
 
 	s3 := []int{1, 3}
-	got3 := Diff(s1, s2, s3)
+	got3 := Diff(false, s1, s2, s3)
 	assert.Equal(t, []int{5}, got3)
 }
 

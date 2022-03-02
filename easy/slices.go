@@ -2,9 +2,15 @@ package easy
 
 import "github.com/jxskiss/gopkg/v2/internal/constraints"
 
-// Diff returns a new slice containing the values which present
-// in slice, but not present in others.
-func Diff[S ~[]E, E comparable](slice S, others ...S) S {
+// Diff returns a slice which contains the values which present in slice,
+// but not present in others.
+//
+// If inplace = true, it does not allocate new memory, instead it modifies
+// slice in-place and returns the modified slice.
+// Otherwise, it allocates new memory and the given slice won't be modified.
+//
+// If length of slice is zero, it returns nil.
+func Diff[S ~[]E, E comparable](inplace bool, slice S, others ...S) S {
 	if len(slice) == 0 {
 		return nil
 	}
@@ -14,7 +20,10 @@ func Diff[S ~[]E, E comparable](slice S, others ...S) S {
 			s2set[x] = struct{}{}
 		}
 	}
-	out := make(S, 0, len(slice))
+	out := slice[:0]
+	if !inplace {
+		out = make(S, 0, len(slice))
+	}
 	for _, x := range slice {
 		if _, ok := s2set[x]; !ok {
 			out = append(out, x)

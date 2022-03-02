@@ -1,8 +1,31 @@
 package easy
 
-// DiffMaps return a new map containing the elements which present in m,
-// but not present in others.
-func DiffMaps[M ~map[K]V, K comparable, V any](m M, others ...M) M {
+// DiffMaps return a map which contains elements which present in m, but
+// not present in others.
+//
+// If inplace = true, it does not allocate new memory, instead it modifies
+// m in-place and returns m.
+// Otherwise, it allocates a new map and m won't be modified.
+//
+// If length of m is zero, it returns nil.
+func DiffMaps[M ~map[K]V, K comparable, V any](inplace bool, m M, others ...M) M {
+	if len(m) == 0 {
+		return nil
+	}
+
+	if inplace {
+		for k := range m {
+			for _, m1 := range others {
+				if _, ok := m1[k]; ok {
+					delete(m, k)
+					break
+				}
+			}
+		}
+		return m
+	}
+
+	// allocate a new map
 	out := make(M)
 	for k, v := range m {
 		found := false
@@ -19,28 +42,15 @@ func DiffMaps[M ~map[K]V, K comparable, V any](m M, others ...M) M {
 	return out
 }
 
-// DiffMapsInplace removes key values from m in case the key value also
-// presents in others.
-func DiffMapsInplace[M ~map[K]V, K comparable, V any](m M, others ...M) {
-	for k := range m {
-		for _, m1 := range others {
-			if _, ok := m1[k]; ok {
-				delete(m, k)
-				break
-			}
-		}
-	}
-}
-
 // FilterMaps iterates the given maps, it calls predicate(k, v) for each
 // key value in the maps and returns a new map of key value pairs for
 // which predicate(k, v) returns true.
-func FilterMaps[M ~map[K]V, K comparable, V any](predicate func(k K, v V) bool, m ...M) M {
-	if len(m) == 0 {
+func FilterMaps[M ~map[K]V, K comparable, V any](predicate func(k K, v V) bool, maps ...M) M {
+	if len(maps) == 0 {
 		return nil
 	}
-	out := make(M, len(m[0]))
-	for _, x := range m {
+	out := make(M, len(maps[0]))
+	for _, x := range maps {
 		for k, v := range x {
 			if predicate(k, v) {
 				out[k] = v

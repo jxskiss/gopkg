@@ -141,7 +141,7 @@ func UniqueStrings(slice []string, inplace bool) []string {
 //
 // Deprecated: the generic function Diff is favored over this.
 func DiffInt32s(a []int32, b []int32) []int32 {
-	return Diff(a, b)
+	return Diff(false, a, b)
 }
 
 // DiffInt64s returns a new int64 slice containing the values which present
@@ -149,7 +149,7 @@ func DiffInt32s(a []int32, b []int32) []int32 {
 //
 // Deprecated: the generic function Diff is favored over this.
 func DiffInt64s(a []int64, b []int64) []int64 {
-	return Diff(a, b)
+	return Diff(false, a, b)
 }
 
 // DiffStrings returns a new string slice containing the values which
@@ -157,7 +157,7 @@ func DiffInt64s(a []int64, b []int64) []int64 {
 //
 // Deprecated: the generic function Diff is favored over this.
 func DiffStrings(a []string, b []string) []string {
-	return Diff(a, b)
+	return Diff(false, a, b)
 }
 
 // -------- map utilities -------- //
