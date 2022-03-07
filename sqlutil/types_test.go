@@ -92,3 +92,35 @@ func TestLazyBinary(t *testing.T) {
 	got4, _ := row.GetExtra()
 	assert.Len(t, got4, 3)
 }
+
+func TestJSONMarshal(t *testing.T) {
+	data := JSON{
+		Map: map[string]interface{}{
+			"a": 123,
+		},
+	}
+	want := `{"a":123}`
+	got, err := data.MarshalJSON()
+	assert.Nil(t, err)
+	assert.Equal(t, want, string(got))
+
+	data = JSON{}
+	want = "null"
+	got, err = data.MarshalJSON()
+	assert.Nil(t, err)
+	assert.Equal(t, want, string(got))
+}
+
+func TestJSONUnmarshal(t *testing.T) {
+	data := []byte(`{"a":123}`)
+	obj := JSON{}
+	err := obj.UnmarshalJSON(data)
+	assert.Nil(t, err)
+	assert.Equal(t, gemap.Map{"a": 123.0}, obj.Map)
+
+	data = []byte("null")
+	obj = JSON{}
+	err = obj.UnmarshalJSON(data)
+	assert.Nil(t, err)
+	assert.Nil(t, obj.Map)
+}

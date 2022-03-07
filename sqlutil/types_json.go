@@ -10,7 +10,10 @@ import (
 	"github.com/jxskiss/gopkg/json"
 )
 
-var emptyObject = []byte("{}")
+var (
+	null        = []byte("null")
+	emptyObject = []byte("{}")
+)
 
 // JSON holds a map[string]interface{} value, it implements
 // sql/driver.Valuer and sql.Scanner. It uses JSON to do serialization.
@@ -52,4 +55,12 @@ func (p *JSON) Scan(src interface{}) error {
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.UseNumber()
 	return dec.Decode(&p.Map)
+}
+
+func (p JSON) MarshalJSON() ([]byte, error) {
+	return json.Marshal(p.Map)
+}
+
+func (p *JSON) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &p.Map)
 }
