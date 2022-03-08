@@ -94,6 +94,36 @@ func TestLazyBinary(t *testing.T) {
 	assert.Len(t, got4, 3)
 }
 
+func TestBitmap(t *testing.T) {
+	bm := NewBitmap[int](nil)
+	assert.False(t, bm.Get(0x1))
+	assert.False(t, bm.Get(0x2))
+	assert.False(t, bm.Get(0x4))
+	assert.Equal(t, 0, bm.Underlying())
+
+	bm.Set(0x1)
+	bm.Set(0x4)
+	bm.Set(0x8)
+	assert.True(t, bm.Get(0x1))
+	assert.False(t, bm.Get(0x2))
+	assert.True(t, bm.Get(0x4))
+	assert.True(t, bm.Get(0x8))
+	assert.False(t, bm.Get(0x10))
+	assert.Equal(t, 13, bm.Underlying())
+
+	bm.Set(0x10)
+	bm.Clear(0x4)
+	assert.False(t, bm.Get(0x4))
+	bm.Clear(0x9)
+	assert.False(t, bm.Get(0x1))
+	assert.False(t, bm.Get(0x8))
+	assert.Equal(t, 16, bm.Underlying())
+
+	value, err := bm.Value()
+	assert.Nil(t, err)
+	assert.Equal(t, int64(16), value)
+}
+
 func TestJSONMarshal(t *testing.T) {
 	data := JSON{
 		Map: map[string]interface{}{
