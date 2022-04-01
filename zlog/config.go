@@ -180,7 +180,7 @@ func (cfg *Config) fillDefaults() *Config {
 func (cfg *Config) buildEncoder() (zapcore.Encoder, error) {
 	encConfig := zap.NewProductionEncoderConfig()
 	encConfig.EncodeLevel = func(lv zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
-		enc.AppendString(Level(lv).String())
+		enc.AppendString(fromZapLevel(lv).String())
 	}
 	if cfg.Development {
 		encConfig = zap.NewDevelopmentEncoderConfig()
@@ -194,7 +194,7 @@ func (cfg *Config) buildEncoder() (zapcore.Encoder, error) {
 		return zapcore.NewJSONEncoder(encConfig), nil
 	case "console":
 		encConfig.EncodeLevel = func(lv zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
-			enc.AppendString(Level(lv).CapitalString())
+			enc.AppendString(fromZapLevel(lv).CapitalString())
 		}
 		return zapcore.NewConsoleEncoder(encConfig), nil
 	case "logfmt":
