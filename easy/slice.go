@@ -733,7 +733,7 @@ func ToInterfaceSlice(slice interface{}) []interface{} {
 	}
 	sliceTyp := reflect.TypeOf(slice)
 	if sliceTyp.Kind() != reflect.Slice {
-		panic("UniqueSlice: " + errNotSliceType)
+		panic("ToInterfaceSlice: " + errNotSliceType)
 	}
 	sliceVal := reflect.ValueOf(slice)
 	out := make([]interface{}, 0, sliceVal.Len())
@@ -753,7 +753,7 @@ func FindFunc(slice interface{}, predicate func(i int) bool) interface{} {
 	}
 	sliceTyp := reflect.TypeOf(slice)
 	if sliceTyp.Kind() != reflect.Slice {
-		panic("Find: " + errNotSliceType)
+		panic("FindFunc: " + errNotSliceType)
 	}
 	_, header := reflectx.UnpackSlice(slice)
 	for i := 0; i < header.Len; i++ {
@@ -773,11 +773,11 @@ func FindFunc(slice interface{}, predicate func(i int) bool) interface{} {
 // The parameter slice and predicate must not be nil, otherwise it panics.
 func FilterFunc(slice interface{}, predicate func(i int) bool) interface{} {
 	if slice == nil {
-		panicNilParams("Filter", "slice", slice)
+		panicNilParams("FilterFunc", "slice", slice)
 	}
 	sliceTyp := reflect.TypeOf(slice)
 	if sliceTyp.Kind() != reflect.Slice {
-		panic("Filter: " + errNotSliceType)
+		panic("FilterFunc: " + errNotSliceType)
 	}
 
 	sliceVal := reflect.ValueOf(slice)
