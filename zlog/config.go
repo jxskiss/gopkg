@@ -10,8 +10,6 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
-
-	"github.com/jxskiss/gopkg/v2/clock"
 )
 
 const defaultLogMaxSize = 300 // MB
@@ -100,12 +98,6 @@ type Config struct {
 	// By default, stacktraces are captured for WarnLevel and above logs in
 	// development and ErrorLevel and above in production.
 	StacktraceLevel string `json:"stacktraceLeve" yaml:"stacktraceLevel"`
-
-	// UseMilliClock optionally configures the logger to use a low precision
-	// clock at milliseconds to optimize heavy logging use case to get best
-	// performance. By default, the system clock is used, and in most cases
-	// the system clock is good enough.
-	UseMilliClock int `json:"useMilliClock" yaml:"useMilliClock"`
 
 	// Sampling sets a sampling strategy for the logger. Sampling caps the
 	// global CPU and I/O load that logging puts on your process while
@@ -235,10 +227,6 @@ func (cfg *Config) buildOptions() ([]zap.Option, error) {
 			return nil, fmt.Errorf("unrecognized stacktrace level: %s", cfg.StacktraceLevel)
 		}
 		opts = append(opts, zap.AddStacktrace(stackLevel))
-	}
-	if cfg.UseMilliClock > 0 {
-		_clock := clockWrapper{clock.NewMilliClock(cfg.UseMilliClock)}
-		opts = append(opts, zap.WithClock(_clock))
 	}
 	if cfg.Sampling != nil {
 		opts = append(opts, zap.WrapCore(func(core zapcore.Core) zapcore.Core {
@@ -405,12 +393,4 @@ func NewWithCore(cfg *WrapCoreConfig, core zapcore.Core, opts ...zap.Option) (*z
 		level: atomLevel,
 	}
 	return lg, prop, nil
-}
-
-type clockWrapper struct {
-	clock.Clock
-}
-
-func (c clockWrapper) NewTicker(duration time.Duration) *time.Ticker {
-	return time.NewTicker(duration)
 }
