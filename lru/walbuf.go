@@ -3,17 +3,17 @@ package lru
 import "sync"
 
 const (
-	walBufSize    = 512
-	fastThreshold = 8
+	// walBufSize must be power of two
+	walBufSize = 1024
+	walSetSize = walBufSize * 2
+	walSetMask = walSetSize - 1
 )
 
 var walbufpool sync.Pool
 
 func newWalBuf() *walbuf {
 	if buf := walbufpool.Get(); buf != nil {
-		buf := buf.(*walbuf)
-		buf.p = 0
-		return buf
+		return buf.(*walbuf)
 	}
 	return &walbuf{}
 }
@@ -34,42 +34,84 @@ func newWalBuf() *walbuf {
 // walbuf helps to reduce lock-contention of read requests from the cache.
 type walbuf struct {
 	b [walBufSize]uint32
+	s [walSetSize]uint32
 	p int32
 }
 
+func (wbuf *walbuf) reset() {
+	wbuf.p = 0
+	for i := range wbuf.s { // memclr
+		wbuf.s[i] = 0
+	}
+}
+
 func (wbuf *walbuf) deduplicate() []uint32 {
-	// we have already checked wbuf.p > 0
+	// Note that we have already checked wbuf.p > 0.
 	ln := wbuf.p
 	if ln > walBufSize {
 		ln = walBufSize
 	}
 
-	if ln > fastThreshold {
-		m := make(map[uint32]struct{}, ln/2)
-		b, p := wbuf.b[:], ln-1
-		for i := ln - 1; i >= 0; i-- {
-			idx := b[i]
-			if _, ok := m[idx]; !ok {
-				m[idx] = struct{}{}
-				b[p] = idx
-				p--
-			}
-		}
-		return b[p+1 : ln]
-	}
-
-	// Fast path? (not benchmarked)
-	b, p := wbuf.b[:], ln-2
-LOOP:
-	for i := ln - 2; i >= 0; i-- {
+	set := fastHashset(wbuf.s)
+	b, p := wbuf.b[:], ln-1
+	for i := ln - 1; i >= 0; i-- {
 		idx := b[i]
-		for j := ln - 1; j > p; j-- {
-			if b[j] == idx {
-				continue LOOP
-			}
+		if !set.has(idx) {
+			set.add(idx)
+			b[p] = idx
+			p--
 		}
-		b[p] = idx
-		p--
 	}
 	return b[p+1 : ln]
+}
+
+type fastHashset [walSetSize]uint32
+
+// intPhi is for scrambling the values
+const intPhi = 0x9E3779B9
+
+func phiMix(x int64) int64 {
+	h := x * intPhi
+	return h ^ (h >> 16)
+}
+
+func (s *fastHashset) add(value uint32) {
+	value += 1
+
+	// Manually inline function phiMix.
+	h := int64(value) * intPhi
+	ptr := h ^ (h >> 16)
+
+	for {
+		ptr &= walSetMask
+		k := s[ptr]
+		if k == 0 {
+			s[ptr] = value
+			return
+		}
+		if k == value {
+			return
+		}
+		ptr += 1
+	}
+}
+
+func (s *fastHashset) has(value uint32) bool {
+	value += 1
+
+	// Manually inline function phiMix.
+	h := int64(value) * intPhi
+	ptr := h ^ (h >> 16)
+
+	for {
+		ptr &= walSetMask
+		k := s[ptr]
+		if k == value {
+			return true
+		}
+		if k == 0 {
+			return false
+		}
+		ptr += 1
+	}
 }

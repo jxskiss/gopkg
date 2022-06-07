@@ -130,21 +130,32 @@ func (c *Cache[K, V]) MGetNotStale(keys ...K) map[K]V {
 
 func (c *Cache[K, V]) mget(notStale bool, nowNano int64, keys ...K) map[K]V {
 	res := make(map[K]V, len(keys))
-	c.mu.RLock()
-	for _, key := range keys {
-		idx, elem, exists := c.get(key)
-		if exists {
-			if notStale {
-				expired := elem.expires > 0 && elem.expires < nowNano
-				if expired {
-					continue
-				}
-			}
-			res[key] = elem.value.(V)
-			c.promote(idx)
+
+	// Split into batches to let the LRU cache to have chance to be updated
+	// if length of keys is much larger than walBufSize.
+	total := len(keys)
+	batch := walBufSize
+	for i, j := 0, batch; i < total; i, j = i+batch, j+batch {
+		if j > total {
+			j = total
 		}
+
+		c.mu.RLock()
+		for _, key := range keys[i:j] {
+			idx, elem, exists := c.get(key)
+			if exists {
+				if notStale {
+					expired := elem.expires > 0 && elem.expires < nowNano
+					if expired {
+						continue
+					}
+				}
+				res[key] = elem.value.(V)
+				c.promote(idx)
+			}
+		}
+		c.mu.RUnlock()
 	}
-	c.mu.RUnlock()
 	return res
 }
 
@@ -247,6 +258,7 @@ func (c *Cache[K, V]) promote(idx uint32) {
 		i = atomic.AddInt32(&oldbuf.p, 1)
 		if i <= walBufSize {
 			oldbuf.b[i-1] = idx
+			newbuf.p = 0
 			walbufpool.Put(newbuf)
 			return
 		}
@@ -257,6 +269,7 @@ func (c *Cache[K, V]) promote(idx uint32) {
 		c.mu.Lock()
 		c.flushBuf(buf)
 		c.mu.Unlock()
+		buf.reset()
 		walbufpool.Put(buf)
 	}(c, oldbuf)
 }
@@ -265,6 +278,7 @@ func (c *Cache[K, V]) checkAndFlushBuf() {
 	buf := (*walbuf)(c.buf)
 	if buf.p > 0 {
 		c.flushBuf(buf)
+		buf.reset()
 	}
 }
 
@@ -281,6 +295,4 @@ func (c *Cache[K, V]) flushBuf(buf *walbuf) {
 		elem := c.list.get(idx)
 		c.list.MoveToFront(elem)
 	}
-
-	buf.p = 0
 }
