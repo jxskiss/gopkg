@@ -17,7 +17,10 @@ import (
 // The generator here is the congruential generator PCG XSL RR 128/64 (LCG)
 // as found in the software available at http://www.pcg-random.org/.
 // It has period 2^128 with 128 bits of state, producing 64-bit values.
-// It's state is represented by two uint64 words.
+// Its state is represented by two uint64 words.
+//
+// PCG64 is not safe for concurrent use. It's recommended to create
+// one generator for each goroutine for concurrent usecase.
 //
 // The implementation is forked from
 // https://github.com/golang/exp/blob/master/rand/rng.go
@@ -27,21 +30,19 @@ type PCG64 struct {
 }
 
 const (
-	maxUint64 = (1 << 64) - 1
-	int63Mask = (1 << 63) - 1
-	int31Mask = (1 << 31) - 1
+	u64Mask = 1<<64 - 1
 
 	multiplier = 47026247687942121848144207491837523525
 	mulHigh    = multiplier >> 64
-	mulLow     = multiplier & maxUint64
+	mulLow     = multiplier & u64Mask
 
 	increment = 117397592171526113268558934119004209487
 	incHigh   = increment >> 64
-	incLow    = increment & maxUint64
+	incLow    = increment & u64Mask
 
-	initializer = 245720598905631564143578724636268694099
-	initHigh    = initializer >> 64
-	initLow     = initializer & maxUint64
+	//initializer = 245720598905631564143578724636268694099
+	//initHigh    = initializer >> 64
+	//initLow     = initializer & u64Mask
 )
 
 // NewPCG64 returns a PCG64 generator initialized with random state
@@ -89,7 +90,7 @@ func (p *PCG64) Uint32() uint32 {
 
 // Int63 returns a non-negative pseudo-random 63-bit integer as an int64.
 func (p *PCG64) Int63() int64 {
-	return int64(p.Uint64() & int63Mask)
+	return int64(p.Uint64() & (1<<63 - 1))
 }
 
 // Int31 returns a non-negative pseudo-random 31-bit integer as an int32.
@@ -103,40 +104,32 @@ func (p *PCG64) Int() int {
 	return int(u << 1 >> 1) // clear sign bit if int == int32
 }
 
-// Int63n returns, as an int64, a non-negative pseudo-random number in [0,n).
+// Int63n returns, as an int64, a non-negative pseudo-random number in the half-open interval [0,n).
 // It panics if n <= 0.
-//
-// For implementation details, see:
-//
-// https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction
-// and https://lemire.me/blog/2016/06/30/fast-random-shuffling
 func (p *PCG64) Int63n(n int64) int64 {
 	if n <= 0 {
 		panic("invalid argument to Int63n")
 	}
-
-	u64 := p.Uint64()
-	hi, lo := bits.Mul64(u64, uint64(n))
-	if lo < uint64(n) {
-		threshold := uint64(-n) % uint64(n)
-		for lo < threshold {
-			u64 = p.Uint64()
-			hi, lo = bits.Mul64(u64, uint64(n))
-		}
+	if n&(n-1) == 0 { // n is power of two, can mask
+		return p.Int63() & (n - 1)
 	}
-	return int64(hi)
+	max := int64((1 << 63) - 1 - (1<<63)%uint64(n))
+	v := p.Int63()
+	for v > max {
+		v = p.Int63()
+	}
+	return v % n
 }
 
-// Int31n returns, as an int32, a non-negative pseudo-random number in [0,n).
+// Int31n returns, as an int32, a non-negative pseudo-random number in the half-open interval [0,n).
 // It panics if n <= 0.
 //
 // For implementation details, see:
-//
 // https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction
-// and https://lemire.me/blog/2016/06/30/fast-random-shuffling
+// https://lemire.me/blog/2016/06/30/fast-random-shuffling
 func (p *PCG64) Int31n(n int32) int32 {
 	if n <= 0 {
-		panic("invalid argument to Int32n")
+		panic("invalid argument to Int31n")
 	}
 
 	u32 := p.Uint32()
@@ -153,7 +146,7 @@ func (p *PCG64) Int31n(n int32) int32 {
 	return int32(prod >> 32)
 }
 
-// Intn returns, as an int, a non-negative pseudo-random number in [0,n).
+// Intn returns, as an int, a non-negative pseudo-random number in the half-open interval [0,n).
 // It panics if n <= 0.
 func (p *PCG64) Intn(n int) int {
 	if n <= 0 {
@@ -165,7 +158,7 @@ func (p *PCG64) Intn(n int) int {
 	return int(p.Int63n(int64(n)))
 }
 
-// Float64 returns, as a float64, a pseudo-random number in [0.0,1.0).
+// Float64 returns, as a float64, a pseudo-random number in the half-open interval [0.0,1.0).
 func (p *PCG64) Float64() float64 {
 	return float64(p.Int63n(1<<53)) / (1 << 53)
 }
@@ -175,7 +168,8 @@ func (p *PCG64) Float32() float32 {
 	return float32(p.Int31n(1<<24)) / (1 << 24)
 }
 
-// Perm returns, as a slice of n ints, a pseudo-random permutation of the integers [0,n).
+// Perm returns, as a slice of n ints, a pseudo-random permutation of the integers
+// in the half-open interval [0,n).
 func (p *PCG64) Perm(n int) []int {
 	m := make([]int, n)
 	for i := 1; i < n; i++ {
@@ -209,4 +203,10 @@ func (p *PCG64) Shuffle(n int, swap func(i, j int)) {
 		j := int(p.Int31n(int32(i + 1)))
 		swap(i, j)
 	}
+}
+
+// Read generates len(p) random bytes and writes them into p.
+// It always returns len(p) and a nil error.
+func (r *PCG64) Read(p []byte) (n int, err error) {
+	return _wyread(r.Uint32(), p)
 }
