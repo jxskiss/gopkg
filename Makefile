@@ -9,9 +9,6 @@ test_linkname:
 test_forceexport:
 	go test -gcflags=all=-l ./forceexport
 
-test_monkey:
-	go test -gcflags=all=-l ./monkey
-
 test_json:
 	go test ./json
 	go test --tags gojson ./json

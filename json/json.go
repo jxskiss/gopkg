@@ -1,11 +1,11 @@
 package json
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"os"
 
-	"github.com/jxskiss/gopkg/bbp"
 	"github.com/jxskiss/gopkg/internal/unsafeheader"
 )
 
@@ -96,24 +96,20 @@ func MarshalMapUnordered(v interface{}) ([]byte, error) {
 	return _MarshalMapUnordered(v)
 }
 
-var noHTMLEscapeBufpool bbp.Pool
-
 // MarshalNoHTMLEscape is like Marshal but does not escape HTML characters.
 // Optionally indent can be applied to the output,
 // empty indentPrefix and indent disables indentation.
 // The output is more friendly to read for log messages.
 func MarshalNoHTMLEscape(v interface{}, indentPrefix, indent string) ([]byte, error) {
-	buf := noHTMLEscapeBufpool.Get()
-	defer noHTMLEscapeBufpool.Put(buf)
-
-	err := NewEncoder(buf).
+	var buf bytes.Buffer
+	err := NewEncoder(&buf).
 		SetEscapeHTML(false).
 		SetIndent(indentPrefix, indent).
 		Encode(v)
 	if err != nil {
 		return nil, err
 	}
-	return buf.Copy(), nil
+	return buf.Bytes(), nil
 }
 
 // Unmarshal parses the JSON-encoded data and stores the result

@@ -3,11 +3,12 @@ package sqlutil
 import (
 	"database/sql"
 	"database/sql/driver"
+	"encoding/json"
 	"testing"
 
-	"github.com/jxskiss/gopkg/gemap"
-	"github.com/jxskiss/gopkg/serialize"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/jxskiss/gopkg/gemap"
 )
 
 func TestTypes(t *testing.T) {
@@ -45,7 +46,7 @@ func (p *Record) GetExtra() (map[string]string, error) {
 		var out = map[string]string{}
 		var err error
 		if len(b) > 0 {
-			err = (*serialize.StringMap)(&out).UnmarshalProto(b)
+			err = json.Unmarshal(b, &out)
 		}
 		return out, err
 	}
@@ -58,7 +59,7 @@ func (p *Record) GetExtra() (map[string]string, error) {
 }
 
 func (p *Record) SetExtra(extra map[string]string) {
-	buf, _ := serialize.StringMap(extra).MarshalProto()
+	buf, _ := json.Marshal(extra)
 	p.Extra.Set(buf, extra)
 }
 
@@ -68,7 +69,7 @@ func TestLazyBinary(t *testing.T) {
 		"b": "234",
 		"c": "345",
 	}
-	extraBuf, _ := serialize.StringMap(extra).MarshalProto()
+	extraBuf, _ := json.Marshal(extra)
 
 	row := &Record{}
 	assert.Len(t, row.Extra.GetBytes(), 0)
