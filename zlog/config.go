@@ -99,12 +99,6 @@ type Config struct {
 	// development and ErrorLevel and above in production.
 	StacktraceLevel string `json:"stacktraceLeve" yaml:"stacktraceLevel"`
 
-	// UseMilliClock optionally configures the logger to use a low precision
-	// clock at milliseconds to optimize heavy logging use case to get best
-	// performance. By default, the system clock is used, and in most cases
-	// the system clock is good enough.
-	UseMilliClock int `json:"useMilliClock" yaml:"useMilliClock"`
-
 	// Sampling sets a sampling strategy for the logger. Sampling caps the
 	// global CPU and I/O load that logging puts on your process while
 	// attempting to preserve a representative subset of your logs.
@@ -177,6 +171,9 @@ func (cfg *Config) fillDefaults() *Config {
 
 func (cfg *Config) buildEncoder() (zapcore.Encoder, error) {
 	encConfig := zap.NewProductionEncoderConfig()
+	encConfig.EncodeLevel = func(lv zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
+		enc.AppendString(fromZapLevel(lv).String())
+	}
 	if cfg.Development {
 		encConfig = zap.NewDevelopmentEncoderConfig()
 	}
@@ -188,6 +185,9 @@ func (cfg *Config) buildEncoder() (zapcore.Encoder, error) {
 	case "json":
 		return zapcore.NewJSONEncoder(encConfig), nil
 	case "console":
+		encConfig.EncodeLevel = func(lv zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
+			enc.AppendString(fromZapLevel(lv).CapitalString())
+		}
 		return zapcore.NewConsoleEncoder(encConfig), nil
 	case "logfmt":
 		return NewLogfmtEncoder(encConfig), nil
@@ -227,9 +227,6 @@ func (cfg *Config) buildOptions() ([]zap.Option, error) {
 			return nil, fmt.Errorf("unrecognized stacktrace level: %s", cfg.StacktraceLevel)
 		}
 		opts = append(opts, zap.AddStacktrace(stackLevel))
-	}
-	if cfg.UseMilliClock > 0 {
-		opts = append(opts, zap.WithClock(newMilliClock(cfg.UseMilliClock)))
 	}
 	if cfg.Sampling != nil {
 		opts = append(opts, zap.WrapCore(func(core zapcore.Core) zapcore.Core {

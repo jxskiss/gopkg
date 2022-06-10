@@ -17,7 +17,7 @@ func TestTrace(t *testing.T) {
 	Trace("trace message", zap.String("k1", "v1"))
 
 	got := buf.String()
-	assert.Contains(t, got, "level=debug")
+	assert.Contains(t, got, "level=trace")
 	assert.Contains(t, got, "k1=v1")
 	assert.Contains(t, got, "caller=zlog/trace_test.go:17")
 	assert.Contains(t, got, `msg="[TRACE] trace message"`)
@@ -31,7 +31,7 @@ func TestTracef(t *testing.T) {
 	Tracef("trace message, %v, %v", 123, 456)
 
 	got := buf.String()
-	assert.Contains(t, got, "level=debug")
+	assert.Contains(t, got, "level=trace")
 	assert.Contains(t, got, "caller=zlog/trace_test.go:31")
 	assert.Contains(t, got, `msg="[TRACE] trace message, 123, 456"`)
 }
@@ -68,6 +68,7 @@ func TestTRACESkip(t *testing.T) {
 	assert.Len(t, lines, 4)
 	for _, line := range lines {
 		t.Log(line)
+		assert.Contains(t, line, `"level":"trace"`)
 		assert.Contains(t, line, "========")
 		assert.Contains(t, line, TracePrefix)
 		assert.Contains(t, line, "zlog.TestTRACESkip")

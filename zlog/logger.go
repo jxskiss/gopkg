@@ -38,7 +38,7 @@ var StdLogger Logger = stdLogger{}
 type stdLogger struct{}
 
 // log_std links to log.std to get correct caller depth for both
-// with and without calling RedirectStdLog.
+// with and without setting GlobalConfig.RedirectStdLog.
 var log_std = linkname.LogStd
 
 const _stdLogDepth = 2
