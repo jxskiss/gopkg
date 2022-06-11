@@ -1,6 +1,10 @@
 package easy
 
-import "github.com/jxskiss/gopkg/v2/internal/constraints"
+import (
+	"sort"
+
+	"github.com/jxskiss/gopkg/v2/internal/constraints"
+)
 
 // Diff returns a slice which contains the values which present in slice,
 // but not present in others.
@@ -170,4 +174,20 @@ func Sum[T constraints.Integer](slice []T) int64 {
 		sum += int64(x)
 	}
 	return sum
+}
+
+// Sort sorts the given slice ascending and returns it.
+func Sort[S ~[]E, E constraints.Ordered](s S) S {
+	sort.Slice(s, func(i, j int) bool {
+		return s[i] < s[j]
+	})
+	return s
+}
+
+// SortDesc sorts the given slice descending and returns it.
+func SortDesc[S ~[]E, E constraints.Ordered](s S) S {
+	sort.Slice(s, func(i, j int) bool {
+		return s[j] < s[i]
+	})
+	return s
 }
