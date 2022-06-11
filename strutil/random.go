@@ -2,21 +2,18 @@ package strutil
 
 import (
 	cryptorand "crypto/rand"
+	"encoding/hex"
 	"math/big"
-	"math/rand"
-	"time"
 	"unsafe"
-)
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
+	"github.com/jxskiss/gopkg/v2/fastrand"
+)
 
 func random(table string, length int) []byte {
 	buf := make([]byte, length)
 	max := len(table)
 	for i := range buf {
-		buf[i] = table[rand.Intn(max)]
+		buf[i] = table[fastrand.Intn(max)]
 	}
 	return buf
 }
@@ -51,4 +48,19 @@ func RandomCrypto(table string, length int) string {
 
 func b2s(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
+}
+
+// RandomHex returns a random hex string of length consisting of
+// cryptographic-safe random bytes.
+func RandomHex(length int) string {
+	if length%2 != 0 {
+		panic("invalid argument to RandomHex")
+	}
+	n := length / 2
+	buf := make([]byte, n)
+	_, err := cryptorand.Read(buf)
+	if err != nil {
+		panic(err)
+	}
+	return hex.EncodeToString(buf)[:length]
 }
