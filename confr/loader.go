@@ -110,6 +110,12 @@ func New(config *Config) *Loader {
 	return &Loader{Config: config}
 }
 
+// Load creates a Loader with nil config and loads configuration to dst,
+// it is a shortcut for New(nil).Load(dst, files...).
+func Load(dst interface{}, files ...string) error {
+	return New(nil).Load(dst, files...)
+}
+
 // Load loads configuration to dst using using the Loader's Config
 // and the given configuration files.
 //
