@@ -1,4 +1,4 @@
-package easy
+package httputil
 
 import (
 	"bytes"
@@ -6,12 +6,10 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"regexp"
 	"strings"
 	"time"
 
@@ -24,90 +22,9 @@ var (
 	contentTypeJSON   = "application/json"
 	contentTypeXML    = "application/xml"
 	contentTypeForm   = "application/x-www-form-urlencoded"
-
-	jsonCheck = regexp.MustCompile(`(?i:(application|text)/(json|.*\+json|json\-.*)(;|$))`)
-	xmlCheck  = regexp.MustCompile(`(?i:(application|text)/(xml|.*\+xml)(;|$))`)
 )
 
-// SingleJoin joins the given text segments using sep.
-// No matter whether a segment begins or ends with sep or not, it
-// guarantees that only one sep appears between two segments.
-func SingleJoin(sep string, text ...string) string {
-	if len(text) == 0 {
-		return ""
-	}
-	result := text[0]
-	for _, next := range text[1:] {
-		asep := strings.HasSuffix(result, sep)
-		bsep := strings.HasPrefix(next, sep)
-		switch {
-		case asep && bsep:
-			result += next[len(sep):]
-		case !asep && !bsep:
-			result += sep + next
-		default:
-			result += next
-		}
-	}
-	return result
-}
-
-// SlashJoin joins the given path segments using "/".
-// No matter whether a segment begins or ends with "/" or not, it guarantees
-// that only one "/" appears between two segments.
-func SlashJoin(path ...string) string {
-	return SingleJoin("/", path...)
-}
-
-// JSONToReader converts an json encodeable object to an io.Reader.
-// If obj cannot be marshaled as JSON, it reports the error.
-func JSONToReader(obj interface{}) (io.Reader, error) {
-	b, err := json.Marshal(obj)
-	if err != nil {
-		return nil, err
-	}
-	return bytes.NewBuffer(b), nil
-}
-
-// DecodeJSON decodes a json value from r.
-func DecodeJSON(r io.Reader, v interface{}) error {
-	data, err := ioutil.ReadAll(r)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(data, v)
-}
-
-// IsJSONType method is to check JSON content type or not.
-func IsJSONType(contentType string) bool {
-	return jsonCheck.MatchString(contentType)
-}
-
-// XMLToReader converts an XML encodeable object to an io.Reader.
-// If obj cannot be marshaled as XML, it reports the error.
-func XMLToReader(obj interface{}) (io.Reader, error) {
-	b, err := xml.Marshal(obj)
-	if err != nil {
-		return nil, err
-	}
-	return bytes.NewBuffer(b), nil
-}
-
-// DecodeXML decodes a XML value from r.
-func DecodeXML(r io.Reader, v interface{}) error {
-	data, err := ioutil.ReadAll(r)
-	if err != nil {
-		return err
-	}
-	return xml.Unmarshal(data, v)
-}
-
-// IsXMLType method is to check XML content type or not.
-func IsXMLType(contentType string) bool {
-	return xmlCheck.MatchString(contentType)
-}
-
-// Request represents a request and options to send with the DoRequest function.
+// Request represents a request and options to send with the Do function.
 type Request struct {
 
 	// Req should be a fully prepared http Request to sent, if not nil,
@@ -210,7 +127,7 @@ type Request struct {
 	// DumpResponse makes the http response being logged after received.
 	DumpResponse bool
 
-	// RaiseForStatus tells `DoRequest` to report an error if the response
+	// RaiseForStatus tells Do to report an error if the response
 	// status code >= 400. The error will be formatted as "unexpected status: <STATUS>".
 	RaiseForStatus bool
 }
@@ -266,7 +183,7 @@ func (p *Request) prepareRequest(method string) (err error) {
 		var bodyBuf []byte
 		switch data := p.Body.(type) {
 		case io.Reader:
-			bodyBuf, err = ioutil.ReadAll(data)
+			bodyBuf, err = io.ReadAll(data)
 			if err != nil {
 				return err
 			}
@@ -408,15 +325,15 @@ func (p *Request) prepareHeaders() {
 	}
 }
 
-// DoRequest is a convenient function to send request and control redirect
+// Do is a convenient function to send request and control redirect
 // and debug options. If `Request.Resp` is provided, it will be used as
 // destination to try to unmarshal the response body.
 //
-// Trade-off was taken to balance simplicity and convenience of the function.
+// Trade-off was taken to balance simplicity and convenience.
 //
 // For more powerful controls of a http request and handy utilities,
 // you may take a look at the awesome library `https://github.com/go-resty/resty/`.
-func DoRequest(req *Request) (header http.Header, respContent []byte, status int, err error) {
+func Do(req *Request) (header http.Header, respContent []byte, status int, err error) {
 	if err = req.prepareRequest(""); err != nil {
 		return
 	}
@@ -458,7 +375,7 @@ func DoRequest(req *Request) (header http.Header, respContent []byte, status int
 		log.Printf("dump http response:\n%s", dump)
 	}
 
-	respContent, err = ioutil.ReadAll(httpResp.Body)
+	respContent, err = io.ReadAll(httpResp.Body)
 	if err != nil {
 		return
 	}

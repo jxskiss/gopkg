@@ -1,10 +1,11 @@
 package benchmark
 
 import (
-	"github.com/jxskiss/gopkg/v2/internal/linkname"
 	"reflect"
 	"testing"
 	"unsafe"
+
+	"github.com/jxskiss/gopkg/v2/internal/linkname"
 )
 
 func BenchmarkMemory_Alloc_4K(b *testing.B) {
@@ -22,7 +23,7 @@ func BenchmarkMemory_LoopZero_4K(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < len(tmp); j++ {
-			tmp[j] = byte(0)
+			tmp[j] = 0
 		}
 	}
 }

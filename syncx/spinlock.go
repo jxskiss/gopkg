@@ -17,7 +17,7 @@ func NewSpinLock() sync.Locker {
 
 // Lock acquires the lock.
 func (p *spinLock) Lock() {
-	const maxBackoff = 32
+	const maxBackoff = 16
 	backoff := 1
 	for !atomic.CompareAndSwapUint32((*uint32)(p), 0, 1) {
 		for i := 0; i < backoff; i++ {

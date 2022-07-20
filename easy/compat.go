@@ -1,7 +1,10 @@
 package easy
 
 import (
+	"net/http"
+
 	"github.com/jxskiss/gopkg/v2/gemap"
+	"github.com/jxskiss/gopkg/v2/httputil"
 	"github.com/jxskiss/gopkg/v2/internal/constraints"
 	"github.com/jxskiss/gopkg/v2/internal/slices"
 )
@@ -141,7 +144,7 @@ func UniqueStrings(slice []string, inplace bool) []string {
 //
 // Deprecated: the generic function Diff is favored over this.
 func DiffInt32s(a []int32, b []int32) []int32 {
-	return Diff(false, a, b)
+	return Diff(a, b)
 }
 
 // DiffInt64s returns a new int64 slice containing the values which present
@@ -149,7 +152,7 @@ func DiffInt32s(a []int32, b []int32) []int32 {
 //
 // Deprecated: the generic function Diff is favored over this.
 func DiffInt64s(a []int64, b []int64) []int64 {
-	return Diff(false, a, b)
+	return Diff(a, b)
 }
 
 // DiffStrings returns a new string slice containing the values which
@@ -157,7 +160,7 @@ func DiffInt64s(a []int64, b []int64) []int64 {
 //
 // Deprecated: the generic function Diff is favored over this.
 func DiffStrings(a []string, b []string) []string {
-	return Diff(false, a, b)
+	return Diff(a, b)
 }
 
 // -------- map utilities -------- //
@@ -251,3 +254,20 @@ func NewMap() Map { return gemap.NewMap() }
 // Deprecated: please use gemap.NewSafeMap directly, this alias name will
 // be removed in future releases.
 func NewSafeMap() *SafeMap { return gemap.NewSafeMap() }
+
+// -------- http utilities -------- //
+
+// Request represents a request and options to send with the Do function.
+//
+// Deprecated: moved to package httputil, please use httputil.Request
+// instead of this.
+type Request = httputil.Request
+
+// DoRequest is a convenient function to send request and control redirect
+// and debug options.
+//
+// Deprecated: this function has been moved to httputil.Do, please use
+// httputil.Do instead of this.
+func DoRequest(req *Request) (header http.Header, respContent []byte, status int, err error) {
+	return httputil.Do(req)
+}

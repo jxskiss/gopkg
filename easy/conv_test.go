@@ -15,6 +15,29 @@ func TestConvInts(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
+func TestToHashSet(t *testing.T) {
+	slice := []int64{1, 2, 2, 3}
+	want := map[int64]bool{1: true, 2: true, 3: true}
+	got := ToHashSet(slice)
+	assert.Equal(t, want, got)
+}
+
+func TestToMap(t *testing.T) {
+	slice := []*comptyp{
+		{I32: 2, Simple: simple{"2"}},
+		{I32: 3, Simple: simple{"3"}},
+		{I32: 3, Simple: simple{"3"}},
+	}
+	want := map[int32]simple{
+		2: {"2"},
+		3: {"3"},
+	}
+	got := ToMap(slice, func(elem *comptyp) (int32, simple) {
+		return elem.I32, elem.Simple
+	})
+	assert.Equal(t, want, got)
+}
+
 func TestToInterfaceSlice(t *testing.T) {
 	slice1 := []int{1, 2, 3}
 	want := []interface{}{1, 2, 3}

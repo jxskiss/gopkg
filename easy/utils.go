@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
@@ -125,16 +126,32 @@ func CallerName() string {
 	return name
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
+// SingleJoin joins the given text segments using sep.
+// No matter whether a segment begins or ends with sep or not, it
+// guarantees that only one sep appears between two segments.
+func SingleJoin(sep string, text ...string) string {
+	if len(text) == 0 {
+		return ""
 	}
-	return b
+	result := text[0]
+	for _, next := range text[1:] {
+		asep := strings.HasSuffix(result, sep)
+		bsep := strings.HasPrefix(next, sep)
+		switch {
+		case asep && bsep:
+			result += next[len(sep):]
+		case !asep && !bsep:
+			result += sep + next
+		default:
+			result += next
+		}
+	}
+	return result
 }
 
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
+// SlashJoin joins the given path segments using "/".
+// No matter whether a segment begins or ends with "/" or not, it guarantees
+// that only one "/" appears between two segments.
+func SlashJoin(path ...string) string {
+	return SingleJoin("/", path...)
 }

@@ -53,15 +53,29 @@ func ParseInts[T constraints.Integer](slice []string, base int) []T {
 	return out
 }
 
-// ToMap converts the given slice to a map, using elements from the
-// slice as keys and true as values.
-func ToMap[S ~[]E, E comparable](slice S) map[E]bool {
+// ToHashSet converts the given slice to a hash set,
+// using elements from the slice as keys and true as values.
+func ToHashSet[S ~[]E, E comparable](slice S) map[E]bool {
 	if len(slice) == 0 {
 		return nil
 	}
 	out := make(map[E]bool, len(slice))
 	for _, elem := range slice {
 		out[elem] = true
+	}
+	return out
+}
+
+// ToMap converts the given slice to a map, it calls f for each element
+// in slice to get key values to construct the returned map.
+func ToMap[S ~[]E, E any, K comparable, V any](slice S, f func(E) (K, V)) map[K]V {
+	if len(slice) == 0 {
+		return nil
+	}
+	out := make(map[K]V, len(slice))
+	for _, elem := range slice {
+		k, v := f(elem)
+		out[k] = v
 	}
 	return out
 }
