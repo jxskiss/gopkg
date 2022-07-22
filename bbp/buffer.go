@@ -9,24 +9,19 @@ import (
 // MinRead is the minimum slice size passed to a Read call by Buffer.ReadFrom.
 const MinRead = 512
 
-// NewBuffer creates and initializes a new Buffer using buf as its
-// initial contents.
+// NewBuffer creates a new Buffer with specified capacity.
+// When you finish the work with the buffer, you may call PutBuffer
+// to put it back to the pool for reusing.
+func NewBuffer(capacity int) *Buffer {
+	return &Buffer{buf: Get(0, capacity)}
+}
+
+// PutBuffer puts back a Buffer to the pool for reusing.
 //
-// **Note that the new Buffer takes ownership of buf, and the caller may
-// not use buf after this call.**
-//
-// NewBuffer is intended to prepare a Buffer to read existing data.
-// It can also be used to set the initial size of the internal buffer
-// for writing. To do that, buf should have the desired capacity but
-// a length of zero.
-//
-// In most cases, Get(length, capacity), new(Buffer), or just declaring
-// a Buffer variable is sufficient to initialize a Buffer.
-func NewBuffer(buf []byte) *Buffer {
-	b := &Buffer{
-		buf: buf,
-	}
-	return b
+// The buffer mustn't be touched after returning it to the pool,
+// otherwise data races will occur.
+func PutBuffer(buf *Buffer) {
+	put(buf.buf)
 }
 
 // Buffer provides byte buffer, which can be used for minimizing
@@ -35,7 +30,7 @@ func NewBuffer(buf []byte) *Buffer {
 // Buffer may be used with functions appending data to the underlying
 // []byte slice. See example code for details.
 //
-// Use Get for obtaining an empty byte buffer.
+// Use NewBuffer for obtaining a buffer with specified capacity.
 // The zero value for Buffer is an empty buffer ready to use.
 type Buffer struct {
 	buf []byte
@@ -63,7 +58,7 @@ func (b *Buffer) ReadFrom(r io.Reader) (int64, error) {
 	for {
 		if n == nMax {
 			nMax *= 2
-			bb = grow(bb, nMax, true)
+			bb = grow(bb, nMax)
 			bb = bb[:nMax]
 		}
 		nn, err := r.Read(bb[n:])
@@ -101,7 +96,7 @@ func (b *Buffer) Write(p []byte) (int, error) {
 func (b *Buffer) WriteByte(c byte) error {
 	want := len(b.buf) + 1
 	if want > cap(b.buf) {
-		b.buf = grow(b.buf, want, true)
+		b.buf = grow(b.buf, want)
 	}
 	b.buf = append(b.buf, c)
 	return nil
@@ -116,7 +111,7 @@ func (b *Buffer) WriteRune(r rune) (n int, err error) {
 	lenb := len(b.buf)
 	want := lenb + utf8.UTFMax
 	if want > cap(b.buf) {
-		b.buf = grow(b.buf, want, true)
+		b.buf = grow(b.buf, want)
 	}
 	n = utf8.EncodeRune(b.buf[lenb:lenb+utf8.UTFMax], r)
 	b.buf = b.buf[:lenb+n]
@@ -128,7 +123,7 @@ func (b *Buffer) WriteString(s string) (int, error) {
 	lenb, lens := len(b.buf), len(s)
 	want := lenb + lens
 	if want > cap(b.buf) {
-		b.buf = grow(b.buf, want, true)
+		b.buf = grow(b.buf, want)
 	}
 	b.buf = b.buf[:want]
 	copy(b.buf[lenb:], s)
@@ -144,7 +139,7 @@ func (b *Buffer) WriteStrings(s []string) (int, error) {
 	}
 	want := lenb + lens
 	if want > cap(b.buf) {
-		b.buf = grow(b.buf, want, true)
+		b.buf = grow(b.buf, want)
 	}
 	b.buf = b.buf[:want]
 	for i := 0; i < len(s); i++ {
@@ -195,18 +190,10 @@ func (b *Buffer) String() string {
 }
 
 // StringUnsafe is equivalent to String, but the string that it returns
-// is _not_ copied, so modifying this buffer after calling StringUnsafe
+// is _NOT_ copied, so modifying this buffer after calling StringUnsafe
 // will lead to undefined behavior.
 func (b *Buffer) StringUnsafe() string {
 	return b2s(b.buf)
-}
-
-// Reader returns a Reader reading from the Buffer's underlying byte buffer.
-//
-// When the returned Reader is being used, modifying this Buffer will lead
-// to undefined behavior.
-func (b *Buffer) Reader() *Reader {
-	return NewReader(b.buf)
 }
 
 func b2s(b []byte) string {

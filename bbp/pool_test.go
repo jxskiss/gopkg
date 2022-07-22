@@ -57,10 +57,10 @@ var testPool Pool
 
 func testGetPut(t *testing.T, n int) {
 	bb := testPool.Get()
-	if len(bb.buf) > 0 {
+	if len(bb) > 0 {
 		t.Fatalf("non-empty byte buffer returned from acquire")
 	}
-	bb.buf = allocNBytes(bb.buf, n)
+	bb = allocNBytes(bb, n)
 	testPool.Put(bb)
 }
 

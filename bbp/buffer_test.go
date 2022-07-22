@@ -11,7 +11,7 @@ import (
 func TestBufferWrite(t *testing.T) {
 	str := "abc"
 	want := ""
-	buf := NewBuffer(nil)
+	var buf Buffer
 	for i := 0; i < 1000; i++ {
 		tmp := strings.Repeat(str, i)
 		want += tmp
@@ -26,7 +26,7 @@ func TestBufferWriteStrings(t *testing.T) {
 		"hello ",
 		"world",
 	}
-	buf := Get(0, 0)
+	buf := NewBuffer(0)
 	buf.WriteStrings(strs)
 	want := "hello world"
 	assert.Equal(t, 11, buf.Len())

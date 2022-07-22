@@ -46,49 +46,39 @@ func NewPool(defaultSize int, calibrateInterval time.Duration) *Pool {
 	return &Pool{r}
 }
 
-// Get returns a Buffer from the pool with dynamic calibrated default
-// capacity. The returned Buffer can be put back to the pool by calling
-// Pool.Put(buf) which may be reused later.
-func (p *Pool) Get() *Buffer {
+// Get returns a byte slice buffer from the pool.
+// The returned buffer may be put back to the pool for reusing.
+func (p *Pool) Get() []byte {
+	idx := p.r.getPoolIdx()
+	return sizedPools[idx].Get().([]byte)
+}
+
+// GetBuffer returns a Buffer from the pool with dynamic calibrated
+// default capacity.
+// The returned Buffer may be put back to the pool for reusing.
+func (p *Pool) GetBuffer() *Buffer {
 	idx := p.r.getPoolIdx()
 	buf := new(Buffer)
 	buf.buf = sizedPools[idx].Get().([]byte)
 	return buf
 }
 
-// Put puts back a Buffer to the pool for reusing.
+// Put puts back a byte slice buffer to the pool for reusing.
 //
-// The buf mustn't be touched after returning it to the pool.
-// Otherwise, data races will occur.
-func (p *Pool) Put(buf *Buffer) {
+// The buf mustn't be touched after returning it to the pool,
+// otherwise data races will occur.
+func (p *Pool) Put(buf []byte) {
+	p.r.Record(len(buf))
+	put(buf)
+}
+
+// PutBuffer puts back a Buffer to the pool for reusing.
+//
+// The buf mustn't be touched after returning it to the pool,
+// otherwise, data races will occur.
+func (p *Pool) PutBuffer(buf *Buffer) {
 	p.r.Record(len(buf.buf))
 	put(buf.buf)
-}
-
-// GetLinkBuffer returns a LinkBuffer from the pool with dynamic calibrated
-// default capacity. The returned LinkBuffer can be put back to the pool
-// by calling Pool.PutLinkBuffer(buf) which may be reused later.
-func (p *Pool) GetLinkBuffer() *LinkBuffer {
-	idx := p.r.getPoolIdx()
-	buf := &LinkBuffer{
-		blockSize: 1 << idx,
-		poolIdx:   int(idx),
-	}
-	return buf
-}
-
-// PutLinkBuffer puts back a LinkBuffer to the pool for reusing.
-//
-// The buf mustn't be touched after returning it to the pool.
-// Otherwise, data races will occur.
-func (p *Pool) PutLinkBuffer(buf *LinkBuffer) {
-	p.r.Record(buf.size)
-
-	// manually inline the PutLinkBuffer function
-	poolIdx := buf.poolIdx
-	for _, bb := range buf.bufs {
-		sizedPools[poolIdx].Put(bb[:0])
-	}
 }
 
 // Recorder helps to record most frequently used buffer size.
