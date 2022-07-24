@@ -6,11 +6,11 @@ It helps to make life easier!
 
 ## Status
 
-The v1 branch contains the legacy code.
-there shall be no further changes to the v1 APIs.
-
 The master branch (v2) requires Go 1.18+, it uses the generics feature available in Go 1.18+.
 For version compatibility policy, please refer to the following docs.
+
+The v1 branch contains the legacy code.
+there shall be no further changes to the v1 APIs.
 
 ## Code layout
 
@@ -49,6 +49,8 @@ reasonable API compatibility and versioning.
    mainly for testing purpose.
 
 1. `gemap` contains some utilities to manipulate map data structure.
+
+1. `httputil` contains some utilities to work with HTTP requests.
 
 1. `json` provides a drop-in replacement of `encoding/json` and extended features.
    When compiled with tag `unsafejson`, it uses the `goccy/go-json` in underlying, which has

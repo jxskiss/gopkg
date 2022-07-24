@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	// at least 1<<6 = 64B, a CPU cache line size
+	// at least 1<<6 = 64B
 	minPoolIdx = 6
 
 	// max 1<<25 = 32MB
@@ -14,55 +14,41 @@ const (
 )
 
 const (
-	// minSize is the minimum buffer size (64B) provided in this package.
+	// minSize is the minimum buffer size provided in this package.
 	minSize = 1 << minPoolIdx
 
-	// maxSize is the maximum buffer size (32MB) provided in this package.
+	// maxSize is the maximum buffer size provided in this package.
 	maxSize = 1 << (poolSize - 1)
 )
 
-// Get returns a byte buffer from the pool with specified length and capacity.
-// The returned byte buffer's capacity is at least 64.
-//
-// The returned byte buffer can be put back to the pool by calling Put(buf),
-// which may be reused later. This reduces memory allocations and GC pressure.
-func Get(length int, capacity int) *Buffer {
+// Get returns a byte slice from the pool with specified length and capacity.
+// When you finish the work with the buffer, you may call Put to put it back
+// to the pool for reusing.
+func Get(length, capacity int) []byte {
 	if capacity > maxSize {
-		return &Buffer{
-			buf: make([]byte, length, capacity),
-		}
+		return make([]byte, length, capacity)
 	}
-	buf := &Buffer{
-		buf: get(length, capacity),
-	}
-	return buf
+	return get(length, capacity)
 }
 
-// Put puts back a byte buffer to the pool for reusing.
+// Put puts back a byte slice to the pool for reusing.
 //
-// The buf mustn't be touched after retuning it to the pool.
-// Otherwise, data races will occur.
-func Put(buf *Buffer) {
-	put(buf.buf)
-}
+// The byte slice mustn't be touched after returning it to the pool,
+// otherwise data races will occur.
+func Put(buf []byte) { put(buf) }
 
-// Grow returns a new byte buffer from the pool which guarantees it's
-// at least of specified capacity.
+// Grow returns a new byte buffer from the pool which is at least of
+// specified capacity.
 //
-// If cap(buf) >= capacity, it returns buf directly, else it returns a
-// new byte buffer with data of buf copied.
+// Note that if a new slice is returned, the old one will be put back
+// to the pool, it this is not desired, you should use Get and Put
+// to take full control of the lifetime of buf.
 func Grow(buf []byte, capacity int) []byte {
 	if cap(buf) >= capacity {
 		return buf
 	}
-	return grow(buf, capacity, false)
+	return grow(buf, capacity)
 }
-
-// PutSlice puts back a byte slice to the pool.
-//
-// The byte slice mustn't be touched after returning it to the pool,
-// otherwise data races will occur.
-func PutSlice(buf []byte) { put(buf) }
 
 // -------- sized pools -------- //
 
@@ -95,7 +81,7 @@ func put(buf []byte) {
 	}
 }
 
-func grow(buf []byte, capacity int, reuse bool) []byte {
+func grow(buf []byte, capacity int) []byte {
 	var newBuf []byte
 	if capacity > maxSize {
 		newBuf = make([]byte, len(buf), capacity)
@@ -103,9 +89,7 @@ func grow(buf []byte, capacity int, reuse bool) []byte {
 		newBuf = get(len(buf), capacity)
 	}
 	copy(newBuf, buf)
-	if reuse {
-		put(buf)
-	}
+	put(buf)
 	return newBuf
 }
 

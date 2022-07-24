@@ -8,6 +8,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type testObject struct {
+	A int
+	B string
+}
+
 func TestSetDefault(t *testing.T) {
 	intValues := []interface{}{int(1), int32(1), uint16(1), uint64(1)}
 	for _, value := range intValues {
@@ -69,10 +74,32 @@ func TestCaller(t *testing.T) {
 	name, file, line := Caller(0)
 	assert.Equal(t, "easy.TestCaller", name)
 	assert.Equal(t, "easy/utils_test.go", file)
-	assert.Equal(t, 69, line)
+	assert.Equal(t, 74, line)
 }
 
 func TestCallerName(t *testing.T) {
 	name := CallerName()
 	assert.Equal(t, "easy.TestCallerName", name)
+}
+
+func TestSingleJoin(t *testing.T) {
+	text := []string{"a", "b..", "..c"}
+	got := SingleJoin("..", text...)
+	want := "a..b..c"
+	assert.Equal(t, want, got)
+}
+
+func TestSlashJoin(t *testing.T) {
+	got0 := SlashJoin()
+	assert.Equal(t, "", got0)
+
+	path1 := []string{"/a", "b", "c.png"}
+	want1 := "/a/b/c.png"
+	got1 := SlashJoin(path1...)
+	assert.Equal(t, want1, got1)
+
+	path2 := []string{"/a/", "b/", "/c.png"}
+	want2 := "/a/b/c.png"
+	got2 := SlashJoin(path2...)
+	assert.Equal(t, want2, got2)
 }

@@ -53,19 +53,11 @@ func Test_valyala_bytebufferpool_ByteBuffer(t *testing.T) {
 }
 
 func Test_jxskiss_bbp_Buffer(t *testing.T) {
-	buf := bbpPool.Get()
+	buf := bbpPool.GetBuffer()
 	workWith_jxskiss_bbp_Buffer(buf)
 	assert.Equal(t, strings.Join(str, ""), buf.String())
 
-	bbpPool.Put(buf)
-}
-
-func Test_jxskiss_bbp_LinkBuffer(t *testing.T) {
-	buf := bbpPool.GetLinkBuffer()
-	workWith_jxskiss_bbp_LinkBuffer(buf)
-	assert.Equal(t, strings.Join(str, ""), buf.String())
-
-	bbpPool.PutLinkBuffer(buf)
+	bbpPool.PutBuffer(buf)
 }
 
 func workWith_std_bytes_Buffer(b *bytes.Buffer) {
@@ -86,12 +78,6 @@ func workWith_jxskiss_bbp_Buffer(b *bbp.Buffer) {
 	}
 }
 
-func workWith_jxskiss_bbp_LinkBuffer(b *bbp.LinkBuffer) {
-	for _, s := range str {
-		b.WriteString(s)
-	}
-}
-
 func test_std_bytes_Buffer() {
 	buf := stdBytesBufferPool.Get().(*bytes.Buffer)
 	workWith_std_bytes_Buffer(buf)
@@ -106,15 +92,9 @@ func test_valyala_bytebufferpool_ByteBuffer() {
 }
 
 func test_jxskiss_bbp_Buffer() {
-	buf := bbpPool.Get()
+	buf := bbpPool.GetBuffer()
 	workWith_jxskiss_bbp_Buffer(buf)
-	bbpPool.Put(buf)
-}
-
-func test_jxskiss_bbp_LinkBuffer() {
-	buf := bbpPool.GetLinkBuffer()
-	workWith_jxskiss_bbp_LinkBuffer(buf)
-	bbpPool.PutLinkBuffer(buf)
+	bbpPool.PutBuffer(buf)
 }
 
 func Benchmark_std_BytesBufferPool(b *testing.B) {
@@ -140,15 +120,6 @@ func Benchmark_jxskiss_bbpPool_Buffer(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			test_jxskiss_bbp_Buffer()
-		}
-	})
-}
-
-func Benchmark_jxskiss_bbpPool_LinkBuffer(b *testing.B) {
-	b.ReportAllocs()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			test_jxskiss_bbp_LinkBuffer()
 		}
 	})
 }

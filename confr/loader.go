@@ -37,7 +37,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/spf13/cast"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 const DefaultEnvPrefix = "Confr"
@@ -201,10 +201,11 @@ func unmarshalJSON(data []byte, v interface{}, disallowUnknownFields bool) error
 }
 
 func unmarshalYAML(data []byte, v interface{}, disallowUnknownFields bool) error {
+	dec := yaml.NewDecoder(bytes.NewReader(data))
 	if disallowUnknownFields {
-		return yaml.UnmarshalStrict(data, v)
+		dec.KnownFields(true)
 	}
-	return yaml.Unmarshal(data, v)
+	return dec.Decode(v)
 }
 
 func unmarshalTOML(data []byte, v interface{}, disallowUnknownFields bool) error {

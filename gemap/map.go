@@ -3,6 +3,7 @@ package gemap
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 	"sync"
 	"time"
@@ -221,11 +222,14 @@ func (p Map) GetStrings(key string) []string {
 	return nil
 }
 
-// GetSlice returns the value associated with the key as []interface{}.
+// GetSlice returns the value associated with the key as a slice.
 // It returns nil if key does not present in Map or the value's type
-// is not []interface{}.
-func (p Map) GetSlice(key string) []interface{} {
-	val, _ := p[key].([]interface{})
+// is not a slice.
+func (p Map) GetSlice(key string) interface{} {
+	val, ok := p[key]
+	if !ok || reflect.TypeOf(val).Kind() != reflect.Slice {
+		return nil
+	}
 	return val
 }
 

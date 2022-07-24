@@ -6,15 +6,24 @@ import (
 	"github.com/jxskiss/gopkg/v2/internal/constraints"
 )
 
-// Diff returns a slice which contains the values which present in slice,
-// but not present in others.
-//
-// If inplace = true, it does not allocate new memory, instead it modifies
-// slice in-place and returns the modified slice.
-// Otherwise, it allocates new memory and the given slice won't be modified.
+// Diff allocates and returns a new slice which contains the values
+// which present in slice, but not present in others.
 //
 // If length of slice is zero, it returns nil.
-func Diff[S ~[]E, E comparable](inplace bool, slice S, others ...S) S {
+func Diff[S ~[]E, E comparable](slice S, others ...S) S {
+	return diffSlice(false, slice, others...)
+}
+
+// DiffInplace returns a slice which contains the values which present'
+// in slice, but not present in others.
+// It does not allocate new memory, but modifies slice in-place.
+//
+// If length of slice is zero, it returns nil.
+func DiffInplace[S ~[]E, E comparable](slice S, others ...S) S {
+	return diffSlice(true, slice, others...)
+}
+
+func diffSlice[S ~[]E, E comparable](inplace bool, slice S, others ...S) S {
 	if len(slice) == 0 {
 		return nil
 	}

@@ -6,7 +6,7 @@ import (
 )
 
 func TestExampleGet(t *testing.T) {
-	buf := Get(0, 50)
+	buf := NewBuffer(50)
 	buf.WriteString("first line\n")
 	buf.Write([]byte("second line\n"))
 
@@ -14,7 +14,7 @@ func TestExampleGet(t *testing.T) {
 
 	// It is safe to release byte buffer now, since it is
 	// no longer used.
-	Put(buf)
+	PutBuffer(buf)
 }
 
 func TestExampleGrow(t *testing.T) {
@@ -26,12 +26,12 @@ func TestExampleGrow(t *testing.T) {
 
 	// It is safe to release byte buffer now, since it is
 	// no longer used.
-	PutSlice(buf)
+	Put(buf)
 }
 
 func TestExamplePool(t *testing.T) {
 	var pool Pool
-	buf := pool.Get()
+	buf := pool.GetBuffer()
 	buf.WriteString("first line\n")
 	buf.Write([]byte("second line\n"))
 
@@ -39,7 +39,7 @@ func TestExamplePool(t *testing.T) {
 
 	// It is safe to release byte buffer now, since it is
 	// no longer used.
-	Put(buf)
+	PutBuffer(buf)
 }
 
 func TestExampleBuffer(t *testing.T) {
@@ -52,5 +52,5 @@ func TestExampleBuffer(t *testing.T) {
 
 	// It is safe to release byte buffer now, since it is
 	// no longer used.
-	Put(&buf)
+	PutBuffer(&buf)
 }
