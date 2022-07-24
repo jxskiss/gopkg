@@ -48,8 +48,7 @@ func (p *Condition) And(clause string, args ...interface{}) *Condition {
 
 	// encapsulate with brackets to avoid misuse
 	clause = strings.TrimSpace(clause)
-	if containsOr(clause) &&
-		!(clause[0] == '(' && clause[len(clause)-1] == ')') {
+	if containsOr(clause) {
 		clause = "(" + clause + ")"
 	}
 
@@ -77,8 +76,7 @@ func (p *Condition) Or(clause string, args ...interface{}) *Condition {
 
 	// encapsulate with brackets to avoid misuse
 	clause = strings.TrimSpace(clause)
-	if containsAnd(clause) &&
-		!(clause[0] == '(' && clause[len(clause)-1] == ')') {
+	if containsAnd(clause) {
 		clause = "(" + clause + ")"
 	}
 
@@ -127,6 +125,8 @@ func (p *Condition) IfOr(cond bool, clause string, args ...interface{}) *Conditi
 	return p
 }
 
+// IfOrCond checks cond, if cond is true, it combines the given Condition
+// using "OR" operator.
 func (p *Condition) IfOrCond(cond bool, c *Condition) *Condition {
 	if cond {
 		return p.OrCond(c)
@@ -151,22 +151,40 @@ func (p *Condition) String() string {
 }
 
 func containsAnd(clause string) bool {
-	lower := strings.ToLower(clause)
-	idx := strings.Index(lower, "and")
-	if idx > 0 && len(clause) > idx+3 {
-		if isWhitespace(clause[idx-1]) && isWhitespace(clause[idx+3]) {
-			return true
+	parenCnt := 0
+	clause = strings.ToLower(clause)
+	for i := 0; i < len(clause)-4; i++ {
+		switch clause[i] {
+		case '(':
+			parenCnt++
+		case ')':
+			parenCnt--
+		case 'a':
+			if clause[i:i+3] == "and" &&
+				i > 0 && isWhitespace(clause[i-1]) && isWhitespace(clause[i+3]) &&
+				parenCnt == 0 {
+				return true
+			}
 		}
 	}
 	return false
 }
 
 func containsOr(clause string) bool {
-	lower := strings.ToLower(clause)
-	idx := strings.Index(lower, "or")
-	if idx > 0 && len(clause) > idx+3 {
-		if isWhitespace(clause[idx-1]) && isWhitespace(clause[idx+2]) {
-			return true
+	parenCnt := 0
+	clause = strings.ToLower(clause)
+	for i := 0; i < len(clause)-3; i++ {
+		switch clause[i] {
+		case '(':
+			parenCnt++
+		case ')':
+			parenCnt--
+		case 'o':
+			if clause[i:i+2] == "or" &&
+				i > 0 && isWhitespace(clause[i-1]) && isWhitespace(clause[i+2]) &&
+				parenCnt == 0 {
+				return true
+			}
 		}
 	}
 	return false
