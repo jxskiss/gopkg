@@ -1,8 +1,9 @@
 package sqlutil
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFilter(t *testing.T) {
@@ -53,4 +54,20 @@ func TestMisuseOfBrackets(t *testing.T) {
 	)
 	got2, _ := cond2.Build()
 	assert.Equal(t, want2, got2)
+
+	want3 := "(a = 1 OR ((b = 2) AND (c = 3)))"
+	cond3 := Or(
+		Cond("a = 1"),
+		Cond("(b = 2) AND (c = 3)"),
+	)
+	got3, _ := cond3.Build()
+	assert.Equal(t, want3, got3)
+
+	want4 := "a = 1 AND ((b = 2) Or (c = 3))"
+	cond4 := And(
+		Cond("a = 1"),
+		Cond("(b = 2) Or (c = 3)"),
+	)
+	got4, _ := cond4.Build()
+	assert.Equal(t, want4, got4)
 }
