@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/jxskiss/gopkg/v2/ptr"
-	"github.com/jxskiss/gopkg/v2/reflectx"
+	"github.com/jxskiss/gopkg/v2/unsafe/reflectx"
+	"github.com/jxskiss/gopkg/v2/utils/ptr"
 )
 
 type simple struct {

@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/jxskiss/gopkg/v2/easy"
-	"github.com/jxskiss/gopkg/v2/lru"
+	lru2 "github.com/jxskiss/gopkg/v2/perf/lru"
 )
 
 var (
@@ -84,7 +84,7 @@ func TestCacheWithLRUCache(t *testing.T) {
 		func(m *TestModel) int64 {
 			return m.IntId
 		})
-	mc.config.LRUCache = lru.NewCache[int64, *TestModel](10)
+	mc.config.LRUCache = lru2.NewCache[int64, *TestModel](10)
 	mc.config.LRUExpiration = time.Minute
 
 	ctx := context.Background()
@@ -132,7 +132,7 @@ func TestCacheWithLoader(t *testing.T) {
 		func(m *TestModel) int64 {
 			return m.IntId
 		})
-	mc.config.LRUCache = lru.NewShardedCache[int64, *TestModel](4, 30)
+	mc.config.LRUCache = lru2.NewShardedCache[int64, *TestModel](4, 30)
 	mc.config.LRUExpiration = time.Second
 	mc.config.Loader = testLoaderFunc
 	mc.config.CacheExpiration = time.Hour
@@ -184,7 +184,7 @@ func TestCacheSingleKeyValue(t *testing.T) {
 		func(m *TestModel) int64 {
 			return m.IntId
 		})
-	mc.config.LRUCache = lru.NewCache[int64, *TestModel](5)
+	mc.config.LRUCache = lru2.NewCache[int64, *TestModel](5)
 	mc.config.LRUExpiration = time.Second
 	mc.config.Loader = testLoaderFunc
 	mc.config.CacheExpiration = time.Hour

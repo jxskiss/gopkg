@@ -9,8 +9,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
-	"github.com/jxskiss/gopkg/v2/json"
-	"github.com/jxskiss/gopkg/v2/reflectx"
+	"github.com/jxskiss/gopkg/v2/perf/json"
+	"github.com/jxskiss/gopkg/v2/unsafe/reflectx"
 )
 
 // SetDefault checks whether dst points to a zero value, if yes, it sets

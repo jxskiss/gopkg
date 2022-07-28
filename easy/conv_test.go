@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/jxskiss/gopkg/v2/ptr"
+	"github.com/jxskiss/gopkg/v2/utils/ptr"
 )
 
 func TestConvInts(t *testing.T) {

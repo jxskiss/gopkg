@@ -3,10 +3,10 @@ package easy
 import (
 	"net/http"
 
-	"github.com/jxskiss/gopkg/v2/gemap"
-	"github.com/jxskiss/gopkg/v2/httputil"
+	"github.com/jxskiss/gopkg/v2/easy/gemap"
 	"github.com/jxskiss/gopkg/v2/internal/constraints"
 	"github.com/jxskiss/gopkg/v2/internal/slices"
+	"github.com/jxskiss/gopkg/v2/utils/httputil"
 )
 
 // -------- slice utilities -------- //

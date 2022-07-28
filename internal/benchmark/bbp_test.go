@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/valyala/bytebufferpool"
 
-	"github.com/jxskiss/gopkg/v2/bbp"
+	"github.com/jxskiss/gopkg/v2/perf/bbp"
 )
 
 var str = []string{

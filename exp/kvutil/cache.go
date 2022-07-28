@@ -8,11 +8,11 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/jxskiss/gopkg/v2/collection/set"
 	"github.com/jxskiss/gopkg/v2/easy"
 	"github.com/jxskiss/gopkg/v2/internal/linkname"
 	"github.com/jxskiss/gopkg/v2/internal/rtype"
-	"github.com/jxskiss/gopkg/v2/lru"
-	"github.com/jxskiss/gopkg/v2/set"
+	"github.com/jxskiss/gopkg/v2/perf/lru"
 )
 
 // DefaultBatchSize is the default batch size for batch operations.

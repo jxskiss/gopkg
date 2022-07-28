@@ -1,4 +1,4 @@
-module github.com/jxskiss/gopkg/v2/benchmark
+module github.com/jxskiss/gopkg/v2/internal/benchmark
 
 go 1.18
 
