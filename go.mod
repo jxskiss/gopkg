@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/BurntSushi/toml v1.1.0
+	github.com/davecgh/go-spew v1.1.1
 	github.com/goccy/go-json v0.9.10
 	github.com/jxskiss/base62 v1.1.0
 	github.com/spf13/cast v1.5.0
@@ -18,7 +19,6 @@ require (
 
 require (
 	github.com/benbjohnson/clock v1.1.0 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

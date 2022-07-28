@@ -20,7 +20,7 @@ They do not follow the Go 1 compatibility promise.
 When a package is tested enough, and the API is considered stable, it may be promoted
 as "stable" and moved under the top directory.
 
-Packages under the top directory are considered "stable", they try to follow the
+Packages under the top directory are "stable", they try best to follow the
 Go 1 compatibility promise and the Semantic Versioning spec.
 Packages under the top directory may depend on `exp` packages but must keep
 reasonable API compatibility and versioning.
@@ -33,6 +33,8 @@ reasonable API compatibility and versioning.
 
 1. `easy` contains many handy utilities as a complementary to the standard library,
    it really makes life easier.
+
+1. `easy/ezdbg` provides easy to use utilities which helps to do quick development.
 
 1. `easy/gemap` contains some utilities to manipulate map data structure.
 
@@ -110,14 +112,3 @@ have been moved to standalone repositories:
 
 1. `timingwheel` is an experimental implementation of the timing wheel algorithm.
    It has been moved to https://github.com/jxskiss/timingwheel.
-
-1. `extjson` is a powerful parser for extended JSON data, such as trailing comma,
-   comments, and many more extended features, it helps in many scenes (e.g.
-   data driven testing by JSON files).
-
-   The code which is originally located in package `json`, has been moved to
-   its own repository at https://github.com/jxskiss/extjson.
-
-1. `ezdbg` provides easy to use utilities which helps to do quick development.
-   The code is originally located in package `easy`, but has been moved to its own
-   repository at http://github.com/jxskiss/ezdbg.
