@@ -11,8 +11,8 @@ require (
 	github.com/stretchr/testify v1.8.0
 	go.uber.org/atomic v1.9.0
 	go.uber.org/zap v1.21.0
-	golang.org/x/arch v0.0.0-20220412001346-fc48f9fe4c15
-	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
+	golang.org/x/arch v0.0.0-20220722155209-00200b7164a7
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v3 v3.0.1
 )
