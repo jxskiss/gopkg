@@ -26,13 +26,28 @@ func Decode(s string) (info Info) {
 	if len(s) >= minLength {
 		switch s[0] {
 		case v1Version:
-			return decodeV1(s)
+			return Info{decodeV1(s)}
 		}
 	}
 	return // invalid
 }
 
-type Info interface {
+type Info struct {
+	infoInterface
+}
+
+func (i Info) Valid() bool {
+	return i.infoInterface != nil && i.infoInterface.Valid()
+}
+
+func (i Info) String() string {
+	if i.infoInterface == nil {
+		return "0|invalid"
+	}
+	return i.infoInterface.String()
+}
+
+type infoInterface interface {
 	Valid() bool
 	Version() string
 	Time() time.Time

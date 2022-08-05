@@ -84,6 +84,8 @@ func decodeV1(s string) (info *v1Info) {
 	return
 }
 
+var _ infoInterface = &v1Info{}
+
 type v1Info struct {
 	valid  bool
 	time   time.Time
@@ -102,9 +104,8 @@ func (info *v1Info) IP() net.IP { return info.ip }
 func (info *v1Info) Random() int { return info.random }
 
 func (info *v1Info) String() string {
-	valid := 0
-	if info.valid {
-		valid = 1
+	if !info.Valid() {
+		return "1|invalid"
 	}
-	return fmt.Sprintf("%d|%s|%s|%s|%d", valid, "1", info.time.Format(strTimeMilli), info.ip.String(), info.random)
+	return fmt.Sprintf("1|%s|%s|%d", info.time.Format(strTimeMilli), info.ip.String(), info.random)
 }

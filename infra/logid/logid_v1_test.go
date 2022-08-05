@@ -26,4 +26,8 @@ func TestV1Gen(t *testing.T) {
 	info2 := Decode(gotLogId2)
 	assert.True(t, info2.Valid())
 	assert.NotEqual(t, info.Random(), info2.Random())
+
+	info3 := Decode("1daolkwqalekralk")
+	assert.False(t, info3.Valid())
+	assert.Equal(t, "0|invalid", info3.String())
 }
