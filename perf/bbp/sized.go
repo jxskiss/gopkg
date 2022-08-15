@@ -6,11 +6,10 @@ import (
 )
 
 const (
-	// at least 1<<6 = 64B
-	minPoolIdx = 6
+	minPoolIdx = 6  // at least 1<<6 = 64B
+	maxPoolIdx = 25 // max 1<<25 = 32MB
 
-	// max 1<<25 = 32MB
-	poolSize = 26
+	poolSize = maxPoolIdx + 1
 )
 
 const (
@@ -18,7 +17,7 @@ const (
 	minSize = 1 << minPoolIdx
 
 	// maxSize is the maximum buffer size provided in this package.
-	maxSize = 1 << (poolSize - 1)
+	maxSize = 1 << maxPoolIdx
 )
 
 // Get returns a byte slice from the pool with specified length and capacity.
