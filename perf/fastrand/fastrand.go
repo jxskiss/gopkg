@@ -106,7 +106,7 @@ func Perm(n int) []int {
 
 // Shuffle pseudo-randomizes the order of elements.
 // n is the number of elements. Shuffle panics if n < 0.
-// swap swaps the elements with indexes i and j.
+// Param swap swaps the elements with indexes i and j.
 func Shuffle(n int, swap func(i, j int)) {
 	if n < 0 {
 		panic("invalid argument to Shuffle")
@@ -134,5 +134,8 @@ func Shuffle(n int, swap func(i, j int)) {
 //
 // Read is safe for concurrent use.
 func Read(p []byte) (n int, err error) {
-	return _wyread(Uint32(), p)
+	if len(p) > 0 {
+		_wyread(Uint32(), p)
+	}
+	return len(p), nil
 }
