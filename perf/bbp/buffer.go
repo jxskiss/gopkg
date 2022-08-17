@@ -41,6 +41,14 @@ func (b *Buffer) Len() int {
 	return len(b.buf)
 }
 
+// Grow ensures that the underlying byte slice is at least of
+// specified capacity.
+func (b *Buffer) Grow(capacity int) {
+	if capacity > cap(b.buf) {
+		b.buf = grow(b.buf, capacity)
+	}
+}
+
 // ReadFrom implements io.ReaderFrom.
 //
 // The function appends all the data read from r to b.
