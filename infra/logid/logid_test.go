@@ -11,10 +11,9 @@ import (
 )
 
 func BenchmarkGen(b *testing.B) {
-	gen := defaultGen
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = gen.Gen()
+		_ = Gen()
 	}
 }
 
