@@ -65,7 +65,11 @@ func (b *Buffer) ReadFrom(r io.Reader) (int64, error) {
 	}
 	for {
 		if n == nMax {
-			nMax *= 2
+			incr := MinRead
+			if b.Len() >= maxBufSize {
+				incr = 8 << 20 // 8MB
+			}
+			nMax += incr
 			bb = grow(bb, nMax)
 			bb = bb[:nMax]
 		}

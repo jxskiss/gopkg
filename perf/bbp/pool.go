@@ -78,7 +78,7 @@ func (p *Pool) GetBuffer() *Buffer {
 // otherwise data races will occur.
 func (p *Pool) Put(buf []byte) {
 	p.r.Record(len(buf))
-	if cap(buf) <= maxSize {
+	if cap(buf) <= maxBufSize {
 		p.sp.Put(buf[:0])
 	}
 }
@@ -89,7 +89,7 @@ func (p *Pool) Put(buf []byte) {
 // otherwise, data races will occur.
 func (p *Pool) PutBuffer(buf *Buffer) {
 	p.r.Record(len(buf.buf))
-	if cap(buf.buf) <= maxSize {
+	if cap(buf.buf) <= maxBufSize {
 		buf.Reset()
 		p.bp.Put(buf)
 	}
@@ -131,9 +131,9 @@ func (p *Recorder) Size() int {
 // The max recordable size is 32MB, if n is larger than 32MB, it records
 // 32MB.
 func (p *Recorder) Record(n int) {
-	idx := indexGet(n)
-	if idx > maxPoolIdx {
-		idx = maxPoolIdx
+	idx := maxPoolIdx
+	if n < maxBufSize {
+		idx = indexGet(n)
 	}
 	if atomic.AddInt32(&p.calls[idx], -1) < 0 {
 		p.calibrate()

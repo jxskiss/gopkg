@@ -41,7 +41,7 @@ func TestPoolVariousSizesConcurrent(t *testing.T) {
 
 func testPoolVariousSizes(t *testing.T) {
 	for i := 0; i < poolSize-minPoolIdx; i++ {
-		n := 1 << i
+		n := bufSizeTable[i]
 
 		testGetPut(t, n)
 		testGetPut(t, n+1)

@@ -6,28 +6,32 @@ import (
 )
 
 const (
-	minPoolIdx = 6  // at least 1<<6 = 64B
-	maxPoolIdx = 25 // max 1<<25 = 32MB
+	minShift = 6  // at least 64B
+	maxShift = 25 // max 32MB
 
-	poolSize = maxPoolIdx + 1
-)
+	// Min and max buffer size provided in this package.
+	minBufSize = 1 << minShift
+	maxBufSize = 1 << maxShift
 
-const (
-	// minSize is the minimum buffer size provided in this package.
-	minSize = 1 << minPoolIdx
-
-	// maxSize is the maximum buffer size provided in this package.
-	maxSize = 1 << maxPoolIdx
+	bigIdx     = 14 // 16KB
+	minPoolIdx = 6
+	maxPoolIdx = maxShift + (maxShift-bigIdx)*3
+	poolSize   = maxPoolIdx + 1
 )
 
 // Get returns a byte slice from the pool with specified length and capacity.
 // When you finish the work with the buffer, you may call Put to put it back
 // to the pool for reusing.
 func Get(length, capacity int) []byte {
-	if capacity > maxSize {
+	if capacity > maxBufSize {
 		return make([]byte, length, capacity)
 	}
-	return get(length, capacity)
+
+	// Manually inlining.
+	// return get(length, capacity)
+	idx := indexGet(capacity)
+	out := sizedPools[idx].Get().([]byte)
+	return out[:length]
 }
 
 // Put puts back a byte slice to the pool for reusing.
@@ -51,20 +55,39 @@ func Grow(buf []byte, capacity int) []byte {
 
 // -------- sized pools -------- //
 
-// power of two sized pools
-var sizedPools [poolSize]sync.Pool
+var (
+	powerOfTwoIdxTable = [maxShift + 1]int{
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, // 0 - 13 [1B, 8KB]
+		14, 18, 22, 26, 30, 34, 38, 42, 46, 50, 54, 58, // 14 - 26 [16KB, 32MB]
+	}
+	bufSizeTable [poolSize]int
+	sizedPools   [poolSize]sync.Pool
+)
 
 func init() {
 	for i := 0; i < poolSize; i++ {
-		size := 1 << i
+		var size int
+		if i < bigIdx {
+			size = 1 << i
+		} else {
+			j, k := bigIdx+(i-bigIdx)/4, (i-bigIdx)%4
+			quarter := (1 << j) / 4
+			size = 1<<j + quarter*k
+		}
+		bufSizeTable[i] = size
 		sizedPools[i].New = func() interface{} {
 			buf := make([]byte, 0, size)
 			return buf
 		}
 	}
+
+	//for i := 0; i < poolSize; i++ {
+	//	fmt.Printf("(%d) %d, ", i, bufSizeTable[i])
+	//}
+	//fmt.Println("")
 }
 
-// callers must guarantee that capacity is not greater than maxSize.
+// callers must guarantee that capacity is not greater than maxBufSize.
 func get(length, capacity int) []byte {
 	idx := indexGet(capacity)
 	out := sizedPools[idx].Get().([]byte)
@@ -73,7 +96,7 @@ func get(length, capacity int) []byte {
 
 func put(buf []byte) {
 	cap_ := cap(buf)
-	if cap_ >= minSize && cap_ <= maxSize {
+	if cap_ >= minBufSize && cap_ <= maxBufSize {
 		idx := indexPut(cap_)
 		buf = buf[:0]
 		sizedPools[idx].Put(buf)
@@ -82,10 +105,13 @@ func put(buf []byte) {
 
 func grow(buf []byte, capacity int) []byte {
 	var newBuf []byte
-	if capacity > maxSize {
+	if capacity > maxBufSize {
 		newBuf = make([]byte, len(buf), capacity)
 	} else {
-		newBuf = get(len(buf), capacity)
+		// Manually inlining.
+		// newBuf = get(len(buf), capacity)
+		idx := indexGet(capacity)
+		newBuf = sizedPools[idx].Get().([]byte)[:len(buf)]
 	}
 	copy(newBuf, buf)
 	put(buf)
@@ -93,22 +119,48 @@ func grow(buf []byte, capacity int) []byte {
 }
 
 // indexGet finds the pool index for the given size to get buffer from,
-// if size is not power of tow, it returns the next power of tow index.
+// if size not equals to a predefined size, it returns the index of the
+// next predefined size.
 func indexGet(size int) int {
-	if size <= minSize {
+	if size <= minBufSize {
 		return minPoolIdx
 	}
-	idx := bsr(size)
-	if isPowerOfTwo(size) {
-		return idx
+
+	/*
+		idx := bsr(size)
+		if isPowerOfTow(size) {
+		    return powerOfTwoIdxTable[idx]
+		}
+	*/
+
+	// The following code is equivalent to the above commented lines,
+	// they are manually inlined here to ensure that this function
+	// will be inlined, for better performance.
+	idx := bits.Len32(uint32(size)) - 1
+	if size&(size-1) == 0 {
+		return powerOfTwoIdxTable[idx]
 	}
-	return idx + 1
+
+	if idx < bigIdx {
+		return powerOfTwoIdxTable[idx] + 1
+	}
+
+	mod := size & (1<<idx - 1) // size % (2^idx)
+	quarter := 1 << (idx - 2)  // (2^idx) / 4
+	return powerOfTwoIdxTable[idx] + (mod+quarter-1)/quarter
 }
 
 // indexPut finds the pool index for the given size to put buffer back,
-// if size is not power of two, it returns the previous power of two index.
+// if size not equals to a predefined size, it returns the index of the
+// previous predefined size.
 func indexPut(size int) int {
-	return bsr(size)
+	idx := bsr(size)
+	if isPowerOfTwo(size) || idx < bigIdx {
+		return powerOfTwoIdxTable[idx]
+	}
+	mod := size & (1<<idx - 1) // size % (2^idx)
+	quarter := 1 << (idx - 2)  // (2^idx) / 4
+	return powerOfTwoIdxTable[idx] + mod/quarter
 }
 
 // bsr.
