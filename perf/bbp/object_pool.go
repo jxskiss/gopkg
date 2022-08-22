@@ -10,9 +10,11 @@ import (
 // NewObjectPool creates an ObjectPool for type T.
 func NewObjectPool[T any]() ObjectPool[T] {
 	var x T
-	idx := indexGet(int(unsafe.Sizeof(x)))
+	size := int(unsafe.Sizeof(x))
+	idx := indexGet(size)
 	return ObjectPool[T]{
-		cap:  1 << idx,
+		size: size,
+		cap:  bufSizeTable[idx],
 		pool: &sizedPools[idx],
 	}
 }
@@ -20,13 +22,14 @@ func NewObjectPool[T any]() ObjectPool[T] {
 // ObjectPool is an object pool which uses the shared sized
 // byte buffer pools to reuse memory.
 type ObjectPool[T any] struct {
+	size int
 	cap  int
 	pool *sync.Pool
 }
 
 // Get returns a new object of type *T from the pool.
 func (a ObjectPool[T]) Get() *T {
-	buf := a.pool.Get().([]byte)[:a.cap]
+	buf := a.pool.Get().([]byte)[:a.size]
 	// zero the memory, memclr
 	for i := range buf {
 		buf[i] = 0

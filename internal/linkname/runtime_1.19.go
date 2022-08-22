@@ -7,7 +7,7 @@ import (
 	"unsafe"
 )
 
-// Runtime_sysAlloc allocates memory off heap by calling runtime.sysAlloc.
+// Runtime_sysAlloc allocates memory off heap by calling runtime.sysAllocOS.
 //
 // DON'T use this if you don't know what it does.
 func Runtime_sysAlloc(n uintptr) []byte {
