@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	reflectx2 "github.com/jxskiss/gopkg/v2/unsafe/reflectx"
+	"github.com/jxskiss/gopkg/v2/unsafe/reflectx"
 )
 
 var argPattern = regexp.MustCompile(`\{[^{]*\}`)
@@ -86,14 +86,14 @@ func buildKey(prefix string, tmpl, vars []string, args []interface{}) string {
 	var i int
 	for i = 0; i < len(vars) && i < len(args); i++ {
 		buf = append(buf, tmpl[i]...)
-		argef := reflectx2.EfaceOf(&args[i])
+		argef := reflectx.EfaceOf(&args[i])
 		kind, data := argef.RType.Kind(), argef.Word
 		switch kind {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			val := reflectx2.CastIntPointer(kind, data)
+			val := reflectx.CastIntPointer(kind, data)
 			buf = strconv.AppendInt(buf, val, 10)
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-			val := reflectx2.CastIntPointer(kind, data)
+			val := reflectx.CastIntPointer(kind, data)
 			buf = strconv.AppendUint(buf, uint64(val), 10)
 		case reflect.String:
 			buf = append(buf, *(*string)(data)...)
@@ -108,5 +108,5 @@ func buildKey(prefix string, tmpl, vars []string, args []interface{}) string {
 		}
 	}
 	buf = append(buf, tmpl[i]...)
-	return reflectx2.BytesToString(buf)
+	return reflectx.BytesToString(buf)
 }

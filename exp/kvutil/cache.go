@@ -11,8 +11,8 @@ import (
 	"github.com/jxskiss/gopkg/v2/collection/set"
 	"github.com/jxskiss/gopkg/v2/easy"
 	"github.com/jxskiss/gopkg/v2/internal/linkname"
-	"github.com/jxskiss/gopkg/v2/internal/rtype"
 	"github.com/jxskiss/gopkg/v2/perf/lru"
+	"github.com/jxskiss/gopkg/v2/unsafe/reflectx"
 )
 
 // DefaultBatchSize is the default batch size for batch operations.
@@ -121,7 +121,7 @@ func (p *CacheConfig[_, _]) setDefaults() {
 
 func (p *CacheConfig[_, V]) buildNewElemFunc() func() V {
 	var x V
-	typ := rtype.RTypeOf(x)
+	typ := reflectx.RTypeOf(x)
 	if typ.Kind() == reflect.Ptr {
 		valTyp := typ.Elem()
 		return func() V {

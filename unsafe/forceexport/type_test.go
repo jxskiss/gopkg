@@ -25,7 +25,7 @@ func TestScanType(t *testing.T) {
 	assert.Contains(t, got, "github.com/jxskiss/gopkg/v2/unsafe/forceexport.iface")
 	assert.Contains(t, got, "github.com/jxskiss/gopkg/v2/unsafe/forceexport.moduledata")
 	assert.Contains(t, got, "github.com/jxskiss/gopkg/v2/unsafe/forceexport.TestStruct")
-	assert.Contains(t, got, "github.com/jxskiss/gopkg/v2/internal/rtype.RType")
+	assert.Contains(t, got, "github.com/jxskiss/gopkg/v2/unsafe/reflectx.RType")
 }
 
 func TestRuntimeModuledata(t *testing.T) {
