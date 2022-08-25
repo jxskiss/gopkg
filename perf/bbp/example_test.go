@@ -19,7 +19,7 @@ func TestExampleGet(t *testing.T) {
 
 func TestExampleGrow(t *testing.T) {
 	buf := []byte("first line\n")
-	buf = Grow(buf, 50)
+	buf = Grow(buf, 50, true)
 	buf = append(buf, "second line\n"...)
 
 	fmt.Printf("buffer.B = %q\n", buf)

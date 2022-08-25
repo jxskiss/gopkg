@@ -43,14 +43,15 @@ func Put(buf []byte) { put(buf) }
 // Grow returns a new byte buffer from the pool which is at least of
 // specified capacity.
 //
-// Note that if a new slice is returned, the old one will be put back
-// to the pool, it this is not desired, you should use Get and Put
-// to take full control of the lifetime of buf.
-func Grow(buf []byte, capacity int) []byte {
+// Note that if reuseBuf is true and a new slice is returned, the old
+// buf will be put back to the pool, the caller must not retain reference
+// to the buf and must not touch it after this calling returns, else
+// data race happens.
+func Grow(buf []byte, capacity int, reuseBuf bool) []byte {
 	if cap(buf) >= capacity {
 		return buf
 	}
-	return grow(buf, capacity)
+	return growWithOptions(buf, capacity, reuseBuf)
 }
 
 // -------- sized pools -------- //
@@ -104,6 +105,10 @@ func put(buf []byte) {
 }
 
 func grow(buf []byte, capacity int) []byte {
+	return growWithOptions(buf, capacity, true)
+}
+
+func growWithOptions(buf []byte, capacity int, reuseBuf bool) []byte {
 	var newBuf []byte
 	if capacity > maxBufSize {
 		newBuf = make([]byte, len(buf), capacity)
@@ -114,7 +119,9 @@ func grow(buf []byte, capacity int) []byte {
 		newBuf = sizedPools[idx].Get().([]byte)[:len(buf)]
 	}
 	copy(newBuf, buf)
-	put(buf)
+	if reuseBuf {
+		put(buf)
+	}
 	return newBuf
 }
 
