@@ -6,7 +6,7 @@ func compileRuntimeFunctions() {
 	call(Runtime_fastrandn)
 	call(Runtime_procPin)
 	call(Runtime_procUnpin)
-	call(GetPid)
+	call(Pid)
 	call(Runtime_stopTheWorld)
 	call(Runtime_startTheWorld)
 	call(Runtime_memhash8)
@@ -24,7 +24,6 @@ func compileRuntimeFunctions() {
 	call(Runtime_activeModules)
 	call(Runtime_readUnaligned32)
 	call(Runtime_readUnaligned64)
-	call(Runtime_mmap)
 	call(Runtime_sysAlloc)
 	call(Runtime_sysFree)
 }

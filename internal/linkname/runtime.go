@@ -1,7 +1,6 @@
 package linkname
 
 import (
-	"reflect"
 	_ "runtime"
 	"unsafe"
 )
@@ -42,6 +41,7 @@ func Runtime_fastrandn(n uint32) uint32
 // It pins current p, return pid.
 //
 // DON'T USE THIS if you don't know what it is.
+//
 //go:noescape
 //go:linkname Runtime_procPin runtime.procPin
 func Runtime_procPin() int
@@ -53,8 +53,8 @@ func Runtime_procPin() int
 //go:linkname Runtime_procUnpin runtime.procUnpin
 func Runtime_procUnpin()
 
-// GetPid returns the id of current p.
-func GetPid() int {
+// Pid returns the id of current p.
+func Pid() int {
 	pid := Runtime_procPin()
 	Runtime_procUnpin()
 	return pid
@@ -140,35 +140,3 @@ func Runtime_readUnaligned64(p unsafe.Pointer) uint64 {
 	return uint64(q[0]) | uint64(q[1])<<8 | uint64(q[2])<<16 | uint64(q[3])<<24 |
 		uint64(q[4])<<32 | uint64(q[5])<<40 | uint64(q[6])<<48 | uint64(q[7])<<56
 }
-
-//go:linkname Runtime_mmap runtime.mmap
-func Runtime_mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int)
-
-// Runtime_sysAlloc allocates memory off heap by calling runtime.sysAlloc.
-//
-// DON'T use this if you don't know what does it mean.
-func Runtime_sysAlloc(n uintptr) []byte {
-	var memStat uint64
-	addr := runtime_sysAlloc(n, &memStat)
-	return *(*[]byte)(unsafe.Pointer(&reflect.SliceHeader{
-		Data: uintptr(addr),
-		Len:  int(n),
-		Cap:  int(n),
-	}))
-}
-
-// Runtime_sysFree frees memory allocated by Runtime_sysAlloc.
-//
-// DON'T use this if you don't know what does it mean.
-func Runtime_sysFree(mem []byte) {
-	addr := unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&mem)).Data)
-	n := uintptr(cap(mem))
-	memStat := uint64(n)
-	runtime_sysFree(addr, n, &memStat)
-}
-
-//go:linkname runtime_sysAlloc runtime.sysAlloc
-func runtime_sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer
-
-//go:linkname runtime_sysFree runtime.sysFree
-func runtime_sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64)
