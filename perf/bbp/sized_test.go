@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/jxskiss/gopkg/v2/perf/fastrand"
 )
 
 const (
@@ -20,6 +22,13 @@ func TestGet(t *testing.T) {
 }
 
 func Test_indexGet(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		size := fastrand.Intn(maxBufSize)
+		idx1 := indexGet_readable(size)
+		idx2 := indexGet(size)
+		assert.Equal(t, idx1, idx2)
+	}
+
 	assert.Equal(t, 6, indexGet(63))
 	assert.Equal(t, 6, indexGet(64))
 	assert.Equal(t, 7, indexGet(65))
@@ -29,6 +38,13 @@ func Test_indexGet(t *testing.T) {
 }
 
 func Test_indexPut(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		size := fastrand.Intn(maxBufSize)
+		idx1 := indexPut_readable(size)
+		idx2 := indexPut(size)
+		assert.Equal(t, idx1, idx2)
+	}
+
 	assert.Equal(t, 5, indexPut(63))
 	assert.Equal(t, 6, indexPut(64))
 	assert.Equal(t, 6, indexPut(65))
@@ -47,8 +63,8 @@ func Test_indexGet_quarters(t *testing.T) {
 	}
 	want := []int{
 		11, 11, 11, 12, 12, 12, 13,
-		15, 15, 17, 18,
-		30, 30, 31, 32, 32, 33,
+		16, 16, 18, 19,
+		31, 31, 32, 33, 33, 34,
 	}
 	for i, size := range sizeList {
 		assert.Equal(t, want[i], indexGet(size))
@@ -63,8 +79,8 @@ func Test_indexPut_quarters(t *testing.T) {
 	}
 	want := []int{
 		10, 10, 11, 11, 11, 12, 12,
-		14, 15, 16, 18,
-		29, 30, 30, 31, 32, 32,
+		15, 16, 17, 19,
+		30, 31, 31, 32, 33, 33,
 	}
 	for i, size := range sizeList {
 		assert.Equal(t, want[i], indexPut(size))
@@ -77,17 +93,19 @@ func Test_various_sizes(t *testing.T) {
 		assert.Equal(t, 64, cap(Get(0, size-1)))
 		assert.Equal(t, 64, cap(Get(0, size)))
 	}
-	for i := 7; i <= 13; i++ {
+	for i := 7; i <= 12; i++ {
 		size := 1 << i
 		assert.Equal(t, size, cap(Get(0, size-1)))
 		assert.Equal(t, size, cap(Get(0, size)))
 		assert.Equal(t, size*2, cap(Get(0, size+1)))
 	}
-	for i := 14; i <= 25; i++ {
+	for i := 13; i <= 25; i++ {
 		size := 1 << i
 		assert.Equal(t, size, cap(Get(0, size-1)))
 		assert.Equal(t, size, cap(Get(0, size)))
-		if i < 25 {
+		if i < 14 {
+			assert.Equal(t, size+size/2, cap(Get(0, size+1)))
+		} else if i < 25 {
 			assert.Equal(t, size+size/4, cap(Get(0, size+1)))
 		} else {
 			assert.Equal(t, size+1, cap(Get(0, size+1)))

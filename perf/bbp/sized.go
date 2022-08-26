@@ -13,9 +13,13 @@ const (
 	minBufSize = 1 << minShift
 	maxBufSize = 1 << maxShift
 
-	bigIdx     = 14 // 16KB
+	idx4KB   = 12       // 4KB
+	idx8KB   = 13       // 8KB
+	size12KB = 12 << 10 // 8KB + 4KB
+	size16KB = 16 << 10 // 8KB + (2 * 4KB)
+
 	minPoolIdx = 6
-	maxPoolIdx = maxShift + (maxShift-bigIdx)*3
+	maxPoolIdx = maxShift + (maxShift-idx8KB)*3 - 2
 	poolSize   = maxPoolIdx + 1
 )
 
@@ -59,7 +63,7 @@ func Grow(buf []byte, capacity int, reuseBuf bool) []byte {
 var (
 	powerOfTwoIdxTable = [maxShift + 1]int{
 		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, // 0 - 13 [1B, 8KB]
-		14, 18, 22, 26, 30, 34, 38, 42, 46, 50, 54, 58, // 14 - 26 [16KB, 32MB]
+		15, 19, 23, 27, 31, 35, 39, 43, 47, 51, 55, 59, // 14 - 26 [16KB, 32MB]
 	}
 	bufSizeTable [poolSize]int
 	sizedPools   [poolSize]sync.Pool
@@ -68,10 +72,12 @@ var (
 func init() {
 	for i := 0; i < poolSize; i++ {
 		var size int
-		if i < bigIdx {
+		if i <= 13 { // <= 8KB (idx8KB)
 			size = 1 << i
-		} else {
-			j, k := bigIdx+(i-bigIdx)/4, (i-bigIdx)%4
+		} else if i == 14 {
+			size = size12KB // 12KB
+		} else { // i >= 15, size >= 16KB
+			j, k := 14+(i-15)/4, (i-15)%4
 			quarter := (1 << j) / 4
 			size = 1<<j + quarter*k
 		}
@@ -128,30 +134,52 @@ func growWithOptions(buf []byte, capacity int, reuseBuf bool) []byte {
 // indexGet finds the pool index for the given size to get buffer from,
 // if size not equals to a predefined size, it returns the index of the
 // next predefined size.
+//
+// See indexGet_readable for a more readable version of this function.
 func indexGet(size int) int {
 	if size <= minBufSize {
 		return minPoolIdx
 	}
 
-	/*
-		idx := bsr(size)
-		if isPowerOfTow(size) {
-		    return powerOfTwoIdxTable[idx]
-		}
-	*/
+	// For better performance, bsr and isPowerOfTwo are inlined here
+	// to ensure that this function can be inlined.
 
-	// The following code is equivalent to the above commented lines,
-	// they are manually inlined here to ensure that this function
-	// will be inlined, for better performance.
-	idx := bits.Len32(uint32(size)) - 1
-	if size&(size-1) == 0 {
+	p2i := bits.Len32(uint32(size)) - 1
+	idx := powerOfTwoIdxTable[p2i]
+
+	if size&(size-1) != 0 { // not power of two
+		if size > size16KB {
+			mod := size & (1<<p2i - 1)    // size % (2^p2i)
+			idx += (mod - 1) >> (p2i - 2) // (mod - 1) / (2^p2i / 4)
+		} else if size > size12KB {
+			idx = 14
+		}
+		idx += 1
+	}
+	return idx
+}
+
+func indexGet_readable(size int) int {
+	if size <= minBufSize {
+		return minPoolIdx
+	}
+
+	idx := bsr(size)
+	if isPowerOfTwo(size) {
 		return powerOfTwoIdxTable[idx]
 	}
 
-	if idx < bigIdx {
+	if idx < idx8KB {
 		return powerOfTwoIdxTable[idx] + 1
 	}
 
+	if idx == idx8KB { // (8KB, 16KB)
+		mod := size & (1<<idx - 1) // size % (2^idx)
+		half := 1 << idx4KB
+		return powerOfTwoIdxTable[idx] + (mod+half-1)/half
+	}
+
+	// larger than 16KB
 	mod := size & (1<<idx - 1) // size % (2^idx)
 	quarter := 1 << (idx - 2)  // (2^idx) / 4
 	return powerOfTwoIdxTable[idx] + (mod+quarter-1)/quarter
@@ -160,11 +188,39 @@ func indexGet(size int) int {
 // indexPut finds the pool index for the given size to put buffer back,
 // if size not equals to a predefined size, it returns the index of the
 // previous predefined size.
+//
+// See indexPut_readable for a more readable version of this function.
 func indexPut(size int) int {
+
+	// For better performance, bsr and isPowerOfTwo are inlined here
+	// to ensure that this function can be inlined.
+
+	p2i := bits.Len32(uint32(size)) - 1
+	idx := powerOfTwoIdxTable[p2i]
+
+	if size&(size-1) != 0 { // not power of two
+		if size > size16KB {
+			mod := size & (1<<p2i - 1) // size % (2^p2i)
+			idx += mod >> (p2i - 2)    // mod / (2^p2i / 4)
+		} else if size > size12KB {
+			idx = 13
+		}
+	}
+	return idx
+}
+
+func indexPut_readable(size int) int {
 	idx := bsr(size)
-	if isPowerOfTwo(size) || idx < bigIdx {
+	if isPowerOfTwo(size) || idx < idx8KB {
 		return powerOfTwoIdxTable[idx]
 	}
+
+	if idx == idx8KB {
+		mod := size & (1<<idx - 1) // size % (2^idx)
+		half := 1 << (idx - 1)
+		return powerOfTwoIdxTable[idx] + mod/half
+	}
+
 	mod := size & (1<<idx - 1) // size % (2^idx)
 	quarter := 1 << (idx - 2)  // (2^idx) / 4
 	return powerOfTwoIdxTable[idx] + mod/quarter
