@@ -14,21 +14,13 @@ type Registry struct {
 }
 
 // New creates a new error code registry.
-func New() *Registry {
+func New(options ...Option) *Registry {
 	r := &Registry{
 		codes: make(map[int32]struct{}),
 	}
+	r.applyOptions(options...)
 	r.messages.Store(make(map[int32]string))
 	return r
-}
-
-// NewWithReserved creates a new error code registry with reserved codes,
-// calling Register with a reserved code causes a panic.
-// Reserved code can be registered by calling RegisterReserved.
-func NewWithReserved(reserveFunc func(code int32) bool) *Registry {
-	p := New()
-	p.reserve = reserveFunc
-	return p
 }
 
 // Register registers an error code to the registry.

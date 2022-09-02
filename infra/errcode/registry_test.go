@@ -1,8 +1,9 @@
 package errcode
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRegistry(t *testing.T) {
@@ -39,7 +40,7 @@ func TestRegistry(t *testing.T) {
 }
 
 func TestRegistryWithReserved(t *testing.T) {
-	reg := NewWithReserved(func(code int32) bool { return code <= 99 })
+	reg := New(WithReserved(func(code int32) bool { return code <= 99 }))
 
 	assert.Panics(t, func() { reg.Register(-1, "") })
 	assert.Panics(t, func() { reg.Register(99, "") })
