@@ -3,10 +3,10 @@ package easy
 import (
 	"net/http"
 
+	"github.com/jxskiss/gopkg/v2/easy/ezhttp"
 	"github.com/jxskiss/gopkg/v2/easy/gemap"
 	"github.com/jxskiss/gopkg/v2/internal/constraints"
 	"github.com/jxskiss/gopkg/v2/internal/slices"
-	"github.com/jxskiss/gopkg/v2/utils/httputil"
 )
 
 // -------- slice utilities -------- //
@@ -259,15 +259,15 @@ func NewSafeMap() *SafeMap { return gemap.NewSafeMap() }
 
 // Request represents a request and options to send with the Do function.
 //
-// Deprecated: moved to package httputil, please use httputil.Request
+// Deprecated: moved to package httputil, please use ezhttp.Request
 // instead of this.
-type Request = httputil.Request
+type Request = ezhttp.Request
 
 // DoRequest is a convenient function to send request and control redirect
 // and debug options.
 //
-// Deprecated: this function has been moved to httputil.Do, please use
-// httputil.Do instead of this.
+// Deprecated: this function has been moved to ezhttp.Do, please use
+// ezhttp.Do instead of this.
 func DoRequest(req *Request) (header http.Header, respContent []byte, status int, err error) {
-	return httputil.Do(req)
+	return ezhttp.Do(req)
 }

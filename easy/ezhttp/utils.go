@@ -1,4 +1,4 @@
-package httputil
+package ezhttp
 
 import (
 	"encoding/xml"
