@@ -6,6 +6,11 @@ import (
 	"github.com/jxskiss/gopkg/v2/internal/constraints"
 )
 
+// Clip removes unused capacity from the slice, returning s[:len(s):len(s)].
+func Clip[S ~[]E, E any](s S) S {
+	return s[:len(s):len(s)]
+}
+
 // Diff allocates and returns a new slice which contains the values
 // which present in slice, but not present in others.
 //
@@ -61,6 +66,17 @@ func Filter[S ~[]E, E any](predicate func(i int, elem E) bool, slices ...S) S {
 		}
 	}
 	return out
+}
+
+// Index returns the index of the first occurrence of v in s,
+// or -1 if not present.
+func Index[S ~[]E, E comparable](s S, v E) int {
+	for i, vs := range s {
+		if v == vs {
+			return i
+		}
+	}
+	return -1
 }
 
 // IndexFunc iterates the given slice, it calls predicate(i) for i in

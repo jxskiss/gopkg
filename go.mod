@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/BurntSushi/toml v1.1.0
 	github.com/davecgh/go-spew v1.1.1
-	github.com/goccy/go-json v0.9.10
+	github.com/goccy/go-json v0.9.11
 	github.com/jxskiss/base62 v1.1.0
 	github.com/spf13/cast v1.5.0
 	github.com/stretchr/testify v1.8.0

@@ -8,8 +8,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/jxskiss/gopkg/v2/internal/slices"
 )
 
 type DBConfig struct {
@@ -114,11 +112,20 @@ func assertSingleFileConfig(t *testing.T, cfg *TestConfig, exclude ...string) {
 		{"override_env_var", int64(12345), cfg.OverrideEnvVar},
 	}
 	for _, tf := range testFields {
-		if !slices.Contains(exclude, tf.Key) {
+		if !inStrings(exclude, tf.Key) {
 			assert.Equal(t, tf.Expected, tf.Actual)
 		}
 	}
 	assert.NotEmpty(t, cfg.MQList)
+}
+
+func inStrings(slice []string, elem string) bool {
+	for _, x := range slice {
+		if x == elem {
+			return true
+		}
+	}
+	return false
 }
 
 func TestLoad_MultipleFiles_JSON(t *testing.T) {

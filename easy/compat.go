@@ -6,24 +6,23 @@ import (
 	"github.com/jxskiss/gopkg/v2/easy/ezhttp"
 	"github.com/jxskiss/gopkg/v2/easy/gemap"
 	"github.com/jxskiss/gopkg/v2/internal/constraints"
-	"github.com/jxskiss/gopkg/v2/internal/slices"
 )
 
 // -------- slice utilities -------- //
 
 // InInt32s tells whether the int32 value elem is in the slice.
 func InInt32s(slice []int32, elem int32) bool {
-	return slices.Contains(slice, elem)
+	return Index(slice, elem) >= 0
 }
 
 // InInt64s tells whether the int64 value elem is in the slice.
 func InInt64s(slice []int64, elem int64) bool {
-	return slices.Contains(slice, elem)
+	return Index(slice, elem) >= 0
 }
 
 // InStrings tells whether the string value elem is in the slice.
 func InStrings(slice []string, elem string) bool {
-	return slices.Contains(slice, elem)
+	return Index(slice, elem) >= 0
 }
 
 // FilterInt32s iterates the given slice, it calls predicate(i) for i in
