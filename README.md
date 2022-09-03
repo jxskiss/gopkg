@@ -1,5 +1,17 @@
 # gopkg
 
+[![GoDoc](https://img.shields.io/badge/api-Godoc-blue.svg)][godoc]
+[![Go Report Card](https://goreportcard.com/badge/github.com/jxskiss/gopkg/v2)][goreport]
+[![Issues](https://img.shields.io/github/issues/jxskiss/gopkg.svg)][issues]
+[![GitHub release](http://img.shields.io/github/release/jxskiss/gopkg.svg)][release]
+[![MIT License](http://img.shields.io/badge/license-MIT-blue.svg)][license]
+
+[godoc]: https://pkg.go.dev/github.com/jxskiss/gopkg/v2
+[goreport]: https://goreportcard.com/report/github.com/jxskiss/gopkg/v2
+[issues]: https://github.com/jxskiss/gopkg/issues
+[release]: https://github.com/jxskiss/gopkg/releases
+[license]: https://github.com/jxskiss/gopkg/blob/master/LICENSE
+
 This repository contains many frequently used small packages, it is designed
 to have reasonable trade-off between generic, performance and API friendliness.
 It helps to make life easier!
@@ -20,7 +32,7 @@ They do not follow the Go 1 compatibility promise.
 When a package is tested enough, and the API is considered stable, it may be promoted
 as "stable" and moved under the top directory.
 
-Packages under the top directory are "stable", they try best to follow the
+Packages under the top directory are considered stable, they follow the
 Go 1 compatibility promise and the Semantic Versioning spec.
 Packages under the top directory may depend on `exp` packages but must keep
 reasonable API compatibility and versioning.
@@ -36,11 +48,11 @@ reasonable API compatibility and versioning.
 
 1. `easy/ezdbg` provides easy to use utilities which helps to do quick development.
 
+1. `easy/ezhttp` contains some utilities to work with HTTP requests.
+
 1. `easy/gemap` contains some utilities to manipulate map data structure.
 
 1. `encrypt` contains some encryption utilities.
-
-1. `errcode` provides a registry to manage error codes and messages.
 
 1. `exp/kvutil` contains utilities to work with key-value cache.
 
@@ -48,6 +60,12 @@ reasonable API compatibility and versioning.
    latest data periodically and supports expiring a key if it's unused for a period.
    To be easy to use, it also re-exports `Group` and `Result` as alias names from package
    "golang.org/x/sync/singleflight".
+
+1. `infra/errcode` provides error code registry to manage error codes and messages.
+   Standardized error codes greatly helps in large deployment of microservice.
+
+1. `infra/logid` provides log ID generators to help service observability, such as
+   tracing, metrics, etc.
 
 1. `perf/bbp` provides efficient byte buffer pools with anti-memory-waste protection.
 
@@ -78,8 +96,6 @@ reasonable API compatibility and versioning.
 1. `unsafe/reflectx` contains many utilities to work with reflection, providing convenient APIs
    or better performance.
 
-1. `utils/httputil` contains some utilities to work with HTTP requests.
-
 1. `utils/ptr` provides small functions to work with pointer types, such as copying value as pointer,
    converting integer to string pointer, or dereference pointer which may be nil, etc.
    It helps to reduce duplicate code and makes code clearer and simpler.
@@ -99,7 +115,7 @@ reasonable API compatibility and versioning.
    many logging libraries, and some opinionated logging facilities wrapped around
    [zap](https://github.com/uber-go/zap).
 
-See https://pkg.go.dev/github.com/jxskiss/gopkg for detailed online docs.
+See [GoDoc][godoc] for detailed online docs.
 
 Also note that the following packages, which were originally located in this repository,
 have been moved to standalone repositories:
