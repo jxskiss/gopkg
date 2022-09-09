@@ -39,7 +39,7 @@ type KVPair struct {
 }
 
 // Storage is the interface which provides storage for Cache.
-// Uses may use any key-value storage to implement this.
+// Users may use any key-value storage to implement this.
 type Storage interface {
 	MGet(ctx context.Context, keys ...string) ([][]byte, error)
 	MSet(ctx context.Context, kvPairs []KVPair, expiration time.Duration) error
@@ -166,6 +166,7 @@ func (p *Cache[K, V]) Get(ctx context.Context, pk K) (V, error) {
 			return val, nil
 		}
 	}
+
 	var zeroVal V
 	stor := p.config.Storage(ctx)
 	key := p.config.KeyFunc(pk)
@@ -179,16 +180,29 @@ func (p *Cache[K, V]) Get(ctx context.Context, pk K) (V, error) {
 		if err != nil {
 			return zeroVal, err
 		}
+		if p.config.LRUCache != nil {
+			p.config.LRUCache.Set(pk, elem, p.config.LRUExpiration)
+		}
 		return elem, nil
 	}
 	if p.config.Loader != nil {
-		loaderResult, err := p.config.Loader(ctx, []K{pk})
+		var loaderResult map[K]V
+		loaderResult, err = p.config.Loader(ctx, []K{pk})
 		if err != nil {
 			return zeroVal, err
 		}
 		elem, exists := loaderResult[pk]
 		if exists {
-			_ = p.Set(ctx, pk, elem, p.config.CacheExpiration)
+			if p.config.CacheLoaderResultAsync {
+				go func() {
+					_ = p.Set(ctx, pk, elem, p.config.CacheExpiration)
+				}()
+			} else {
+				err = p.Set(ctx, pk, elem, p.config.CacheExpiration)
+				if err != nil {
+					return zeroVal, err
+				}
+			}
 			return elem, nil
 		}
 	}
@@ -206,9 +220,10 @@ func (p *Cache[K, V]) MGetSlice(ctx context.Context, pks []K) ([]V, error) {
 	pks = easy.Unique(pks, false)
 
 	out := make([]V, 0, len(pks))
-	err := p.mget(ctx, pks, func(pk K, elem V) {
+	valfunc := func(pk K, elem V) {
 		out = append(out, elem)
-	})
+	}
+	err := p.mget(ctx, pks, valfunc)
 	return out, err
 }
 
@@ -223,9 +238,10 @@ func (p *Cache[K, V]) MGetMap(ctx context.Context, pks []K) (map[K]V, error) {
 	pks = easy.Unique(pks, false)
 
 	out := make(map[K]V, len(pks))
-	err := p.mget(ctx, pks, func(pk K, elem V) {
+	valfunc := func(pk K, elem V) {
 		out[pk] = elem
-	})
+	}
+	err := p.mget(ctx, pks, valfunc)
 	return out, err
 }
 

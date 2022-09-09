@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/jxskiss/gopkg/v2/easy"
-	lru2 "github.com/jxskiss/gopkg/v2/perf/lru"
+	"github.com/jxskiss/gopkg/v2/perf/lru"
 )
 
 var (
@@ -42,41 +42,71 @@ var (
 )
 
 func TestCache(t *testing.T) {
-	mc := makeTestingCache("TestCache",
+	mcInt := makeTestingCache("TestIntCache",
 		func(m *TestModel) int64 {
 			return m.IntId
+		})
+	mcStr := makeTestingCache("TestStrCache",
+		func(m *TestModel) string {
+			return m.StrId
 		})
 
 	ctx := context.Background()
 	var modelList []*TestModel
-	var modelMap = make(map[int64]*TestModel)
+	var modelIntMap = make(map[int64]*TestModel)
+	var modelStrMap = make(map[string]*TestModel)
 	var err error
 
-	modelList, err = mc.MGetSlice(ctx, testIntIds)
+	modelList, err = mcInt.MGetSlice(ctx, testIntIds)
 	assert.Nil(t, err)
 	assert.Len(t, modelList, 0)
 
-	modelMap, err = mc.MGetMap(ctx, testIntIds)
+	modelList, err = mcStr.MGetSlice(ctx, testStrIds)
 	assert.Nil(t, err)
-	assert.Len(t, modelMap, 0)
+	assert.Len(t, modelList, 0)
+
+	modelIntMap, err = mcInt.MGetMap(ctx, testIntIds)
+	assert.Nil(t, err)
+	assert.Len(t, modelIntMap, 0)
+
+	modelStrMap, err = mcStr.MGetMap(ctx, testStrIds)
+	assert.Nil(t, err)
+	assert.Len(t, modelStrMap, 0)
 
 	// we can populate cache using either a list or a map
-	err = mc.MSetSlice(ctx, testModelList, 0)
+	err = mcInt.MSetSlice(ctx, testModelList, 0)
 	assert.Nil(t, err)
-	err = mc.MSetMap(ctx, testModelMapInt, 0)
+	err = mcInt.MSetMap(ctx, testModelMapInt, 0)
 	assert.Nil(t, err)
 
-	modelList, err = mc.MGetSlice(ctx, testIntIds)
+	err = mcStr.MSetSlice(ctx, testModelList, 0)
+	assert.Nil(t, err)
+	err = mcStr.MSetMap(ctx, testModelMapStr, 0)
+	assert.Nil(t, err)
+
+	modelList, err = mcInt.MGetSlice(ctx, testIntIds)
 	assert.Nil(t, err)
 	assert.Len(t, modelList, 3)
 
-	modelMap, err = mc.MGetMap(ctx, testIntIds)
+	modelList, err = mcStr.MGetSlice(ctx, testStrIds)
 	assert.Nil(t, err)
-	assert.Len(t, modelMap, 3)
+	assert.Len(t, modelList, 3)
 
-	err = mc.MDelete(ctx, testDeleteIntIds)
+	modelIntMap, err = mcInt.MGetMap(ctx, testIntIds)
 	assert.Nil(t, err)
-	assert.Len(t, mc.config.Storage(ctx).(*memoryStorage).data, 1)
+	assert.Len(t, modelIntMap, 3)
+
+	modelStrMap, err = mcStr.MGetMap(ctx, testStrIds)
+	assert.Nil(t, err)
+	assert.Len(t, modelStrMap, 3)
+
+	err = mcInt.MDelete(ctx, testDeleteIntIds)
+	assert.Nil(t, err)
+	assert.Len(t, mcInt.config.Storage(ctx).(*memoryStorage).data, 1)
+
+	err = mcStr.MDelete(ctx, testDeleteStrIds)
+	assert.Nil(t, err)
+	assert.Len(t, mcStr.config.Storage(ctx).(*memoryStorage).data, 1)
 }
 
 func TestCacheWithLRUCache(t *testing.T) {
@@ -84,7 +114,7 @@ func TestCacheWithLRUCache(t *testing.T) {
 		func(m *TestModel) int64 {
 			return m.IntId
 		})
-	mc.config.LRUCache = lru2.NewCache[int64, *TestModel](10)
+	mc.config.LRUCache = lru.NewCache[int64, *TestModel](10)
 	mc.config.LRUExpiration = time.Minute
 
 	ctx := context.Background()
@@ -132,7 +162,7 @@ func TestCacheWithLoader(t *testing.T) {
 		func(m *TestModel) int64 {
 			return m.IntId
 		})
-	mc.config.LRUCache = lru2.NewShardedCache[int64, *TestModel](4, 30)
+	mc.config.LRUCache = lru.NewShardedCache[int64, *TestModel](4, 30)
 	mc.config.LRUExpiration = time.Second
 	mc.config.Loader = testLoaderFunc
 	mc.config.CacheExpiration = time.Hour
@@ -184,7 +214,7 @@ func TestCacheSingleKeyValue(t *testing.T) {
 		func(m *TestModel) int64 {
 			return m.IntId
 		})
-	mc.config.LRUCache = lru2.NewCache[int64, *TestModel](5)
+	mc.config.LRUCache = lru.NewCache[int64, *TestModel](5)
 	mc.config.LRUExpiration = time.Second
 	mc.config.Loader = testLoaderFunc
 	mc.config.CacheExpiration = time.Hour
