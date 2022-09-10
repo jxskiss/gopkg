@@ -6,9 +6,65 @@ import (
 	"github.com/jxskiss/gopkg/v2/internal/constraints"
 )
 
+// All iterates the given slices, it returns true if predicate(elem)
+// is true for all elements in slices, or if slices are empty,
+// else it returns false.
+func All[S ~[]E, E any](predicate func(elem E) bool, slices ...S) bool {
+	for _, s := range slices {
+		for _, elem := range s {
+			if !predicate(elem) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// Any iterates the given slices, it returns true if predicate(elem)
+// is true for any element in slices, else it returns false.
+// If slices are empty, it returns false.
+func Any[S ~[]E, E any](predicate func(E) bool, slices ...S) bool {
+	for _, s := range slices {
+		for _, elem := range s {
+			if predicate(elem) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // Clip removes unused capacity from the slice, returning s[:len(s):len(s)].
 func Clip[S ~[]E, E any](s S) S {
 	return s[:len(s):len(s)]
+}
+
+// Concat concatenates given slices into a single slice.
+func Concat[S ~[]E, E any](slices ...S) S {
+	n := 0
+	for _, s := range slices {
+		n += len(s)
+	}
+	out := make(S, 0, n)
+	for _, s := range slices {
+		out = append(out, s...)
+	}
+	return out
+}
+
+// Count iterates slices, it calls predicate(elem) for
+// each elem in the slices and returns the count of elements for which
+// predicate(elem) returns true.
+func Count[S ~[]E, E any](predicate func(elem E) bool, slices ...S) int {
+	count := 0
+	for _, s := range slices {
+		for _, e := range s {
+			if predicate(e) {
+				count++
+			}
+		}
+	}
+	return count
 }
 
 // Diff allocates and returns a new slice which contains the values
@@ -19,7 +75,7 @@ func Diff[S ~[]E, E comparable](slice S, others ...S) S {
 	return diffSlice(false, slice, others...)
 }
 
-// DiffInplace returns a slice which contains the values which present'
+// DiffInplace returns a slice which contains the values which present
 // in slice, but not present in others.
 // It does not allocate new memory, but modifies slice in-place.
 //
@@ -147,6 +203,24 @@ func Split[S ~[]E, E any](slice S, batch int) []S {
 		ret = append(ret, slice[last:])
 	}
 	return ret
+}
+
+// Repeat returns a new slice consisting of count copies of the slice s.
+//
+// It panics if count is zero or negative or if
+// the result of (len(s) * count) overflows.
+func Repeat[S ~[]E, E any](s S, count int) S {
+	if count <= 0 {
+		panic("zero or negative Repeat count")
+	} else if len(s)*count/count != len(s) {
+		panic("Repeat count causes overflow")
+	}
+
+	out := make(S, 0, count*len(s))
+	for i := 0; i < count; i++ {
+		out = append(out, s...)
+	}
+	return out
 }
 
 // Reverse returns a slice of the elements in reversed order.

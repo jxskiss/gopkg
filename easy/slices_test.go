@@ -10,6 +10,46 @@ import (
 	"github.com/jxskiss/gopkg/v2/utils/ptr"
 )
 
+func TestAll(t *testing.T) {
+	s1 := []int{1, 2, 3}
+	s2 := []int{4, 5, 6}
+	assert.True(t, All(func(x int) bool { return x < 4 }, s1))
+	assert.False(t, All(func(x int) bool { return x < 4 }, s1, s2))
+	assert.True(t, All(func(x int) bool { return x < 10 }, s1, s2))
+}
+
+func TestAny(t *testing.T) {
+	s1 := []int{1, 2, 3}
+	s2 := []int{4, 5, 6}
+	assert.False(t, Any(func(x int) bool { return x == 5 }, s1))
+	assert.True(t, Any(func(x int) bool { return x == 5 }, s2))
+	assert.False(t, Any(func(x int) bool { return x > 10 }, s1, s2))
+}
+
+func TestClip(t *testing.T) {
+	s := make([]int, 5, 10)
+	got := Clip(s)
+	assert.Equal(t, 5, len(got))
+	assert.Equal(t, 5, cap(got))
+}
+
+func TestConcat(t *testing.T) {
+	s1 := []string{"1", "2"}
+	s2 := []string{"a", "b"}
+	s3 := []string{"x", "y"}
+	want := []string{"1", "2", "a", "b", "x", "y"}
+	got := Concat(s1, s2, s3)
+	assert.Equal(t, want, got)
+}
+
+func TestCount(t *testing.T) {
+	s := []string{"1", "2", "a", "b", "3", "4", "x", "y"}
+	got := Count(func(s string) bool {
+		return s[0] >= '0' && s[0] <= '9'
+	}, s)
+	assert.Equal(t, 4, got)
+}
+
 type simple struct {
 	A string
 }
@@ -110,6 +150,12 @@ func TestSplitBatch(t *testing.T) {
 		got := SplitBatch(test["total"].(int), test["batch"].(int))
 		assert.Equal(t, test["want"], got)
 	}
+}
+
+func TestRepeat(t *testing.T) {
+	s := []int{1, 2, 3}
+	got := Repeat(s, 3)
+	assert.Equal(t, []int{1, 2, 3, 1, 2, 3, 1, 2, 3}, got)
 }
 
 var reverseSliceTests = []map[string]interface{}{
