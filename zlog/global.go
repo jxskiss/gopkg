@@ -164,13 +164,31 @@ func Fatalf(format string, args ...interface{})  { _s().Fatalf(format, args...) 
 //
 // It has same signature with log.Print, which helps to migrate from the
 // standard library to this package.
-func Print(args ...interface{}) { _l().Info(fmt.Sprint(args...)) }
+func Print(args ...interface{}) {
+	if l := _l(); l.Core().Enabled(zap.InfoLevel) {
+		l.Info(fmt.Sprint(args...))
+	}
+}
 
 // Printf logs a message at InfoLevel if it's enabled.
 //
 // It has same signature with log.Printf, which helps to migrate from the
 // standard library to this package.
-func Printf(format string, args ...interface{}) { _s().Infof(format, args...) }
+func Printf(format string, args ...interface{}) {
+	if l := _l(); l.Core().Enabled(zap.InfoLevel) {
+		l.Info(fmt.Sprintf(format, args...))
+	}
+}
+
+// Println logs a message at InfoLevel if it's enabled.
+//
+// It has same signature with log.Println, which helps to migrate from the
+// standard library to this package.
+func Println(args ...interface{}) {
+	if l := _l(); l.Core().Enabled(zap.InfoLevel) {
+		l.Info(fmt.Sprintln(args...))
+	}
+}
 
 // -------- utility functions -------- //
 
