@@ -86,3 +86,53 @@ func wrappedTRACE(args ...interface{}) {
 	TRACESkip(1, args...)
 	wrappedLevel2(args...)
 }
+
+func wrappedTRACE1(arg0 interface{}, args ...interface{}) {
+
+	var wrappedLevel2 = func(arg0 interface{}, args ...interface{}) {
+		TRACESkip1(2, arg0, args...)
+		return
+	}
+
+	TRACESkip1(1, arg0, args...)
+	wrappedLevel2(arg0, args...)
+}
+
+func TestTRACE1(t *testing.T) {
+	defer ReplaceGlobals(mustNewGlobalLogger(&Config{Level: "trace", Development: true}))()
+
+	TRACE1(context.Background())
+	TRACE1(L())
+	TRACE1(S())
+
+	TRACE1("a", "b", "c", 1, 2, 3)
+	TRACE1(context.Background(), "a", "b", "c", 1, 2, 3)
+	TRACE1(L(), "a", "b", "c", 1, 2, 3)
+	TRACE1(S(), "a", "b", "c", 1, 2, 3)
+
+	TRACE1("a=%v, b=%v, c=%v", 1, 2, 3)
+	TRACE1(context.Background(), "a=%v, b=%v, c=%v", 1, 2, 3)
+	TRACE1(L(), "a=%v, b=%v, c=%v", 1, 2, 3)
+	TRACE1(S(), "a=%v, b=%v, c=%v", 1, 2, 3)
+}
+
+func TestTRACESkip1(t *testing.T) {
+	buf := &zaptest.Buffer{}
+	l, p, _ := NewWithOutput(&Config{Level: "trace"}, buf)
+	defer ReplaceGlobals(l, p)()
+
+	TRACE1("test trace 1")
+	TRACESkip1(0, "test trace 1")
+	wrappedTRACE1("test trace 1") // this line outputs two messages
+
+	lines := buf.Lines()
+	assert.Len(t, lines, 4)
+	for _, line := range lines {
+		t.Log(line)
+		assert.Contains(t, line, `"level":"trace"`)
+		assert.Contains(t, line, "test trace 1")
+		assert.Contains(t, line, TracePrefix)
+		assert.Contains(t, line, "zlog.TestTRACESkip1")
+		assert.Regexp(t, `zlog/trace_test\.go:12[4-6]`, line)
+	}
+}
