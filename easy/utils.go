@@ -54,6 +54,18 @@ func JSON(v interface{}) string {
 	return unsafeheader.BytesToString(b)
 }
 
+// LazyJSON returns a lazy object which wraps v, and it marshals v
+// to JSON when it's String method is called.
+// This helps to avoid unnecessary marshaling in some use case,
+// such as leveled logging.
+func LazyJSON(v interface{}) fmt.Stringer {
+	return _lazyJSON{v}
+}
+
+type _lazyJSON struct{ v interface{} }
+
+func (x _lazyJSON) String() string { return JSON(x.v) }
+
 // Pretty converts given object to a pretty formatted json string.
 // If the input is a json string, it will be formatted using json.Indent
 // with four space characters as indent.

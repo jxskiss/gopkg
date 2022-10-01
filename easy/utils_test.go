@@ -2,6 +2,7 @@ package easy
 
 import (
 	"crypto/rand"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -74,7 +75,7 @@ func TestCaller(t *testing.T) {
 	name, file, line := Caller(0)
 	assert.Equal(t, "easy.TestCaller", name)
 	assert.Equal(t, "easy/utils_test.go", file)
-	assert.Equal(t, 74, line)
+	assert.Equal(t, 75, line)
 }
 
 func TestCallerName(t *testing.T) {
@@ -102,4 +103,11 @@ func TestSlashJoin(t *testing.T) {
 	want2 := "/a/b/c.png"
 	got2 := SlashJoin(path2...)
 	assert.Equal(t, want2, got2)
+}
+
+func TestLazyJSON(t *testing.T) {
+	var x = &testObject{A: 123, B: "abc"}
+	got1 := JSON(x)
+	got2 := fmt.Sprintf("%v", LazyJSON(x))
+	assert.Equal(t, got1, got2)
 }
