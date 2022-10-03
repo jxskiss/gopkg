@@ -52,10 +52,11 @@ func (enc *Encoder) SetIndent(prefix, indent string) *Encoder {
 	return enc
 }
 
-// DisableMapOrdering instructs the encoder to not sort map keys.
+// DisableMapOrdering instructs the encoder to not sort map keys,
+// which makes it faster than default.
 //
-// This option has effect only when build with tag "jsoniter", "gojson"
-// or "unsafejson", else calling it is a no-op.
+// This option has effect only when build with tag "unsafejson",
+// else calling it is a no-op.
 func (enc *Encoder) DisableMapOrdering() *Encoder {
 	enc.disableMapOrdering = true
 	return enc
@@ -127,8 +128,8 @@ func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
 // MarshalNoMapOrdering is like Marshal but does not sort map keys.
 // It's useful to optimize performance where map key ordering is not needed.
 //
-// It has effect only when build with tag "jsoniter", "gojson" or
-// "unsafejson", else it is an alias name of Marshal.
+// It has effect only when build with tag "unsafejson", else it is
+// an alias name of Marshal.
 func MarshalNoMapOrdering(v interface{}) ([]byte, error) {
 	return _MarshalNoMapOrdering(v)
 }

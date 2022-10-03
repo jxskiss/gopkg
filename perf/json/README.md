@@ -14,7 +14,7 @@ of `encoding/json` but with high performance.
 ## Performance
 
 By default, this package uses `encoding/json` from the standard library.
-It gives the best compatibility but not best performance.
+It gives the best compatibility but lower performance.
 
 You can build your application with tag `unsafejson` to switch to `goccy/go-json`,
 which has much better performance than `encoding/json` and many other
@@ -34,7 +34,7 @@ function `MarshalMapUnordered`, which disables map key ordering to get even bett
 String operation avoiding unnecessary memory allocation:
 
 1. `MarshalToString(v interface{}) (string, error)`
-1. `UnmarshalFromString(str string, v interface{}) error`
+2. `UnmarshalFromString(str string, v interface{}) error`
 
 Encoder and Decoder with method chaining capabilities:
 
@@ -48,7 +48,7 @@ Disable HTMLEscape to get output more friendly to read for human:
 Handy shortcuts to load and dump JSON data from/to file:
 
 1. `Load(path string, v interface{}) error`
-1. `Dump(path string, v interface{}, prefix, indent string) error`
+2. `Dump(path string, v interface{}, prefix, indent string) error`
 
 ## Benchmark
 

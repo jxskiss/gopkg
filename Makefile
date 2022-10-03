@@ -7,14 +7,14 @@ test_linkname:
 	go clean -testcache ./internal/linkname && go test ./internal/linkname
 
 test_forceexport:
-	go test -gcflags=all=-l ./forceexport
+	go test -gcflags=all=-l ./unsafe/forceexport
 
 test_monkey:
-	go test -gcflags=all=-l ./monkey
+	go test -gcflags=all=-l ./unsafe/monkey
 
 test_json:
-	go test ./json
-	go test --tags unsafejson ./json
+	go test ./perf/json
+	go test --tags unsafejson ./perf/json
 
 test_coverage:
 	mkdir -p _output/
