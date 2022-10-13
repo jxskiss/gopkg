@@ -26,12 +26,12 @@ func buildPerLoggerLevelFunc(levelRules []string) (perLoggerLevelFunc, error) {
 		if len(tmp) != 2 {
 			return nil, fmt.Errorf("invalid per logger level rule: %s", rule)
 		}
-		name, levelName := tmp[0], tmp[1]
+		loggerName, levelName := tmp[0], tmp[1]
 		var level Level
 		if !level.unmarshalText([]byte(levelName)) {
 			return nil, fmt.Errorf("unrecognized level: %s", levelName)
 		}
-		tree.root.insert(name, level)
+		tree.root.insert(loggerName, level)
 	}
 	return tree.search, nil
 }
