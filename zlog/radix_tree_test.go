@@ -9,7 +9,7 @@ import (
 )
 
 func TestRadixTree(t *testing.T) {
-	root := &radixNode{}
+	root := &radixNode[Level]{}
 	root.insert("some.module_2.pkg_1", InfoLevel)
 	root.insert("some.module_2.pkg_2", DebugLevel)
 	root.insert("zlog.filtertest", WarnLevel)

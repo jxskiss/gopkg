@@ -301,7 +301,7 @@ func NewWithOutput(cfg *Config, output zapcore.WriteSyncer, opts ...zap.Option) 
 	}
 
 	// build per logger level rules
-	_, perLoggerLevelFn, err := buildPerLoggerLevelFunc(cfg.PerLoggerLevels)
+	perLoggerLevelFn, err := buildPerLoggerLevelFunc(cfg.PerLoggerLevels)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -373,7 +373,7 @@ func NewWithCore(cfg *WrapCoreConfig, core zapcore.Core, opts ...zap.Option) (*z
 		core = zapcore.RegisterHooks(core, cfg.Hooks...)
 	}
 
-	_, perLoggerLevelFn, err := buildPerLoggerLevelFunc(cfg.PerLoggerLevels)
+	perLoggerLevelFn, err := buildPerLoggerLevelFunc(cfg.PerLoggerLevels)
 	if err != nil {
 		return nil, nil, err
 	}

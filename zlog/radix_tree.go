@@ -6,67 +6,46 @@ import (
 	"strings"
 )
 
-type perLoggerLevelFunc func(name string) (Level, bool)
-
-func buildPerLoggerLevelFunc(levelRules []string) (*levelTree, perLoggerLevelFunc, error) {
-	if len(levelRules) == 0 {
-		return nil, nil, nil
-	}
-	tree := &levelTree{}
-	for _, rule := range levelRules {
-		tmp := strings.Split(rule, "=")
-		if len(tmp) != 2 {
-			return nil, nil, fmt.Errorf("invalid per logger level rule: %s", rule)
-		}
-		name, levelName := tmp[0], tmp[1]
-		var level Level
-		if !level.unmarshalText([]byte(levelName)) {
-			return nil, nil, fmt.Errorf("unrecognized level: %s", levelName)
-		}
-		tree.root.insert(name, level)
-	}
-	return tree, tree.search, nil
+type radixTree[T any] struct {
+	root radixNode[T]
 }
 
-type levelTree struct {
-	root radixNode
+func (p *radixTree[T]) search(name string) (T, bool) {
+	value, found := p.root.search(name)
+	return value, found
 }
 
-func (p *levelTree) search(name string) (Level, bool) {
-	level, found := p.root.search(name)
-	return level, found
-}
-
-type radixNode struct {
+type radixNode[T any] struct {
 	prefix     string
-	level      *Level
-	childNodes childNodes
+	value      *T
+	childNodes childNodes[T]
 }
 
-type childNodes struct {
+type childNodes[T any] struct {
 	labels []byte
-	nodes  []*radixNode
+	nodes  []*radixNode[T]
 }
 
-func (nodes *childNodes) Len() int { return len(nodes.labels) }
+func (nodes *childNodes[_]) Len() int { return len(nodes.labels) }
 
-func (nodes *childNodes) Less(i, j int) bool { return nodes.labels[i] < nodes.labels[j] }
+func (nodes *childNodes[_]) Less(i, j int) bool { return nodes.labels[i] < nodes.labels[j] }
 
-func (nodes *childNodes) Swap(i, j int) {
+func (nodes *childNodes[_]) Swap(i, j int) {
 	nodes.labels[i], nodes.labels[j] = nodes.labels[j], nodes.labels[i]
 	nodes.nodes[i], nodes.nodes[j] = nodes.nodes[j], nodes.nodes[i]
 }
 
-func (n *radixNode) getLevel() (Level, bool) {
-	if n.level == nil {
-		return 0, false
+func (n *radixNode[T]) getValue() (T, bool) {
+	if n.value == nil {
+		var zero T
+		return zero, false
 	}
-	return *n.level, true
+	return *n.value, true
 }
 
-func (n *radixNode) insert(name string, level Level) {
+func (n *radixNode[T]) insert(name string, value T) {
 	if name == "" {
-		n.level = &level
+		n.value = &value
 		return
 	}
 
@@ -75,20 +54,20 @@ func (n *radixNode) insert(name string, level Level) {
 		if firstChar == label {
 			// Split based on the common prefix of the existing node and the new one.
 			child, prefixSplit := n.splitCommonPrefix(i, name)
-			child.insert(name[prefixSplit:], level)
+			child.insert(name[prefixSplit:], value)
 			return
 		}
 	}
 
 	// No existing node starting with this letter, so create it.
-	child := &radixNode{prefix: name, level: &level}
+	child := &radixNode[T]{prefix: name, value: &value}
 	n.childNodes.labels = append(n.childNodes.labels, firstChar)
 	n.childNodes.nodes = append(n.childNodes.nodes, child)
 	sort.Sort(&n.childNodes)
 	return
 }
 
-func (n *radixNode) splitCommonPrefix(existingChildIndex int, name string) (*radixNode, int) {
+func (n *radixNode[T]) splitCommonPrefix(existingChildIndex int, name string) (*radixNode[T], int) {
 	child := n.childNodes.nodes[existingChildIndex]
 
 	if strings.HasPrefix(name, child.prefix) {
@@ -106,18 +85,18 @@ func (n *radixNode) splitCommonPrefix(existingChildIndex int, name string) (*rad
 
 	// Create a new intermediary node in the place of the existing node, with
 	// the existing node as a child.
-	newNode := &radixNode{
+	newNode := &radixNode[T]{
 		prefix: commonPrefix,
-		childNodes: childNodes{
+		childNodes: childNodes[T]{
 			labels: []byte{child.prefix[0]},
-			nodes:  []*radixNode{child},
+			nodes:  []*radixNode[T]{child},
 		},
 	}
 	n.childNodes.nodes[existingChildIndex] = newNode
 	return newNode, i
 }
 
-func (n *radixNode) search(name string) (level Level, found bool) {
+func (n *radixNode[T]) search(name string) (value T, found bool) {
 	node := n
 	for {
 		nameLen := len(name)
@@ -135,10 +114,10 @@ func (n *radixNode) search(name string) (level Level, found bool) {
 		}
 		break
 	}
-	return node.getLevel()
+	return node.getValue()
 }
 
-func (n *radixNode) getChild(label byte) *radixNode {
+func (n *radixNode[T]) getChild(label byte) *radixNode[T] {
 	num := len(n.childNodes.labels)
 	i := sort.Search(num, func(i int) bool {
 		return n.childNodes.labels[i] >= label
@@ -149,10 +128,10 @@ func (n *radixNode) getChild(label byte) *radixNode {
 	return nil
 }
 
-func (n *radixNode) dumpTree(prefix string) string {
+func (n *radixNode[T]) dumpTree(prefix string) string {
 	var out string
-	if n.level != nil {
-		out += fmt.Sprintf("%s=%s\n", prefix+n.prefix, n.level.String())
+	if n.value != nil {
+		out += fmt.Sprintf("%s=%v\n", prefix+n.prefix, n.value)
 	}
 	for _, child := range n.childNodes.nodes {
 		out += child.dumpTree(prefix + n.prefix)
