@@ -1,12 +1,39 @@
 package zlog
 
-import "go.uber.org/zap/zapcore"
+import (
+	"fmt"
+	"strings"
+
+	"go.uber.org/zap/zapcore"
+)
 
 type dynamicLevelCore struct {
 	zapcore.Core
 	baseLevel zapcore.LevelEnabler
 	dynLevel  *Level
 	levelFunc perLoggerLevelFunc
+}
+
+type perLoggerLevelFunc func(name string) (Level, bool)
+
+func buildPerLoggerLevelFunc(levelRules []string) (perLoggerLevelFunc, error) {
+	if len(levelRules) == 0 {
+		return nil, nil
+	}
+	tree := &radixTree[Level]{}
+	for _, rule := range levelRules {
+		tmp := strings.Split(rule, "=")
+		if len(tmp) != 2 {
+			return nil, fmt.Errorf("invalid per logger level rule: %s", rule)
+		}
+		loggerName, levelName := tmp[0], tmp[1]
+		var level Level
+		if !level.unmarshalText([]byte(levelName)) {
+			return nil, fmt.Errorf("unrecognized level: %s", levelName)
+		}
+		tree.root.insert(loggerName, level)
+	}
+	return tree.search, nil
 }
 
 func (c *dynamicLevelCore) Enabled(level zapcore.Level) bool {

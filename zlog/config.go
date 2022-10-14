@@ -10,9 +10,11 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
+
+	"github.com/jxskiss/gopkg/v2/utils/ptr"
 )
 
-const defaultLogMaxSize = 300 // MB
+const defaultLogMaxSize = 100 // MB
 
 const defaultMethodNameKey = "methodName"
 
@@ -22,16 +24,25 @@ type FileLogConfig struct {
 	Filename string `json:"filename" yaml:"filename"`
 
 	// MaxSize is the maximum size in MB of the log file before it gets
-	// rotated. It defaults to 300 MB.
-	MaxSize int `json:"maxSize" yaml:"maxSize"`
+	// rotated. It defaults to 100 MB.
+	MaxSize *int `json:"maxSize" yaml:"maxSize"`
 
 	// MaxDays is the maximum days to retain old log files based on the
 	// timestamp encoded in their filenames. The default is not to remove
 	// old log files.
-	MaxDays int `json:"maxDays" yaml:"maxDays"`
+	MaxDays *int `json:"maxDays" yaml:"maxDays"`
 
 	// MaxBackups is the maximum number of old log files to retain.
-	MaxBackups int `json:"maxBackups" yaml:"maxBackups"`
+	MaxBackups *int `json:"maxBackups" yaml:"maxBackups"`
+
+	// LocalTime determines if the time used for formatting the timestamps in
+	// backup files is the computer's local time.
+	// The default is to use UTC time.
+	LocalTime *bool `json:"localTime" yaml:"localTime"`
+
+	// Compress determines if the rotated log files should be compressed
+	// using gzip. The default is not to perform compression.
+	Compress *bool `json:"compress" yaml:"compress"`
 }
 
 // GlobalConfig configures some global behavior of this package.
@@ -66,7 +77,7 @@ type Config struct {
 	// PerLoggerLevels optionally configures logging level by logger names.
 	// The format is "loggerName.subLogger=level".
 	// If a level is configured for a parent logger, but not configured for
-	// a child logger, the child logger will derive the level from its parent.
+	// a child logger, the child logger derives from its parent.
 	PerLoggerLevels []string `json:"perLoggerLevels" yaml:"perLoggerLevels"`
 
 	// Format sets the logger's encoding format.
@@ -76,12 +87,18 @@ type Config struct {
 	// File specifies file log config.
 	File FileLogConfig `json:"file" yaml:"file"`
 
+	// PerLoggerFiles optionally set different file destination for different
+	// loggers specified by logger name.
+	// If a destination is configured for a parent logger, but not configured
+	// for a child logger, the child logger derives from its parent.
+	PerLoggerFiles map[string]FileLogConfig `json:"perLoggerFiles" yaml:"perLoggerFiles"`
+
 	// FunctionKey enables logging the function name. By default, function
 	// name is not logged.
 	FunctionKey string `json:"functionKey" yaml:"functionKey"`
 
 	// Development puts the logger in development mode, which changes the
-	// behavior of DPanicLevel and takes stacktraces more liberally.
+	// behavior of DPanicLevel and takes stacktrace more liberally.
 	Development bool `json:"development" yaml:"development"`
 
 	// DisableTimestamp disables automatic timestamps in output.
@@ -163,8 +180,11 @@ func (cfg *Config) fillDefaults() *Config {
 			cfg.StacktraceLevel = "error"
 		}
 	}
-	if cfg.File.Filename != "" && cfg.File.MaxSize == 0 {
-		cfg.File.MaxSize = defaultLogMaxSize
+	if cfg.File.Filename != "" {
+		if cfg.File.MaxSize == nil || *cfg.File.MaxSize <= 0 {
+			deft := defaultLogMaxSize
+			cfg.File.MaxSize = &deft
+		}
 	}
 	return cfg
 }
@@ -194,23 +214,6 @@ func (cfg *Config) buildEncoder() (zapcore.Encoder, error) {
 	default:
 		return nil, fmt.Errorf("unknown format: %s", cfg.Format)
 	}
-}
-
-func (cfg *Config) buildFileLogger() (*lumberjack.Logger, error) {
-	fc := cfg.File
-	if st, err := os.Stat(fc.Filename); err == nil {
-		if st.IsDir() {
-			return nil, errors.New("can't use directory as log filename")
-		}
-	}
-	return &lumberjack.Logger{
-		Filename:   fc.Filename,
-		MaxSize:    fc.MaxSize,
-		MaxAge:     fc.MaxDays,
-		MaxBackups: fc.MaxBackups,
-		LocalTime:  true,
-		Compress:   true,
-	}, nil
 }
 
 func (cfg *Config) buildOptions() ([]zap.Option, error) {
@@ -250,21 +253,56 @@ func (cfg *Config) buildOptions() ([]zap.Option, error) {
 // package.
 func New(cfg *Config, opts ...zap.Option) (*zap.Logger, *Properties, error) {
 	cfg = cfg.fillDefaults()
+	var err error
 	var output zapcore.WriteSyncer
 	if len(cfg.File.Filename) > 0 {
-		out, err := cfg.buildFileLogger()
+		if len(cfg.PerLoggerFiles) > 0 {
+			return newWithMultiFilesOutput(cfg, opts...)
+		}
+		output, err = buildFileLogger(cfg.File)
 		if err != nil {
 			return nil, nil, err
 		}
-		output = zapcore.AddSync(out)
 	} else {
-		stderr, _, err := zap.Open("stderr")
+		output, _, err = zap.Open("stderr")
 		if err != nil {
 			return nil, nil, err
 		}
-		output = stderr
 	}
 	return NewWithOutput(cfg, output, opts...)
+}
+
+func newWithMultiFilesOutput(cfg *Config, opts ...zap.Option) (*zap.Logger, *Properties, error) {
+	enc, err := cfg.buildEncoder()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// base multi-files core at trace level
+	core, err := newMultiFilesCore(cfg, enc, TraceLevel)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	aLevel := newAtomicLevel()
+	err = aLevel.UnmarshalText([]byte(cfg.Level))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cfgOpts, err := cfg.buildOptions()
+	if err != nil {
+		return nil, nil, err
+	}
+	opts = append(cfgOpts, opts...)
+
+	wcc := &WrapCoreConfig{
+		Level:           0, // not used here
+		PerLoggerLevels: cfg.PerLoggerLevels,
+		Hooks:           cfg.Hooks,
+		GlobalConfig:    cfg.GlobalConfig,
+	}
+	return newWithWrapCoreConfig(wcc, core, aLevel, opts...)
 }
 
 // NewWithOutput initializes a zap logger with given write syncer as output
@@ -282,8 +320,11 @@ func NewWithOutput(cfg *Config, output zapcore.WriteSyncer, opts ...zap.Option) 
 		return nil, nil, err
 	}
 
-	level := newAtomicLevel()
-	err = level.UnmarshalText([]byte(cfg.Level))
+	// base core at trace level
+	core := zapcore.NewCore(encoder, output, TraceLevel)
+
+	aLevel := newAtomicLevel()
+	err = aLevel.UnmarshalText([]byte(cfg.Level))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -294,32 +335,13 @@ func NewWithOutput(cfg *Config, output zapcore.WriteSyncer, opts ...zap.Option) 
 	}
 	opts = append(cfgOpts, opts...)
 
-	// base core at trace level
-	core := zapcore.NewCore(encoder, output, TraceLevel)
-	if len(cfg.Hooks) > 0 {
-		core = zapcore.RegisterHooks(core, cfg.Hooks...)
+	wcc := &WrapCoreConfig{
+		Level:           0, // not used here
+		PerLoggerLevels: cfg.PerLoggerLevels,
+		Hooks:           cfg.Hooks,
+		GlobalConfig:    cfg.GlobalConfig,
 	}
-
-	// build per logger level rules
-	_, perLoggerLevelFn, err := buildPerLoggerLevelFunc(cfg.PerLoggerLevels)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// wrap the base core with dynamic level
-	opts = append(opts, zap.WrapCore(func(core zapcore.Core) zapcore.Core {
-		return &dynamicLevelCore{
-			Core:      core,
-			baseLevel: level.zl,
-			levelFunc: perLoggerLevelFn,
-		}
-	}))
-	lg := zap.New(core, opts...)
-	prop := &Properties{
-		cfg:   cfg.GlobalConfig,
-		level: level,
-	}
-	return lg, prop, nil
+	return newWithWrapCoreConfig(wcc, core, aLevel, opts...)
 }
 
 type WrapCoreConfig struct {
@@ -366,14 +388,24 @@ func NewWithCore(cfg *WrapCoreConfig, core zapcore.Core, opts ...zap.Option) (*z
 		cfg = &WrapCoreConfig{Level: InfoLevel}
 	}
 
-	atomLevel := newAtomicLevel()
-	atomLevel.SetLevel(cfg.Level)
+	aLevel := newAtomicLevel()
+	aLevel.SetLevel(cfg.Level)
 
+	return newWithWrapCoreConfig(cfg, core, aLevel, opts...)
+}
+
+func newWithWrapCoreConfig(
+	cfg *WrapCoreConfig,
+	core zapcore.Core,
+	aLevel atomicLevel,
+	opts ...zap.Option,
+) (*zap.Logger, *Properties, error) {
 	if len(cfg.Hooks) > 0 {
 		core = zapcore.RegisterHooks(core, cfg.Hooks...)
 	}
 
-	_, perLoggerLevelFn, err := buildPerLoggerLevelFunc(cfg.PerLoggerLevels)
+	// build per logger level rules
+	perLoggerLevelFn, err := buildPerLoggerLevelFunc(cfg.PerLoggerLevels)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -382,7 +414,7 @@ func NewWithCore(cfg *WrapCoreConfig, core zapcore.Core, opts ...zap.Option) (*z
 	opts = append(opts, zap.WrapCore(func(core zapcore.Core) zapcore.Core {
 		return &dynamicLevelCore{
 			Core:      core,
-			baseLevel: atomLevel.zl,
+			baseLevel: aLevel.zl,
 			levelFunc: perLoggerLevelFn,
 		}
 	}))
@@ -390,7 +422,44 @@ func NewWithCore(cfg *WrapCoreConfig, core zapcore.Core, opts ...zap.Option) (*z
 	lg := zap.New(core, opts...)
 	prop := &Properties{
 		cfg:   cfg.GlobalConfig,
-		level: atomLevel,
+		level: aLevel,
 	}
 	return lg, prop, nil
+}
+
+func buildFileLogger(fc FileLogConfig) (zapcore.WriteSyncer, error) {
+	if st, err := os.Stat(fc.Filename); err == nil {
+		if st.IsDir() {
+			return nil, errors.New("cannot use directory as log filename")
+		}
+	}
+	out := &lumberjack.Logger{
+		Filename:   fc.Filename,
+		MaxSize:    ptr.Deref(fc.MaxDays),
+		MaxAge:     ptr.Deref(fc.MaxDays),
+		MaxBackups: ptr.Deref(fc.MaxBackups),
+		LocalTime:  ptr.Deref(fc.LocalTime),
+		Compress:   ptr.Deref(fc.Compress),
+	}
+	ws := zapcore.AddSync(out)
+	return ws, nil
+}
+
+func mergeFileLogConfig(fc FileLogConfig, deft FileLogConfig) FileLogConfig {
+	if fc.MaxSize == nil {
+		fc.MaxSize = deft.MaxSize
+	}
+	if fc.MaxDays == nil {
+		fc.MaxDays = deft.MaxDays
+	}
+	if fc.MaxBackups == nil {
+		fc.MaxBackups = deft.MaxBackups
+	}
+	if fc.LocalTime == nil {
+		fc.LocalTime = deft.LocalTime
+	}
+	if fc.Compress == nil {
+		fc.Compress = deft.Compress
+	}
+	return fc
 }
