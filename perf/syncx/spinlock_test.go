@@ -7,16 +7,16 @@ import (
 	"testing"
 )
 
-type naiveSpinLock uint32
+type naiveSpinLock uintptr
 
 func (sl *naiveSpinLock) Lock() {
-	for !atomic.CompareAndSwapUint32((*uint32)(sl), 0, 1) {
+	for !atomic.CompareAndSwapUintptr((*uintptr)(sl), 0, 1) {
 		runtime.Gosched()
 	}
 }
 
 func (sl *naiveSpinLock) Unlock() {
-	atomic.StoreUint32((*uint32)(sl), 0)
+	atomic.StoreUintptr((*uintptr)(sl), 0)
 }
 
 func newNaiveSpinLock() sync.Locker {

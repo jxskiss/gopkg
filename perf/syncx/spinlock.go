@@ -6,10 +6,10 @@ import (
 	"sync/atomic"
 )
 
-type spinLock uint32
+type spinLock uintptr
 
-// NewSpinLock creates a new spin lock.
-// A spin lock calls runtime.Gosched when it failed acquiring the lock,
+// NewSpinLock creates a new spin-lock.
+// A spin-lock calls runtime.Gosched when it failed acquiring the lock,
 // then try again until it succeeds.
 func NewSpinLock() sync.Locker {
 	return new(spinLock)
@@ -17,14 +17,25 @@ func NewSpinLock() sync.Locker {
 
 // Lock acquires the lock.
 func (p *spinLock) Lock() {
+	if !atomic.CompareAndSwapUintptr((*uintptr)(p), 0, 1) {
+
+		// Outlined slow-path to allow inlining of the fast-path.
+		p.lockSlowPath()
+	}
+}
+
+func (p *spinLock) lockSlowPath() {
 	const maxBackoff = 16
 	backoff := 1
-	for !atomic.CompareAndSwapUint32((*uint32)(p), 0, 1) {
+	for {
 		for i := 0; i < backoff; i++ {
 			runtime.Gosched()
 		}
+		if atomic.CompareAndSwapUintptr((*uintptr)(p), 0, 1) {
+			break
+		}
 		backoff <<= 1
-		if backoff >= maxBackoff {
+		if backoff > maxBackoff {
 			backoff = 1
 		}
 	}
@@ -32,5 +43,5 @@ func (p *spinLock) Lock() {
 
 // Unlock releases the lock.
 func (p *spinLock) Unlock() {
-	atomic.StoreUint32((*uint32)(p), 0)
+	atomic.StoreUintptr((*uintptr)(p), 0)
 }
