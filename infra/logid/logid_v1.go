@@ -26,7 +26,7 @@ const (
 //   - 16 bytes hash of the machine ID of current host if available,
 //     else 16 bytes random data
 //   - 8 bytes random data
-func NewV1Gen() *v1Gen {
+func NewV1Gen() Generator {
 	return &v1Gen{
 		machineID: getMachineID(),
 	}
@@ -115,5 +115,5 @@ func (info *v1Info) String() string {
 	if !info.Valid() {
 		return "1|invalid"
 	}
-	return fmt.Sprintf("1|%s|%s", info.time.Format(strTimeMilli), info.random)
+	return fmt.Sprintf("1|%s|%s|%s", info.time.Format(strTimeMilli), info.machineID, info.random)
 }

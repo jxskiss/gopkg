@@ -30,7 +30,7 @@ const (
 //   - 9 bytes milli timestamp, in base32 form
 //   - 32 bytes IP address, in hex form
 //   - 5 bytes random data
-func NewV2Gen(ip net.IP) *v2Gen {
+func NewV2Gen(ip net.IP) Generator {
 	ipstr := IPUnknown
 	if len(ip) > 0 {
 		ipstr = hex.EncodeToString(ip.To16())
