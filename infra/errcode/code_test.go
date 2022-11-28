@@ -32,3 +32,55 @@ func TestCode(t *testing.T) {
 	assert.Equal(t, []byte(`{"code":100001}`), json1)
 	assert.Equal(t, []byte(`{"code":100002,"message":"dummy2"}`), json2)
 }
+
+func TestIs(t *testing.T) {
+	reg := New()
+	code1 := reg.Register(100001, "test code1")
+
+	detailsErr := code1.AddDetails("dummy detail")
+	assert.True(t, Is(detailsErr, code1))
+
+	wrapErr1 := &testErrWrapper1{error: detailsErr}
+	assert.True(t, Is(detailsErr, code1))
+
+	wrapErr2 := &testErrWrapper2{error: detailsErr}
+	assert.True(t, Is(wrapErr2, code1))
+
+	wrapErr3 := &testErrWrapper2{error: wrapErr1}
+	assert.True(t, Is(wrapErr3, code1))
+
+	wrapErr4 := &testErrWrapper1{error: wrapErr2}
+	assert.True(t, Is(wrapErr4, code1))
+}
+
+func TestErrorsCompatibility(t *testing.T) {
+	reg := New()
+	code1 := reg.Register(100001, "test code1")
+
+	detailsErr := code1.AddDetails("dummy detail")
+	assert.True(t, errors.Is(detailsErr, code1))
+
+	wrapErr1 := &testErrWrapper2{error: detailsErr}
+	assert.True(t, errors.Is(wrapErr1, code1))
+
+	wrapErr2 := &testErrWrapper2{error: wrapErr1}
+	assert.True(t, errors.Is(wrapErr2, code1))
+}
+
+type testErrWrapper1 struct {
+	error
+	extra interface{}
+}
+
+func (e *testErrWrapper1) Cause() error {
+	return e.error
+}
+
+type testErrWrapper2 struct {
+	error
+	extra interface{}
+}
+
+func (e *testErrWrapper2) Unwrap() error {
+	return e.error
+}

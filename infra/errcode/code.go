@@ -129,6 +129,16 @@ func (e *Code) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// Is reports whether an error is ErrCode and the code is same.
+//
+// This method allows Code to be tested using errors.Is.
+func (e *Code) Is(target error) bool {
+	if errCode, ok := target.(ErrCode); ok {
+		return e.code == errCode.Code()
+	}
+	return false
+}
+
 // Is reports whether any error in err's chain matches the target ErrCode.
 func Is(err error, target ErrCode) bool {
 	errCode := unwrapErrCode(err)
@@ -144,9 +154,6 @@ func IsErrCode(err error) bool {
 }
 
 func unwrapErrCode(err error) ErrCode {
-	if err == nil {
-		return nil
-	}
 
 	type causer interface {
 		Cause() error
@@ -155,25 +162,22 @@ func unwrapErrCode(err error) ErrCode {
 		Unwrap() error
 	}
 
-	for _err := err; _err != nil; {
-		if code, ok := _err.(ErrCode); ok && code != nil {
+	// We make sure that a poor implementation that causes a cycle
+	// does not run forever.
+	const unwrapLimit = 100
+
+	for i := 0; err != nil && i < unwrapLimit; i++ {
+		if code, _ := err.(ErrCode); code != nil {
 			return code
 		}
-		wrapped, ok := _err.(causer)
-		if !ok {
-			break
+		switch e := err.(type) {
+		case causer:
+			err = e.Cause()
+		case wrapper:
+			err = e.Unwrap()
+		default:
+			return nil
 		}
-		_err = wrapped.Cause()
-	}
-	for _err := err; err != nil; {
-		if code, ok := _err.(ErrCode); ok && code != nil {
-			return code
-		}
-		wrapped, ok := _err.(wrapper)
-		if !ok {
-			break
-		}
-		_err = wrapped.Unwrap()
 	}
 	return nil
 }
