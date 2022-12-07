@@ -21,6 +21,7 @@ generator with desired state, it will give you the same sequence with the same s
 ## Related resources
 
 1. https://github.com/golang/exp/tree/master/rand
+1. https://github.com/flyingmutant/rand
 1. http://www.pcg-random.org/
 1. https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
 1. https://lemire.me/blog/2016/06/30/fast-random-shuffling/

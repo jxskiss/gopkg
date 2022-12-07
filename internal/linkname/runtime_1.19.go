@@ -7,6 +7,10 @@ import (
 	"unsafe"
 )
 
+//go:noescape
+//go:linkname Runtime_fastrand64 runtime.fastrand64
+func Runtime_fastrand64() uint64
+
 // Runtime_sysAlloc allocates memory off heap by calling runtime.sysAllocOS.
 //
 // DON'T use this if you don't know what it does.

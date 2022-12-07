@@ -7,6 +7,11 @@ import (
 	"unsafe"
 )
 
+func Runtime_fastrand64() uint64 {
+	a, b := Runtime_fastrand(), Runtime_fastrand()
+	return uint64(a)<<32 | uint64(b)
+}
+
 // Runtime_sysAlloc allocates memory off heap by calling runtime.sysAlloc.
 //
 // DON'T use this if you don't know what it does.
