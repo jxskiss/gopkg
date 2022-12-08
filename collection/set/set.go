@@ -166,9 +166,7 @@ func (s Set) DiffSlice(other interface{}) Set {
 		}
 		for i := 0; i < otherLen; i++ {
 			val := otherVal.Index(i).Interface()
-			if _, ok := res.m[val]; ok {
-				delete(res.m, val)
-			}
+			delete(res.m, val)
 		}
 		return res
 	}

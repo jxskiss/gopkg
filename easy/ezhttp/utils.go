@@ -3,7 +3,6 @@ package ezhttp
 import (
 	"encoding/xml"
 	"io"
-	"io/ioutil"
 	"regexp"
 
 	"github.com/jxskiss/gopkg/v2/perf/json"
@@ -16,7 +15,7 @@ var (
 
 // DecodeJSON decodes a json value from r.
 func DecodeJSON(r io.Reader, v interface{}) error {
-	data, err := ioutil.ReadAll(r)
+	data, err := io.ReadAll(r)
 	if err != nil {
 		return err
 	}
@@ -30,7 +29,7 @@ func IsJSONType(contentType string) bool {
 
 // DecodeXML decodes a XML value from r.
 func DecodeXML(r io.Reader, v interface{}) error {
-	data, err := ioutil.ReadAll(r)
+	data, err := io.ReadAll(r)
 	if err != nil {
 		return err
 	}

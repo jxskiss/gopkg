@@ -25,7 +25,7 @@ var (
 	patchStack [][]int64
 )
 
-func newPatchId() int64 {
+func newPatchID() int64 {
 	return atomic.AddInt64(&idCounter, 1)
 }
 
@@ -156,7 +156,7 @@ func newFuncPatch(target, repl reflect.Value) *Patch {
 	}
 
 	p := &Patch{
-		id:      newPatchId(),
+		id:      newPatchID(),
 		parent:  nil,
 		patched: false,
 		target:  target,
@@ -188,7 +188,7 @@ func newFuncPatch(target, repl reflect.Value) *Patch {
 func (p *Patch) overrideFunc(repl reflect.Value) *Patch {
 	replCode := branchInto(uintptr(getPtr(repl)))
 	child := &Patch{
-		id:      newPatchId(),
+		id:      newPatchID(),
 		parent:  p,
 		patched: false,
 		target:  p.target,
@@ -269,7 +269,7 @@ func newVarPatch(targetAddr, repl reflect.Value) *Patch {
 	}
 
 	p := &Patch{
-		id:      newPatchId(),
+		id:      newPatchID(),
 		parent:  nil,
 		patched: false,
 		target:  targetAddr,
@@ -289,7 +289,7 @@ func newVarPatch(targetAddr, repl reflect.Value) *Patch {
 
 func (p *Patch) overrideVar(repl reflect.Value) *Patch {
 	child := &Patch{
-		id:      newPatchId(),
+		id:      newPatchID(),
 		parent:  p,
 		patched: false,
 		target:  p.target,

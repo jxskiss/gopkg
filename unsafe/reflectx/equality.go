@@ -104,12 +104,12 @@ func (p *typecmp) isEqualType(typ1, typ2 reflect.Type) (bool, string) {
 }
 
 func (p *typecmp) isEqualStruct(typ1, typ2 reflect.Type) (bool, string) {
-	if typ1.Kind() != reflect.Struct || typ1.Kind() != reflect.Struct {
+	if typ1.Kind() != reflect.Struct || typ2.Kind() != reflect.Struct {
 		return false, fmt.Sprintf("type is not struct: %s, %s", _t(typ1), _t(typ2))
 	}
+
 	typidx := typ1typ2{typ1, typ2}
 	if cmpr := p.seen[typidx]; cmpr != nil {
-
 		// In case of recursive type, cmpr.result will be checking here,
 		// we treat it as equal, the final result will be updated below.
 		return cmpr.result != notequal, cmpr.diff
@@ -205,7 +205,7 @@ func isEqualThriftTag(tag1, tag2 string) bool {
 }
 
 func (p *typecmp) isEqualSlice(typ1, typ2 reflect.Type) (bool, string) {
-	if typ1.Kind() != reflect.Slice || typ1.Kind() != reflect.Slice {
+	if typ1.Kind() != reflect.Slice || typ2.Kind() != reflect.Slice {
 		return false, fmt.Sprintf("type is not slice: %s, %s", _t(typ1), _t(typ2))
 	}
 	typ1 = typ1.Elem()

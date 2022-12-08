@@ -238,7 +238,7 @@ func mergeQuery(reqURL string, params interface{}) (string, error) {
 		for k, v := range params {
 			switch value := v.(type) {
 			case string:
-				query.Add(k, fmt.Sprintf(value))
+				query.Add(k, value)
 			case []string:
 				for _, v := range value {
 					query.Add(k, v)

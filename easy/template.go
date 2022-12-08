@@ -1,13 +1,11 @@
 package easy
 
 import (
-	"io/ioutil"
+	ht "html/template"
 	"os"
 	"path/filepath"
 	"regexp"
-
-	htmltemplate "html/template"
-	texttemplate "text/template"
+	tt "text/template"
 )
 
 // ParseHTMLTemplates parses files under `rootDir` which matches the regular
@@ -17,8 +15,8 @@ import (
 // The returned Template holds the parsed templates under the root directory,
 // template can be retrieved using Template.Lookup(name), where name is the
 // file path relative to rootDir, without leading "./".
-func ParseHTMLTemplates(rootDir string, rePattern string, funcMap htmltemplate.FuncMap) (*htmltemplate.Template, error) {
-	t := htmltemplate.New("").Funcs(funcMap)
+func ParseHTMLTemplates(rootDir string, rePattern string, funcMap ht.FuncMap) (*ht.Template, error) {
+	t := ht.New("").Funcs(funcMap)
 	err := parseTemplates(rootDir, rePattern, func(name string, text []byte) error {
 		_, e1 := t.New(name).Parse(string(text))
 		return e1
@@ -36,8 +34,8 @@ func ParseHTMLTemplates(rootDir string, rePattern string, funcMap htmltemplate.F
 // The returned Template holds the parsed templates under the root directory,
 // template can be retrieved using Template.Lookup(name), where name is the
 // file path relative to rootDir, without leading "./".
-func ParseTextTemplates(rootDir string, rePattern string, funcMap texttemplate.FuncMap) (*texttemplate.Template, error) {
-	t := texttemplate.New("").Funcs(funcMap)
+func ParseTextTemplates(rootDir string, rePattern string, funcMap tt.FuncMap) (*tt.Template, error) {
+	t := tt.New("").Funcs(funcMap)
 	err := parseTemplates(rootDir, rePattern, func(name string, text []byte) error {
 		_, e1 := t.New(name).Parse(string(text))
 		return e1
@@ -67,7 +65,7 @@ func parseTemplates(rootDir string, rePattern string, add func(name string, text
 		if !re.MatchString(name) {
 			return nil
 		}
-		text, e2 := ioutil.ReadFile(path)
+		text, e2 := os.ReadFile(path)
 		if e2 != nil {
 			return e2
 		}

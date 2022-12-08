@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	_ "unsafe"
+	_ "unsafe" // to enable the `linkname` directive
 
 	"github.com/jxskiss/gopkg/v2/zlog"
 )
@@ -54,6 +54,6 @@ type stdLogger struct{}
 
 const _stdLogDepth = 2
 
-func (_ stdLogger) Debugf(format string, args ...interface{}) {
-	log_std.Output(_stdLogDepth, fmt.Sprintf(zlog.DebugPrefix+format, args...))
+func (stdLogger) Debugf(format string, args ...interface{}) {
+	_ = log_std.Output(_stdLogDepth, fmt.Sprintf(zlog.DebugPrefix+format, args...))
 }

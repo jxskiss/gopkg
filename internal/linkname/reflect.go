@@ -148,12 +148,14 @@ func Reflect_unsafe_New(unsafe.Pointer) unsafe.Pointer
 func Reflect_unsafe_NewArray(unsafe.Pointer, int) unsafe.Pointer
 
 // Reflect_typedmemmove copies a value of type t to dst from src.
+//
 //go:noescape
 //go:linkname Reflect_typedmemmove reflect.typedmemmove
 func Reflect_typedmemmove(t unsafe.Pointer, dst, src unsafe.Pointer)
 
 // Reflect_typedslicecopy copies a slice of elemType values from src to dst,
 // returning the number of elements copied.
+//
 //go:noescape
 //go:linkname Reflect_typedslicecopy reflect.typedslicecopy
 func Reflect_typedslicecopy(elemRType unsafe.Pointer, dst, src unsafeheader.Slice) int

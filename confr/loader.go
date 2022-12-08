@@ -27,7 +27,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -180,7 +179,7 @@ func (p *Loader) processFile(config interface{}, file string) error {
 	default:
 		return fmt.Errorf("unsupported file type: %v", extname)
 	}
-	data, err := ioutil.ReadFile(file)
+	data, err := os.ReadFile(file)
 	if err != nil {
 		return fmt.Errorf("cannot read file %s: %w", file, err)
 	}

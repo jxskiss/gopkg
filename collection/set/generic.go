@@ -121,9 +121,7 @@ func (s Generic[T]) DiffSlice(other []T) Generic[T] {
 		}
 		for i := 0; i < otherLen; i++ {
 			val := other[i]
-			if _, ok := res.m[val]; ok {
-				delete(res.m, val)
-			}
+			delete(res.m, val)
 		}
 		return res
 	}

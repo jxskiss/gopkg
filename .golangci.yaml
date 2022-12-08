@@ -1,0 +1,72 @@
+run:
+  timeout: 5m
+
+linters-settings:
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/jxskiss/gopkg)
+  golint:
+    min-confidence: 0
+  goimports:
+    local-prefixes: github.com/jxskiss/gopkg
+
+linters:
+  disable-all: true
+  enable:
+    - bodyclose
+    - dogsled
+    - dupl
+    - durationcheck
+    - exportloopref
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+    - gomoddirectives
+    - goprintffuncname
+    - govet
+    - importas
+    - ineffassign
+    - makezero
+    - misspell
+    - nakedret
+    - nilerr
+    - noctx
+    - nolintlint
+    - prealloc
+    - predeclared
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - staticcheck
+    - stylecheck
+    - tparallel
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - wastedassign
+    - whitespace
+
+issues:
+  exclude-rules:
+    - path: 'internal/linkname/(.+).go'
+      linters:
+        - revive
+    - path: "unsafe/(.+)\.go"
+      linters:
+        - revive
+    - path: '(.+)_test\.go'
+      linters:
+        - errcheck
+        - funlen
+        - goconst
+        - ineffassign
+        - revive
+        - staticcheck
+        - stylecheck
+        - unparam
+        - unused
+        - whitespace

@@ -1,6 +1,5 @@
 package ptr
 
-
 func Copy[T any](p *T) *T {
 	if p == nil {
 		return nil

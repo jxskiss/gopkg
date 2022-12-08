@@ -1,3 +1,4 @@
+//nolint:errcheck
 package zlog
 
 import (
@@ -39,36 +40,37 @@ type stdLogger struct{}
 
 // log_std links to log.std to get correct caller depth for both
 // with and without setting GlobalConfig.RedirectStdLog.
+//
 //go:linkname log_std log.std
 var log_std *log.Logger
 
 const _stdLogDepth = 2
 
-func (_ stdLogger) Debugf(format string, args ...interface{}) {
+func (stdLogger) Debugf(format string, args ...interface{}) {
 	if GetLevel() <= DebugLevel {
 		log_std.Output(_stdLogDepth, fmt.Sprintf(DebugPrefix+format, args...))
 	}
 }
 
-func (_ stdLogger) Infof(format string, args ...interface{}) {
+func (stdLogger) Infof(format string, args ...interface{}) {
 	if GetLevel() <= InfoLevel {
 		log_std.Output(_stdLogDepth, fmt.Sprintf(InfoPrefix+format, args...))
 	}
 }
 
-func (_ stdLogger) Warnf(format string, args ...interface{}) {
+func (stdLogger) Warnf(format string, args ...interface{}) {
 	if GetLevel() <= WarnLevel {
 		log_std.Output(_stdLogDepth, fmt.Sprintf(WarnPrefix+format, args...))
 	}
 }
 
-func (_ stdLogger) Errorf(format string, args ...interface{}) {
+func (stdLogger) Errorf(format string, args ...interface{}) {
 	if GetLevel() <= ErrorLevel {
 		log_std.Output(_stdLogDepth, fmt.Sprintf(ErrorPrefix+format, args...))
 	}
 }
 
-func (_ stdLogger) Fatalf(format string, args ...interface{}) {
+func (stdLogger) Fatalf(format string, args ...interface{}) {
 	log_std.Output(_stdLogDepth, fmt.Sprintf(FatalPrefix+format, args...))
 	Sync()
 	os.Exit(1)
@@ -81,15 +83,15 @@ var NopLogger Logger = &nopLogger{}
 
 type nopLogger struct{}
 
-func (_ nopLogger) Debugf(format string, args ...interface{}) {}
+func (nopLogger) Debugf(format string, args ...interface{}) {}
 
-func (_ nopLogger) Infof(format string, args ...interface{}) {}
+func (nopLogger) Infof(format string, args ...interface{}) {}
 
-func (_ nopLogger) Warnf(format string, args ...interface{}) {}
+func (nopLogger) Warnf(format string, args ...interface{}) {}
 
-func (_ nopLogger) Errorf(format string, args ...interface{}) {}
+func (nopLogger) Errorf(format string, args ...interface{}) {}
 
-func (_ nopLogger) Fatalf(format string, args ...interface{}) {
+func (nopLogger) Fatalf(format string, args ...interface{}) {
 	Sync()
 	os.Exit(1)
 }

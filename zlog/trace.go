@@ -56,14 +56,14 @@ func Tracef(format string, args ...interface{}) {
 // is a no-op.
 func TRACE(args ...interface{}) {
 	if !disableTrace {
-		_slowPathTRACE(0, args...)
+		_slowPathTrace(0, args...)
 	}
 }
 
 // TRACE1 is similar to TRACE, but it accepts an extra arg0 before args.
 func TRACE1(arg0 interface{}, args ...interface{}) {
 	if !disableTrace {
-		_slowPathTRACE_1(0, arg0, args)
+		_slowPathTrace1(0, arg0, args)
 	}
 }
 
@@ -75,26 +75,26 @@ func TRACE1(arg0 interface{}, args ...interface{}) {
 // is a no-op.
 func TRACESkip(skip int, args ...interface{}) {
 	if !disableTrace {
-		_slowPathTRACE(skip, args...)
+		_slowPathTrace(skip, args...)
 	}
 }
 
 // TRACESkip1 is similar to TRACESkip, but it accepts an extra arg0 before args.
 func TRACESkip1(skip int, arg0 interface{}, args ...interface{}) {
 	if !disableTrace {
-		_slowPathTRACE_1(skip, arg0, args)
+		_slowPathTrace1(skip, arg0, args)
 	}
 }
 
-func _slowPathTRACE(skip int, args ...interface{}) {
+func _slowPathTrace(skip int, args ...interface{}) {
 	var a0 interface{}
 	if len(args) > 0 {
 		a0, args = args[0], args[1:]
 	}
-	_slowPathTRACE_1(skip+1, a0, args)
+	_slowPathTrace1(skip+1, a0, args)
 }
 
-func _slowPathTRACE_1(skip int, a0 interface{}, args []interface{}) {
+func _slowPathTrace1(skip int, a0 interface{}, args []interface{}) {
 	logger, msg, fields := parseLoggerAndParams(skip, a0, args)
 	msg = addCallerPrefix(skip, TracePrefix, msg)
 	if ce := logger.Check(TraceLevel.toZapLevel(), msg); ce != nil {

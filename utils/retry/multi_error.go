@@ -46,7 +46,7 @@ func (E *sizedError) Error() string {
 		}
 		buf.WriteString(err.Error())
 	}
-	return string(buf.Bytes())
+	return buf.String()
 }
 
 func (E *sizedError) ErrOrNil() error {

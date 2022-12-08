@@ -3,8 +3,6 @@ package monkey
 import (
 	"fmt"
 	"time"
-
-	"github.com/jxskiss/gopkg/v2/unsafe/monkey/testpkg"
 )
 
 func MyTimeFunc(year, month, day, hour, min, sec, nsec int) time.Time {
@@ -150,27 +148,4 @@ func ExamplePatchVar() {
 	// with AutoUnpatch, after inner: 3456
 	// with AutoUnpatch, patch again: 5678
 	// after AutoUnpatch: 1234
-}
-
-func ExamplePatch_Origin() {
-	var someVar = 1234
-
-	AutoUnpatch(func() {
-		fmt.Printf("before patch, testpkg.A: %v\n", testpkg.A())
-		fmt.Printf("before patch, someVar: %v\n", someVar)
-
-		patch1 := Mock().Target(testpkg.A).Return("ExamplePatch_Origin").Build()
-		patch2 := PatchVar(&someVar, 5678)
-		_ = patch1
-		_ = patch2
-
-		fmt.Printf("after patch, testpkg.A: %v\n", testpkg.A())
-		fmt.Printf("after patch, someVar: %v\n", someVar)
-	})
-
-	// Output:
-	// before patch, testpkg.A: testpkg.a
-	// before patch, someVar: 1234
-	// after patch, testpkg.A: ExamplePatch_Origin
-	// after patch, someVar: 5678
 }

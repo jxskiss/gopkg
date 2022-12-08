@@ -3,7 +3,7 @@
 package machineid
 
 import (
-	"io/ioutil"
+	"os"
 	"strings"
 )
 
@@ -21,9 +21,9 @@ const (
 )
 
 func readPlatformMachineID() (string, error) {
-	b, err := ioutil.ReadFile(dbusPath)
+	b, err := os.ReadFile(dbusPath)
 	if err != nil || len(b) == 0 {
-		b, err = ioutil.ReadFile(dbusPathEtc)
+		b, err = os.ReadFile(dbusPathEtc)
 		if err != nil || len(b) == 0 {
 			b, err = ioutil.ReadFile(bootIDPath)
 		}

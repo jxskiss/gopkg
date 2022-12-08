@@ -33,7 +33,7 @@ const (
 // The zero value for Pool is ready to use. A Pool value shall not be
 // copied after initialized.
 type Pool struct {
-	noCopy noCopy
+	noCopy noCopy //nolint:unused
 
 	r Recorder
 
@@ -233,7 +233,7 @@ func (p *Recorder) calibrate() {
 // for details.
 //
 // Note that it must not be embedded, due to the Lock and Unlock methods.
-type noCopy struct{}
+type noCopy struct{} //nolint:all
 
 // Lock is a no-op used by -copylocks checker from `go vet`.
 func (*noCopy) Lock()   {}

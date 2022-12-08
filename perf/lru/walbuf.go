@@ -70,6 +70,7 @@ type fastHashset [walSetSize]uint32
 // intPhi is for scrambling the values
 const intPhi = 0x9E3779B9
 
+//nolint:unused
 func phiMix(x int64) int64 {
 	h := x * intPhi
 	return h ^ (h >> 16)

@@ -10,6 +10,7 @@ import (
 	"github.com/jxskiss/gopkg/v2/perf/json"
 )
 
+//nolint:unused
 var (
 	null        = []byte("null")
 	emptyObject = []byte("{}")

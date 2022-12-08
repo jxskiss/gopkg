@@ -82,12 +82,13 @@ func assertReturnTypes(target reflect.Value, rets []interface{}) {
 
 func assertVarPtr(targetAddr interface{}) {
 	if reflect.TypeOf(targetAddr).Kind() != reflect.Ptr {
-		panic("monkey: targetAddr is not a pointer to a viable")
+		panic("monkey: targetAddr is not a pointer to a variable")
 	}
 }
 
 func assertVarReplacement(targetAddr, repl reflect.Value) {
 	if targetAddr.Type().Kind() != reflect.Ptr {
+		panic("monkey: targetAddr is not a pointer to a variable")
 	}
 	targetTyp := targetAddr.Type().Elem()
 	replTyp := repl.Type()

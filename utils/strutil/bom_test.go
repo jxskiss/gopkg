@@ -2,7 +2,7 @@ package strutil
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -53,7 +53,7 @@ func TestSkipBOM(t *testing.T) {
 	for _, x := range tests {
 		rd := bytes.NewBuffer(x)
 		tmp := SkipBOMReader(rd)
-		got, err := ioutil.ReadAll(tmp)
+		got, err := io.ReadAll(tmp)
 		assert.Nil(t, err)
 		assert.Equal(t, want, got)
 	}
@@ -69,7 +69,7 @@ func TestSkipBOM(t *testing.T) {
 	for _, x := range tests {
 		rd := bytes.NewBuffer(x)
 		tmp := SkipBOMReader(rd)
-		got, err := ioutil.ReadAll(tmp)
+		got, err := io.ReadAll(tmp)
 		assert.Nil(t, err)
 		assert.Equal(t, want, got)
 	}

@@ -164,13 +164,13 @@ func (b *Buffer) WriteStrings(s []string) (int, error) {
 // then write p to the buffer.
 func (b *Buffer) Set(p []byte) {
 	b.buf = b.buf[:0]
-	b.WriteString(b2s(p))
+	_, _ = b.WriteString(b2s(p))
 }
 
 // SetString sets Buffer.B to s.
 func (b *Buffer) SetString(s string) {
 	b.buf = b.buf[:0]
-	b.WriteString(s)
+	_, _ = b.WriteString(s)
 }
 
 // Reset re-slice the underlying byte slice to empty.

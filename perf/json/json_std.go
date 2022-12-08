@@ -13,11 +13,9 @@ type (
 	Number     = json.Number
 	RawMessage = json.RawMessage
 
-	InvalidUTF8Error      = json.InvalidUTF8Error
 	InvalidUnmarshalError = json.InvalidUnmarshalError
 	MarshalerError        = json.MarshalerError
 	SyntaxError           = json.SyntaxError
-	UnmarshalFieldError   = json.UnmarshalFieldError
 	UnmarshalTypeError    = json.UnmarshalTypeError
 	UnsupportedTypeError  = json.UnsupportedTypeError
 	UnsupportedValueError = json.UnsupportedValueError

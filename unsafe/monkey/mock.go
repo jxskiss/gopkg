@@ -7,26 +7,26 @@ import (
 	"github.com/jxskiss/gopkg/v2/unsafe/forceexport"
 )
 
-// Mock returns a mock object which helps to do mocking.
-func Mock() *mock {
-	return &mock{}
+// Mock returns a Mocker object which helps to do mocking.
+func Mock() *Mocker {
+	return &Mocker{}
 }
 
-type mock struct {
+type Mocker struct {
 	target reflect.Value
 	repl   reflect.Value
 	byName string
 }
 
 // Target sets the target to mock.
-func (m *mock) Target(target interface{}) *mock {
+func (m *Mocker) Target(target interface{}) *Mocker {
 	assertFunc(target, "target")
 	m.target = reflect.ValueOf(target)
 	return m
 }
 
 // Method sets a method of a type as the mocking target.
-func (m *mock) Method(target interface{}, method string) *mock {
+func (m *Mocker) Method(target interface{}, method string) *Mocker {
 	targetTyp := reflect.TypeOf(target)
 	targetMethod, ok := targetTyp.MethodByName(method)
 	if !ok {
@@ -38,7 +38,7 @@ func (m *mock) Method(target interface{}, method string) *mock {
 
 // ByName sets the mocking target by name.
 // Private method is supported by specifying the full name.
-func (m *mock) ByName(name string, signature interface{}) *mock {
+func (m *Mocker) ByName(name string, signature interface{}) *Mocker {
 	m.byName = name
 	targetPtr := forceexport.FindFuncWithName(name)
 	targetTyp := reflect.TypeOf(signature)
@@ -49,7 +49,7 @@ func (m *mock) ByName(name string, signature interface{}) *mock {
 }
 
 // Return sets the patch to build a function as replacement which returns rets.
-func (m *mock) Return(rets ...interface{}) *mock {
+func (m *Mocker) Return(rets ...interface{}) *Mocker {
 	if !m.target.IsValid() {
 		panic("monkey: need a valid target to mock")
 	}
@@ -69,7 +69,7 @@ func (m *mock) Return(rets ...interface{}) *mock {
 }
 
 // To sets the replacement to mock with.
-func (m *mock) To(repl interface{}) *mock {
+func (m *Mocker) To(repl interface{}) *Mocker {
 	if !m.target.IsValid() {
 		panic("monkey: need a valid target to mock")
 	}
@@ -77,13 +77,13 @@ func (m *mock) To(repl interface{}) *mock {
 	return m.setReplacement(reflect.ValueOf(repl))
 }
 
-func (m *mock) setReplacement(repl reflect.Value) *mock {
+func (m *Mocker) setReplacement(repl reflect.Value) *Mocker {
 	m.repl = repl
 	return m
 }
 
 // Build applies the patch, it returns the final Patch object.
-func (m *mock) Build() *Patch {
+func (m *Mocker) Build() *Patch {
 	if !m.target.IsValid() {
 		panic("monkey: need a valid target to mock")
 	}

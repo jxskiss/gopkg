@@ -1,9 +1,10 @@
 package easy
 
 import (
-	"github.com/stretchr/testify/assert"
 	"log"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_parseTemplates(t *testing.T) {

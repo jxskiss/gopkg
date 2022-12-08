@@ -28,7 +28,6 @@ func BenchmarkSyncMutex(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			m.Lock()
-			//nolint:staticcheck
 			m.Unlock()
 		}
 	})
@@ -39,7 +38,6 @@ func BenchmarkNaiveSpinLock(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			spin.Lock()
-			//nolint:staticcheck
 			spin.Unlock()
 		}
 	})
@@ -50,7 +48,6 @@ func BenchmarkBackoffSpinLock(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			spin.Lock()
-			//nolint:staticcheck
 			spin.Unlock()
 		}
 	})
