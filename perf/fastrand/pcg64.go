@@ -1,10 +1,6 @@
 package fastrand
 
-import (
-	"math/bits"
-
-	"github.com/jxskiss/gopkg/v2/internal/linkname"
-)
+import "math/bits"
 
 // PCG64 is an implementation of a 64-bit permuted congruential
 // generator as defined in
@@ -48,10 +44,8 @@ const (
 // NewPCG64 returns a PCG64 generator initialized with random state
 // and sequence.
 func NewPCG64() *PCG64 {
-	a, b := linkname.Runtime_fastrand(), linkname.Runtime_fastrand()
-	c, d := linkname.Runtime_fastrand(), linkname.Runtime_fastrand()
-	low := uint64(a)<<32 + uint64(b)
-	high := uint64(c)<<32 + uint64(d)
+	low := makeSeed()
+	high := makeSeed()
 	return &PCG64{low: low, high: high}
 }
 
@@ -108,7 +102,7 @@ func (p *PCG64) Int() int {
 // It panics if n <= 0.
 func (p *PCG64) Int63n(n int64) int64 {
 	if n <= 0 {
-		panic("invalid argument to Int63n")
+		panic("fastrand: invalid argument to Int63n")
 	}
 	if n&(n-1) == 0 { // n is power of two, can mask
 		return p.Int63() & (n - 1)
@@ -129,7 +123,7 @@ func (p *PCG64) Int63n(n int64) int64 {
 // https://lemire.me/blog/2016/06/30/fast-random-shuffling
 func (p *PCG64) Int31n(n int32) int32 {
 	if n <= 0 {
-		panic("invalid argument to Int31n")
+		panic("fastrand: invalid argument to Int31n")
 	}
 
 	u32 := p.Uint32()
@@ -150,7 +144,7 @@ func (p *PCG64) Int31n(n int32) int32 {
 // It panics if n <= 0.
 func (p *PCG64) Intn(n int) int {
 	if n <= 0 {
-		panic("invalid argument to Intn")
+		panic("fastrand: invalid argument to Intn")
 	}
 	if n <= 1<<31-1 {
 		return int(p.Int31n(int32(n)))
@@ -185,7 +179,7 @@ func (p *PCG64) Perm(n int) []int {
 // swap swaps the elements with indexes i and j.
 func (p *PCG64) Shuffle(n int, swap func(i, j int)) {
 	if n < 0 {
-		panic("invalid argument to Shuffle")
+		panic("fastrand: invalid argument to Shuffle")
 	}
 
 	// Fisher-Yates shuffle: https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
@@ -205,11 +199,11 @@ func (p *PCG64) Shuffle(n int, swap func(i, j int)) {
 	}
 }
 
-// Read generates len(p) random bytes and writes them into p.
-// It always returns len(p) and a nil error.
-func (r *PCG64) Read(p []byte) (n int, err error) {
-	if len(p) > 0 {
-		_wyread(r.Uint32(), p)
+// Read generates len(b) random bytes and writes them into b.
+// It always returns len(b) and a nil error.
+func (p *PCG64) Read(b []byte) (n int, err error) {
+	if len(b) > 0 {
+		_wyread(p.Uint32(), b)
 	}
-	return len(p), nil
+	return len(b), nil
 }

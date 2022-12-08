@@ -4,7 +4,7 @@ import "github.com/jxskiss/gopkg/v2/internal/linkname"
 
 // Uint64 returns a pseudo-random 64-bit unsigned integer as a uint64.
 func Uint64() (x uint64) {
-	return uint64(Uint32())<<32 | uint64(Uint32())
+	return linkname.Runtime_fastrand64()
 }
 
 // Uint32 returns a pseudo-random 32-bit unsigned integer as a uint32.
@@ -32,7 +32,7 @@ func Int() (x int) {
 // It panics if n <= 0.
 func Int63n(n int64) (x int64) {
 	if n <= 0 {
-		panic("invalid argument to Int63n")
+		panic("fastrand: invalid argument to Int63n")
 	}
 	if n&(n-1) == 0 { // n is power of two, can mask
 		return Int63() & (n - 1)
@@ -53,7 +53,7 @@ func Int63n(n int64) (x int64) {
 // https://lemire.me/blog/2016/06/30/fast-random-shuffling
 func Int31n(n int32) (x int32) {
 	if n <= 0 {
-		panic("invalid argument to Int31n")
+		panic("fastrand: invalid argument to Int31n")
 	}
 
 	u32 := Uint32()
@@ -74,7 +74,7 @@ func Int31n(n int32) (x int32) {
 // It panics if n <= 0.
 func Intn(n int) (x int) {
 	if n <= 0 {
-		panic("invalid argument to Intn")
+		panic("fastrand: invalid argument to Intn")
 	}
 	if n <= 1<<31-1 {
 		return int(Int31n(int32(n)))
@@ -109,7 +109,7 @@ func Perm(n int) []int {
 // Param swap swaps the elements with indexes i and j.
 func Shuffle(n int, swap func(i, j int)) {
 	if n < 0 {
-		panic("invalid argument to Shuffle")
+		panic("fastrand: invalid argument to Shuffle")
 	}
 
 	// Fisher-Yates shuffle: https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
