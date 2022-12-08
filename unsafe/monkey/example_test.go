@@ -161,13 +161,11 @@ func ExamplePatch_Origin() {
 
 		patch1 := Mock().Target(testpkg.A).Return("ExamplePatch_Origin").Build()
 		patch2 := PatchVar(&someVar, 5678)
+		_ = patch1
+		_ = patch2
 
 		fmt.Printf("after patch, testpkg.A: %v\n", testpkg.A())
 		fmt.Printf("after patch, someVar: %v\n", someVar)
-
-		fmt.Printf("after patch, original testpkg.A: %v\n",
-			patch1.Origin().(func() string)())
-		fmt.Printf("after patch, original someVar: %v\n", patch2.Origin())
 	})
 
 	// Output:
@@ -175,6 +173,4 @@ func ExamplePatch_Origin() {
 	// before patch, someVar: 1234
 	// after patch, testpkg.A: ExamplePatch_Origin
 	// after patch, someVar: 5678
-	// after patch, original testpkg.A: testpkg.a
-	// after patch, original someVar: 1234
 }

@@ -15,6 +15,9 @@ const (
 
 	idx4KB   = 12       // 4KB
 	idx8KB   = 13       // 8KB
+	idx12KB  = 14       // 8KB + 4KB
+	idx16KB  = 15       // 8KB + (2 * 4KB)
+	size4KB  = 4 << 10  // 4KB
 	size12KB = 12 << 10 // 8KB + 4KB
 	size16KB = 16 << 10 // 8KB + (2 * 4KB)
 
@@ -203,7 +206,7 @@ func indexPut(size int) int {
 			mod := size & (1<<p2i - 1) // size % (2^p2i)
 			idx += mod >> (p2i - 2)    // mod / (2^p2i / 4)
 		} else if size > size12KB {
-			idx = 13
+			idx = idx12KB
 		}
 	}
 	return idx
@@ -217,7 +220,7 @@ func indexPut_readable(size int) int {
 
 	if idx == idx8KB {
 		mod := size & (1<<idx - 1) // size % (2^idx)
-		half := 1 << (idx - 1)
+		half := size4KB
 		return powerOfTwoIdxTable[idx] + mod/half
 	}
 

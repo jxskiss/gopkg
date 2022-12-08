@@ -59,13 +59,13 @@ type Patch struct {
 }
 
 type funcInfo struct {
-	backupCode []byte
-	replCode   []byte
-	origCode   []byte
+	replCode  []byte
+	origCode  []byte
+	branchPos int
 }
 
 type varInfo struct {
-	orig reflect.Value
+	origVar reflect.Value
 }
 
 func (p *Patch) apply() {
@@ -88,19 +88,6 @@ func (p *Patch) Delete() {
 		p.deleteFunc()
 	} else if p.varInfo != nil {
 		p.deleteVar()
-	}
-}
-
-// Origin returns the original target.
-// For a function, it returns a function which runs the original code.
-// For a variable, it returns the original value of the target variable.
-func (p *Patch) Origin() interface{} {
-	if p.funcInfo != nil {
-		orig := reflect.New(p.target.Type())
-		forceexport.CreateFuncForCodePtr(orig.Interface(), slicePtr(p.origCode))
-		return orig.Elem().Interface()
-	} else { // variable
-		return p.varInfo.orig.Interface()
 	}
 }
 
@@ -178,20 +165,19 @@ func newFuncPatch(target, repl reflect.Value) *Patch {
 
 	targetCode := getCode(targetPtr, 64)
 	replCode := branchInto(uintptr(getPtr(repl)))
-	backupSize := disassemble(targetCode, len(replCode))
+	branchPos := disassemble(targetCode, len(replCode))
 
 	origCode := linkname.Runtime_sysAlloc(_PAGE_SIZE)
-	origSize := copy(origCode, targetCode[:backupSize])
-	origSize += copy(origCode[backupSize:], branchTo(targetPtr+uintptr(backupSize)))
+	origSize := copy(origCode, targetCode[:branchPos])
 	origCode = origCode[:origSize]
 
 	// protect the memory, avoid SIGBUS unexpected fault address error
 	_replace_code(slicePtr(origCode), origCode)
 
 	p.funcInfo = &funcInfo{
-		backupCode: origCode[:backupSize],
-		replCode:   replCode,
-		origCode:   origCode,
+		replCode:  replCode,
+		origCode:  origCode,
+		branchPos: branchPos,
 	}
 
 	targetMap[targetPtr] = p
@@ -209,9 +195,9 @@ func (p *Patch) overrideFunc(repl reflect.Value) *Patch {
 		repl:    repl,
 	}
 	child.funcInfo = &funcInfo{
-		backupCode: p.backupCode,
-		replCode:   replCode,
-		origCode:   p.origCode,
+		replCode:  replCode,
+		origCode:  p.origCode,
+		branchPos: p.branchPos,
 	}
 	targetPtr := p.target.Pointer()
 	targetMap[targetPtr] = child
@@ -227,9 +213,10 @@ func (p *Patch) applyFunc() {
 			replaceCode(targetPtr, p.replCode)
 		}
 	} else {
-		code := getCode(targetPtr, len(p.backupCode))
-		if !bytes.Equal(code, p.backupCode) {
-			replaceCode(targetPtr, p.backupCode)
+		code := getCode(targetPtr, p.branchPos)
+		origCode := p.origCode[:p.branchPos]
+		if !bytes.Equal(code, origCode) {
+			replaceCode(targetPtr, origCode)
 		}
 	}
 }
@@ -292,7 +279,7 @@ func newVarPatch(targetAddr, repl reflect.Value) *Patch {
 	orig := reflect.New(targetAddr.Type().Elem()).Elem()
 	orig.Set(targetAddr.Elem())
 	p.varInfo = &varInfo{
-		orig: orig,
+		origVar: orig,
 	}
 
 	targetMap[targetAddr] = p
@@ -309,7 +296,7 @@ func (p *Patch) overrideVar(repl reflect.Value) *Patch {
 		repl:    repl,
 	}
 	child.varInfo = &varInfo{
-		orig: p.varInfo.orig,
+		origVar: p.varInfo.origVar,
 	}
 	targetMap[p.target] = child
 	patchMap[child.id] = child
@@ -320,7 +307,7 @@ func (p *Patch) applyVar() {
 	if p.patched {
 		p.target.Elem().Set(p.repl)
 	} else {
-		p.target.Elem().Set(p.varInfo.orig)
+		p.target.Elem().Set(p.varInfo.origVar)
 	}
 }
 

@@ -28,8 +28,6 @@ func TestPatchFunc_simple(t *testing.T) {
 	assert.True(t, !no())
 	patch := monkey.PatchFunc(no, yes)
 	assert.True(t, no())
-	orig := patch.Origin().(func() bool)
-	assert.False(t, orig())
 	patch.Delete()
 	assert.True(t, !no())
 }
@@ -40,12 +38,10 @@ func TestPatchFunc_timeNow(t *testing.T) {
 		return time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
 	})
 	during := time.Now()
-	orig := patch.Origin().(func() time.Time)()
 
 	patch.Delete()
 	after := time.Now()
 
-	assert.Equal(t, before.Truncate(time.Second), orig.Truncate(time.Second))
 	assert.Equal(t, time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC), during)
 	assert.NotEqual(t, before, during)
 	assert.NotEqual(t, during, after)
@@ -57,19 +53,16 @@ func TestPatchMultipleTimes(t *testing.T) {
 
 	monkey.AutoUnpatch(func() {
 		fn1 := func() string { return "fn1" }
-		patch := monkey.PatchFunc(testpkg.A, fn1)
+		monkey.PatchFunc(testpkg.A, fn1)
 		assert.Equal(t, "fn1", testpkg.A())
-		assert.Equal(t, "testpkg.a", patch.Origin().(func() string)())
 
 		fn2 := func() string { return "fn2" }
 		monkey.PatchFunc(testpkg.A, fn2)
 		assert.Equal(t, "fn2", testpkg.A())
-		assert.Equal(t, "testpkg.a", patch.Origin().(func() string)())
 
 		fn3 := func() string { return "fn3" }
 		monkey.PatchFunc(testpkg.A, fn3)
 		assert.Equal(t, "fn3", testpkg.A())
-		assert.Equal(t, "testpkg.a", patch.Origin().(func() string)())
 	})
 }
 
@@ -97,12 +90,10 @@ func TestPatchFunc_toInstanceMethod(t *testing.T) {
 	assert.True(t, !no())
 	patch1 := monkey.PatchFunc(no, i1.yes)
 	assert.True(t, no())
-	assert.False(t, patch1.Origin().(func() bool)())
 
 	i2 := &s{value: false}
 	patch2 := monkey.PatchFunc(no, i2.yes)
 	assert.False(t, no())
-	assert.False(t, patch1.Origin().(func() bool)())
 
 	patch2.Delete()
 	patch1.Delete()
@@ -121,7 +112,6 @@ func TestPatchMethod(t *testing.T) {
 	assert.True(t, !i.No())
 	patch := monkey.PatchMethod(i, "No", func(_ *f) bool { return true })
 	assert.True(t, i.No())
-	assert.False(t, patch.Origin().(func(_ *f) bool)(i))
 
 	patch.Delete()
 	assert.True(t, !i.No())
@@ -148,7 +138,6 @@ func TestPatchByName(t *testing.T) {
 
 	patch := monkey.PatchByName(testpkg_a, func() string { return "TestPatchByName" })
 	assert.Equal(t, "TestPatchByName", testpkg.A())
-	assert.Equal(t, "testpkg.a", patch.Origin().(func() string)())
 
 	patch.Delete()
 	assert.Equal(t, "testpkg.a", testpkg.A())

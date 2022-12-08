@@ -44,8 +44,10 @@ func CreateFuncForCodePtr(outFuncPtr interface{}, codePtr uintptr) {
 	// work because it gives the code pointer rather than the function value
 	// pointer. The function value is a struct that starts with its code
 	// pointer, so we can swap out the code pointer with our desired value.
-	funcValuePtr := reflect.ValueOf(newFuncVal).FieldByName("ptr").Pointer()
-	funcPtr := (*Func)(unsafe.Pointer(funcValuePtr))
+
+	funcPtr := (*Func)(unsafe.Pointer(
+		reflect.ValueOf(newFuncVal).FieldByName("ptr").Pointer(),
+	))
 	funcPtr.codePtr = codePtr
 
 	outFuncVal.Set(newFuncVal)
