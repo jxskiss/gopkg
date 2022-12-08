@@ -55,7 +55,7 @@ issues:
     - path: 'internal/linkname/(.+).go'
       linters:
         - revive
-    - path: "unsafe/(.+)\.go"
+    - path: 'unsafe/(.+)\.go'
       linters:
         - revive
     - path: '(.+)_test\.go'
