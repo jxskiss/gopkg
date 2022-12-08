@@ -5,21 +5,28 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/jxskiss/gopkg/v2/unsafe/forceexport/testpkg"
 )
 
-func TestTimeNow(t *testing.T) {
-	var timeNowFunc func() (int64, int32)
+func TestGetPrivateFunc(t *testing.T) {
+	var pi = 3.14
+	got1 := testpkg.Floor(pi)
+	assert.Equal(t, 3.0, got1)
+
+	var privateFloorFunc func(x float64) float64
 	assert.NotPanics(t, func() {
-		GetFunc(&timeNowFunc, "time.now")
+		GetFunc(&privateFloorFunc, "github.com/jxskiss/gopkg/v2/unsafe/forceexport/testpkg.floor")
 	})
-	sec, nsec := timeNowFunc()
-	assert.Greater(t, sec, int64(0))
-	assert.Greater(t, nsec, int32(0))
+	got2 := privateFloorFunc(pi)
+
+	assert.Equal(t, got1, got2)
 }
 
 // Note that we need to disable inlining here, or else the function won't be
 // compiled into the binary. We also need to call it from the test so that the
 // compiler doesn't remove it because it's unused.
+//
 //go:noinline
 func addOne(x int) int {
 	return x + 1

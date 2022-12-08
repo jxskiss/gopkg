@@ -22,7 +22,7 @@ func TestGet(t *testing.T) {
 }
 
 func Test_indexGet(t *testing.T) {
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 10000; i++ {
 		size := fastrand.Intn(maxBufSize)
 		idx1 := indexGet_readable(size)
 		idx2 := indexGet(size)
@@ -35,14 +35,21 @@ func Test_indexGet(t *testing.T) {
 	assert.Equal(t, 7, indexGet(127))
 	assert.Equal(t, 7, indexGet(128))
 	assert.Equal(t, 8, indexGet(129))
+
+	// 14.36 KB
+	size := 14701
+	idx1 := indexGet_readable(size)
+	idx2 := indexGet(size)
+	assert.Equal(t, idx1, idx2)
+	assert.Equal(t, idx16KB, idx1)
 }
 
 func Test_indexPut(t *testing.T) {
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 10000; i++ {
 		size := fastrand.Intn(maxBufSize)
 		idx1 := indexPut_readable(size)
 		idx2 := indexPut(size)
-		assert.Equal(t, idx1, idx2)
+		assert.Equalf(t, idx1, idx2, "i= %v, size= %v", i, size)
 	}
 
 	assert.Equal(t, 5, indexPut(63))
@@ -53,6 +60,13 @@ func Test_indexPut(t *testing.T) {
 	assert.Equal(t, 7, indexPut(129))
 	assert.Equal(t, 7, indexPut(255))
 	assert.Equal(t, 8, indexPut(256))
+
+	// 14.36 KB
+	size := 14701
+	idx1 := indexPut_readable(size)
+	idx2 := indexPut(size)
+	assert.Equal(t, idx1, idx2)
+	assert.Equal(t, idx12KB, idx1)
 }
 
 func Test_indexGet_quarters(t *testing.T) {

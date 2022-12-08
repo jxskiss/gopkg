@@ -2,6 +2,7 @@ package singleflight
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -11,11 +12,6 @@ import (
 // ErrFetchTimeout indicates a timeout error when refresh a cached value
 // if CacheOptions.FetchTimeout is specified.
 var ErrFetchTimeout = errors.New("fetch timeout")
-
-const (
-	active   = 0
-	inactive = 1
-)
 
 // CacheOptions .
 type CacheOptions struct {
@@ -106,7 +102,7 @@ func NewCache(opt CacheOptions) *Cache {
 }
 
 // Close closes the Cache. It will signal the refresh and expire
-// goroutines of the Cache to shutdown.
+// goroutines of the Cache to shut down.
 //
 // It should be called when the Cache is no longer needed, or may lead
 // resource leaks.
@@ -119,19 +115,13 @@ func (c *Cache) Close() {
 //
 // It's useful to warm up the cache.
 func (c *Cache) SetDefault(key string, val interface{}) (exists bool) {
-	ent := allocEntry(val, nil)
-	actual, loaded := c.data.LoadOrStore(key, ent)
-	if loaded {
-		ent := actual.(*entry)
-		ent.Touch()
-		return true
-	}
-	c.data.Store(key, ent)
-	return false
+	ent := allocEntry(val, errDefaultVal)
+	_, loaded := c.data.LoadOrStore(key, ent)
+	return loaded
 }
 
 // Get tries to fetch a value corresponding to the given key from the cache
-// first. It it's not cached, a calling of function Cache.Fetch will be fired
+// first. If it's not cached, a calling of function Cache.Fetch will be fired
 // and the result will be cached.
 //
 // If error occurs during the first fetching, the error will be cached until
@@ -141,7 +131,11 @@ func (c *Cache) Get(key string) (interface{}, error) {
 	if ok {
 		ent := val.(*entry)
 		ent.Touch()
-		return ent.Load()
+		val, err := ent.Load()
+		if err == errDefaultVal {
+			err = nil
+		}
+		return val, err
 	}
 
 	// wait for the fetcher
@@ -159,7 +153,7 @@ func (c *Cache) fetchNoTimeout(key string, defaultVal interface{}) (interface{},
 	val, err, _ := c.group.Do(key, func() (interface{}, error) {
 		val, err := c.opt.Fetch(key)
 		if err != nil && defaultVal != nil {
-			val, err = defaultVal, nil
+			val, err = defaultVal, errDefaultVal
 		}
 		ent := allocEntry(val, err)
 		c.data.Store(key, ent)
@@ -173,7 +167,7 @@ func (c *Cache) fetchWithTimeout(key string, defaultVal interface{}) (interface{
 	ch := c.group.DoChan(key, func() (interface{}, error) {
 		val, err := c.opt.Fetch(key)
 		if err != nil && defaultVal != nil {
-			val, err = defaultVal, nil
+			val, err = defaultVal, errDefaultVal
 		}
 		ent := allocEntry(val, err)
 		c.data.Store(key, ent)
@@ -200,7 +194,6 @@ func (c *Cache) GetOrDefault(key string, defaultVal interface{}) interface{} {
 		ent := val.(*entry)
 		val, err := ent.Load()
 		if err != nil {
-			ent.Store(defaultVal, nil)
 			val = defaultVal
 		}
 		ent.Touch()
@@ -369,4 +362,17 @@ func (e *entry) SetError(err error) {
 
 func (e *entry) Touch() {
 	atomic.StoreInt32(&e.expire, active)
+}
+
+const (
+	active   = 0
+	inactive = 1
+)
+
+var errDefaultVal = tombError(1)
+
+type tombError int
+
+func (e tombError) Error() string {
+	return fmt.Sprintf("tombError(%d)", e)
 }

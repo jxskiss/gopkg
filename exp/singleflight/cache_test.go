@@ -2,9 +2,11 @@ package singleflight
 
 import (
 	"errors"
-	"github.com/stretchr/testify/assert"
+	"runtime"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGet(t *testing.T) {
@@ -86,7 +88,7 @@ func TestGetOrDefault(t *testing.T) {
 }
 
 func TestGetOrDefaultError(t *testing.T) {
-	var key, val, defaultVal = "key", "val", "default"
+	var key, val, defaultVal1, defaultVal2 = "key", "val", "default1", "default2"
 	var first = true
 	opt := CacheOptions{
 		RefreshInterval: 50 * time.Millisecond,
@@ -100,16 +102,20 @@ func TestGetOrDefaultError(t *testing.T) {
 	}
 	c := NewCache(opt)
 
-	got := c.GetOrDefault(key, defaultVal)
-	assert.Equal(t, defaultVal, got)
+	// First loading, error happens, should get defaultVal1.
+	got := c.GetOrDefault(key, defaultVal1)
+	assert.Equal(t, defaultVal1, got)
 
+	// The second loading has not been triggered, should get defaultVal2.
 	time.Sleep(opt.RefreshInterval / 2)
-	got = c.GetOrDefault(key, val)
-	assert.NotEqual(t, val, got)
-	assert.Equal(t, defaultVal, got)
+	got = c.GetOrDefault(key, defaultVal2)
+	assert.Equal(t, defaultVal2, got)
 
+	// RefreshInterval has been passed, the second loading has been triggered,
+	// we should get "val" from the loader function.
 	time.Sleep(opt.RefreshInterval)
-	got = c.GetOrDefault(key, defaultVal)
+	runtime.Gosched()
+	got = c.GetOrDefault(key, defaultVal1)
 	assert.Equal(t, val, got)
 }
 
@@ -128,12 +134,16 @@ func TestSetDefault(t *testing.T) {
 	exist := c.SetDefault("key2", "val2")
 	assert.False(t, exist)
 	got = c.GetOrDefault("key2", "default2")
-	assert.Equal(t, "val2", got)
+	assert.Equal(t, "default2", got)
 
+	// Only the first call of `SetDefault` take effect.
 	exist = c.SetDefault("key2", "val3")
 	assert.True(t, exist)
-	got = c.GetOrDefault("key2", "default2")
+	got, err := c.Get("key2")
+	assert.Nil(t, err)
 	assert.Equal(t, "val2", got)
+	got = c.GetOrDefault("key2", "default2")
+	assert.Equal(t, "default2", got)
 }
 
 func TestDeleteFunc(t *testing.T) {
@@ -147,7 +157,7 @@ func TestDeleteFunc(t *testing.T) {
 
 	c.SetDefault("key", "val")
 	got := c.GetOrDefault("key", "default")
-	assert.Equal(t, "val", got)
+	assert.Equal(t, "default", got)
 
 	c.DeleteFunc(func(string) bool { return true })
 
@@ -156,7 +166,7 @@ func TestDeleteFunc(t *testing.T) {
 }
 
 func TestClose(t *testing.T) {
-	var sleep = 50 * time.Millisecond
+	var sleep = 100 * time.Millisecond
 	var count int
 	opt := CacheOptions{
 		RefreshInterval: sleep - 10*time.Millisecond,
@@ -180,9 +190,9 @@ func TestClose(t *testing.T) {
 
 	c.Close()
 
-	time.Sleep(sleep)
+	time.Sleep(5 * sleep)
 	got = c.GetOrDefault("key", 10)
-	assert.Equal(t, 3, got)
+	assert.True(t, got == 3 || got == 4)
 }
 
 func TestExpire(t *testing.T) {

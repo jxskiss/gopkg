@@ -30,11 +30,12 @@ func TestPoolVariousSizesConcurrent(t *testing.T) {
 			ch <- struct{}{}
 		}()
 	}
+	timeout := 5 * time.Second
 	for i := 0; i < concurrency; i++ {
 		select {
 		case <-ch:
-		case <-time.After(time.Second):
-			t.Fatalf("timeout")
+		case <-time.After(timeout):
+			t.Fatalf("%v timeout", timeout)
 		}
 	}
 }
@@ -46,10 +47,6 @@ func testPoolVariousSizes(t *testing.T) {
 		testGetPut(t, n)
 		testGetPut(t, n+1)
 		testGetPut(t, n-1)
-
-		for j := 0; j < 10; j++ {
-			testGetPut(t, j+n)
-		}
 	}
 }
 
