@@ -25,7 +25,7 @@ func readPlatformMachineID() (string, error) {
 	if err != nil || len(b) == 0 {
 		b, err = os.ReadFile(dbusPathEtc)
 		if err != nil || len(b) == 0 {
-			b, err = ioutil.ReadFile(bootIDPath)
+			b, err = os.ReadFile(bootIDPath)
 		}
 	}
 	return strings.TrimSpace(string(b)), err
