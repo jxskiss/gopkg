@@ -1,5 +1,10 @@
 package linkname
 
+import (
+	"sort"
+	"testing"
+)
+
 func compileReflectFunctions() {
 	call(Reflect_typelinks)
 	call(Reflect_resolveTypeOff)
@@ -44,4 +49,36 @@ func compileReflectFunctions() {
 	call(Reflect_mapiterkey)
 	call(Reflect_mapiterelem)
 	call(Reflect_mapiternext)
+}
+
+func TestReflect_mapiterinit(t *testing.T) {
+	m := map[string]int{
+		"a": 1,
+		"b": 2,
+		"c": 3,
+	}
+
+	var val interface{} = m
+	ef := unpackEface(&val)
+	it := Reflect_mapiterinit(ef.rtype, ef.data)
+
+	var keys []string
+	var values []int
+	mlen := Reflect_maplen(ef.data)
+	for i := 0; i < mlen; i++ {
+		k := Reflect_mapiterkey(it)
+		v := Reflect_mapiterelem(it)
+		keys = append(keys, *(*string)(k))
+		values = append(values, *(*int)(v))
+		Reflect_mapiternext(it)
+	}
+
+	sort.Strings(keys)
+	sort.Ints(values)
+	if keys[0] != "a" || keys[1] != "b" || keys[2] != "c" {
+		t.Errorf("got unexpected keys: %v", keys)
+	}
+	if values[0] != 1 || values[1] != 2 || values[2] != 3 {
+		t.Errorf("got unexpected values: %v", values)
+	}
 }

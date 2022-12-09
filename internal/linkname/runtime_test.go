@@ -65,3 +65,12 @@ func TestRuntime_fastrandn(t *testing.T) {
 		t.Errorf("fastrand got all zero values")
 	}
 }
+
+func TestRuntime_sysAlloc(t *testing.T) {
+	n := 64
+	mem := Runtime_sysAlloc(uintptr(n))
+	if len(mem) != n || cap(mem) != n {
+		t.Errorf("sysAlloc got incorrect memory length")
+	}
+	Runtime_sysFree(mem)
+}
