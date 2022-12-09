@@ -2,6 +2,7 @@ package easy
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -22,7 +23,7 @@ func TestGlob(t *testing.T) {
 	makeGlobTestDir(t)
 	defer removeGlobTestDir()
 
-	// test passthru to vanilla path/filepath
+	// test pass-through to vanilla path/filepath
 	{
 		matches, err := Glob("./*/*/*/*.d")
 		if err != nil {
@@ -31,7 +32,7 @@ func TestGlob(t *testing.T) {
 		if len(matches) != 1 {
 			t.Fatalf("got %d matches, expected 1", len(matches))
 		}
-		expected := "testdata/a/b/c.d"
+		expected := filepath.Clean("testdata/a/b/c.d")
 		if matches[0] != expected {
 			t.Fatalf("matched [%s], expected [%s]", matches[0], expected)
 		}
@@ -46,7 +47,7 @@ func TestGlob(t *testing.T) {
 		if len(matches) != 1 {
 			t.Fatalf("got %d matches, expected 1", len(matches))
 		}
-		expected := "testdata/a/b/c.d/e.f"
+		expected := filepath.Clean("testdata/a/b/c.d/e.f")
 		if matches[0] != expected {
 			t.Fatalf("matched [%s], expected [%s]", matches[0], expected)
 		}
@@ -61,7 +62,10 @@ func TestGlob(t *testing.T) {
 		if len(matches) != 2 {
 			t.Fatalf("got %d matches, expected 2", len(matches))
 		}
-		expected := []string{"testdata/a/b/c.d", "testdata/a/b/c.d/e.f"}
+		expected := []string{
+			filepath.Clean("testdata/a/b/c.d"),
+			filepath.Clean("testdata/a/b/c.d/e.f"),
+		}
 		for i, match := range matches {
 			if match != expected[i] {
 				t.Fatalf("matched [%s], expected [%s]", match, expected[i])
@@ -78,7 +82,7 @@ func TestGlob(t *testing.T) {
 		if len(matches) != 1 {
 			t.Fatalf("got %d matches, expected 1", len(matches))
 		}
-		expected := "testdata/a/b/c.d/e.f"
+		expected := filepath.Clean("testdata/a/b/c.d/e.f")
 		if matches[0] != expected {
 			t.Fatalf("matched [%s], expected [%s]", matches[0], expected)
 		}
