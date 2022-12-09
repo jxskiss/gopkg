@@ -84,6 +84,9 @@ func TestEncoderObjectFields(t *testing.T) {
 				e.OpenNamespace("innermost")
 			},
 		},
+		{"reflected slice", "k=a,b", func(e zapcore.Encoder) { e.AddReflected("k", []string{"a", "b"}) }},
+		{"reflected slice of int", "k=1,2,3", func(e zapcore.Encoder) { e.AddReflected("k", []int16{1, 2, 3}) }},
+		{"reflected array", "k=a,b", func(e zapcore.Encoder) { e.AddReflected("k", [2]string{"a", "b"}) }},
 	}
 
 	for _, tt := range tests {
