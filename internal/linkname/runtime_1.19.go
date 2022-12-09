@@ -1,4 +1,4 @@
-//go:build gc && go1.19 && !go1.20
+//go:build gc && go1.19 && !go1.21
 
 package linkname
 

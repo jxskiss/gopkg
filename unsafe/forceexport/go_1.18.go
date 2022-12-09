@@ -1,7 +1,8 @@
-//go:build gc && go1.18 && !go1.20
+//go:build gc && go1.18 && !go1.21
 
 package forceexport
 
+// functab is a copy type of [runtime.functab].
 type functab struct {
 	entryoff uint32 // relative to runtime.text
 	funcoff  uint32

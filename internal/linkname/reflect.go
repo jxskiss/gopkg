@@ -7,11 +7,7 @@ import (
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
 
-//go:linkname Reflect_typelinks reflect.typelinks
-func Reflect_typelinks() ([]unsafe.Pointer, [][]int32)
-
-//go:linkname Reflect_resolveTypeOff reflect.resolveTypeOff
-func Reflect_resolveTypeOff(_ unsafe.Pointer, _ int32) unsafe.Pointer
+// ==== exported methods ====
 
 //go:linkname Reflect_rtype_Align reflect.(*rtype).Align
 //go:noescape
@@ -128,6 +124,14 @@ func Reflect_rtype_NumOut(unsafe.Pointer) int
 //go:linkname Reflect_rtype_Out reflect.(*rtype).Out
 //go:noescape
 func Reflect_rtype_Out(unsafe.Pointer, int) reflect.Type
+
+// ==== unexported methods ====
+
+//go:linkname Reflect_typelinks reflect.typelinks
+func Reflect_typelinks() ([]unsafe.Pointer, [][]int32)
+
+//go:linkname Reflect_resolveTypeOff reflect.resolveTypeOff
+func Reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
 
 //go:linkname Reflect_rtype_ptrTo reflect.(*rtype).ptrTo
 //go:noescape

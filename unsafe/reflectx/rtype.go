@@ -172,7 +172,7 @@ func MapOf(key, elem *RType) *RType {
 	return ToRType(reflect.MapOf(key.ToType(), elem.ToType()))
 }
 
-// ToRType converts a reflect.Type value to *Type.
+// ToRType converts a [reflect.Type] value to *RType.
 func ToRType(t reflect.Type) *RType {
 	return (*RType)((*iface)(unsafe.Pointer(&t)).data)
 }
@@ -187,23 +187,23 @@ func RTypeOf(v interface{}) *RType {
 	case reflect.Value:
 		return ToRType(x.Type())
 	default:
-		return unpackEmptyInterface(&x).typ
+		return unpackEface(&x).typ
 	}
 }
 
 // ---- private things ---- //
 
-func unpackEmptyInterface(ep *interface{}) *eface {
+func unpackEface(ep *interface{}) *eface {
 	return (*eface)(unsafe.Pointer(ep))
 }
 
-// eface is a copy type of runtime.eface.
+// eface is a copy type of [runtime.eface].
 type eface struct {
 	typ  *RType // *_type
 	data unsafe.Pointer
 }
 
-// iface is a copy type of runtime.iface.
+// iface is a copy type of [runtime.iface].
 type iface struct {
 	tab  unsafe.Pointer // *itab
 	data unsafe.Pointer
