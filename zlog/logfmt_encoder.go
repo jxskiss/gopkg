@@ -18,6 +18,8 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/buffer"
 	"go.uber.org/zap/zapcore"
+
+	"github.com/jxskiss/gopkg/v2/unsafe/reflectx"
 )
 
 const (
@@ -102,19 +104,8 @@ func (enc *logfmtEncoder) AddInt64(key string, value int64) {
 }
 
 func (enc *logfmtEncoder) AddReflected(key string, value interface{}) error {
-	rvalue := reflect.ValueOf(value)
-	switch rvalue.Kind() {
-	case reflect.Chan, reflect.Func, reflect.Map, reflect.Struct:
-		return ErrUnsupportedValueType
-	case reflect.Array, reflect.Slice, reflect.Ptr:
-		if rvalue.IsNil() {
-			enc.AddByteString(key, nil)
-			return nil
-		}
-		return enc.AddReflected(key, rvalue.Elem().Interface())
-	}
-	enc.AddString(key, fmt.Sprint(value))
-	return nil
+	enc.addKey(key)
+	return enc.AppendReflected(value)
 }
 
 func (enc *logfmtEncoder) OpenNamespace(key string) {
@@ -200,8 +191,17 @@ func (enc *logfmtEncoder) AppendInt64(value int64) {
 func (enc *logfmtEncoder) AppendReflected(value interface{}) error {
 	rvalue := reflect.ValueOf(value)
 	switch rvalue.Kind() {
-	case reflect.Array, reflect.Chan, reflect.Func, reflect.Map, reflect.Slice, reflect.Struct:
+	case reflect.Chan, reflect.Func, reflect.Map, reflect.Struct:
 		return ErrUnsupportedValueType
+	case reflect.Array:
+		return enc.AppendArray(enc.marshalArray(rvalue))
+	case reflect.Slice:
+		if rvalue.IsNil() {
+			enc.AppendByteString(nil)
+			return nil
+		}
+		// A non-nil slice is handled identically to an array.
+		return enc.AppendArray(enc.marshalArray(rvalue))
 	case reflect.Ptr:
 		if rvalue.IsNil() {
 			enc.AppendByteString(nil)
@@ -211,6 +211,18 @@ func (enc *logfmtEncoder) AppendReflected(value interface{}) error {
 	}
 	enc.AppendString(fmt.Sprint(value))
 	return nil
+}
+
+func (enc *logfmtEncoder) marshalArray(rv reflect.Value) zapcore.ArrayMarshalerFunc {
+	return func(ae zapcore.ArrayEncoder) error {
+		for i, n := 0, rv.Len(); i < n; i++ {
+			v := rv.Index(i).Interface()
+			if err := ae.AppendReflected(v); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 }
 
 func (enc *logfmtEncoder) AppendString(value string) {
@@ -545,7 +557,28 @@ func (enc *literalEncoder) AppendObject(zapcore.ObjectMarshaler) error {
 }
 
 func (enc *literalEncoder) AppendReflected(value interface{}) error {
-	return ErrUnsupportedValueType
+	typ := reflectx.EfaceOf(&value).RType
+	switch typ.Kind() {
+	case reflect.Bool:
+		enc.AppendBool(value.(bool))
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		enc.AppendInt64(reflect.ValueOf(value).Int())
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		enc.AppendUint64(reflect.ValueOf(value).Uint())
+	case reflect.Float32:
+		enc.AppendFloat32(value.(float32))
+	case reflect.Float64:
+		enc.AppendFloat64(value.(float64))
+	case reflect.Complex64:
+		enc.AppendComplex64(value.(complex64))
+	case reflect.Complex128:
+		enc.AppendComplex128(value.(complex128))
+	case reflect.String:
+		enc.AppendString(value.(string))
+	default:
+		return ErrUnsupportedValueType
+	}
+	return nil
 }
 
 func (enc *literalEncoder) addSeparator() {
