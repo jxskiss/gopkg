@@ -65,7 +65,7 @@ func SetupGlobals(cfg *Config, opts ...zap.Option) {
 func mustNewGlobalLogger(cfg *Config, opts ...zap.Option) (*zap.Logger, *Properties) {
 	logger, props, err := New(cfg, opts...)
 	if err != nil {
-		panic(fmt.Sprintf("invalid config to initialize logger: %v", err))
+		panic(fmt.Sprintf("zlog: invalid config to initialize logger: %v", err))
 	}
 	return logger, props
 }
