@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 TBD.
 
+## [2.1.1] - 2022-12-10
+
+* Feat: sync zap logfmt encoder from upstream
+* Fix: bbp.indexPut get incorrect pool index
+
 ## [2.1.0] - 2022-12-10
 
 Features:
