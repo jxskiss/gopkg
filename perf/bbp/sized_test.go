@@ -4,8 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/jxskiss/gopkg/v2/perf/fastrand"
 )
 
 const (
@@ -22,11 +20,23 @@ func TestGet(t *testing.T) {
 }
 
 func Test_indexGet(t *testing.T) {
-	for i := 0; i < 10000; i++ {
-		size := fastrand.Intn(maxBufSize)
+	for i := 0; i < 1024; i++ {
+		size := i
 		idx1 := indexGet_readable(size)
 		idx2 := indexGet(size)
-		assert.Equal(t, idx1, idx2)
+		if idx1 != idx2 {
+			t.Fatalf("unexpected indexGet result, size= %v, %d != %d", size, idx1, idx2)
+		}
+	}
+	for i := 1024; i < maxBufSize; i += 1024 {
+		for j := -5; j <= 5; j++ {
+			size := i + j
+			idx1 := indexGet_readable(size)
+			idx2 := indexGet(size)
+			if idx1 != idx2 {
+				t.Fatalf("unexpected indexGet result, size= %v, %d != %d", size, idx1, idx2)
+			}
+		}
 	}
 
 	assert.Equal(t, 6, indexGet(63))
@@ -36,20 +46,49 @@ func Test_indexGet(t *testing.T) {
 	assert.Equal(t, 7, indexGet(128))
 	assert.Equal(t, 8, indexGet(129))
 
-	// 14.36 KB
-	size := 14701
-	idx1 := indexGet_readable(size)
-	idx2 := indexGet(size)
-	assert.Equal(t, idx1, idx2)
-	assert.Equal(t, idx16KB, idx1)
+	assert.Equal(t, idx4KB, indexGet(size4KB-1))
+	assert.Equal(t, idx4KB, indexGet(size4KB))
+	assert.Equal(t, idx4KB+1, indexGet(size4KB+1))
+
+	assert.Equal(t, idx8KB, indexGet(size8KB-1))
+	assert.Equal(t, idx8KB, indexGet(size8KB))
+	assert.Equal(t, idx8KB+1, indexGet(size8KB+1))
+
+	assert.Equal(t, idx12KB, indexGet(size12KB-1))
+	assert.Equal(t, idx12KB, indexGet(size12KB))
+	assert.Equal(t, idx12KB+1, indexGet(size12KB+1))
+
+	assert.Equal(t, idx16KB, indexGet(size16KB-1))
+	assert.Equal(t, idx16KB, indexGet(size16KB))
+	assert.Equal(t, idx16KB+1, indexGet(size16KB+1))
+
+	assert.Equal(t, idx16KB+1, indexGet(18<<10))     // 18KB
+	assert.Equal(t, idx16KB+1, indexGet((20<<10)-1)) // 20KB - 1
+	assert.Equal(t, idx16KB+1, indexGet(20<<10))     // 20KB
+	assert.Equal(t, idx16KB+2, indexGet((20<<10)+1)) // 20KB + 1
+	assert.Equal(t, idx16KB+2, indexGet((24<<10)-1)) // 24KB - 1
+	assert.Equal(t, idx16KB+2, indexGet(24<<10))     // 24KB
+	assert.Equal(t, idx16KB+3, indexGet((24<<10)+1)) // 24KB + 1
 }
 
 func Test_indexPut(t *testing.T) {
-	for i := 0; i < 10000; i++ {
-		size := fastrand.Intn(maxBufSize)
+	for i := minBufSize; i < 1024; i++ {
+		size := i
 		idx1 := indexPut_readable(size)
 		idx2 := indexPut(size)
-		assert.Equalf(t, idx1, idx2, "i= %v, size= %v", i, size)
+		if idx1 != idx2 {
+			t.Fatalf("unexpected indexPut result, size= %d, %d != %d", size, idx1, idx2)
+		}
+	}
+	for i := 1024; i < maxBufSize; i += 1024 {
+		for j := -5; j <= 5; j++ {
+			size := i + j
+			idx1 := indexPut_readable(size)
+			idx2 := indexPut(size)
+			if idx1 != idx2 {
+				t.Fatalf("unexpected indexPut result, size= %d, %d != %d", size, idx1, idx2)
+			}
+		}
 	}
 
 	assert.Equal(t, 5, indexPut(63))
@@ -61,12 +100,29 @@ func Test_indexPut(t *testing.T) {
 	assert.Equal(t, 7, indexPut(255))
 	assert.Equal(t, 8, indexPut(256))
 
-	// 14.36 KB
-	size := 14701
-	idx1 := indexPut_readable(size)
-	idx2 := indexPut(size)
-	assert.Equal(t, idx1, idx2)
-	assert.Equal(t, idx12KB, idx1)
+	assert.Equal(t, idx4KB-1, indexPut(size4KB-1))
+	assert.Equal(t, idx4KB, indexPut(size4KB))
+	assert.Equal(t, idx4KB, indexPut(size4KB+1))
+
+	assert.Equal(t, idx8KB-1, indexPut(size8KB-1))
+	assert.Equal(t, idx8KB, indexPut(size8KB))
+	assert.Equal(t, idx8KB, indexPut(size8KB+1))
+
+	assert.Equal(t, idx12KB-1, indexPut(size12KB-1))
+	assert.Equal(t, idx12KB, indexPut(size12KB))
+	assert.Equal(t, idx12KB, indexPut(size12KB+1))
+
+	assert.Equal(t, idx16KB-1, indexPut(size16KB-1))
+	assert.Equal(t, idx16KB, indexPut(size16KB))
+	assert.Equal(t, idx16KB, indexPut(size16KB+1))
+
+	assert.Equal(t, idx16KB, indexPut(18<<10))       // 18KB
+	assert.Equal(t, idx16KB, indexPut((20<<10)-1))   // 20KB -1
+	assert.Equal(t, idx16KB+1, indexPut(20<<10))     // 20KB
+	assert.Equal(t, idx16KB+1, indexPut((20<<10)+1)) // 20KB + 1
+	assert.Equal(t, idx16KB+1, indexPut((24<<10)-1)) // 24KB - 1
+	assert.Equal(t, idx16KB+2, indexPut(24<<10))     // 24KB
+	assert.Equal(t, idx16KB+2, indexPut((24<<10)+1)) // 24KB + 1
 }
 
 func Test_indexGet_quarters(t *testing.T) {
