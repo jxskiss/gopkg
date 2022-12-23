@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
-	"sync"
 	"time"
 )
 
@@ -13,20 +12,9 @@ import (
 // It provides many useful methods to work with map[string]interface{}.
 type Map map[string]interface{}
 
-// SafeMap wraps a Map with a RWMutex to provide concurrent safety.
-type SafeMap struct {
-	sync.RWMutex
-	Map
-}
-
 // NewMap returns a new initialized Map.
 func NewMap() Map {
 	return make(Map)
-}
-
-// NewSafeMap returns a new initialized SafeMap.
-func NewSafeMap() *SafeMap {
-	return &SafeMap{Map: make(Map)}
 }
 
 // MarshalJSON implements the json.Marshaler interface.
@@ -102,26 +90,8 @@ func (p Map) GetBool(key string) bool {
 	return val
 }
 
-// GetInt returns the value associated with the key as an integer.
-func (p Map) GetInt(key string) int {
-	val, ok := p[key]
-	if ok {
-		switch v := val.(type) {
-		case int:
-			return v
-		case json.Number:
-			num, _ := v.Int64()
-			return int(num)
-		case string:
-			num, _ := strconv.ParseInt(v, 10, 64)
-			return int(num)
-		}
-	}
-	return 0
-}
-
-// GetInt64 returns the value associated with the key as an int64.
-func (p Map) GetInt64(key string) int64 {
+// GetInt returns the value associated with the key as an int64.
+func (p Map) GetInt(key string) int64 {
 	val, ok := p[key]
 	if ok {
 		switch v := val.(type) {
@@ -134,30 +104,19 @@ func (p Map) GetInt64(key string) int64 {
 			num, _ := strconv.ParseInt(v, 10, 64)
 			return num
 		}
-	}
-	return 0
-}
-
-// GetInt32 returns the value associated with the key as an int32.
-func (p Map) GetInt32(key string) int32 {
-	val, ok := p[key]
-	if ok {
-		switch v := val.(type) {
-		case int32:
-			return v
-		case json.Number:
-			num, _ := v.Int64()
-			return int32(num)
-		case string:
-			num, _ := strconv.ParseInt(v, 10, 64)
-			return int32(num)
+		typ := reflect.TypeOf(val)
+		switch typ.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			return reflect.ValueOf(val).Int()
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+			return int64(reflect.ValueOf(val).Uint())
 		}
 	}
 	return 0
 }
 
-// GetFloat64 returns the value associated with the key as a float64.
-func (p Map) GetFloat64(key string) float64 {
+// GetFloat returns the value associated with the key as a float64.
+func (p Map) GetFloat(key string) float64 {
 	val, ok := p[key]
 	if ok {
 		switch v := val.(type) {
@@ -169,6 +128,14 @@ func (p Map) GetFloat64(key string) float64 {
 		case string:
 			num, _ := strconv.ParseFloat(v, 64)
 			return num
+		}
+		typ := reflect.TypeOf(val)
+		switch typ.Kind() {
+		case reflect.Float32, reflect.Float64:
+			return reflect.ValueOf(val).Float()
+		}
+		if intVal := p.GetInt(key); intVal != 0 {
+			return float64(intVal)
 		}
 	}
 	return 0
@@ -182,8 +149,21 @@ func (p Map) GetTime(key string) time.Time {
 
 // GetDuration returns the value associated with the key as a duration.
 func (p Map) GetDuration(key string) time.Duration {
-	val, _ := p[key].(time.Duration)
-	return val
+	val, ok := p[key]
+	if ok {
+		switch v := val.(type) {
+		case time.Duration:
+			return v
+		case int64:
+			return time.Duration(v)
+		case string:
+			d, err := time.ParseDuration(v)
+			if err == nil {
+				return d
+			}
+		}
+	}
+	return 0
 }
 
 // GetInt64s returns the value associated with the key as a slice of int64.
@@ -264,4 +244,10 @@ func (p Map) Iterate(fn func(k string, v interface{}) int) {
 			return
 		}
 	}
+}
+
+// GetTyped returns the value associated with key as type T, if exists.
+func GetTyped[T any](m map[string]any, key string) T {
+	val, _ := m[key].(T)
+	return val
 }
