@@ -34,6 +34,11 @@ type Float interface {
 	~float32 | ~float64
 }
 
+// RealNumber is a constraint that permits any integer and floating-point type.
+type RealNumber interface {
+	Integer | Float
+}
+
 // Complex is a constraint that permits any complex numeric type.
 // If future releases of Go add new predeclared complex numeric types,
 // this constraint will be modified to include them.

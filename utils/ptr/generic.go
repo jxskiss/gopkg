@@ -1,21 +1,25 @@
 package ptr
 
-func Copy[T any](p *T) *T {
-	if p == nil {
-		return nil
-	}
-	x := *p
-	return &x
-}
-
-func Deref[T any](p *T) T {
+// Copy returns a shallow copy of the given pointer of any type.
+// If p is nil, it returns nil.
+func Copy[T any](p *T) (ret *T) {
 	if p != nil {
-		return *p
+		x := *p
+		ret = &x
 	}
-	var zero T
-	return zero
+	return
 }
 
+// Deref returns the value pointed by pointer p.
+// If p is nil, it returns zero value of type T.
+func Deref[T any](p *T) (ret T) {
+	if p != nil {
+		ret = *p
+	}
+	return
+}
+
+// Ptr returns copies v of any type and returns a pointer.
 func Ptr[T any](v T) *T {
 	return &v
 }
