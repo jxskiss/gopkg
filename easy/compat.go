@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/jxskiss/gopkg/v2/easy/ezhttp"
-	"github.com/jxskiss/gopkg/v2/easy/gemap"
+	"github.com/jxskiss/gopkg/v2/easy/ezmap"
 	"github.com/jxskiss/gopkg/v2/internal/constraints"
 )
 
@@ -228,31 +228,31 @@ func StringValues[M ~map[K]V, K comparable, V ~string](m M) (values []string) {
 	return
 }
 
-// -------- gemap alias names -------- //
+// -------- ezmap alias names -------- //
 
-// Map is an alias name of gemap.Map.
+// Map is an alias name of ezmap.Map.
 //
-// Deprecated: please use gemap.Map directly, this alias name will be
+// Deprecated: please use ezmap.Map directly, this alias name will be
 // removed in future releases.
-type Map = gemap.Map
+type Map = ezmap.Map
 
-// SafeMap is an alias name of gemap.SafeMap.
+// SafeMap is an alias name of ezmap.SafeMap.
 //
-// Deprecated: please use gemap.SafeMap directly, this alias name will
+// Deprecated: please use ezmap.SafeMap directly, this alias name will
 // be removed in future releases.
-type SafeMap = gemap.SafeMap
+type SafeMap = ezmap.SafeMap
 
-// NewMap is an alias name of gemap.NewMap.
+// NewMap is an alias name of ezmap.NewMap.
 //
-// Deprecated: please use gemap.NewMap directly, this alias name will
+// Deprecated: please use ezmap.NewMap directly, this alias name will
 // be removed in future releases.
-func NewMap() Map { return gemap.NewMap() }
+func NewMap() Map { return ezmap.NewMap() }
 
-// NewSafeMap is an alias name of gemap.NewSafeMap.
+// NewSafeMap is an alias name of ezmap.NewSafeMap.
 //
-// Deprecated: please use gemap.NewSafeMap directly, this alias name will
+// Deprecated: please use ezmap.NewSafeMap directly, this alias name will
 // be removed in future releases.
-func NewSafeMap() *SafeMap { return gemap.NewSafeMap() }
+func NewSafeMap() *SafeMap { return ezmap.NewSafeMap() }
 
 // -------- http utilities -------- //
 

@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/jxskiss/gopkg/v2/easy/gemap"
+	"github.com/jxskiss/gopkg/v2/easy/ezmap"
 )
 
 func TestTypes(t *testing.T) {
@@ -17,7 +17,7 @@ func TestTypes(t *testing.T) {
 		b sql.Scanner
 	}{
 		{
-			a: &JSON{Map: gemap.Map{"a": "1", "b": float64(2), "c": []interface{}{"a", "b", "c"}}},
+			a: &JSON{Map: ezmap.Map{"a": "1", "b": float64(2), "c": []interface{}{"a", "b", "c"}}},
 			b: &JSON{},
 		},
 	}
@@ -30,7 +30,7 @@ func TestTypes(t *testing.T) {
 		err = tc.b.Scan(buf)
 		assert.Nil(t, err)
 		assert.Equal(t, tc.a.(*JSON).GetString("a"), "1")
-		assert.Equal(t, tc.a.(*JSON).GetFloat64("b"), float64(2))
+		assert.Equal(t, tc.a.(*JSON).GetFloat("b"), float64(2))
 		assert.Equal(t, tc.a.(*JSON).MustGet("c"), tc.b.(*JSON).MustGet("c"))
 	}
 }
@@ -147,7 +147,7 @@ func TestJSONUnmarshal(t *testing.T) {
 	obj := JSON{}
 	err := obj.UnmarshalJSON(data)
 	assert.Nil(t, err)
-	assert.Equal(t, gemap.Map{"a": 123.0}, obj.Map)
+	assert.Equal(t, ezmap.Map{"a": 123.0}, obj.Map)
 
 	data = []byte("null")
 	obj = JSON{}

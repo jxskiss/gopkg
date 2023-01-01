@@ -1,4 +1,4 @@
-package gemap
+package ezmap
 
 import (
 	"encoding/json"

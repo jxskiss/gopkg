@@ -5,7 +5,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 
-	"github.com/jxskiss/gopkg/v2/easy/gemap"
+	"github.com/jxskiss/gopkg/v2/easy/ezmap"
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 	"github.com/jxskiss/gopkg/v2/perf/json"
 )
@@ -22,7 +22,7 @@ var (
 // JSON embeds a gemap.Map, thus all methods defined on gemap.Map is also
 // available from a JSON instance.
 type JSON struct {
-	gemap.Map
+	ezmap.Map
 }
 
 // Value implements driver.Valuer interface.
