@@ -1,7 +1,6 @@
 package json
 
 import (
-	"bytes"
 	stdjson "encoding/json"
 	"math"
 	"net"
@@ -127,30 +126,25 @@ func TestCompatibility(t *testing.T) {
 	stdOutput, err := stdjson.Marshal(testStringInterfaceMap)
 	assert.Nil(t, err)
 
-	thisOutput, err := Marshal(testStringInterfaceMap)
+	sonicOutput, err := sonicDefault.Marshal(testStringInterfaceMap)
 	assert.Nil(t, err)
-	assert.Equal(t, stdOutput, thisOutput)
+	assert.Equal(t, stdOutput, sonicOutput)
 
 	var got1 map[string]interface{}
 	var got2 map[string]interface{}
 	err = stdjson.Unmarshal(stdOutput, &got1)
 	assert.Nil(t, err)
-	err = Unmarshal(thisOutput, &got2)
+	err = Unmarshal(sonicOutput, &got2)
 	assert.Nil(t, err)
 	assert.Equal(t, got1, got2)
 }
 
 func TestCompatibility_NoHTMLEscape_Indent(t *testing.T) {
-	buf := bytes.NewBuffer(nil)
-	stdenc := stdjson.NewEncoder(buf)
-	stdenc.SetEscapeHTML(false)
-	stdenc.SetIndent("  ", "  ")
-	err := stdenc.Encode(testStringInterfaceMap)
-	assert.Nil(t, err)
-	stdOutput := buf.Bytes()
-
-	thisOutput, err := MarshalNoHTMLEscape(testStringInterfaceMap, "  ", "  ")
+	stdOutput, err := stdMarshalNoHTMLEscape(testStringInterfaceMap, "  ", "  ")
 	assert.Nil(t, err)
 
-	assert.Equal(t, stdOutput, thisOutput)
+	sonicOutput, err := sonicMarshalNoHTMLEscape(sonicDefault)(testStringInterfaceMap, "  ", "  ")
+	assert.Nil(t, err)
+
+	assert.Equal(t, string(stdOutput), string(sonicOutput))
 }

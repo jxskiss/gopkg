@@ -74,8 +74,8 @@ reasonable API compatibility and versioning.
    need to do synchronization when generate random sequence, which makes it very scalable.
 
 1. `perf/json` provides a drop-in replacement of `encoding/json` and extended features.
-   When compiled with tag `unsafejson`, it uses the `goccy/go-json` in underlying, which has
-   much better performance then `encoding/json` and many other third-party libraries.
+   By default, it uses [bytedance/sonic](https://github.com/bytedance/sonic) in underlying,
+   which has better performance than `encoding/json` and many other third-party libraries.
    Check json/README.md for detailed introduction.
 
 1. `perf/lru` is a high performance implementation of the LRU cache, it features pre-allocation,

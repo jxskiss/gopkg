@@ -27,9 +27,6 @@ jobs:
       - name: Build
         run: go build -v ./...
 
-      - name: Build with unsafejson
-        run: go build -tags "unsafejson" -v ./...
-
   test:
     name: Test
     runs-on: ${{ matrix.os }}
@@ -54,9 +51,6 @@ jobs:
 
       - name: Test
         run: go test -race -v ./...
-
-      - name: Test unsafejson
-        run: go test -race -tags "unsafejson" -v ./perf/json
 
   lint:
     name: Lint
