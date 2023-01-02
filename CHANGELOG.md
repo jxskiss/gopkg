@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 TBD.
 
+## [2.2.0] - 2023-01-02
+
+* Feat: rename package `easy/gemap` to `easy/ezmap`
+* Feat: new `GetTyped` api for `easy/ezmap`
+* Feat: ptr utils accept param of generic types
+* Feat: change `unsafejson` implementation to bytedance/sonic (#29)
+
 ## [2.1.1] - 2022-12-10
 
 * Feat: sync zap logfmt encoder from upstream
