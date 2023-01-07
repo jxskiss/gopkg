@@ -7,6 +7,14 @@ import (
 	jsoniter "github.com/json-iterator/go"
 )
 
+var jsoniterHumanFriendlyConfig = jsoniter.Config{
+	EscapeHTML:                    false,
+	MarshalFloatWith6Digits:       true,
+	SortMapKeys:                   true,
+	UseNumber:                     true,
+	ObjectFieldMustBeSimpleString: true,
+}.Froze()
+
 func jsoniterMarshalNoMapOrdering(v interface{}) ([]byte, error) {
 	return jsoniter.ConfigFastest.Marshal(v)
 }

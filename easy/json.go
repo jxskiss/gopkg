@@ -5,25 +5,15 @@ import (
 	"fmt"
 	"unicode/utf8"
 
-	jsoniter "github.com/json-iterator/go"
-
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 	"github.com/jxskiss/gopkg/v2/perf/json"
 )
-
-var jsoniterHumanFriendlyConfig = jsoniter.Config{
-	EscapeHTML:                    false,
-	MarshalFloatWith6Digits:       true,
-	SortMapKeys:                   true,
-	UseNumber:                     true,
-	ObjectFieldMustBeSimpleString: true,
-}.Froze()
 
 // JSON converts given object to a json string, it never returns error.
 // The marshalling method used here does not escape HTML characters,
 // and map keys are sorted, which helps human reading.
 func JSON(v interface{}) string {
-	b, err := jsoniterHumanFriendlyConfig.Marshal(v)
+	b, err := json.HumanFriendly.Marshal(v)
 	if err != nil {
 		return fmt.Sprintf("<error: %v>", err)
 	}
@@ -75,7 +65,7 @@ func prettyIndent(v interface{}, indent string) string {
 		}
 		return "<pretty: non-printable bytes>"
 	}
-	buf, err := jsoniterHumanFriendlyConfig.MarshalIndent(v, "", indent)
+	buf, err := json.HumanFriendly.MarshalIndent(v, "", indent)
 	if err != nil {
 		return fmt.Sprintf("<error: %v>", err)
 	}
