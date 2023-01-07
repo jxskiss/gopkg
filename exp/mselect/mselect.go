@@ -7,12 +7,31 @@ import (
 	"unsafe"
 )
 
+// ManySelect is a channel receiving task executor,
+// it runs many channel receiving operations simultaneously,
+// tasks can be added dynamically.
+//
+// It is not designed for traffic-heavy channels, instead
+// when there are many goroutines waiting on channels with very little
+// traffic, they do some simple things when a value is received
+// from a channel, you may use this to avoid running a lot of goroutines.
 type ManySelect interface {
+
+	// Submit submits a Task to the task executor.
+	// After a Task's channel being closed, the task will be
+	// automatically removed.
+	// Calling this is a no-op after Stop is called.
 	Submit(task *Task)
+
+	// Count returns the count of running select tasks.
+	// It always returns 0 after Stop is called.
 	Count() int
+
+	// Stop stops the task executor.
 	Stop()
 }
 
+// New creates a new ManySelect.
 func New() ManySelect {
 	msel := &manySelect{
 		tasks: make(chan interface{}, 1),
@@ -51,7 +70,11 @@ func (p *manySelect) Count() int {
 	if atomic.LoadInt32(&p.stopped) > 0 {
 		return 0
 	}
-	return int(atomic.LoadInt32(&p.count))
+	ret := int(atomic.LoadInt32(&p.count))
+	if ret < 0 {
+		ret = 0
+	}
+	return ret
 }
 
 func (p *manySelect) Stop() {

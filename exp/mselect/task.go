@@ -7,6 +7,7 @@ import (
 	"github.com/jxskiss/gopkg/v2/unsafe/reflectx"
 )
 
+// NewTask creates a new Task which can be submitted to ManySelect.
 func NewTask[T any](
 	ch <-chan T,
 	syncCallback func(v T, ok bool),
@@ -25,6 +26,8 @@ func NewTask[T any](
 	return task
 }
 
+// Task is a channel receiving task which can be submitted to ManySelect.
+// A zero Task is not ready to use, use NewTask to create a Task.
 type Task struct {
 	ch       reflect.Value
 	execFunc func(v unsafe.Pointer, ok bool)

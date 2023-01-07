@@ -1,6 +1,6 @@
 package mselect
 
-const bucketSize = 1024
+const bucketSize = 512
 
 var (
 	blockch   chan interface{}
