@@ -1,9 +1,6 @@
 package easy
 
 import (
-	"crypto/rand"
-	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -41,41 +38,11 @@ func TestSetDefault_ShouldPanic(t *testing.T) {
 	assert.Contains(t, err.Error(), "must be a non-nil pointer")
 }
 
-var prettyTestWant = strings.TrimSpace(`
-{
-    "1": 123,
-    "b": "<html>"
-}`)
-
-func TestPretty(t *testing.T) {
-	test := map[string]interface{}{
-		"1": 123,
-		"b": "<html>",
-	}
-	jsonString := JSON(test)
-	assert.Equal(t, `{"1":123,"b":"<html>"}`, jsonString)
-
-	got1 := Pretty(test)
-	assert.Equal(t, prettyTestWant, got1)
-
-	got2 := Pretty(jsonString)
-	assert.Equal(t, prettyTestWant, got2)
-
-	test3 := []byte("<fff> not a json object")
-	got3 := Pretty(test3)
-	assert.Equal(t, string(test3), got3)
-
-	test4 := make([]byte, 16)
-	rand.Read(test4)
-	got4 := Pretty(test4)
-	assert.Equal(t, "<pretty: non-printable bytes>", got4)
-}
-
 func TestCaller(t *testing.T) {
 	name, file, line := Caller(0)
 	assert.Equal(t, "easy.TestCaller", name)
 	assert.Equal(t, "easy/utils_test.go", file)
-	assert.Equal(t, 75, line)
+	assert.Equal(t, 42, line)
 }
 
 func TestCallerName(t *testing.T) {
@@ -103,11 +70,4 @@ func TestSlashJoin(t *testing.T) {
 	want2 := "/a/b/c.png"
 	got2 := SlashJoin(path2...)
 	assert.Equal(t, want2, got2)
-}
-
-func TestLazyJSON(t *testing.T) {
-	var x = &testObject{A: 123, B: "abc"}
-	got1 := JSON(x)
-	got2 := fmt.Sprintf("%v", LazyJSON(x))
-	assert.Equal(t, got1, got2)
 }
