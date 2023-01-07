@@ -9,16 +9,12 @@ import (
 
 var sonicDefault = sonic.ConfigStd
 
-func sonicMarshalNoMapOrdering(cfg sonic.API) func(v interface{}) ([]byte, error) {
-	opts := cfg.NewEncoder(nil).(*encoder.StreamEncoder).Opts
-	opts &= ^encoder.SortMapKeys
-	return func(v interface{}) ([]byte, error) {
-		return encoder.Encode(v, opts)
-	}
+func sonicMarshalNoMapOrdering(v interface{}) ([]byte, error) {
+	return sonic.ConfigFastest.Marshal(v)
 }
 
-func sonicMarshalNoHTMLEscape(cfg sonic.API) func(v interface{}, prefix, indent string) ([]byte, error) {
-	opts := cfg.NewEncoder(nil).(*encoder.StreamEncoder).Opts
+func sonicMarshalNoHTMLEscape(api sonic.API) func(v interface{}, prefix, indent string) ([]byte, error) {
+	opts := api.NewEncoder(nil).(*encoder.StreamEncoder).Opts
 	opts &= ^encoder.EscapeHTML
 	return func(v interface{}, prefix, indent string) ([]byte, error) {
 		if prefix == "" && indent == "" {

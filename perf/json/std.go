@@ -32,7 +32,7 @@ func stdMarshalNoHTMLEscape(v interface{}, prefix, indent string) ([]byte, error
 	}
 
 	// json.Encoder always appends '\n' after encoding,
-	// which is not same with json.Marshal()
+	// which is not same with json.Marshal.
 	out := buf.Bytes()
 	if len(out) > 0 && out[len(out)-1] == '\n' {
 		out = out[:len(out)-1]

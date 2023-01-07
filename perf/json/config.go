@@ -6,11 +6,13 @@ import (
 	"io"
 
 	"github.com/bytedance/sonic"
+	jsoniter "github.com/json-iterator/go"
 )
 
 type Options struct {
-	DisableSonic bool
-	SonicConfig  sonic.API
+	UseStdlib         bool
+	UseJSONIterConfig jsoniter.API
+	UseSonicConfig    sonic.API
 }
 
 // Config configures the behavior of this json package.
@@ -18,48 +20,22 @@ type Options struct {
 // It may be called at program startup, library code shall not call
 // this function.
 func Config(opts Options) {
-	if opts.DisableSonic {
-		_J.Marshal = std.Marshal
-		_J.MarshalIndent = std.MarshalIndent
-		_J.Unmarshal = std.Unmarshal
-		_J.Valid = std.Valid
-
-		_J.MarshalToString = stdMarshalToString
-		_J.UnmarshalFromString = stdUnmarshalFromString
-
-		_J.Compact = std.Compact
-		_J.HTMLEscape = std.HTMLEscape
-		_J.Indent = std.Indent
-
-		_J.MarshalNoMapOrdering = std.Marshal
-		_J.MarshalNoHTMLEscape = stdMarshalNoHTMLEscape
-
-		_J.NewEncoder = stdNewEncoder
-		_J.NewDecoder = stdNewDecoder
-
-	} else if opts.SonicConfig != nil {
-		cfg := opts.SonicConfig
-		_J.Marshal = cfg.Marshal
-		_J.MarshalIndent = cfg.MarshalIndent
-		_J.Unmarshal = cfg.Unmarshal
-		_J.Valid = cfg.Valid
-
-		_J.MarshalToString = cfg.MarshalToString
-		_J.UnmarshalFromString = cfg.UnmarshalFromString
-
-		_J.Compact = std.Compact
-		_J.HTMLEscape = std.HTMLEscape
-		_J.Indent = std.Indent
-
-		_J.MarshalNoMapOrdering = sonicMarshalNoMapOrdering(cfg)
-		_J.MarshalNoHTMLEscape = sonicMarshalNoHTMLEscape(cfg)
-
-		_J.NewEncoder = sonicNewEncoder(cfg)
-		_J.NewDecoder = sonicNewDecoder(cfg)
+	if opts.UseStdlib {
+		_J.useStdlib()
+	} else if opts.UseJSONIterConfig != nil {
+		_J.useJSONIterConfig(opts.UseJSONIterConfig)
+	} else if opts.UseSonicConfig != nil {
+		_J.useSonicConfig(opts.UseSonicConfig)
 	}
 }
 
-var _J = struct {
+var _J apiProxy
+
+func init() {
+	_J.useSonicConfig(sonicDefault)
+}
+
+type apiProxy struct {
 	Marshal       func(v interface{}) ([]byte, error)
 	MarshalIndent func(v interface{}, prefix, indent string) ([]byte, error)
 	Unmarshal     func(data []byte, v interface{}) error
@@ -77,22 +53,70 @@ var _J = struct {
 
 	NewEncoder func(w io.Writer) underlyingEncoder
 	NewDecoder func(r io.Reader) underlyingDecoder
-}{
-	Marshal:       sonicDefault.Marshal,
-	MarshalIndent: sonicDefault.MarshalIndent,
-	Unmarshal:     sonicDefault.Unmarshal,
-	Valid:         sonicDefault.Valid,
+}
 
-	MarshalToString:     sonicDefault.MarshalToString,
-	UnmarshalFromString: sonicDefault.UnmarshalFromString,
+func (p *apiProxy) useStdlib() {
+	*p = apiProxy{
+		Marshal:       std.Marshal,
+		MarshalIndent: std.MarshalIndent,
+		Unmarshal:     std.Unmarshal,
+		Valid:         std.Valid,
 
-	Compact:    std.Compact,
-	HTMLEscape: std.HTMLEscape,
-	Indent:     std.Indent,
+		MarshalToString:     stdMarshalToString,
+		UnmarshalFromString: stdUnmarshalFromString,
 
-	MarshalNoMapOrdering: sonicMarshalNoMapOrdering(sonicDefault),
-	MarshalNoHTMLEscape:  sonicMarshalNoHTMLEscape(sonicDefault),
+		Compact:    std.Compact,
+		HTMLEscape: std.HTMLEscape,
+		Indent:     std.Indent,
 
-	NewEncoder: sonicNewEncoder(sonicDefault),
-	NewDecoder: sonicNewDecoder(sonicDefault),
+		MarshalNoMapOrdering: std.Marshal,
+		MarshalNoHTMLEscape:  stdMarshalNoHTMLEscape,
+
+		NewEncoder: stdNewEncoder,
+		NewDecoder: stdNewDecoder,
+	}
+}
+
+func (p *apiProxy) useJSONIterConfig(api jsoniter.API) {
+	*p = apiProxy{
+		Marshal:       api.Marshal,
+		MarshalIndent: api.MarshalIndent,
+		Unmarshal:     api.Unmarshal,
+		Valid:         api.Valid,
+
+		MarshalToString:     api.MarshalToString,
+		UnmarshalFromString: api.UnmarshalFromString,
+
+		Compact:    std.Compact,
+		HTMLEscape: std.HTMLEscape,
+		Indent:     std.Indent,
+
+		MarshalNoMapOrdering: jsoniterMarshalNoMapOrdering,
+		MarshalNoHTMLEscape:  jsoniterMarshalNoHTMLEscape(api),
+
+		NewEncoder: jsoniterNewEncoder(api),
+		NewDecoder: jsoniterNewDecoder(api),
+	}
+}
+
+func (p *apiProxy) useSonicConfig(api sonic.API) {
+	*p = apiProxy{
+		Marshal:       api.Marshal,
+		MarshalIndent: api.MarshalIndent,
+		Unmarshal:     api.Unmarshal,
+		Valid:         api.Valid,
+
+		MarshalToString:     api.MarshalToString,
+		UnmarshalFromString: api.UnmarshalFromString,
+
+		Compact:    std.Compact,
+		HTMLEscape: std.HTMLEscape,
+		Indent:     std.Indent,
+
+		MarshalNoMapOrdering: sonicMarshalNoMapOrdering,
+		MarshalNoHTMLEscape:  sonicMarshalNoHTMLEscape(api),
+
+		NewEncoder: sonicNewEncoder(api),
+		NewDecoder: sonicNewDecoder(api),
+	}
 }

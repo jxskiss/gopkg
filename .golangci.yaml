@@ -22,7 +22,7 @@ linters:
     - exportloopref
     - gci
     - gofmt
-    - gofumpt
+    # - gofumpt
     - goimports
     - gomoddirectives
     - goprintffuncname

@@ -6,9 +6,14 @@ This package provides a wrapper implementation of `encoding/json`.
 
 By default, it uses [bytedance/sonic] `ConfigStd` in underlying,
 but the behavior can be configured, e.g.
-disable sonic (using the standard library) or using a custom sonic config.
+using the standard library or using a custom sonic config,
+or switch to a [jsoniter] config.
+
+When you are encoding data using `interface{}` as map keys (e.g. `map[interface{}]interface{}`),
+both the standard library and sonic will fail, you should use jsoniter.
 
 [bytedance/sonic]: https://github.com/bytedance/sonic
+[jsoniter]: https://github.com/json-iterator/go
 
 ## Performance
 
@@ -16,11 +21,11 @@ By default, this package uses sonic's `CofigStd` API.
 It gives much better performance than `encoding/json` and good compatibility with it.
 
 You may use the method `Config` to customize the behavior of this library.
-In case that `sonic` behaves in some unexpected way, you may switch to
-the standard library to do a quick fix.
+In case that sonic behaves in some unexpected way, you may switch to
+jsoniter or the standard library to do a quick fix.
 
 For marshalling map data where key ordering does not matter,
-you may use the shortcut function `MarshalMapUnordered`,
+you may use the shortcut function `MarshalNoMapOrdering`,
 which disables map key ordering in case that sonic is used.
 (Note that this is only available with sonic, not the standard library implementation.)
 
