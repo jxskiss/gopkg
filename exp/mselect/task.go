@@ -27,7 +27,7 @@ func NewTask[T any](
 
 type Task struct {
 	ch       reflect.Value
-	execFunc func(v interface{}, ok bool)
+	execFunc func(v unsafe.Pointer, ok bool)
 	newFunc  func() unsafe.Pointer
 	convFunc func(p unsafe.Pointer) interface{}
 }
@@ -43,8 +43,8 @@ func (t *Task) newRuntimeSelect() runtimeSelect {
 	return rsel
 }
 
-func (t *Task) getAndResetRecvValue(rsel *runtimeSelect) interface{} {
-	recv := t.convFunc(rsel.Val)
+func (t *Task) getAndResetRecvValue(rsel *runtimeSelect) unsafe.Pointer {
+	recv := rsel.Val
 	rsel.Val = t.newFunc()
 	return recv
 }
@@ -52,15 +52,12 @@ func (t *Task) getAndResetRecvValue(rsel *runtimeSelect) interface{} {
 func buildTaskFunc[T any](
 	syncCallback func(v T, ok bool),
 	asyncCallback func(v T, ok bool),
-) func(v interface{}, ok bool) {
+) func(v unsafe.Pointer, ok bool) {
 	if syncCallback == nil && asyncCallback == nil {
 		return nil
 	}
-	return func(v interface{}, ok bool) {
-		var tVal T
-		if v != nil {
-			tVal = v.(T)
-		}
+	return func(v unsafe.Pointer, ok bool) {
+		tVal := *(*T)(v)
 		if syncCallback != nil {
 			syncCallback(tVal, ok)
 		}

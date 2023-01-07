@@ -44,7 +44,8 @@ func (b *taskBucket) loop() {
 			}
 
 			// Add a new task.
-			b.addTask(recv.(*Task))
+			newTask := task.convFunc(recv).(*Task)
+			b.addTask(newTask)
 
 			// If the bucket is full, don't accept new tasks.
 			if len(b.cases) == bucketSize {
