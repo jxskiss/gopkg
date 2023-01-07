@@ -11,10 +11,11 @@ import (
 // it runs many channel receiving operations simultaneously,
 // tasks can be added dynamically.
 //
-// It is not designed for traffic-heavy channels, instead
-// when there are many goroutines waiting on channels with very little
-// traffic, they do some simple things when a value is received
-// from a channel, you may use this to avoid running a lot of goroutines.
+// It is not designed for traffic-heavy channels,
+// instead when there are many long-living goroutines waiting on
+// channels with very little traffic,
+// they do some simple things when a value is received from a channel,
+// you may use this to avoid running a lot of goroutines.
 type ManySelect interface {
 
 	// Submit submits a Task to the task executor.
