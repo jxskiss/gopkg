@@ -27,3 +27,11 @@ func TestPtr(t *testing.T) {
 	y := Ptr(x)
 	assert.Equal(t, x, Deref(y))
 }
+
+func TestNotZero(t *testing.T) {
+	ret1 := NotZero(0)
+	assert.Nil(t, ret1)
+
+	ret2 := NotZero(1234)
+	assert.NotNil(t, ret2)
+}

@@ -37,14 +37,6 @@ func SetDefault(dst interface{}, value ...interface{}) {
 	}
 }
 
-// SetNonZeroValue sets to dst only when val is not zero value of it's type.
-func SetNonZeroValue[T comparable](dst **T, val T) {
-	var zero T
-	if val != zero {
-		*dst = &val
-	}
-}
-
 // Caller returns function name, filename, and the line number of the caller.
 // The argument skip is the number of stack frames to ascend, with 0
 // identifying the caller of Caller.

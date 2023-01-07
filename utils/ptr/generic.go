@@ -23,3 +23,13 @@ func Deref[T any](p *T) (ret T) {
 func Ptr[T any](v T) *T {
 	return &v
 }
+
+// NotZero returns a pointer to v if v is not zero value of it's type,
+// else it returns nil.
+func NotZero[T comparable](v T) (ret *T) {
+	var zero T
+	if v != zero {
+		ret = &v
+	}
+	return
+}
