@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 TBD.
 
+## [2.3.0] - 2023-01-07
+
+* Feat: new package `exp/mselect` to dynamically waiting many channels
+* Feat: `easy.JSON` supports encoding map with `interface{}` as key type
+* Feat: `perf/json` add new config option to use jsoniter as underlying implementation
+
 ## [2.2.0] - 2023-01-02
 
 * Feat: rename package `easy/gemap` to `easy/ezmap`
