@@ -17,7 +17,6 @@ import (
 // they do some simple things when a value is received from a channel,
 // you may use this to avoid running a lot of goroutines.
 type ManySelect interface {
-
 	// Submit submits a Task to the task executor.
 	// After a Task's channel being closed, the task will be
 	// automatically removed.

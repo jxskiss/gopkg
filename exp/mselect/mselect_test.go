@@ -84,8 +84,8 @@ func TestManySelect_NormalCase(t *testing.T) {
 	assert.Equal(t, 7, msel.Count())
 
 	time.Sleep(100 * time.Millisecond)
-	//assert.Len(t, msel.buckets[0].cases, 8)
-	//assert.Len(t, msel.buckets[0].tasks, 8)
+	// assert.Len(t, msel.buckets[0].cases, 8)
+	// assert.Len(t, msel.buckets[0].tasks, 8)
 
 	ch1 <- "ch1 value"
 	ch2 <- int64(23456)
@@ -127,8 +127,8 @@ func TestManySelect_NormalCase(t *testing.T) {
 	assert.True(t, copyResult.got7.(*struct{}) == nil)
 
 	assert.Equal(t, 6, msel.Count())
-	//assert.Len(t, msel.buckets[0].cases, 7)
-	//assert.Len(t, msel.buckets[0].tasks, 7)
+	// assert.Len(t, msel.buckets[0].cases, 7)
+	// assert.Len(t, msel.buckets[0].tasks, 7)
 }
 
 type stringFunc func() string
@@ -138,13 +138,12 @@ func (f stringFunc) String() string {
 }
 
 func TestManySelect_ManyChannels(t *testing.T) {
-
 	N := 5000
 
 	mu := sync.Mutex{}
 	result := make([][]int, N)
 
-	var makeTask = func(i int) *Task {
+	makeTask := func(i int) *Task {
 		ch := make(chan int)
 		task := NewTask(ch, func(v int, ok bool) {
 			mu.Lock()
@@ -168,7 +167,7 @@ func TestManySelect_ManyChannels(t *testing.T) {
 	}
 	assert.Equal(t, N, msel.Count())
 
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(time.Second)
 
 	mu.Lock()
 	copyResult := make([][]int, N)
