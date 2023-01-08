@@ -7,6 +7,8 @@ import (
 )
 
 var (
+	newlineBytes = []byte{'\n'}
+
 	rspFailedMarshalJSON = []byte("Failed to marshal JSON data.")
 )
 
@@ -24,7 +26,7 @@ func JSON(w http.ResponseWriter, statusCode int, data interface{}) {
 	w.Write(jsonBuf)
 }
 
-// JSONHumanFriendly serializes the given data as pretty JSON (indented + endlines)
+// JSONHumanFriendly serializes the given data as pretty JSON (indented + newlines)
 // into the response body.
 // It also sets the Content-Type as "application/json".
 //
@@ -38,7 +40,14 @@ func JSONHumanFriendly(w http.ResponseWriter, statusCode int, data interface{}) 
 		w.Write(rspFailedMarshalJSON)
 		return
 	}
+	addNewline := false
+	if len(jsonBuf) > 0 && jsonBuf[len(jsonBuf)-1] != '\n' {
+		addNewline = true
+	}
 	w.Header().Set(hdrContentTypeKey, contentTypeJSON)
 	w.WriteHeader(statusCode)
 	w.Write(jsonBuf)
+	if addNewline {
+		w.Write(newlineBytes)
+	}
 }
