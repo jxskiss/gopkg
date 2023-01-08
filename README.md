@@ -50,11 +50,14 @@ reasonable API compatibility and versioning.
 
 1. `easy/ezhttp` contains some utilities to work with HTTP requests.
 
-1. `easy/gemap` contains some utilities to manipulate map data structure.
+1. `easy/ezmap` contains some utilities to manipulate map data structure.
 
 1. `encrypt` contains some encryption utilities.
 
 1. `exp/kvutil` contains utilities to work with key-value cache.
+
+1. `exp/mselect` can run many channel receiving operations simultaneously,
+   tasks can be added dynamically.
 
 1. `exp/singleflight` contains an async cache which can be used to fetch and update the
    latest data periodically and supports expiring a key if it's unused for a period.
