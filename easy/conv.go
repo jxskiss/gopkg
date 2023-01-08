@@ -53,9 +53,9 @@ func ParseInts[T constraints.Integer](slice []string, base int) []T {
 	return out
 }
 
-// ToHashSet converts the given slice to a hash set,
+// ToBoolMap converts the given slice to a hash set,
 // using elements from the slice as keys and true as values.
-func ToHashSet[S ~[]E, E comparable](slice S) map[E]bool {
+func ToBoolMap[S ~[]E, E comparable](slice S) map[E]bool {
 	if len(slice) == 0 {
 		return nil
 	}

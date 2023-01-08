@@ -15,10 +15,10 @@ func TestConvInts(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestToHashSet(t *testing.T) {
+func TestToBoolMap(t *testing.T) {
 	slice := []int64{1, 2, 2, 3}
 	want := map[int64]bool{1: true, 2: true, 3: true}
-	got := ToHashSet(slice)
+	got := ToBoolMap(slice)
 	assert.Equal(t, want, got)
 }
 

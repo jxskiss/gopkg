@@ -7,8 +7,11 @@ import (
 )
 
 // All iterates the given slices, it returns true if predicate(elem)
-// is true for all elements in slices, or if slices are empty,
+// is true for all elements in slices, or if slices have no elements,
 // else it returns false.
+//
+// Deprecated: this function is not common enough to be abstracted
+// in this way, it will be removed in a future release.
 func All[S ~[]E, E any](predicate func(elem E) bool, slices ...S) bool {
 	for _, s := range slices {
 		for _, elem := range s {
@@ -23,6 +26,9 @@ func All[S ~[]E, E any](predicate func(elem E) bool, slices ...S) bool {
 // Any iterates the given slices, it returns true if predicate(elem)
 // is true for any element in slices, else it returns false.
 // If slices are empty, it returns false.
+//
+// Deprecated: this function is not common enough to be abstracted
+// in this way, it will be removed in a future release.
 func Any[S ~[]E, E any](predicate func(E) bool, slices ...S) bool {
 	for _, s := range slices {
 		for _, elem := range s {
@@ -141,6 +147,17 @@ func Index[S ~[]E, E comparable](s S, v E) int {
 func IndexFunc[E any](slice []E, predicate func(i int) bool) int {
 	for i := range slice {
 		if predicate(i) {
+			return i
+		}
+	}
+	return -1
+}
+
+// LastIndex returns the index of the last instance of v in s,
+// or -1 if v is not present in s.
+func LastIndex[S ~[]E, E comparable](s S, v E) int {
+	for i := len(s) - 1; i >= 0; i-- {
+		if s[i] == v {
 			return i
 		}
 	}
