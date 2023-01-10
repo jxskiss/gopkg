@@ -34,10 +34,11 @@ func Config(opts Options) {
 // Also, this config can encode data with `interface{}` as map keys,
 // in contrast, the standard library fails in this case.
 var HumanFriendly struct {
-	Marshal         func(v interface{}) ([]byte, error)
-	MarshalIndent   func(v interface{}, prefix, indent string) ([]byte, error)
-	MarshalToString func(v interface{}) (string, error)
-	NewEncoder      func(w io.Writer) *Encoder
+	Marshal             func(v interface{}) ([]byte, error)
+	MarshalToString     func(v interface{}) (string, error)
+	MarshalIndent       func(v interface{}, prefix, indent string) ([]byte, error)
+	MarshalIndentString func(v interface{}, prefix, indent string) (string, error)
+	NewEncoder          func(w io.Writer) *Encoder
 }
 
 var _J apiProxy
@@ -47,11 +48,12 @@ func init() {
 	// performance and compatibility with standard library.
 	_J.useSonicConfig(sonicDefault)
 
-	HumanFriendly.Marshal = jsoniterHumanFriendlyConfig.Marshal
-	HumanFriendly.MarshalIndent = jsoniterHumanFriendlyConfig.MarshalIndent
-	HumanFriendly.MarshalToString = jsoniterHumanFriendlyConfig.MarshalToString
+	HumanFriendly.Marshal = hFriendlyMarshal
+	HumanFriendly.MarshalToString = hFriendlyMarshalToString
+	HumanFriendly.MarshalIndent = hFriendlyMarshalIndent
+	HumanFriendly.MarshalIndentString = hFriendlyMarshalIndentString
 	HumanFriendly.NewEncoder = func(w io.Writer) *Encoder {
-		return &Encoder{jsoniterHumanFriendlyConfig.NewEncoder(w)}
+		return &Encoder{&hFriendlyEncoder{w: w}}
 	}
 }
 
