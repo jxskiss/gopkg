@@ -52,6 +52,9 @@ const (
 // Config provides options to configure the behavior of Loader.
 type Config struct {
 
+	// LogFunc specifies a custom log function to use instead of [log.Printf].
+	LogFunc func(format string, v ...any)
+
 	// Verbose tells the loader to output verbose logging messages.
 	Verbose bool
 
@@ -147,13 +150,16 @@ func (p *Loader) load(dst interface{}, files ...string) error {
 	return nil
 }
 
+func (p *Loader) getLogFunc() func(format string, v ...any) {
+	if p.LogFunc != nil {
+		return p.LogFunc
+	}
+	return log.Printf
+}
+
 func (p *Loader) loadFiles(config interface{}, files ...string) error {
 	for i := len(files) - 1; i >= 0; i-- {
 		file := files[i]
-		if p.Verbose {
-			log.Printf("loading configuration from file %s", file)
-		}
-
 		err := p.processFile(config, file)
 		if err != nil {
 			return err
@@ -167,6 +173,7 @@ func (p *Loader) processFile(config interface{}, file string) error {
 		return fmt.Errorf("invalid configuration file: %s", file)
 	}
 
+	p.getLogFunc()(fmt.Sprintf("loading configuration from file: %v", file))
 	var unmarshalFunc func(data []byte, v interface{}, disallowUnknownFields bool) error
 	extname := path.Ext(file)
 	switch strings.ToLower(extname) {
@@ -185,7 +192,7 @@ func (p *Loader) processFile(config interface{}, file string) error {
 	}
 	err = unmarshalFunc(data, config, p.DisallowUnknownFields)
 	if err != nil {
-		return fmt.Errorf("cannot unmarshal file %s: %v", file, err)
+		return fmt.Errorf("cannot unmarshal file %s: %w", file, err)
 	}
 	return nil
 }
@@ -232,7 +239,7 @@ func (p *Loader) processDefaults(config interface{}) error {
 		defaultValue := field.Tag.Get(DefaultValueTag)
 		if defaultValue != "" {
 			if p.Verbose {
-				log.Printf("processing default value for field %s.%s", configTyp.Name(), field.Name)
+				p.getLogFunc()(fmt.Sprintf("processing default value for field %s.%s", configTyp.Name(), field.Name))
 			}
 
 			isBlank := reflect.DeepEqual(fieldVal.Interface(), reflect.Zero(field.Type).Interface())
@@ -289,7 +296,7 @@ func (p *Loader) processFlags(config interface{}) error {
 		flagName := field.Tag.Get(FlagTag)
 		if flagName != "" && flagName != "-" {
 			if p.Verbose {
-				log.Printf("processing flag for field %s.%s", configTyp.Name(), field.Name)
+				p.getLogFunc()(fmt.Sprintf("processing flag for field %s.%s", configTyp.Name(), field.Name))
 			}
 
 			if flagVal, isSet := lookupFlag(fs, flagName); flagVal != nil {
@@ -354,7 +361,7 @@ func (p *Loader) processEnv(config interface{}, prefix string) error {
 		}
 		if len(envNames) > 0 {
 			if p.Verbose {
-				log.Printf("loading env for field %s.%s from %v", configTyp.Name(), field.Name, envNames)
+				p.getLogFunc()(fmt.Sprintf("loading env for field %s.%s from %v", configTyp.Name(), field.Name, envNames))
 			}
 
 			for _, envName := range envNames {
@@ -419,7 +426,7 @@ func (p *Loader) processCustom(config interface{}) error {
 		customTag := field.Tag.Get(CustomTag)
 		if customTag != "" && customTag != "-" {
 			if p.Verbose {
-				log.Printf("processing custom loader for field %s.%s", configTyp.Name(), field.Name)
+				p.getLogFunc()(fmt.Sprintf("processing custom loader for field %s.%s", configTyp.Name(), field.Name))
 			}
 
 			tmp, err := p.CustomLoader(fieldVal.Type(), customTag)
