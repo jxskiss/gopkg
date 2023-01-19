@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -61,6 +62,8 @@ type TestConfig struct {
 	DefaultMQPtr *MQConfig `json:"default_mq_ptr" toml:"default_mq_ptr" yaml:"default_mq_ptr"`
 
 	MQList []*MQConfig `json:"mq_list" toml:"mq_list" yaml:"mq_list"`
+
+	SomeDuration time.Duration `json:"some_duration" yaml:"some_duration" default:"2s"`
 }
 
 func TestLoad_SingleFile_JSON(t *testing.T) {
@@ -223,6 +226,7 @@ func testLoad_DefaultValues(t *testing.T, files ...string) {
 	assert.Equal(t, "cluster_2", cfg.MQList[2].Cluster)
 	assert.Equal(t, "topic_2", cfg.MQList[2].Topic)
 	assert.Equal(t, "group_2", cfg.MQList[2].Group)
+	assert.Equal(t, 2*time.Second, cfg.SomeDuration)
 }
 
 func TestLoad_CommandLineFlag_JSON(t *testing.T) {

@@ -32,6 +32,7 @@ import (
 	"path"
 	"reflect"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/BurntSushi/toml"
@@ -519,6 +520,12 @@ func assignFieldValue(dst reflect.Value, value interface{}) error {
 		val, err = cast.ToStringMapStringSliceE(value)
 	case map[string]interface{}:
 		val, err = cast.ToStringMapE(value)
+	case time.Duration:
+		if str, ok := value.(string); ok {
+			val, err = time.ParseDuration(str)
+		} else {
+			err = errors.New("value for time.Duration must be a string")
+		}
 	default:
 		err = errors.New("unsupported type")
 	}
