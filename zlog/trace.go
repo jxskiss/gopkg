@@ -18,7 +18,7 @@ var disableTrace = false
 func Trace(msg string, fields ...zap.Field) {
 	if !disableTrace {
 		msg = TracePrefix + msg
-		if ce := _l().Check(TraceLevel.toZapLevel(), msg); ce != nil {
+		if ce := _l().Check(TraceLevel.ToZapLevel(), msg); ce != nil {
 			ce.Write(fields...)
 		}
 	}
@@ -33,7 +33,7 @@ func Tracef(format string, args ...interface{}) {
 	if !disableTrace {
 		msg := formatMessage(format, args)
 		msg = TracePrefix + msg
-		if ce := _l().Check(TraceLevel.toZapLevel(), msg); ce != nil {
+		if ce := _l().Check(TraceLevel.ToZapLevel(), msg); ce != nil {
 			ce.Write()
 		}
 	}
@@ -97,7 +97,7 @@ func _slowPathTrace(skip int, args ...interface{}) {
 func _slowPathTrace1(skip int, a0 interface{}, args []interface{}) {
 	logger, msg, fields := parseLoggerAndParams(skip, a0, args)
 	msg = addCallerPrefix(skip, TracePrefix, msg)
-	if ce := logger.Check(TraceLevel.toZapLevel(), msg); ce != nil {
+	if ce := logger.Check(TraceLevel.ToZapLevel(), msg); ce != nil {
 		ce.Write(fields...)
 	}
 }

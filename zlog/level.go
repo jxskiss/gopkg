@@ -137,7 +137,9 @@ var mapZapLevels = [...]zapcore.Level{
 	zap.FatalLevel,
 }
 
-func (l Level) toZapLevel() zapcore.Level {
+// ToZapLevel converts Level to zapcore.Level, which can be used to pre-check
+// whether a specific level is enabled.
+func (l Level) ToZapLevel() zapcore.Level {
 	if l < 0 {
 		return zapcore.Level(l)
 	}
@@ -199,7 +201,7 @@ func (l Level) CapitalString() string {
 }
 
 func (l Level) Enabled(lvl zapcore.Level) bool {
-	return lvl >= l.toZapLevel()
+	return lvl >= l.ToZapLevel()
 }
 
 func (l *Level) unmarshalText(text []byte) bool {
@@ -246,7 +248,7 @@ func (l atomicLevel) Level() Level { return Level(l.lvl.Load()) }
 
 func (l *atomicLevel) SetLevel(lvl Level) {
 	l.lvl.Store(int32(lvl))
-	l.zl.SetLevel(lvl.toZapLevel())
+	l.zl.SetLevel(lvl.ToZapLevel())
 }
 
 func (l *atomicLevel) UnmarshalText(text []byte) error {

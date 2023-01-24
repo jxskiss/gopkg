@@ -59,7 +59,7 @@ func (c *dynamicLevelCore) Check(entry zapcore.Entry, ce *zapcore.CheckedEntry) 
 	if len(entry.Message) >= levelPrefixMinLen && entry.Message[0] == '[' {
 		if level, detected := detectLevel(entry.Message); detected {
 			entryLevel = level
-			entry.Level = entryLevel.toZapLevel()
+			entry.Level = entryLevel.ToZapLevel()
 		}
 	}
 
