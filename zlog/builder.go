@@ -24,9 +24,10 @@ func getCtxBuilder(ctx context.Context) *Builder {
 // returns that Builder.
 // Otherwise, if the ctx is not nil and GlobalConfig.CtxFunc is configured
 // globally, it calls the CtxFunc to get CtxResult from ctx.
-func B(ctx context.Context) *Builder {
+func B(optionalCtx ...context.Context) *Builder {
 	builder := baseBuilder
-	if ctx != nil {
+	if len(optionalCtx) > 0 && optionalCtx[0] != nil {
+		ctx := optionalCtx[0]
 		if ctxBuilder := getCtxBuilder(ctx); ctxBuilder != nil {
 			builder = ctxBuilder
 		} else if ctxFunc := gP.cfg.CtxFunc; ctxFunc != nil {

@@ -21,6 +21,9 @@ func TestB(t *testing.T) {
 	}
 	defer testHelperReplaceGlobalsToStdout(demoCtxFunc)()
 
+	builder0 := B()
+	assert.Equal(t, baseBuilder, builder0)
+
 	builder1 := B(context.Background())
 	assert.Equal(t, baseBuilder, builder1)
 
