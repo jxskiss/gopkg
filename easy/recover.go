@@ -3,9 +3,9 @@ package easy
 import (
 	"context"
 	"fmt"
-	"runtime"
 	"runtime/debug"
-	"strings"
+
+	"github.com/jxskiss/gopkg/v2/internal"
 )
 
 // PanicError represents an captured panic error.
@@ -39,7 +39,7 @@ func Safe(f func()) func() error {
 			if e == nil {
 				return
 			}
-			panicLoc := IdentifyPanic()
+			panicLoc := internal.IdentifyPanic(0)
 			stack := debug.Stack()
 			err = &PanicError{
 				Exception:  e,
@@ -64,7 +64,7 @@ func Safe1(f func() error) func() error {
 			if e == nil {
 				return
 			}
-			panicLoc := IdentifyPanic()
+			panicLoc := internal.IdentifyPanic(0)
 			stack := debug.Stack()
 			err = &PanicError{
 				Exception:  e,
@@ -90,7 +90,7 @@ func Recover(f func(ctx context.Context, panicErr *PanicError)) func(ctx context
 		if e == nil {
 			return
 		}
-		panicLoc := IdentifyPanic()
+		panicLoc := internal.IdentifyPanic(0)
 		stack := debug.Stack()
 		pErr := &PanicError{
 			Exception:  e,
@@ -102,40 +102,17 @@ func Recover(f func(ctx context.Context, panicErr *PanicError)) func(ctx context
 }
 
 // IdentifyPanic reports the panic location when a panic happens.
+// It should be called directly after `recover()`, not wrapped by
+// another function, else it returns incorrect location.
+// Use IdentifyPanicSkip for wrapping.
 func IdentifyPanic() string {
-	var name, file string
-	var line int
-	var pc [16]uintptr
+	return internal.IdentifyPanic(1)
+}
 
-	// Don't use runtime.FuncForPC here, it may give incorrect line number.
-	//
-	// From runtime.Callers' doc:
-	//
-	// To translate these PCs into symbolic information such as function
-	// names and line numbers, use CallersFrames. CallersFrames accounts
-	// for inlined functions and adjusts the return program counters into
-	// call program counters. Iterating over the returned slice of PCs
-	// directly is discouraged, as is using FuncForPC on any of the
-	// returned PCs, since these cannot account for inlining or return
-	// program counter adjustment.
-
-	n := runtime.Callers(3, pc[:])
-	frames := runtime.CallersFrames(pc[:n])
-	for {
-		f, more := frames.Next()
-		name, file, line = f.Function, f.File, f.Line
-		if !more || !strings.HasPrefix(name, "runtime.") {
-			break
-		}
-	}
-	switch {
-	case name != "":
-		return fmt.Sprintf("%v:%v", name, line)
-	case file != "":
-		return fmt.Sprintf("%v:%v", file, line)
-	}
-
-	return fmt.Sprintf("pc:%x", pc)
+// IdentifyPanicSkip is similar to IdentifyPanic, except that
+// it accepts a param skip for wrapping usecase.
+func IdentifyPanicSkip(skip int) string {
+	return internal.IdentifyPanic(skip + 1)
 }
 
 // EnsureError ensures the given value (should be non-nil) is an error.
