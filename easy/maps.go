@@ -151,7 +151,7 @@ func SplitMap[M ~map[K]V, K comparable, V any](m M, batchSize int) []M {
 	}
 	i := 0
 	for k, v := range m {
-		out[i%batchSize][k] = v
+		out[i/batchSize][k] = v
 		i++
 	}
 	return out

@@ -45,13 +45,14 @@ func TestSplitMap(t *testing.T) {
 	assert.Len(t, got2, 1)
 	assert.Equal(t, m2, got2[0])
 
-	m3 := map[string]bool{"a": true, "b": true, "c": false}
-	got3 := SplitMap(m3, 2)
+	m3 := map[string]bool{"a": true, "b": true, "c": false, "d": true, "e": true, "f": true, "g": true}
+	got3 := SplitMap(m3, 4)
 	assert.Len(t, got3, 2)
-	assert.Len(t, got3[0], 2)
-	assert.Len(t, got3[1], 1)
-	assert.True(t, got3[0]["a"] || got3[1]["a"])
-	assert.True(t, got3[0]["b"] || got3[1]["b"])
+	assert.Len(t, got3[0], 4)
+	assert.Len(t, got3[1], 3)
+	for _, k := range []string{"a", "b", "d", "e", "f", "g"} {
+		assert.True(t, got3[0][k] || got3[1][k])
+	}
 	cVal1, ok1 := got3[0]["c"]
 	cVal2, ok2 := got3[1]["c"]
 	assert.True(t, ok1 || ok2)
