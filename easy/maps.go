@@ -129,3 +129,30 @@ func Values[M ~map[K]V, K comparable, V any](m M, filter ...func(K, V) bool) []V
 	}
 	return values
 }
+
+// SplitMap splits a large map to batches, it returns a slice
+// of type []M whose elements are subset of the given map.
+func SplitMap[M ~map[K]V, K comparable, V any](m M, batchSize int) []M {
+	if len(m) == 0 {
+		return nil
+	}
+	if len(m) <= batchSize {
+		return []M{m}
+	}
+
+	cnt := (len(m) + batchSize - 1) / batchSize
+	out := make([]M, cnt)
+	for i := range out {
+		if i < len(out)-1 {
+			out[i] = make(M, batchSize)
+		} else {
+			out[i] = make(M, len(m)%batchSize)
+		}
+	}
+	i := 0
+	for k, v := range m {
+		out[i%batchSize][k] = v
+		i++
+	}
+	return out
+}
