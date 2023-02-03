@@ -3,7 +3,6 @@ package zlog
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -124,7 +123,7 @@ const (
 	FatalPrefix    = "[FATAL] "
 )
 
-const levelPrefixMinLen = 6
+const levelPrefixMinLen = 5
 
 var mapZapLevels = [...]zapcore.Level{
 	zap.InfoLevel,
@@ -218,7 +217,7 @@ func (l *Level) unmarshalText(text []byte) bool {
 		*l = WarnLevel
 	case "error", "ERROR":
 		*l = ErrorLevel
-	case "critical", "CRITICAL":
+	case "crit", "critical", "CRIT", "CRITICAL":
 		*l = CriticalLevel
 	case "dpanic", "DPANIC":
 		*l = DPanicLevel
@@ -281,46 +280,4 @@ func fromZapLevel(lvl zapcore.Level) Level {
 		return TraceLevel
 	}
 	return FatalLevel
-}
-
-func detectLevel(message string) (Level, bool) {
-	switch message[1] {
-	case 'T':
-		if strings.HasPrefix(message, TracePrefix) {
-			return TraceLevel, true
-		}
-	case 'D':
-		if strings.HasPrefix(message, DebugPrefix) {
-			return DebugLevel, true
-		}
-	case 'I':
-		if strings.HasPrefix(message, InfoPrefix) {
-			return InfoLevel, true
-		}
-	case 'N':
-		if strings.HasPrefix(message, NoticePrefix) {
-			return NoticeLevel, true
-		}
-	case 'W':
-		if strings.HasPrefix(message, WarnPrefix) {
-			return WarnLevel, true
-		}
-	case 'E':
-		if strings.HasPrefix(message, ErrorPrefix) {
-			return ErrorLevel, true
-		}
-	case 'C':
-		if strings.HasPrefix(message, CriticalPrefix) {
-			return CriticalLevel, true
-		}
-	case 'P':
-		if strings.HasPrefix(message, PanicPrefix) {
-			return PanicLevel, true
-		}
-	case 'F':
-		if strings.HasPrefix(message, FatalPrefix) {
-			return FatalLevel, true
-		}
-	}
-	return 0, false
 }
