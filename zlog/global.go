@@ -30,7 +30,7 @@ func (p *Properties) setup() func() {
 	}
 	var resetStdLog = func() {}
 	if p.cfg.RedirectStdLog {
-		resetStdLog = zap.RedirectStdLog(L())
+		resetStdLog = RedirectStdLog(L())
 	}
 	oldDisableTrace := disableTrace
 	var resetDisableTrace = func() {

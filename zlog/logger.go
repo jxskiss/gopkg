@@ -46,34 +46,41 @@ var log_std *log.Logger
 
 const _stdLogDepth = 2
 
-func (stdLogger) Debugf(format string, args ...interface{}) {
+func (l stdLogger) Debugf(format string, args ...interface{}) {
 	if GetLevel() <= DebugLevel {
-		log_std.Output(_stdLogDepth, fmt.Sprintf(DebugPrefix+format, args...))
+		log_std.Output(_stdLogDepth, l.formatMessage(DebugPrefix, format, args))
 	}
 }
 
-func (stdLogger) Infof(format string, args ...interface{}) {
+func (l stdLogger) Infof(format string, args ...interface{}) {
 	if GetLevel() <= InfoLevel {
-		log_std.Output(_stdLogDepth, fmt.Sprintf(InfoPrefix+format, args...))
+		log_std.Output(_stdLogDepth, l.formatMessage(InfoPrefix, format, args))
 	}
 }
 
-func (stdLogger) Warnf(format string, args ...interface{}) {
+func (l stdLogger) Warnf(format string, args ...interface{}) {
 	if GetLevel() <= WarnLevel {
-		log_std.Output(_stdLogDepth, fmt.Sprintf(WarnPrefix+format, args...))
+		log_std.Output(_stdLogDepth, l.formatMessage(WarnPrefix, format, args))
 	}
 }
 
-func (stdLogger) Errorf(format string, args ...interface{}) {
+func (l stdLogger) Errorf(format string, args ...interface{}) {
 	if GetLevel() <= ErrorLevel {
-		log_std.Output(_stdLogDepth, fmt.Sprintf(ErrorPrefix+format, args...))
+		log_std.Output(_stdLogDepth, l.formatMessage(ErrorPrefix, format, args))
 	}
 }
 
-func (stdLogger) Fatalf(format string, args ...interface{}) {
-	log_std.Output(_stdLogDepth, fmt.Sprintf(FatalPrefix+format, args...))
+func (l stdLogger) Fatalf(format string, args ...interface{}) {
+	log_std.Output(_stdLogDepth, l.formatMessage(FatalPrefix, format, args))
 	Sync()
 	os.Exit(1)
+}
+
+func (stdLogger) formatMessage(prefix, format string, args []interface{}) string {
+	if _, ok := detectLevel(format); !ok {
+		format = prefix + format
+	}
+	return fmt.Sprintf(format, args...)
 }
 
 // -------- nop logger -------- //

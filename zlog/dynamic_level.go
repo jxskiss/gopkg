@@ -56,12 +56,6 @@ func (c *dynamicLevelCore) With(fields []zapcore.Field) zapcore.Core {
 
 func (c *dynamicLevelCore) Check(entry zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {
 	var entryLevel = fromZapLevel(entry.Level)
-	if len(entry.Message) >= levelPrefixMinLen && entry.Message[0] == '[' {
-		if level, detected := detectLevel(entry.Message); detected {
-			entryLevel = level
-			entry.Level = entryLevel.ToZapLevel()
-		}
-	}
 
 	// Dynamic level takes higher priority.
 	if c.dynLevel != nil {
