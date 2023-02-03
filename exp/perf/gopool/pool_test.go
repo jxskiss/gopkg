@@ -1,4 +1,5 @@
 // Copyright 2021 ByteDance Inc.
+// Copyright 2023 Shawn Wang <jxskiss@126.com>.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,12 +35,20 @@ func testFunc() {
 	DoCopyStack(0, 0)
 }
 
-func testPanicFunc() {
-	panic("test")
+func TestPool(t *testing.T) {
+	p := NewPool("test", &Config{AdhocWorkerLimit: 100})
+	testWithPool(t, p)
 }
 
-func TestPool(t *testing.T) {
-	p := NewPool("test", 100, NewConfig())
+func TestPoolWithPermanentWorkers(t *testing.T) {
+	p := NewPool("test", &Config{
+		PermanentWorkerNum: 100,
+		AdhocWorkerLimit:   100,
+	})
+	testWithPool(t, p)
+}
+
+func testWithPool(t *testing.T, p *Pool) {
 	var n int32
 	var wg sync.WaitGroup
 	for i := 0; i < 2000; i++ {
@@ -56,14 +65,41 @@ func TestPool(t *testing.T) {
 }
 
 func TestPoolPanic(t *testing.T) {
-	p := NewPool("test", 100, NewConfig())
-	p.Go(testPanicFunc)
+	p := NewPool("test", &Config{AdhocWorkerLimit: 100})
+	var wg sync.WaitGroup
+	wg.Add(1)
+	p.Go(func() {
+		defer wg.Done()
+		panic("test panic")
+	})
+	wg.Wait()
 }
 
-func BenchmarkPool(b *testing.B) {
-	config := NewConfig()
-	config.ScaleThreshold = 1
-	p := NewPool("benchmark", int32(runtime.GOMAXPROCS(0)), config)
+func BenchmarkDefaultPool(b *testing.B) {
+	p := NewPool("benchmark", &Config{
+		AdhocWorkerLimit: runtime.GOMAXPROCS(0),
+	})
+	benchmarkWithPool(b, p)
+}
+
+func BenchmarkPool_100PermanentWorkers(b *testing.B) {
+	p := NewPool("benchmark", &Config{
+		PermanentWorkerNum: 100,
+		AdhocWorkerLimit:   runtime.GOMAXPROCS(0),
+	})
+	benchmarkWithPool(b, p)
+}
+
+func BenchmarkPool_1000PermanentWorkers(b *testing.B) {
+	p := NewPool("benchmark", &Config{
+		PermanentWorkerNum: 1000,
+		AdhocWorkerLimit:   runtime.GOMAXPROCS(0),
+	})
+	benchmarkWithPool(b, p)
+}
+
+func benchmarkWithPool(b *testing.B, p *Pool) {
+	b.Helper()
 	var wg sync.WaitGroup
 	b.ReportAllocs()
 	b.ResetTimer()

@@ -6,12 +6,14 @@
 
 It is an alternative to the `go` keyword.
 
+This package is a fork of `github.com/bytedance/gopkg/util/gopool`.
+
 ## Features
 
-- High Performance
-- Auto-recovering Panics
-- Limit Goroutine Numbers
-- Reuse Goroutine Stack
+- High performance
+- Auto-recovering panics
+- Limit goroutine numbers
+- Reuse goroutine stack
 
 ## QuickStart
 
@@ -26,7 +28,28 @@ go func() {
 
 new:
 ```go
-gopool.Go(func(){
-	/// do your job
+gopool.Go(func() {
+	// do your job
+})
+
+// or with context
+gopool.CtxGo(ctx, func() {
+	// do your job
 })
 ```
+
+Or create a dedicated pool for specific workload:
+```go
+myPool := gopool.NewPool("myPool1", &gopool.Config{
+	// configuration
+})
+
+myPool.Go(func() {
+	// do your job
+})
+myPool.CtxGo(ctx, func() {
+	// do your job
+})
+```
+
+See package doc for more information.

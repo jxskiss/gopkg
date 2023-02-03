@@ -1,4 +1,5 @@
 // Copyright 2021 ByteDance Inc.
+// Copyright 2023 Shawn Wang <jxskiss@126.com>.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,60 +21,58 @@ import (
 	"sync"
 )
 
-// defaultPool is the global default pool.
-var defaultPool Pool
+var defaultPool *Pool
 
 var poolMap sync.Map
 
 func init() {
-	defaultPool = NewPool("gopool.DefaultPool", 10000, NewConfig())
+	config := &Config{
+		AdhocWorkerLimit: 10000,
+	}
+	defaultPool = NewPool("gopool.defaultPool", config)
 }
 
-// Go is an alternative to the go keyword, which is able to recover panic.
-// gopool.Go(func(arg interface{}){
-//     ...
-// }(nil))
+// Default returns the global default pool.
+// The default pool does not enable permanent workers,
+// the adhoc worker limit is configured to 10000.
+// The package-level methods Go and CtxGo submit tasks to the default pool.
+//
+// Note that it's not recommended to change the worker limit
+// of the default pool, which affects other code that use the default pool.
+func Default() *Pool {
+	return defaultPool
+}
+
+// Go is an alternative to the go keyword, which is able to recover panic,
+// reuse goroutine stack, limit goroutine numbers, etc.
+//
+// See package doc for detailed introduction.
 func Go(f func()) {
 	CtxGo(context.Background(), f)
 }
 
-// CtxGo is preferred than Go.
+// CtxGo is preferred over Go.
 func CtxGo(ctx context.Context, f func()) {
 	defaultPool.CtxGo(ctx, f)
 }
 
-// SetCap is not recommended to be called, this func changes the global pool's capacity which will affect other callers.
-func SetCap(cap int32) {
-	defaultPool.SetCap(cap)
-}
-
-// SetPanicHandler sets the panic handler for the global pool.
-func SetPanicHandler(f func(context.Context, interface{})) {
-	defaultPool.SetPanicHandler(f)
-}
-
-// WorkerCount returns the number of global default pool's running workers
-func WorkerCount() int32 {
-	return defaultPool.WorkerCount()
-}
-
-// RegisterPool registers a new pool to the global map.
-// GetPool can be used to get the registered pool by name.
-// returns error if the same name is registered.
-func RegisterPool(p Pool) error {
+// Register registers a Pool to the global map,
+// it returns error if the same name has already been registered.
+// Get can be used to get the registered pool by name.
+func Register(p *Pool) error {
 	_, loaded := poolMap.LoadOrStore(p.Name(), p)
 	if loaded {
-		return fmt.Errorf("name: %s already registered", p.Name())
+		return fmt.Errorf("gopool: %s already registered", p.Name())
 	}
 	return nil
 }
 
-// GetPool gets the registered pool by name.
-// Returns nil if not registered.
-func GetPool(name string) Pool {
+// Get gets a registered Pool by name.
+// It returns nil if specified pool is not registered.
+func Get(name string) *Pool {
 	p, ok := poolMap.Load(name)
 	if !ok {
 		return nil
 	}
-	return p.(Pool)
+	return p.(*Pool)
 }

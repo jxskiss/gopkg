@@ -1,4 +1,5 @@
 // Copyright 2021 ByteDance Inc.
+// Copyright 2023 Shawn Wang <jxskiss@126.com>.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,141 +17,113 @@ package gopool
 
 import (
 	"context"
-	"sync"
 	"sync/atomic"
 )
 
-type Pool interface {
-	// Name returns the corresponding pool name.
-	Name() string
-	// SetCap sets the goroutine capacity of the pool.
-	SetCap(cap int32)
-	// Go executes f.
-	Go(f func())
-	// CtxGo executes f and accepts the context.
-	CtxGo(ctx context.Context, f func())
-	// SetPanicHandler sets the panic handler.
-	SetPanicHandler(f func(context.Context, interface{}))
-	// WorkerCount returns the number of running workers
-	WorkerCount() int32
-}
+type Pool struct {
 
-var taskPool sync.Pool
-
-func init() {
-	taskPool.New = newTask
-}
-
-type task struct {
-	ctx context.Context
-	f   func()
-
-	next *task
-}
-
-func (t *task) zero() {
-	t.ctx = nil
-	t.f = nil
-	t.next = nil
-}
-
-func (t *task) Recycle() {
-	t.zero()
-	taskPool.Put(t)
-}
-
-func newTask() interface{} {
-	return &task{}
-}
-
-type taskList struct {
-	sync.Mutex
-	taskHead *task
-	taskTail *task
-}
-
-type pool struct {
 	// The name of the pool
 	name string
 
-	// capacity of the pool, the maximum number of goroutines that are actually working
-	cap int32
 	// Configuration information
 	config *Config
-	// linked list of tasks
-	taskHead  *task
-	taskTail  *task
-	taskLock  sync.Mutex
-	taskCount int32
 
-	// Record the number of running workers
-	workerCount int32
+	// Limit of adhoc workers that can run simultaneously
+	adhocLimit int32
 
-	// This method will be called when the worker panic
-	panicHandler func(context.Context, interface{})
+	// Number of running adhoc workers
+	adhocCount int32
+
+	taskCh   chan *task
+	taskList taskList
 }
 
-// NewPool creates a new pool with the given name, cap and config.
-func NewPool(name string, cap int32, config *Config) Pool {
-	p := &pool{
-		name:   name,
-		cap:    cap,
-		config: config,
+// NewPool creates a new pool with the given name and config.
+func NewPool(name string, config *Config) *Pool {
+	config.checkAndSetDefaults()
+	p := &Pool{
+		name:       name,
+		config:     config,
+		adhocLimit: getAdhocWorkerLimit(config.AdhocWorkerLimit),
 	}
+	p.spawnPermanentWorkers()
 	return p
 }
 
-func (p *pool) Name() string {
+// Name returns the name of a pool.
+func (p *Pool) Name() string {
 	return p.name
 }
 
-func (p *pool) SetCap(cap int32) {
-	atomic.StoreInt32(&p.cap, cap)
+// SetAdhocWorkerLimit changes the limit of adhoc workers.
+// 0 or negative value means no limit.
+func (p *Pool) SetAdhocWorkerLimit(limit int) {
+	atomic.StoreInt32(&p.adhocLimit, getAdhocWorkerLimit(limit))
 }
 
-func (p *pool) Go(f func()) {
+// Go submits a function to the pool.
+func (p *Pool) Go(f func()) {
 	p.CtxGo(context.Background(), f)
 }
 
-func (p *pool) CtxGo(ctx context.Context, f func()) {
-	t := taskPool.Get().(*task)
+// CtxGo submits a function to the pool, it's preferred over Go.
+func (p *Pool) CtxGo(ctx context.Context, f func()) {
+	t := newTask()
 	t.ctx = ctx
 	t.f = f
-	p.taskLock.Lock()
-	if p.taskHead == nil {
-		p.taskHead = t
-		p.taskTail = t
-	} else {
-		p.taskTail.next = t
-		p.taskTail = t
+
+	// Try permanent worker first.
+	select {
+	case p.taskCh <- t:
+		return
+	default:
 	}
-	p.taskLock.Unlock()
-	atomic.AddInt32(&p.taskCount, 1)
+
+	// No permanent worker available or all workers are busy, submit to task list.
+	tCnt := p.taskList.add(t)
+
 	// The following two conditions are met:
-	// 1. the number of tasks is greater than the threshold.
-	// 2. The current number of workers is less than the upper limit p.cap.
-	// or there are currently no workers.
-	if (atomic.LoadInt32(&p.taskCount) >= p.config.ScaleThreshold && p.WorkerCount() < atomic.LoadInt32(&p.cap)) || p.WorkerCount() == 0 {
+	//   1. the number of tasks is greater than the threshold.
+	//   2. The current number of workers is less than the upper limit p.cap.
+	//
+	// Or there are currently no workers.
+	limit := p.AdhocWorkerLimit()
+	wCnt := p.AdhocWorkerCount()
+	if (tCnt >= p.config.ScaleThreshold && wCnt < limit) || wCnt == 0 {
 		p.incWorkerCount()
-		w := workerPool.Get().(*worker)
-		w.pool = p
-		w.run()
+		runAdhocWorker(p)
 	}
 }
 
-// SetPanicHandler the func here will be called after the panic has been recovered.
-func (p *pool) SetPanicHandler(f func(context.Context, interface{})) {
-	p.panicHandler = f
+// AdhocWorkerLimit returns the current limit of adhoc workers.
+func (p *Pool) AdhocWorkerLimit() int32 {
+	return atomic.LoadInt32(&p.adhocLimit)
 }
 
-func (p *pool) WorkerCount() int32 {
-	return atomic.LoadInt32(&p.workerCount)
+// AdhocWorkerCount returns the number of running adhoc workers.
+func (p *Pool) AdhocWorkerCount() int32 {
+	return atomic.LoadInt32(&p.adhocCount)
 }
 
-func (p *pool) incWorkerCount() {
-	atomic.AddInt32(&p.workerCount, 1)
+// PermanentWorkerCount returns the number of permanent workers.
+func (p *Pool) PermanentWorkerCount() int32 {
+	return int32(p.config.PermanentWorkerNum)
 }
 
-func (p *pool) decWorkerCount() {
-	atomic.AddInt32(&p.workerCount, -1)
+func (p *Pool) incWorkerCount() {
+	atomic.AddInt32(&p.adhocCount, 1)
+}
+
+func (p *Pool) decWorkerCount() {
+	atomic.AddInt32(&p.adhocCount, -1)
+}
+
+func (p *Pool) spawnPermanentWorkers() {
+	if p.config.PermanentWorkerNum <= 0 {
+		return
+	}
+	p.taskCh = make(chan *task)
+	for i := 0; i < p.config.PermanentWorkerNum; i++ {
+		go runPermanentWorker(p)
+	}
 }

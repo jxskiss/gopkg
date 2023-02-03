@@ -1,4 +1,5 @@
 // Copyright 2021 ByteDance Inc.
+// Copyright 2023 Shawn Wang <jxskiss@126.com>.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,74 +15,43 @@
 
 package gopool
 
-import (
-	"fmt"
-	"runtime/debug"
-	"sync"
-	"sync/atomic"
+func runPermanentWorker(p *Pool) {
+	for {
+		select {
+		case t := <-p.taskCh:
+			doTask(p, t)
 
-	"github.com/bytedance/gopkg/util/logger"
-)
-
-var workerPool sync.Pool
-
-func init() {
-	workerPool.New = newWorker
+			// Drain pending tasks.
+			for {
+				t = p.taskList.pop()
+				if t == nil {
+					break
+				}
+				doTask(p, t)
+			}
+		}
+	}
 }
 
-type worker struct {
-	pool *pool
-}
-
-func newWorker() interface{} {
-	return &worker{}
-}
-
-func (w *worker) run() {
+func runAdhocWorker(p *Pool) {
 	go func() {
 		for {
-			var t *task
-			w.pool.taskLock.Lock()
-			if w.pool.taskHead != nil {
-				t = w.pool.taskHead
-				w.pool.taskHead = w.pool.taskHead.next
-				atomic.AddInt32(&w.pool.taskCount, -1)
-			}
+			t := p.taskList.pop()
 			if t == nil {
-				// if there's no task to do, exit
-				w.close()
-				w.pool.taskLock.Unlock()
-				w.Recycle()
+				p.decWorkerCount()
 				return
 			}
-			w.pool.taskLock.Unlock()
-			func() {
-				defer func() {
-					if r := recover(); r != nil {
-						if w.pool.panicHandler != nil {
-							w.pool.panicHandler(t.ctx, r)
-						} else {
-							msg := fmt.Sprintf("GOPOOL: panic in pool: %s: %v: %s", w.pool.name, r, debug.Stack())
-							logger.CtxErrorf(t.ctx, msg)
-						}
-					}
-				}()
-				t.f()
-			}()
-			t.Recycle()
+			doTask(p, t)
 		}
 	}()
 }
 
-func (w *worker) close() {
-	w.pool.decWorkerCount()
-}
-
-func (w *worker) zero() {
-	w.pool = nil
-}
-
-func (w *worker) Recycle() {
-	w.zero()
-	workerPool.Put(w)
+func doTask(p *Pool, t *task) {
+	defer func() {
+		if r := recover(); r != nil {
+			p.config.PanicHandler(t.ctx, r)
+		}
+	}()
+	t.f()
+	t.Recycle()
 }
