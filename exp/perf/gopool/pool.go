@@ -20,10 +20,9 @@ import (
 	"sync/atomic"
 )
 
+// Pool manages a goroutine pool and tasks for better performance,
+// it reuses goroutines and limits the number of goroutines.
 type Pool struct {
-
-	// The name of the pool
-	name string
 
 	// Configuration information
 	config *Config
@@ -39,20 +38,19 @@ type Pool struct {
 }
 
 // NewPool creates a new pool with the given name and config.
-func NewPool(name string, config *Config) *Pool {
+func NewPool(config *Config) *Pool {
 	config.checkAndSetDefaults()
 	p := &Pool{
-		name:       name,
 		config:     config,
 		adhocLimit: getAdhocWorkerLimit(config.AdhocWorkerLimit),
 	}
-	p.spawnPermanentWorkers()
+	p.spawnPermanentWorkers(funcTaskRunner)
 	return p
 }
 
 // Name returns the name of a pool.
 func (p *Pool) Name() string {
-	return p.name
+	return p.config.Name
 }
 
 // SetAdhocWorkerLimit changes the limit of adhoc workers.
@@ -68,9 +66,13 @@ func (p *Pool) Go(f func()) {
 
 // CtxGo submits a function to the pool, it's preferred over Go.
 func (p *Pool) CtxGo(ctx context.Context, f func()) {
+	p.submit(ctx, f, funcTaskRunner)
+}
+
+func (p *Pool) submit(ctx context.Context, arg interface{}, runner taskRunner) {
 	t := newTask()
 	t.ctx = ctx
-	t.f = f
+	t.arg = arg
 
 	// Try permanent worker first.
 	select {
@@ -91,7 +93,7 @@ func (p *Pool) CtxGo(ctx context.Context, f func()) {
 	wCnt := p.AdhocWorkerCount()
 	if (tCnt >= p.config.ScaleThreshold && wCnt < limit) || wCnt == 0 {
 		p.incWorkerCount()
-		runAdhocWorker(p)
+		runAdhocWorker(p, runner)
 	}
 }
 
@@ -118,12 +120,12 @@ func (p *Pool) decWorkerCount() {
 	atomic.AddInt32(&p.adhocCount, -1)
 }
 
-func (p *Pool) spawnPermanentWorkers() {
+func (p *Pool) spawnPermanentWorkers(runner taskRunner) {
 	if p.config.PermanentWorkerNum <= 0 {
 		return
 	}
 	p.taskCh = make(chan *task)
 	for i := 0; i < p.config.PermanentWorkerNum; i++ {
-		go runPermanentWorker(p)
+		go runPermanentWorker(p, runner)
 	}
 }

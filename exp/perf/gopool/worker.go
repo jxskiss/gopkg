@@ -15,11 +15,15 @@
 
 package gopool
 
-func runPermanentWorker(p *Pool) {
+import "context"
+
+type taskRunner func(p *Pool, t *task)
+
+func runPermanentWorker(p *Pool, runner taskRunner) {
 	for {
 		select {
 		case t := <-p.taskCh:
-			doTask(p, t)
+			runner(p, t)
 
 			// Drain pending tasks.
 			for {
@@ -27,13 +31,13 @@ func runPermanentWorker(p *Pool) {
 				if t == nil {
 					break
 				}
-				doTask(p, t)
+				runner(p, t)
 			}
 		}
 	}
 }
 
-func runAdhocWorker(p *Pool) {
+func runAdhocWorker(p *Pool, runner taskRunner) {
 	go func() {
 		for {
 			t := p.taskList.pop()
@@ -41,17 +45,29 @@ func runAdhocWorker(p *Pool) {
 				p.decWorkerCount()
 				return
 			}
-			doTask(p, t)
+			runner(p, t)
 		}
 	}()
 }
 
-func doTask(p *Pool, t *task) {
+func funcTaskRunner(p *Pool, t *task) {
 	defer func() {
 		if r := recover(); r != nil {
 			p.config.PanicHandler(t.ctx, r)
 		}
 	}()
-	t.f()
+	t.arg.(func())()
 	t.Recycle()
+}
+
+func newSpecificTaskRunner[T any](handler func(context.Context, T)) taskRunner {
+	return func(p *Pool, t *task) {
+		defer func() {
+			if r := recover(); r != nil {
+				p.config.PanicHandler(t.ctx, r)
+			}
+		}()
+		handler(t.ctx, t.arg.(T))
+		t.Recycle()
+	}
 }

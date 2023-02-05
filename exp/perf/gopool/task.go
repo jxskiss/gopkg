@@ -24,7 +24,7 @@ var taskPool sync.Pool
 
 type task struct {
 	ctx context.Context
-	f   func()
+	arg interface{}
 
 	next *task
 }

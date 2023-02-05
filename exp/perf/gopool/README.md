@@ -40,7 +40,7 @@ gopool.CtxGo(ctx, func() {
 
 Or create a dedicated pool for specific workload:
 ```go
-myPool := gopool.NewPool("myPool1", &gopool.Config{
+myPool := gopool.NewPool(&gopool.Config{
 	// configuration
 })
 
@@ -50,6 +50,19 @@ myPool.Go(func() {
 myPool.CtxGo(ctx, func() {
 	// do your job
 })
+```
+
+Or create a pool to execute a handler to process values of a specific type:
+```go
+myHandler := func(ctx context.Context, arg SomeType) {
+	// do your job
+}
+myPool := gopool.NewSpecificPool(myHandler, &gopool.Config{
+	// configuration
+})
+
+myPool.Go(varOfSomeType)
+myPool.CtxGo(ctx, varOfSomeType)
 ```
 
 See package doc for more information.

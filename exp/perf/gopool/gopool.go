@@ -27,9 +27,10 @@ var poolMap sync.Map
 
 func init() {
 	config := &Config{
+		Name:             "gopool.defaultPool",
 		AdhocWorkerLimit: 10000,
 	}
-	defaultPool = NewPool("gopool.defaultPool", config)
+	defaultPool = NewPool(config)
 }
 
 // Default returns the global default pool.
@@ -58,6 +59,9 @@ func CtxGo(ctx context.Context, f func()) {
 
 // Register registers a Pool to the global map,
 // it returns error if the same name has already been registered.
+// To register a pool, the pool should be configured with a
+// non-empty name.
+//
 // Get can be used to get the registered pool by name.
 func Register(p *Pool) error {
 	_, loaded := poolMap.LoadOrStore(p.Name(), p)

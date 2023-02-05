@@ -35,6 +35,9 @@ func defaultPanicHandler(_ context.Context, exc interface{}) {
 // Config is used to config a Pool instance.
 type Config struct {
 
+	// Name optionally specifies the name of a pool instance.
+	Name string
+
 	// New goroutine will be created if len(queued tasks) > ScaleThreshold,
 	// it defaults to 1.
 	ScaleThreshold int
