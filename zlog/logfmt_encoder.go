@@ -11,13 +11,13 @@ import (
 	"math"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
 	"go.uber.org/zap/buffer"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/jxskiss/gopkg/v2/perf/bbp"
 	"github.com/jxskiss/gopkg/v2/unsafe/reflectx"
 )
 
@@ -27,21 +27,22 @@ const (
 )
 
 var (
-	_logfmtPool = bbp.NewObjectPool[logfmtEncoder]()
-
 	bufferpool = buffer.NewPool()
+	logfmtPool = sync.Pool{New: func() interface{} {
+		return &logfmtEncoder{}
+	}}
 )
 
 var ErrUnsupportedValueType = errors.New("unsupported value type")
 
 func getEncoder() *logfmtEncoder {
-	return _logfmtPool.Get()
+	return logfmtPool.Get().(*logfmtEncoder)
 }
 
 func putEncoder(enc *logfmtEncoder) {
 	enc.EncoderConfig = nil
 	enc.buf = nil
-	_logfmtPool.Put(enc)
+	logfmtPool.Put(enc)
 }
 
 type logfmtEncoder struct {
