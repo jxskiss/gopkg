@@ -319,6 +319,16 @@ func Sum[T constraints.Integer](slice []T) int64 {
 	return sum
 }
 
+// SumFloat returns the sum value of the elements in the given slice,
+// as a float64 value.
+func SumFloat[T constraints.RealNumber](slice []T) float64 {
+	var sum float64
+	for _, x := range slice {
+		sum += float64(x)
+	}
+	return sum
+}
+
 // Sort sorts the given slice ascending and returns it.
 func Sort[S ~[]E, E constraints.Ordered](s S) S {
 	sort.Slice(s, func(i, j int) bool {
