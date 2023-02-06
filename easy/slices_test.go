@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/jxskiss/gopkg/v2/perf/fastrand"
 	"github.com/jxskiss/gopkg/v2/unsafe/reflectx"
 	"github.com/jxskiss/gopkg/v2/utils/ptr"
 )
@@ -269,4 +270,183 @@ func TestUniqueSlice(t *testing.T) {
 		changed := reflect.ValueOf(test["slice"]).Slice(0, n).Interface()
 		assert.Equal(t, test["want"], changed)
 	}
+}
+
+func TestUniqueByLoopCmp(t *testing.T) {
+	var dst0 []int64
+	src0 := uniqueSliceTests[0]["slice"].([]int64)
+	want0 := uniqueSliceTests[0]["want"].([]int64)
+	got0 := uniqueByLoopCmp(dst0, src0)
+	assert.Equal(t, want0, got0)
+
+	var dst1 []int32
+	src1 := uniqueSliceTests[1]["slice"].([]int32)
+	want1 := uniqueSliceTests[1]["want"].([]int32)
+	got1 := uniqueByLoopCmp(dst1, src1)
+	assert.Equal(t, want1, got1)
+
+	var dst2 []string
+	src2 := uniqueSliceTests[2]["slice"].([]string)
+	want2 := uniqueSliceTests[2]["want"].([]string)
+	got2 := uniqueByLoopCmp(dst2, src2)
+	assert.Equal(t, want2, got2)
+}
+
+func TestUniqueByHashset(t *testing.T) {
+	var dst0 []int64
+	src0 := uniqueSliceTests[0]["slice"].([]int64)
+	want0 := uniqueSliceTests[0]["want"].([]int64)
+	got0 := uniqueByHashset(dst0, src0)
+	assert.Equal(t, want0, got0)
+
+	var dst1 []int32
+	src1 := uniqueSliceTests[1]["slice"].([]int32)
+	want1 := uniqueSliceTests[1]["want"].([]int32)
+	got1 := uniqueByHashset(dst1, src1)
+	assert.Equal(t, want1, got1)
+
+	var dst2 []string
+	src2 := uniqueSliceTests[2]["slice"].([]string)
+	want2 := uniqueSliceTests[2]["want"].([]string)
+	got2 := uniqueByHashset(dst2, src2)
+	assert.Equal(t, want2, got2)
+}
+
+var benchUniqueData []int64
+var benchUniqueDst []int64
+
+func initBenchUniqueData() {
+	if len(benchUniqueData) > 0 {
+		return
+	}
+	for i := 0; i < 10000; i++ {
+		benchUniqueData = append(benchUniqueData, fastrand.Int63())
+	}
+	benchUniqueDst = make([]int64, 10000)
+}
+
+func BenchmarkUniqueByLoopCmp_64(b *testing.B) {
+	initBenchUniqueData()
+	f := uniqueByLoopCmp[[]int64, int64]
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		got := execUniqueFunc(64, f)
+		_ = got
+	}
+}
+
+func BenchmarkUniqueByHashset_64(b *testing.B) {
+	initBenchUniqueData()
+	f := uniqueByHashset[[]int64, int64]
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		got := execUniqueFunc(64, f)
+		_ = got
+	}
+}
+
+func BenchmarkUniqueByLoopCmp_128(b *testing.B) {
+	initBenchUniqueData()
+	f := uniqueByLoopCmp[[]int64, int64]
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		got := execUniqueFunc(128, f)
+		_ = got
+	}
+}
+
+func BenchmarkUniqueByHashset_128(b *testing.B) {
+	initBenchUniqueData()
+	f := uniqueByHashset[[]int64, int64]
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		got := execUniqueFunc(128, f)
+		_ = got
+	}
+}
+
+func BenchmarkUniqueByLoopCmp_256(b *testing.B) {
+	initBenchUniqueData()
+	f := uniqueByLoopCmp[[]int64, int64]
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		got := execUniqueFunc(256, f)
+		_ = got
+	}
+}
+
+func BenchmarkUniqueByHashset_256(b *testing.B) {
+	initBenchUniqueData()
+	f := uniqueByHashset[[]int64, int64]
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		got := execUniqueFunc(256, f)
+		_ = got
+	}
+}
+
+func BenchmarkUniqueByLoopCmp_512(b *testing.B) {
+	initBenchUniqueData()
+	f := uniqueByLoopCmp[[]int64, int64]
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		got := execUniqueFunc(512, f)
+		_ = got
+	}
+}
+
+func BenchmarkUniqueByHashset_512(b *testing.B) {
+	initBenchUniqueData()
+	f := uniqueByHashset[[]int64, int64]
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		got := execUniqueFunc(512, f)
+		_ = got
+	}
+}
+
+func BenchmarkUniqueByLoopCmp_1024(b *testing.B) {
+	initBenchUniqueData()
+	f := uniqueByLoopCmp[[]int64, int64]
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		got := execUniqueFunc(1024, f)
+		_ = got
+	}
+}
+
+func BenchmarkUniqueByHashset_1024(b *testing.B) {
+	initBenchUniqueData()
+	f := uniqueByHashset[[]int64, int64]
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		got := execUniqueFunc(1024, f)
+		_ = got
+	}
+}
+
+func execUniqueFunc(length int, f func(dst, src []int64) []int64) []int64 {
+	dst := benchUniqueDst[:0]
+	src := benchUniqueData[:length]
+	return f(dst, src)
 }

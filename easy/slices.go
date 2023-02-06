@@ -269,18 +269,45 @@ func Unique[S ~[]E, E comparable](s S, inplace bool) S {
 	if s == nil {
 		return nil
 	}
-	seen := make(map[E]struct{})
 	out := s[:0]
 	if !inplace {
 		out = make(S, 0)
 	}
-	for _, x := range s {
-		if _, ok := seen[x]; !ok {
-			seen[x] = struct{}{}
-			out = append(out, x)
+
+	// According to benchmark results, 256 is a reasonable choice
+	// to balance the cost of algorithm complexity and memory allocation.
+	// See BenchmarkUnique* in slices_test.go.
+	if len(s) <= 256 {
+		return uniqueByLoopCmp(out, s)
+	}
+	return uniqueByHashset(out, s)
+}
+
+func uniqueByLoopCmp[S ~[]E, E comparable](dst, src S) S {
+	for _, x := range src {
+		isDup := false
+		for i := range dst {
+			if x == dst[i] {
+				isDup = true
+				break
+			}
+		}
+		if !isDup {
+			dst = append(dst, x)
 		}
 	}
-	return out
+	return dst
+}
+
+func uniqueByHashset[S ~[]E, E comparable](dst, src S) S {
+	seen := make(map[E]struct{})
+	for _, x := range src {
+		if _, ok := seen[x]; !ok {
+			seen[x] = struct{}{}
+			dst = append(dst, x)
+		}
+	}
+	return dst
 }
 
 // Sum returns the sum value of the elements in the given slice.

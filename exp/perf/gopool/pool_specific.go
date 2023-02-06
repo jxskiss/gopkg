@@ -30,7 +30,7 @@ type SpecificPool[T any] struct {
 	runner  taskRunner
 }
 
-// NewSpecificPool creates a new task-specific pool with given name and config.
+// NewSpecificPool creates a new task-specific pool with given handler and config.
 func NewSpecificPool[T any](handler func(context.Context, T), config *Config) *SpecificPool[T] {
 	config.checkAndSetDefaults()
 	p := &SpecificPool[T]{

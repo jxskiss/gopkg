@@ -37,7 +37,7 @@ type Pool struct {
 	taskList taskList
 }
 
-// NewPool creates a new pool with the given name and config.
+// NewPool creates a new pool with the config.
 func NewPool(config *Config) *Pool {
 	config.checkAndSetDefaults()
 	p := &Pool{
