@@ -1,11 +1,13 @@
 package easy
 
 import (
-	"github.com/jxskiss/gopkg/ptr"
-	"github.com/jxskiss/gopkg/reflectx"
-	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/jxskiss/gopkg/ptr"
+	"github.com/jxskiss/gopkg/reflectx"
 )
 
 func callFunction(f interface{}, args ...interface{}) interface{} {
@@ -101,72 +103,6 @@ var complexTypeData = []*comptyp{
 		Simple:   simple{A: "d"},
 		Simple_p: nil,
 	},
-}
-
-func TestPluck(t *testing.T) {
-	want := []string{"a", "b", "c"}
-	slice1 := []simple{{"a"}, {"b"}, {"c"}}
-	slice2 := []*simple{{"a"}, {"b"}, {"c"}}
-
-	assert.Equal(t, want, Pluck(slice1, "A"))
-	assert.Equal(t, want, Pluck(slice2, "A"))
-
-	assert.Panics(t, func() { Pluck(&slice1, "A") })
-	assert.Panics(t, func() { Pluck(&slice2, "A") })
-
-	assert.Panics(t, func() { Pluck(nil, "A") })
-	assert.Panics(t, func() { Pluck(slice1, "") })
-}
-
-func TestPluckStrings(t *testing.T) {
-	want := []string{"a", "b", "c"}
-	slice1 := []simple{{"a"}, {"b"}, {"c"}}
-	slice2 := []*simple{{"a"}, {"b"}, {"c"}}
-
-	assert.Equal(t, want, PluckStrings(slice1, "A"))
-	assert.Equal(t, want, PluckStrings(slice2, "A"))
-
-	assert.Panics(t, func() { PluckStrings(&slice1, "A") })
-	assert.Panics(t, func() { PluckStrings(&slice2, "A") })
-
-	assert.Panics(t, func() { PluckStrings(nil, "A") })
-	assert.Panics(t, func() { PluckStrings(slice1, "") })
-}
-
-func TestPluckInt64s(t *testing.T) {
-	slice := complexTypeData
-
-	got1 := PluckInt64s(slice, "I32")
-	want1 := []int64{32, 33, 34, 35}
-	assert.Equal(t, want1, got1)
-
-	got2 := PluckInt64s(slice, "I32_p")
-	want2 := []int64{32, 33, 34}
-	assert.Equal(t, want2, got2)
-
-	got3 := PluckInt64s(slice, "I64")
-	want3 := []int64{64, 65, 66, 67}
-	assert.Equal(t, want3, got3)
-
-	got4 := PluckInt64s(slice, "I64_p")
-	want4 := []int64{64, 65, 66}
-	assert.Equal(t, want4, got4)
-
-	assert.Panics(t, func() { PluckInt64s(nil, "I32") })
-	assert.Panics(t, func() { PluckInt64s(slice, "") })
-}
-
-func TestPluck_StructField(t *testing.T) {
-	slice := complexTypeData
-
-	got1 := Pluck(slice, "Simple")
-	want1 := []simple{{"a"}, {"b"}, {"c"}, {"d"}}
-	assert.Equal(t, want1, got1)
-
-	got2 := Pluck(slice, "Simple_p")
-	assert.IsType(t, []*simple(nil), got2)
-	assert.Len(t, got2, len(slice))
-	assert.Nil(t, got2.([]*simple)[3])
 }
 
 var reverseSliceTests = []map[string]interface{}{

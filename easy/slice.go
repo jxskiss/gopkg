@@ -15,6 +15,7 @@ const (
 	maxInsertGrowth = 1024
 )
 
+//nolint:unused
 const (
 	errNotSliceType           = "not slice type"
 	errNotSliceOfInt          = "not a slice of integers"
@@ -528,97 +529,6 @@ func DiffStrings(a []string, b []string) []string {
 	for _, x := range a {
 		if _, ok := bset[x]; !ok {
 			out = append(out, x)
-		}
-	}
-	return out
-}
-
-// Pluck accepts a slice of struct or pointer to struct, and returns a
-// new slice with field values specified by field of the struct elements.
-func Pluck(slice interface{}, field string) interface{} {
-	if slice == nil {
-		panicNilParams("Pluck", "slice", slice)
-	}
-	sliceVal := reflect.ValueOf(slice)
-	sliceTyp := sliceVal.Type()
-	fieldInfo := assertSliceElemStructAndField("Pluck", sliceTyp, field)
-
-	var outVal = reflect.MakeSlice(reflect.SliceOf(fieldInfo.Type), 0, sliceVal.Len())
-	for i := 0; i < sliceVal.Len(); i++ {
-		elem := reflect.Indirect(sliceVal.Index(i))
-		fieldVal := elem.FieldByName(field)
-		outVal = reflect.Append(outVal, fieldVal)
-	}
-	return outVal.Interface()
-}
-
-// PluckInt32s accepts a slice of struct or pointer to struct, and returns a
-// new int32 slice with field values specified by field of the struct elements.
-func PluckInt32s(slice interface{}, field string) []int32 {
-	if slice == nil {
-		panicNilParams("PluckInt32s", "slice", slice)
-	}
-	sliceVal := reflect.ValueOf(slice)
-	sliceTyp := sliceVal.Type()
-	fieldInfo := assertSliceElemStructAndField("PluckInt32s", sliceTyp, field)
-	if !isIntTypeOrPtr(fieldInfo.Type) {
-		panic("PluckInt32s: " + errStructFieldIsNotInt)
-	}
-
-	out := make([]int32, 0, sliceVal.Len())
-	for i := 0; i < sliceVal.Len(); i++ {
-		elem := reflect.Indirect(sliceVal.Index(i))
-		fieldVal := reflect.Indirect(elem.FieldByName(field))
-		if fieldVal.IsValid() {
-			out = append(out, int32(reflectx.ReflectInt(fieldVal)))
-		}
-	}
-	return out
-}
-
-// PluckInt64s accepts a slice of struct or pointer to struct, and returns a
-// new int64 slice with field values specified by field of the struct elements.
-func PluckInt64s(slice interface{}, field string) []int64 {
-	if slice == nil {
-		panicNilParams("PluckInt64s", "slice", slice)
-	}
-	sliceVal := reflect.ValueOf(slice)
-	sliceTyp := sliceVal.Type()
-	fieldInfo := assertSliceElemStructAndField("PluckInt64s", sliceTyp, field)
-	if !isIntTypeOrPtr(fieldInfo.Type) {
-		panic("PluckInt64s: " + errStructFieldIsNotInt)
-	}
-
-	out := make([]int64, 0, sliceVal.Len())
-	for i := 0; i < sliceVal.Len(); i++ {
-		elem := reflect.Indirect(sliceVal.Index(i))
-		fieldVal := reflect.Indirect(elem.FieldByName(field))
-		if fieldVal.IsValid() {
-			out = append(out, reflectx.ReflectInt(fieldVal))
-		}
-	}
-	return out
-}
-
-// PluckStrings accepts a slice of struct or pointer to struct, and returns a
-// new string slice with field values specified by field of the struct elements.
-func PluckStrings(slice interface{}, field string) []string {
-	if slice == nil {
-		panicNilParams("PluckStrings", "slice", slice)
-	}
-	sliceVal := reflect.ValueOf(slice)
-	sliceTyp := sliceVal.Type()
-	fieldInfo := assertSliceElemStructAndField("PluckStrings", sliceTyp, field)
-	if !isStringTypeOrPtr(fieldInfo.Type) {
-		panic("PluckStrings: " + errStructFieldIsNotStr)
-	}
-
-	out := make([]string, 0, sliceVal.Len())
-	for i := 0; i < sliceVal.Len(); i++ {
-		elem := reflect.Indirect(sliceVal.Index(i))
-		fieldVal := reflect.Indirect(elem.FieldByName(field))
-		if fieldVal.IsValid() {
-			out = append(out, fieldVal.String())
 		}
 	}
 	return out
