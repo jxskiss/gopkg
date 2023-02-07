@@ -59,6 +59,11 @@ reasonable API compatibility and versioning.
 1. `exp/mselect` can run many channel receiving operations simultaneously,
    tasks can be added dynamically.
 
+1. `exp/perf/gopool` is a fork of `github.com/bytedance/gopkg/util/gopool`
+   with opinionated changes.
+   It's a high-performance goroutine pool which aims to reuse goroutines
+   and limit the number of goroutines.
+
 1. `exp/singleflight` contains an async cache which can be used to fetch and update the
    latest data periodically and supports expiring a key if it's unused for a period.
    To be easy to use, it also re-exports `Group` and `Result` as alias names from package

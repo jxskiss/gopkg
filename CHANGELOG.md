@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 TBD.
 
+## [2.4.0] - 2023-02-07
+
+* Feat: [zlog] optimize std log redirection (#31)
+* Feat: fork `github.com/bytedance/gopkg/util/gopool` with opinionated changes (#32)
+* Feat: optimize performance of utility `easy.Unique`
+* Feat: new utility function `easy.SumFloat`
+* Fix: [perf/lru] `walbuf` does not reuse hashset memory
+* Change: [perf/bbp] remove `ObjectPool`
+
+## [2.3.6] - 2023-01-30
+
+* Feat: [zlog] make param ctx being optional to `zlog.B`
+* Feat: [zlog] export `zlog.Level`'s method `ToZapLevel`
+* Feat: new utility function `easy.SplitMap` to split a large map into batches
+
+## [2.3.4] - 20223-01-19
+
+* Feat: [confr] supports custom logging function
+* Feat: [confr] supports parsing `time.Duration` value
+
+## [2.3.3] - 2023-01-10
+
+* Fix: [perf/json] `HumanFriendly` indentation
+
+## [2.3.2] - 2023-01-08
+
+* Feat: http utility to reader response
+* Feat: [perf/json] new config `HumanFriendly` which generates data that is more friendly
+  for human reading
+* Feat: new utility function `easy.LastIndex` to index value in a slice from last
+* Change: rename `easy.ToHashSet` to `easy.ToBoolMap`
+
+## [2.3.1] - 2023-01-07
+
+* Feat: new util function `utils/ptr.NotZero`
+
 ## [2.3.0] - 2023-01-07
 
 * Feat: new package `exp/mselect` to dynamically waiting many channels
