@@ -265,25 +265,39 @@ func Reverse[S ~[]E, E any](s S, inplace bool) S {
 // slice in same order, but removes duplicate values.
 // When inplace is true, it does not allocate new memory, the unique values
 // will be written to the input slice from the beginning.
+//
+// Given different input, the duplication rate may be varying,
+// for large input, this function does not assume any specific workload type,
+// it allocates initial memory of size `len(s)/2`, thus for slice that
+// most elements are duplicate, it allocates memory more than need,
+// but for slice that no value is duplicate, it triggers memory allocation
+// more than once.
+// For large slice in performance critical use-case, user is recommended to
+// write a custom function that is fine-tuned for specific workload to get
+// the best performance.
 func Unique[S ~[]E, E comparable](s S, inplace bool) S {
 	if s == nil {
 		return nil
 	}
-	out := s[:0]
-	if !inplace {
-		out = make(S, 0)
+	var out S
+	if inplace {
+		out = s[:0]
 	}
 
-	// According to benchmark results, 256 is a reasonable choice
-	// to balance the cost of algorithm complexity and memory allocation.
+	// According to benchmark results, 128 is a reasonable choice
+	// to balance the performance of different algorithms and the cost
+	// of memory allocation.
 	// See BenchmarkUnique* in slices_test.go.
-	if len(s) <= 256 {
+	if len(s) <= 128 {
 		return uniqueByLoopCmp(out, s)
 	}
 	return uniqueByHashset(out, s)
 }
 
 func uniqueByLoopCmp[S ~[]E, E comparable](dst, src S) S {
+	if cap(dst) == 0 {
+		dst = make(S, 0, len(src))
+	}
 	for _, x := range src {
 		isDup := false
 		for i := range dst {
@@ -300,10 +314,79 @@ func uniqueByLoopCmp[S ~[]E, E comparable](dst, src S) S {
 }
 
 func uniqueByHashset[S ~[]E, E comparable](dst, src S) S {
-	seen := make(map[E]struct{})
+	if cap(dst) == 0 {
+		dst = make(S, 0, len(src)/2)
+	}
+	seen := make(map[E]struct{}, len(src)/2)
 	for _, x := range src {
 		if _, ok := seen[x]; !ok {
 			seen[x] = struct{}{}
+			dst = append(dst, x)
+		}
+	}
+	return dst
+}
+
+// UniqueFunc returns a slice containing the elements of the given slice
+// in same order, but removes deduplicate values, it calls f for each
+// element and uses the returned value to check duplication.
+// When inplace is true, it does not allocate new memory, the unique values
+// will be written to the input slice from the beginning.
+//
+// Given different input, the duplication rate may be varying,
+// for large input, this function does not assume any specific workload type,
+// it allocates initial memory of size `len(s)/2`, thus for slice that
+// most elements are duplicate, it allocates memory more than need,
+// but for slice that no value is duplicate, it triggers memory allocation
+// more than once.
+// For large slice in performance critical use-case, user is recommended to
+// write a custom function that is fine-tuned for specific workload to get
+// the best performance.
+func UniqueFunc[S ~[]E, E any, C comparable](s S, inplace bool, f func(E) C) S {
+	if s == nil {
+		return nil
+	}
+	var out S
+	if inplace {
+		out = s[:0]
+	}
+	if len(s) <= 128 {
+		return uniqueFuncByLoopCmp(out, s, f)
+	}
+	return uniqueFuncByHashset(out, s, f)
+}
+
+func uniqueFuncByLoopCmp[S ~[]E, E any, C comparable](dst, src S, f func(E) C) S {
+	if cap(dst) == 0 {
+		dst = make(S, 0, len(src))
+	}
+	seen := make([]C, 0, len(src))
+	for _, x := range src {
+		c := f(x)
+		isDup := false
+		for i := range seen {
+			if c == seen[i] {
+				isDup = true
+				break
+			}
+		}
+		if !isDup {
+			seen = append(seen, c)
+			dst = append(dst, x)
+		}
+	}
+	return dst
+}
+
+func uniqueFuncByHashset[S ~[]E, E any, C comparable](dst, src S, f func(E) C) S {
+	if cap(dst) == 0 {
+		dst = make(S, 0, len(src)/2)
+	}
+	seen := make(map[C]struct{}, len(src)/2)
+	for _, x := range src {
+		c := f(x)
+		if _, ok := seen[c]; !ok {
+			seen[c] = struct{}{}
 			dst = append(dst, x)
 		}
 	}
