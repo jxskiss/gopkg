@@ -22,15 +22,16 @@ func TestWalbuf(t *testing.T) {
 	if equal := reflect.DeepEqual(want, got); !equal {
 		t.Log(got)
 		t.Log(want)
-		t.Error("walbuf deduplicate fast path")
+		t.Errorf("walbuf deduplicate fast path, want= %v, got= %v", want, got)
 	}
 
+	wb.reset()
 	copy(wb.b[:12], []uint32{3, 1, 3, 4, 9, 1, 10, 10, 6, 9, 5, 10})
 	wb.p = 12
 	got = wb.deduplicate()
 	want = []uint32{3, 4, 1, 6, 9, 5, 10}
 	if equal := reflect.DeepEqual(want, got); !equal {
-		t.Error("walbuf deduplicate slow path")
+		t.Errorf("walbuf deduplicate slow path, want= %v, got= %v", want, got)
 	}
 }
 

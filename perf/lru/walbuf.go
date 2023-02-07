@@ -34,7 +34,7 @@ func newWalBuf() *walbuf {
 // walbuf helps to reduce lock-contention of read requests from the cache.
 type walbuf struct {
 	b [walBufSize]uint32
-	s [walSetSize]uint32
+	s fastHashset
 	p int32
 }
 
@@ -52,7 +52,7 @@ func (wbuf *walbuf) deduplicate() []uint32 {
 		ln = walBufSize
 	}
 
-	set := fastHashset(wbuf.s)
+	set := &wbuf.s
 	b, p := wbuf.b[:], ln-1
 	for i := ln - 1; i >= 0; i-- {
 		idx := b[i]
