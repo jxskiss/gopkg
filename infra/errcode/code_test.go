@@ -69,7 +69,7 @@ func TestErrorsCompatibility(t *testing.T) {
 
 type testErrWrapper1 struct {
 	error
-	extra interface{}
+	extra any
 }
 
 func (e *testErrWrapper1) Cause() error {
@@ -78,7 +78,7 @@ func (e *testErrWrapper1) Cause() error {
 
 type testErrWrapper2 struct {
 	error
-	extra interface{}
+	extra any
 }
 
 func (e *testErrWrapper2) Unwrap() error {

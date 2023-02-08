@@ -8,14 +8,14 @@ import (
 
 func TestFormat_AutoNumber(t *testing.T) {
 	str := "some test {} and {test1} {} with {test2}"
-	got := Format(str, map[string]interface{}{"test1": "abc", "test2": 123}, "position1", []string{"sliceElem1", "sliceElem2"})
+	got := Format(str, map[string]any{"test1": "abc", "test2": 123}, "position1", []string{"sliceElem1", "sliceElem2"})
 	want := "some test position1 and abc [sliceElem1 sliceElem2] with 123"
 	assert.Equal(t, want, got)
 }
 
 func TestFormat_ManualNumber(t *testing.T) {
 	str := "some test {0} and {test1} {1} with {test2} {0}"
-	got := Format(str, map[string]interface{}{"test1": "abc", "test2": 123}, "position1", []string{"sliceElem1", "sliceElem2"})
+	got := Format(str, map[string]any{"test1": "abc", "test2": 123}, "position1", []string{"sliceElem1", "sliceElem2"})
 	want := "some test position1 and abc [sliceElem1 sliceElem2] with 123 position1"
 	assert.Equal(t, want, got)
 }
@@ -45,7 +45,7 @@ func TestFormat_Malformed(t *testing.T) {
 	assert.Equal(t, want2, got2)
 
 	str3 := "some test {abc} {{abc}} {key2}"
-	got3 := Format(str3, map[string]interface{}{"abc": "123"})
+	got3 := Format(str3, map[string]any{"abc": "123"})
 	want3 := "some test 123 {abc} {key2}"
 	assert.Equal(t, want3, got3)
 
@@ -57,7 +57,7 @@ func TestFormat_Malformed(t *testing.T) {
 
 func TestFormat_StringInterfaceMap(t *testing.T) {
 	str := "some test {abc} {{abc}} {key2}"
-	kwArgs := map[String]interface{}{"abc": "123"}
+	kwArgs := map[String]any{"abc": "123"}
 	got := Format(str, kwArgs)
 	want := "some test 123 {abc} {key2}"
 	assert.Equal(t, want, got)

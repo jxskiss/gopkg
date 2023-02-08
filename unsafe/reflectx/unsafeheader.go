@@ -44,14 +44,14 @@ func BytesToString(b []byte) string {
 }
 
 // EfaceOf casts the empty interface{} pointer to an EmptyInterface pointer.
-func EfaceOf(ep *interface{}) *EmptyInterface {
+func EfaceOf(ep *any) *EmptyInterface {
 	return (*EmptyInterface)(unsafe.Pointer(ep))
 }
 
 // UnpackSlice unpacks the given slice interface{} to the underlying
 // EmptyInterface and SliceHeader.
 // It panics if param slice is not a slice.
-func UnpackSlice(slice interface{}) (*EmptyInterface, *SliceHeader) {
+func UnpackSlice(slice any) (*EmptyInterface, *SliceHeader) {
 	eface := EfaceOf(&slice)
 	if eface.RType.Kind() != reflect.Slice {
 		panic(invalidType("UnpackSlice", "slice", slice))
@@ -62,19 +62,19 @@ func UnpackSlice(slice interface{}) (*EmptyInterface, *SliceHeader) {
 
 // SliceLen returns the length of the given slice interface{} value.
 // The provided slice must be a slice, else it panics.
-func SliceLen(slice interface{}) int {
+func SliceLen(slice any) int {
 	_, header := UnpackSlice(slice)
 	return header.Len
 }
 
 // SliceCap returns the capacity of the given slice interface{} value.
 // The provided slice must be a slice, else it panics.
-func SliceCap(slice interface{}) int {
+func SliceCap(slice any) int {
 	_, header := UnpackSlice(slice)
 	return header.Cap
 }
 
-func invalidType(where string, want string, got interface{}) string {
+func invalidType(where string, want string, got any) string {
 	const invalidType = "%s: invalid type, want %s, got %T"
 	return fmt.Sprintf(invalidType, where, want, got)
 }

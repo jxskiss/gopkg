@@ -19,14 +19,14 @@ type Mocker struct {
 }
 
 // Target sets the target to mock.
-func (m *Mocker) Target(target interface{}) *Mocker {
+func (m *Mocker) Target(target any) *Mocker {
 	assertFunc(target, "target")
 	m.target = reflect.ValueOf(target)
 	return m
 }
 
 // Method sets a method of a type as the mocking target.
-func (m *Mocker) Method(target interface{}, method string) *Mocker {
+func (m *Mocker) Method(target any, method string) *Mocker {
 	targetTyp := reflect.TypeOf(target)
 	targetMethod, ok := targetTyp.MethodByName(method)
 	if !ok {
@@ -38,7 +38,7 @@ func (m *Mocker) Method(target interface{}, method string) *Mocker {
 
 // ByName sets the mocking target by name.
 // Private method is supported by specifying the full name.
-func (m *Mocker) ByName(name string, signature interface{}) *Mocker {
+func (m *Mocker) ByName(name string, signature any) *Mocker {
 	m.byName = name
 	targetPtr := forceexport.FindFuncWithName(name)
 	targetTyp := reflect.TypeOf(signature)
@@ -49,7 +49,7 @@ func (m *Mocker) ByName(name string, signature interface{}) *Mocker {
 }
 
 // Return sets the patch to build a function as replacement which returns rets.
-func (m *Mocker) Return(rets ...interface{}) *Mocker {
+func (m *Mocker) Return(rets ...any) *Mocker {
 	if !m.target.IsValid() {
 		panic("monkey: need a valid target to mock")
 	}
@@ -69,7 +69,7 @@ func (m *Mocker) Return(rets ...interface{}) *Mocker {
 }
 
 // To sets the replacement to mock with.
-func (m *Mocker) To(repl interface{}) *Mocker {
+func (m *Mocker) To(repl any) *Mocker {
 	if !m.target.IsValid() {
 		panic("monkey: need a valid target to mock")
 	}

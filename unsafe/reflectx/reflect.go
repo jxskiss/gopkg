@@ -8,7 +8,7 @@ import (
 )
 
 // IsNil tells whether v is nil or the underlying data is nil.
-func IsNil(v interface{}) bool {
+func IsNil(v any) bool {
 	if v == nil {
 		return true
 	}
@@ -45,7 +45,7 @@ func ReflectInt(v reflect.Value) int64 {
 
 // CastInt returns an integer v's value as int64.
 // v must be an integer, else it panics.
-func CastInt(v interface{}) int64 {
+func CastInt(v any) int64 {
 	return internal.CastInt(v)
 }
 

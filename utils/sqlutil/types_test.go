@@ -17,7 +17,7 @@ func TestTypes(t *testing.T) {
 		b sql.Scanner
 	}{
 		{
-			a: &JSON{Map: ezmap.Map{"a": "1", "b": float64(2), "c": []interface{}{"a", "b", "c"}}},
+			a: &JSON{Map: ezmap.Map{"a": "1", "b": float64(2), "c": []any{"a", "b", "c"}}},
 			b: &JSON{},
 		},
 	}
@@ -41,9 +41,9 @@ type Record struct {
 	Extra   LazyBinary `json:"extra" db:"extra"`     // blob
 }
 
-func (p *Record) GetExtra() (map[string]interface{}, error) {
-	unmarshaler := func(b []byte) (interface{}, error) {
-		var out = map[string]interface{}{}
+func (p *Record) GetExtra() (map[string]any, error) {
+	unmarshaler := func(b []byte) (any, error) {
+		var out = map[string]any{}
 		var err error
 		if len(b) > 0 {
 			err = json.Unmarshal(b, &out)
@@ -55,16 +55,16 @@ func (p *Record) GetExtra() (map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return extra.(map[string]interface{}), nil
+	return extra.(map[string]any), nil
 }
 
-func (p *Record) SetExtra(extra map[string]interface{}) {
+func (p *Record) SetExtra(extra map[string]any) {
 	buf, _ := json.Marshal(extra)
 	p.Extra.Set(buf, extra)
 }
 
 func TestLazyBinary(t *testing.T) {
-	extra := map[string]interface{}{
+	extra := map[string]any{
 		"a": "123",
 		"b": "234",
 		"c": "345",
@@ -126,7 +126,7 @@ func TestBitmap(t *testing.T) {
 
 func TestJSONMarshal(t *testing.T) {
 	data := JSON{
-		Map: map[string]interface{}{
+		Map: map[string]any{
 			"a": 123,
 		},
 	}

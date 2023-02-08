@@ -11,7 +11,7 @@ import (
 )
 
 func TestJSONMarshalMapInterfaceInterface(t *testing.T) {
-	m := make(map[interface{}]interface{})
+	m := make(map[any]any)
 	m[1] = "1"
 	m["2"] = 2
 	got := JSON(m)
@@ -46,7 +46,7 @@ var prettyTestWant = strings.TrimSpace(`
 }`)
 
 func TestPretty(t *testing.T) {
-	test := map[string]interface{}{
+	test := map[string]any{
 		"1": 123,
 		"b": "<html>",
 	}

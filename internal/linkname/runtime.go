@@ -102,7 +102,7 @@ func Runtime_c64hash(p unsafe.Pointer, h uintptr) uintptr
 func Runtime_c128hash(p unsafe.Pointer, h uintptr) uintptr
 
 //go:linkname Runtime_efaceHash runtime.efaceHash
-func Runtime_efaceHash(i interface{}, seed uintptr) uintptr
+func Runtime_efaceHash(i any, seed uintptr) uintptr
 
 //go:linkname Runtime_typehash runtime.typehash
 func Runtime_typehash(rtype unsafe.Pointer, p unsafe.Pointer, h uintptr) uintptr

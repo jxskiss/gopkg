@@ -12,7 +12,7 @@ type eface struct {
 	data  unsafe.Pointer // data pointer
 }
 
-func unpackEface(ep *interface{}) *eface {
+func unpackEface(ep *any) *eface {
 	return (*eface)(unsafe.Pointer(ep))
 }
 

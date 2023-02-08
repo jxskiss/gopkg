@@ -14,7 +14,7 @@ var (
 )
 
 // DecodeJSON decodes a json value from r.
-func DecodeJSON(r io.Reader, v interface{}) error {
+func DecodeJSON(r io.Reader, v any) error {
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return err
@@ -28,7 +28,7 @@ func IsJSONType(contentType string) bool {
 }
 
 // DecodeXML decodes a XML value from r.
-func DecodeXML(r io.Reader, v interface{}) error {
+func DecodeXML(r io.Reader, v any) error {
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return err

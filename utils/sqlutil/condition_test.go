@@ -20,7 +20,7 @@ func TestFilter(t *testing.T) {
 	clause1, args1 := builder1.Build()
 	assert.Equal(t, wantClause1, clause1)
 	assert.Equal(t, wantString1, builder1.String())
-	assert.Equal(t, []interface{}{1, 2, 3, 5}, args1)
+	assert.Equal(t, []any{1, 2, 3, 5}, args1)
 
 	wantClause2 := "a = ? AND b = ? AND (c = ? OR d = 4) AND (e = ? OR f = 6)"
 	wantString2 := "a = 1 AND b = 2 AND (c = 3 OR d = 4) AND (e = 5 OR f = 6)"
@@ -35,7 +35,7 @@ func TestFilter(t *testing.T) {
 	clause2, args2 := builder2.Build()
 	assert.Equal(t, wantClause2, clause2)
 	assert.Equal(t, wantString2, builder2.String())
-	assert.Equal(t, []interface{}{1, 2, 3, 5}, args2)
+	assert.Equal(t, []any{1, 2, 3, 5}, args2)
 }
 
 func TestMisuseOfBrackets(t *testing.T) {

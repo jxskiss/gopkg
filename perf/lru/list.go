@@ -5,7 +5,7 @@ import "unsafe"
 type element struct {
 	next, prev uint32
 
-	key, value interface{}
+	key, value any
 
 	expires int64 // nanosecond timestamp
 	index   uint32

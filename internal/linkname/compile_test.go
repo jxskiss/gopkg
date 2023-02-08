@@ -11,7 +11,7 @@ func TestCompile(t *testing.T) {
 }
 
 // call helps to ensure the linked functions can build.
-func call(f interface{}) {
+func call(f any) {
 	defer func() {
 		recover()
 	}()

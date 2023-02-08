@@ -11,7 +11,7 @@ import (
 	"github.com/jxskiss/gopkg/v2/easy"
 )
 
-type stringerFunc func(v interface{}) string
+type stringerFunc func(v any) string
 
 /*
 DEBUG is debug message logger which do nothing if debug level is not enabled (the default).
@@ -55,7 +55,7 @@ DEBUG accepts very flexible arguments to help development, see the following exa
 	obj := &SomeStructType{Field1: "blah", Field2: 1234567, Field3: true}
 	DEBUG(logger, "obj=%v"， obj)
 */
-func DEBUG(args ...interface{}) {
+func DEBUG(args ...any) {
 	stringer := easy.JSON
 	logdebug(1, stringer, args...)
 }
@@ -64,13 +64,13 @@ func DEBUG(args ...interface{}) {
 // to get correct caller information.
 // When you wrap functions in this package, you always want to use the functions
 // which end with "Skip".
-func DEBUGSkip(skip int, args ...interface{}) {
+func DEBUGSkip(skip int, args ...any) {
 	stringer := easy.JSON
 	logdebug(skip+1, stringer, args...)
 }
 
 // PRETTY is similar to DEBUG, but it calls Pretty to format non-basic-type data.
-func PRETTY(args ...interface{}) {
+func PRETTY(args ...any) {
 	stringer := easy.Pretty
 	logdebug(1, stringer, args...)
 }
@@ -79,14 +79,14 @@ func PRETTY(args ...interface{}) {
 // to get correct caller information.
 // When you wrap functions in this package, you always want to use the functions
 // which end with "Skip".
-func PRETTYSkip(skip int, args ...interface{}) {
+func PRETTYSkip(skip int, args ...any) {
 	stringer := easy.Pretty
 	logdebug(skip+1, stringer, args...)
 }
 
 // SPEW is similar to DEBUG, but it calls spew.Sprintf to format non-basic-type data.
-func SPEW(args ...interface{}) {
-	stringer := func(v interface{}) string { return spew.Sprintf("%#v", v) }
+func SPEW(args ...any) {
+	stringer := func(v any) string { return spew.Sprintf("%#v", v) }
 	logdebug(1, stringer, args...)
 }
 
@@ -94,14 +94,14 @@ func SPEW(args ...interface{}) {
 // to get correct caller information.
 // When you wrap functions in this package, you always want to use the functions
 // which end with "Skip".
-func SPEWSkip(skip int, args ...interface{}) {
-	stringer := func(v interface{}) string { return spew.Sprintf("%#v", v) }
+func SPEWSkip(skip int, args ...any) {
+	stringer := func(v any) string { return spew.Sprintf("%#v", v) }
 	logdebug(skip+1, stringer, args...)
 }
 
 // DUMP is similar to DEBUG, but it calls spew.Sdump to format non-basic-type data.
-func DUMP(args ...interface{}) {
-	stringer := func(v interface{}) string { return spew.Sdump(v) }
+func DUMP(args ...any) {
+	stringer := func(v any) string { return spew.Sdump(v) }
 	logdebug(1, stringer, args...)
 }
 
@@ -109,12 +109,12 @@ func DUMP(args ...interface{}) {
 // to get correct caller information.
 // When you wrap functions in this package, you always want to use the functions
 // which end with "Skip".
-func DUMPSkip(skip int, args ...interface{}) {
-	stringer := func(v interface{}) string { return spew.Sdump(v) }
+func DUMPSkip(skip int, args ...any) {
+	stringer := func(v any) string { return spew.Sdump(v) }
 	logdebug(skip+1, stringer, args...)
 }
 
-func logdebug(skip int, stringer stringerFunc, args ...interface{}) {
+func logdebug(skip int, stringer stringerFunc, args ...any) {
 	ctx := context.Background()
 	if len(args) > 0 {
 		if _ctx, ok := args[0].(context.Context); ok && _ctx != nil {
@@ -139,7 +139,7 @@ func logdebug(skip int, stringer stringerFunc, args ...interface{}) {
 	outputDebugLog(skip+1, logger, stringer, args)
 }
 
-func outputDebugLog(skip int, logger DebugLogger, stringer stringerFunc, args []interface{}) {
+func outputDebugLog(skip int, logger DebugLogger, stringer stringerFunc, args []any) {
 	caller, file, line := easy.Caller(skip + 1)
 	callerPrefix := "[" + caller + "] "
 	if len(args) > 0 {
@@ -156,7 +156,7 @@ func outputDebugLog(skip int, logger DebugLogger, stringer stringerFunc, args []
 
 var debugLoggerTyp = reflect.TypeOf((*DebugLogger)(nil)).Elem()
 
-func parseLogger(args []interface{}) (DebugLogger, []interface{}) {
+func parseLogger(args []any) (DebugLogger, []any) {
 	var logger DebugLogger
 	if arg0, ok := args[0].(DebugLogger); ok {
 		logger = arg0
@@ -168,7 +168,7 @@ func parseLogger(args []interface{}) (DebugLogger, []interface{}) {
 	case context.Context:
 		logger = _logcfg.getLogger(&arg0)
 		args = args[1:]
-	case func(string, ...interface{}):
+	case func(string, ...any):
 		logger = PrintFunc(arg0)
 		args = args[1:]
 	default:
@@ -185,8 +185,8 @@ func parseLogger(args []interface{}) (DebugLogger, []interface{}) {
 	return logger, args
 }
 
-func formatArgs(stringer stringerFunc, args []interface{}) []interface{} {
-	retArgs := make([]interface{}, 0, len(args))
+func formatArgs(stringer stringerFunc, args []any) []any {
+	retArgs := make([]any, 0, len(args))
 	for _, v := range args {
 		x := v
 		if v != nil {

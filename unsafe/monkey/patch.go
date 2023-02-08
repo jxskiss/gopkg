@@ -21,7 +21,7 @@ func AutoUnpatch(f func()) {
 var (
 	idCounter  int64
 	patchMap   = make(map[int64]*Patch)
-	targetMap  = make(map[interface{}]*Patch)
+	targetMap  = make(map[any]*Patch)
 	patchStack [][]int64
 )
 
@@ -95,7 +95,7 @@ func (p *Patch) Delete() {
 
 // PatchFunc replaces a function with replacement.
 // If target or replacement is not a function or their types do not match, it panics.
-func PatchFunc(target, repl interface{}) *Patch {
+func PatchFunc(target, repl any) *Patch {
 	assertSameFuncType(target, repl)
 	targetVal := reflect.ValueOf(target)
 	replVal := reflect.ValueOf(repl)
@@ -105,7 +105,7 @@ func PatchFunc(target, repl interface{}) *Patch {
 // PatchMethod replaces a target's method with replacement.
 // Replacement should expect the receiver (of type target) as the first argument.
 // If the method cannot be found or the replacement type does not match, it panics.
-func PatchMethod(target interface{}, method string, repl interface{}) *Patch {
+func PatchMethod(target any, method string, repl any) *Patch {
 	assertFunc(repl, "repl")
 	targetTyp := reflect.TypeOf(target)
 	targetMethod, ok := targetTyp.MethodByName(method)
@@ -118,7 +118,7 @@ func PatchMethod(target interface{}, method string, repl interface{}) *Patch {
 // PatchByName replaces a function with replacement by it's name.
 // TargetName should be the fully-qualified name of the target function or method.
 // If the target cannot be found or the replacement type does not match, it panics.
-func PatchByName(name string, repl interface{}) *Patch {
+func PatchByName(name string, repl any) *Patch {
 	assertFunc(repl, "repl")
 	targetPtr := forceexport.FindFuncWithName(name)
 	targetVal := reflect.New(reflect.TypeOf(repl))
@@ -243,7 +243,7 @@ func (p *Patch) deleteFunc() {
 
 // PatchVar replaces target's value with replacement.
 // If type of target and repl does not match, it panics.
-func PatchVar(targetAddr, repl interface{}) *Patch {
+func PatchVar(targetAddr, repl any) *Patch {
 	assertVarPtr(targetAddr)
 	if repl == nil {
 		repl = reflect.Zero(reflect.TypeOf(targetAddr).Elem())

@@ -12,7 +12,7 @@ import (
 // Format mimics subset features of the python string.format function.
 //
 // It formats the string using given keyword arguments and positional arguments.
-// kwArgs can be a map[string]interface{}, map[string]string or a struct
+// kwArgs can be a map[string]any, map[string]string or a struct
 // or a pointer to a struct.
 //
 // If bracket is needed in string it can be created by escaping (two brackets).
@@ -21,18 +21,18 @@ import (
 // after key name or position number and specify fmt package compatible formatting
 // options. The percent sign is optional. For example:
 //
-//   // returns "3.14, 3.1416"
-//   Format("{pi:%.2f}, {pi:.4f}", map[string]interface{}{"pi": math.Pi})
+//	// returns "3.14, 3.1416"
+//	Format("{pi:%.2f}, {pi:.4f}", map[string]any{"pi": math.Pi})
 //
 // If a replacement is not found in kwArgs and posArgs, the placeholder will be
 // output as the same in the given format.
-func Format(format string, kwArgs interface{}, posArgs ...interface{}) string {
+func Format(format string, kwArgs any, posArgs ...any) string {
 	var (
 		defaultFormat = []rune("%v")
 
 		// newFormat holds the new format string
 		newFormat     = make([]rune, 0, len(format))
-		newFormatArgs []interface{}
+		newFormatArgs []any
 
 		prevChar      rune
 		currentName   = make([]rune, 0, 10)
@@ -141,7 +141,7 @@ func Format(format string, kwArgs interface{}, posArgs ...interface{}) string {
 	return fmt.Sprintf(string(newFormat), newFormatArgs...)
 }
 
-var strInterfaceMapTyp = reflect.TypeOf(map[string]interface{}(nil))
+var strInterfaceMapTyp = reflect.TypeOf(map[string]any(nil))
 
 func isStringInterfaceMap(typ reflect.Type) bool {
 	return typ.Kind() == reflect.Map &&
@@ -149,27 +149,27 @@ func isStringInterfaceMap(typ reflect.Type) bool {
 		typ.Elem() == strInterfaceMapTyp.Elem()
 }
 
-func castStringInterfaceMap(v interface{}) map[string]interface{} {
+func castStringInterfaceMap(v any) map[string]any {
 	eface := reflectx.EfaceOf(&v)
-	strMap := *(*map[string]interface{})(unsafe.Pointer(&eface.Word))
+	strMap := *(*map[string]any)(unsafe.Pointer(&eface.Word))
 	return strMap
 }
 
-func getKeywordArgFunc(kwArgs interface{}) func(key string) (interface{}, bool) {
+func getKeywordArgFunc(kwArgs any) func(key string) (any, bool) {
 	if kwArgs == nil {
-		return func(string) (interface{}, bool) { return nil, false }
+		return func(string) (any, bool) { return nil, false }
 	}
 	kwTyp := reflect.TypeOf(kwArgs)
 	if isStringInterfaceMap(kwTyp) {
 		kwMap := castStringInterfaceMap(kwArgs)
-		return func(key string) (interface{}, bool) {
+		return func(key string) (any, bool) {
 			val, ok := kwMap[key]
 			return val, ok
 		}
 	}
 	if kwTyp.Kind() == reflect.Map && kwTyp.Key().Kind() == reflect.String {
 		kwValue := reflect.ValueOf(kwArgs)
-		return func(key string) (interface{}, bool) {
+		return func(key string) (any, bool) {
 			val := kwValue.MapIndex(reflect.ValueOf(key))
 			if val.IsValid() {
 				return val.Interface(), true
@@ -179,7 +179,7 @@ func getKeywordArgFunc(kwArgs interface{}) func(key string) (interface{}, bool) 
 	}
 	value := reflect.Indirect(reflect.ValueOf(kwArgs))
 	if value.Kind() == reflect.Struct {
-		return func(field string) (interface{}, bool) {
+		return func(field string) (any, bool) {
 			x := value.FieldByName(field)
 			if x.IsValid() {
 				return x, true
@@ -187,5 +187,5 @@ func getKeywordArgFunc(kwArgs interface{}) func(key string) (interface{}, bool) 
 			return nil, false
 		}
 	}
-	return func(string) (interface{}, bool) { return nil, false }
+	return func(string) (any, bool) { return nil, false }
 }

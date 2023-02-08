@@ -21,21 +21,21 @@ type RawMessage = json.RawMessage
 // Marshal returns the JSON encoding of v.
 //
 // See encoding/json.Marshal for detailed document.
-func Marshal(v interface{}) ([]byte, error) {
+func Marshal(v any) ([]byte, error) {
 	return _J.Marshal(v)
 }
 
 // MarshalToString returns the JSON encoding of v as string.
 //
 // See encoding/json.Marshal for detailed document.
-func MarshalToString(v interface{}) (string, error) {
+func MarshalToString(v any) (string, error) {
 	return _J.MarshalToString(v)
 }
 
 // MarshalIndent is like Marshal but applies Indent to format the output.
 //
 // See encoding/json.MarshalIndent for detailed document.
-func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
+func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
 	return _J.MarshalIndent(v, prefix, indent)
 }
 
@@ -43,7 +43,7 @@ func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
 // in the value pointed to by v.
 //
 // See encoding/json.Unmarshal for detailed document.
-func Unmarshal(data []byte, v interface{}) error {
+func Unmarshal(data []byte, v any) error {
 	return _J.Unmarshal(data, v)
 }
 
@@ -51,7 +51,7 @@ func Unmarshal(data []byte, v interface{}) error {
 // the result in the value pointed to by v.
 //
 // See encoding/json.Unmarshal for detailed document.
-func UnmarshalFromString(data string, v interface{}) error {
+func UnmarshalFromString(data string, v any) error {
 	return _J.UnmarshalFromString(data, v)
 }
 
@@ -87,7 +87,7 @@ func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
 //
 // It has effect only the underlying implementation is sonic,
 // else it is an alias name of Marshal.
-func MarshalNoMapOrdering(v interface{}) ([]byte, error) {
+func MarshalNoMapOrdering(v any) ([]byte, error) {
 	return _J.MarshalNoMapOrdering(v)
 }
 
@@ -95,6 +95,6 @@ func MarshalNoMapOrdering(v interface{}) ([]byte, error) {
 // Optionally indent can be applied to the output,
 // empty prefix and indent disables indentation.
 // The output is more friendly to read for log messages.
-func MarshalNoHTMLEscape(v interface{}, prefix, indent string) ([]byte, error) {
+func MarshalNoHTMLEscape(v any, prefix, indent string) ([]byte, error) {
 	return _J.MarshalNoHTMLEscape(v, prefix, indent)
 }

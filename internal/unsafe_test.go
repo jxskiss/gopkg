@@ -6,17 +6,17 @@ import (
 )
 
 func TestEfaceOf(t *testing.T) {
-	var x interface{} = EmptyInterface{}
+	var x any = EmptyInterface{}
 	ef := EFaceOf(&x)
-	if x != *(*interface{})(unsafe.Pointer(ef)) {
+	if x != *(*any)(unsafe.Pointer(ef)) {
 		t.Fatalf("test EfaceOf got unexpected result")
 	}
 }
 
 func TestUnpackSlice(t *testing.T) {
-	var data interface{} = []int{1, 2, 3}
+	var data any = []int{1, 2, 3}
 	sh := UnpackSlice(data)
-	var got interface{} = *(*[]int)(unsafe.Pointer(&sh))
+	var got any = *(*[]int)(unsafe.Pointer(&sh))
 	if a, b := EFaceOf(&got).RType, EFaceOf(&data).RType; a != b {
 		t.Fatalf("test UnpackSlice got different RType, got= %x, data= %x", a, b)
 	}
@@ -26,7 +26,7 @@ func TestUnpackSlice(t *testing.T) {
 }
 
 func TestCastInt(t *testing.T) {
-	var data = []interface{}{
+	var data = []any{
 		int8(1),
 		uint8(2),
 		int16(3),

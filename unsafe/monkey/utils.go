@@ -36,13 +36,13 @@ func slicePtr(b []byte) uintptr {
 	return (*reflect.SliceHeader)(unsafe.Pointer(&b)).Data
 }
 
-func assertFunc(target interface{}, argName string) {
+func assertFunc(target any, argName string) {
 	if reflect.TypeOf(target).Kind() != reflect.Func {
 		panic(fmt.Sprintf("monkey: want a function for %s but got %T", argName, target))
 	}
 }
 
-func assertSameFuncType(target, repl interface{}) {
+func assertSameFuncType(target, repl any) {
 	targetTyp := reflect.TypeOf(target)
 	replTyp := reflect.TypeOf(repl)
 	if targetTyp.Kind() != reflect.Func {
@@ -56,7 +56,7 @@ func assertSameFuncType(target, repl interface{}) {
 	}
 }
 
-func assertReturnTypes(target reflect.Value, rets []interface{}) {
+func assertReturnTypes(target reflect.Value, rets []any) {
 	if !target.IsValid() {
 		panic("monkey: need a valid target to mock")
 	}
@@ -80,7 +80,7 @@ func assertReturnTypes(target reflect.Value, rets []interface{}) {
 	}
 }
 
-func assertVarPtr(targetAddr interface{}) {
+func assertVarPtr(targetAddr any) {
 	if reflect.TypeOf(targetAddr).Kind() != reflect.Ptr {
 		panic("monkey: targetAddr is not a pointer to a variable")
 	}

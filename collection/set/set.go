@@ -8,20 +8,20 @@ import (
 
 const minSize = 8
 
-// Set is a set collection of interface{} type.
+// Set is a set collection of any type.
 // The zero value of Set is an empty instance ready to use. A zero Set
 // value shall not be copied, or it may result incorrect behavior.
 type Set struct {
-	m map[interface{}]struct{}
+	m map[any]struct{}
 }
 
 // NewSet creates a Set instance and add the given values into the set.
 // If given only one param which is a slice, the elements of the slice
 // will be added into the set using reflection.
-func NewSet(vals ...interface{}) Set {
+func NewSet(vals ...any) Set {
 	size := max(len(vals), minSize)
 	set := Set{
-		m: make(map[interface{}]struct{}, size),
+		m: make(map[any]struct{}, size),
 	}
 	if len(vals) == 1 && reflect.TypeOf(vals[0]).Kind() == reflect.Slice {
 		values := reflect.ValueOf(vals[0])
@@ -37,7 +37,7 @@ func NewSet(vals ...interface{}) Set {
 // NewSetWithSize creates a Set instance with given initial size.
 func NewSetWithSize(size int) Set {
 	set := Set{
-		m: make(map[interface{}]struct{}, size),
+		m: make(map[any]struct{}, size),
 	}
 	return set
 }
@@ -48,10 +48,10 @@ func (s Set) Size() int { return len(s.m) }
 // Add adds the given values into the set.
 // If given only one param which is a slice, the elements of the slice
 // will be added into the set using reflection.
-func (s *Set) Add(vals ...interface{}) {
+func (s *Set) Add(vals ...any) {
 	if s.m == nil {
 		size := max(len(vals), minSize)
-		s.m = make(map[interface{}]struct{}, size)
+		s.m = make(map[any]struct{}, size)
 	}
 	if len(vals) == 1 && reflect.TypeOf(vals[0]).Kind() == reflect.Slice {
 		values := reflect.ValueOf(vals[0])
@@ -69,12 +69,12 @@ func (s *Set) Add(vals ...interface{}) {
 // Del deletes values from the set.
 //
 // Deprecated: Del has been renamed to Delete.
-func (s *Set) Del(vals ...interface{}) {
+func (s *Set) Del(vals ...any) {
 	s.Delete(vals...)
 }
 
 // Delete deletes values from the set.
-func (s *Set) Delete(vals ...interface{}) {
+func (s *Set) Delete(vals ...any) {
 	if len(vals) == 1 && reflect.TypeOf(vals[0]).Kind() == reflect.Slice {
 		values := reflect.ValueOf(vals[0])
 		for i := 0; i < values.Len(); i++ {
@@ -90,14 +90,14 @@ func (s *Set) Delete(vals ...interface{}) {
 
 // Iterate iterates the set in no particular order and calls the given
 // function for each set element.
-func (s Set) Iterate(fn func(interface{})) {
+func (s Set) Iterate(fn func(any)) {
 	for val := range s.m {
 		fn(val)
 	}
 }
 
 // Contains returns true if the set contains all the values.
-func (s Set) Contains(vals ...interface{}) bool {
+func (s Set) Contains(vals ...any) bool {
 	if len(vals) == 0 {
 		return false
 	}
@@ -110,7 +110,7 @@ func (s Set) Contains(vals ...interface{}) bool {
 }
 
 // ContainsAny returns true if the set contains any of the values.
-func (s Set) ContainsAny(vals ...interface{}) bool {
+func (s Set) ContainsAny(vals ...any) bool {
 	for _, v := range vals {
 		if _, ok := s.m[v]; ok {
 			return true
@@ -132,9 +132,9 @@ func (s Set) Diff(other Set) Set {
 }
 
 // DiffSlice is similar to Diff, but takes a slice as parameter.
-// Param other must be a slice of []interface{} or slice of the concrete
+// Param other must be a slice of []any or slice of the concrete
 // element type, else it panics.
-func (s Set) DiffSlice(other interface{}) Set {
+func (s Set) DiffSlice(other any) Set {
 	otherTyp := reflect.TypeOf(other)
 	if otherTyp == nil || otherTyp.Kind() != reflect.Slice {
 		panic(fmt.Sprintf("invalid other type %T", other))
@@ -174,19 +174,19 @@ func (s Set) DiffSlice(other interface{}) Set {
 
 // FilterInclude returns a new slice which contains values that present
 // in the provided slice and also present in the Set.
-// Param slice must be a slice of []interface{} or slice of the concrete
+// Param slice must be a slice of []any or slice of the concrete
 // element type, else it panics.
 //
 // Deprecated: FilterInclude has been renamed to FilterContains.
-func (s Set) FilterInclude(slice interface{}) interface{} {
+func (s Set) FilterInclude(slice any) any {
 	return s.FilterContains(slice)
 }
 
 // FilterContains returns a new slice which contains values that present
 // in the provided slice and also present in the Set.
-// Param slice must be a slice of []interface{} or slice of the concrete
+// Param slice must be a slice of []any or slice of the concrete
 // element type, else it panics.
-func (s Set) FilterContains(slice interface{}) interface{} {
+func (s Set) FilterContains(slice any) any {
 	sliceTyp := reflect.TypeOf(slice)
 	if sliceTyp == nil || sliceTyp.Kind() != reflect.Slice {
 		panic(fmt.Sprintf("invalid slice type %T", slice))
@@ -206,19 +206,19 @@ func (s Set) FilterContains(slice interface{}) interface{} {
 
 // FilterExclude returns a new slice which contains values that present
 // in the provided slice but don't present in the Set.
-// Param slice must be a slice of []interface{} or slice of the concrete
+// Param slice must be a slice of []any or slice of the concrete
 // element type, else it panics.
 //
 // Deprecated: FilterExclude has been renamed to FilterNotContains.
-func (s Set) FilterExclude(slice interface{}) interface{} {
+func (s Set) FilterExclude(slice any) any {
 	return s.FilterNotContains(slice)
 }
 
 // FilterNotContains returns a new slice which contains values that present
 // in the provided slice but don't present in the Set.
-// Param slice must be a slice of []interface{} or slice of the concrete
+// Param slice must be a slice of []any or slice of the concrete
 // element type, else it panics.
-func (s Set) FilterNotContains(slice interface{}) interface{} {
+func (s Set) FilterNotContains(slice any) any {
 	sliceTyp := reflect.TypeOf(slice)
 	if sliceTyp == nil || sliceTyp.Kind() != reflect.Slice {
 		panic(fmt.Sprintf("invalid slice type %T", slice))
@@ -258,9 +258,9 @@ func (s Set) Intersect(other Set) Set {
 }
 
 // IntersectSlice is similar to Intersect, but takes a slice as parameter.
-// Param other must be a slice of []interface{} or slice of the concrete
+// Param other must be a slice of []any or slice of the concrete
 // element type, else it panics.
-func (s Set) IntersectSlice(other interface{}) Set {
+func (s Set) IntersectSlice(other any) Set {
 	otherTyp := reflect.TypeOf(other)
 	if otherTyp == nil || otherTyp.Kind() != reflect.Slice {
 		panic(fmt.Sprintf("invalid other type %T", other))
@@ -292,9 +292,9 @@ func (s Set) Union(other Set) Set {
 }
 
 // UnionSlice is similar to Union, but takes a slice as parameter.
-// Param other must be a slice of []interface{} or slice of the concrete
+// Param other must be a slice of []any or slice of the concrete
 // element type, else it panics.
-func (s Set) UnionSlice(other interface{}) Set {
+func (s Set) UnionSlice(other any) Set {
 	otherTyp := reflect.TypeOf(other)
 	if otherTyp == nil || otherTyp.Kind() != reflect.Slice {
 		panic(fmt.Sprintf("invalid other type %T", other))
@@ -313,18 +313,18 @@ func (s Set) UnionSlice(other interface{}) Set {
 	return res
 }
 
-// Slice converts set into a slice of type []interface{}.
-func (s Set) Slice() []interface{} {
-	res := make([]interface{}, 0, len(s.m))
+// Slice converts set into a slice of type []any.
+func (s Set) Slice() []any {
+	res := make([]any, 0, len(s.m))
 	for val := range s.m {
 		res = append(res, val)
 	}
 	return res
 }
 
-// Map converts set into a map of type map[interface{}]bool.
-func (s Set) Map() map[interface{}]bool {
-	res := make(map[interface{}]bool, len(s.m))
+// Map converts set into a map of type map[any]bool.
+func (s Set) Map() map[any]bool {
+	res := make(map[any]bool, len(s.m))
 	for val := range s.m {
 		res[val] = true
 	}
@@ -332,16 +332,16 @@ func (s Set) Map() map[interface{}]bool {
 }
 
 // MarshalJSON implements json.Marshaler interface, the set will be
-// marshaled as a slice []interface{}.
+// marshaled as a slice []any.
 func (s Set) MarshalJSON() ([]byte, error) {
 	res := s.Slice()
 	return json.Marshal(res)
 }
 
 // UnmarshalJSON implements json.Unmarshaler interface, it will unmarshal
-// a slice []interface{} to the set.
+// a slice []any to the set.
 func (s *Set) UnmarshalJSON(b []byte) error {
-	vals := make([]interface{}, 0)
+	vals := make([]any, 0)
 	err := json.Unmarshal(b, &vals)
 	if err == nil {
 		s.Add(vals...)
@@ -350,16 +350,16 @@ func (s *Set) UnmarshalJSON(b []byte) error {
 }
 
 // MarshalYAML implements yaml.Marshaler interface of the yaml package,
-// the set will be marshaled as a slice []interface{}.
-func (s Set) MarshalYAML() (interface{}, error) {
+// the set will be marshaled as a slice []any.
+func (s Set) MarshalYAML() (any, error) {
 	res := s.Slice()
 	return res, nil
 }
 
 // UnmarshalYAML implements yaml.Unmarshaler interface of the yaml package,
-// it will unmarshal a slice []interface{} to the set.
-func (s *Set) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	vals := make([]interface{}, 0)
+// it will unmarshal a slice []any to the set.
+func (s *Set) UnmarshalYAML(unmarshal func(any) error) error {
+	vals := make([]any, 0)
 	err := unmarshal(&vals)
 	if err == nil {
 		s.Add(vals...)

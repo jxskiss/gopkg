@@ -9,14 +9,14 @@ import (
 
 var sonicDefault = sonic.ConfigStd
 
-func sonicMarshalNoMapOrdering(v interface{}) ([]byte, error) {
+func sonicMarshalNoMapOrdering(v any) ([]byte, error) {
 	return sonic.ConfigFastest.Marshal(v)
 }
 
-func sonicMarshalNoHTMLEscape(api sonic.API) func(v interface{}, prefix, indent string) ([]byte, error) {
+func sonicMarshalNoHTMLEscape(api sonic.API) func(v any, prefix, indent string) ([]byte, error) {
 	opts := api.NewEncoder(nil).(*encoder.StreamEncoder).Opts
 	opts &= ^encoder.EscapeHTML
-	return func(v interface{}, prefix, indent string) ([]byte, error) {
+	return func(v any, prefix, indent string) ([]byte, error) {
 		if prefix == "" && indent == "" {
 			return encoder.Encode(v, opts)
 		}

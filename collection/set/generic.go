@@ -241,14 +241,14 @@ func (s *Generic[T]) UnmarshalJSON(b []byte) error {
 
 // MarshalYAML implements yaml.Marshaler interface of the yaml package,
 // the set will be marshaled as a slice []T.
-func (s Generic[T]) MarshalYAML() (interface{}, error) {
+func (s Generic[T]) MarshalYAML() (any, error) {
 	res := s.Slice()
 	return res, nil
 }
 
 // UnmarshalYAML implements yaml.Unmarshaler interface of the yaml package,
 // it will unmarshal a slice []T to the set.
-func (s *Generic[T]) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (s *Generic[T]) UnmarshalYAML(unmarshal func(any) error) error {
 	vals := make([]T, 0)
 	err := unmarshal(&vals)
 	if err == nil {

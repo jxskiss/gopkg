@@ -58,7 +58,7 @@ func TestReflect_mapiterinit(t *testing.T) {
 		"c": 3,
 	}
 
-	var val interface{} = m
+	var val any = m
 	ef := unpackEface(&val)
 	it := Reflect_mapiterinit(ef.rtype, ef.data)
 

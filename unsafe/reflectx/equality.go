@@ -15,7 +15,7 @@ import (
 // between the two types won't crash the program.
 // If the given two types are not identical, the returned diff message
 // contains the detail difference.
-func IsIdenticalType(a, b interface{}) (equal bool, diff string) {
+func IsIdenticalType(a, b any) (equal bool, diff string) {
 	typ1 := reflect.TypeOf(a)
 	typ2 := reflect.TypeOf(b)
 	return newStrictTypecmp().isEqualType(typ1, typ2)
@@ -33,7 +33,7 @@ func IsIdenticalType(a, b interface{}) (equal bool, diff string) {
 // between the two types won't crash the program.
 // If the given two types are not identical, the returned diff message
 // contains the detail difference.
-func IsIdenticalThriftType(a, b interface{}) (equal bool, diff string) {
+func IsIdenticalThriftType(a, b any) (equal bool, diff string) {
 	typ1 := reflect.TypeOf(a)
 	typ2 := reflect.TypeOf(b)
 	return newThriftTypecmp().isEqualType(typ1, typ2)

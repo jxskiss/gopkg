@@ -10,7 +10,7 @@ import (
 
 func TestJSON(t *testing.T) {
 	w := httptest.NewRecorder()
-	data := map[string]interface{}{
+	data := map[string]any{
 		"a": 1234,
 		"b": "abcd",
 	}
@@ -27,7 +27,7 @@ func TestJSON(t *testing.T) {
 
 func TestJSONHumanFriendly(t *testing.T) {
 	w := httptest.NewRecorder()
-	data := map[interface{}]interface{}{
+	data := map[any]any{
 		1234:   "a",
 		"abcd": "b",
 	}

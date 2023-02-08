@@ -152,19 +152,19 @@ func DPanic(msg string, fields ...zap.Field) { _l().DPanic(msg, fields...) }
 func Panic(msg string, fields ...zap.Field)  { _l().Panic(msg, fields...) }
 func Fatal(msg string, fields ...zap.Field)  { _l().Fatal(msg, fields...) }
 
-func Debugf(format string, args ...interface{})  { _s().Debugf(format, args...) }
-func Infof(format string, args ...interface{})   { _s().Infof(format, args...) }
-func Warnf(format string, args ...interface{})   { _s().Warnf(format, args...) }
-func Errorf(format string, args ...interface{})  { _s().Errorf(format, args...) }
-func DPanicf(format string, args ...interface{}) { _s().DPanicf(format, args...) }
-func Panicf(format string, args ...interface{})  { _s().Panicf(format, args...) }
-func Fatalf(format string, args ...interface{})  { _s().Fatalf(format, args...) }
+func Debugf(format string, args ...any)  { _s().Debugf(format, args...) }
+func Infof(format string, args ...any)   { _s().Infof(format, args...) }
+func Warnf(format string, args ...any)   { _s().Warnf(format, args...) }
+func Errorf(format string, args ...any)  { _s().Errorf(format, args...) }
+func DPanicf(format string, args ...any) { _s().DPanicf(format, args...) }
+func Panicf(format string, args ...any)  { _s().Panicf(format, args...) }
+func Fatalf(format string, args ...any)  { _s().Fatalf(format, args...) }
 
 // Print uses fmt.Sprint to log a message at InfoLevel if it's enabled.
 //
 // It has same signature with log.Print, which helps to migrate from the
 // standard library to this package.
-func Print(args ...interface{}) {
+func Print(args ...any) {
 	if l := _l(); l.Core().Enabled(zap.InfoLevel) {
 		l.Info(fmt.Sprint(args...))
 	}
@@ -174,7 +174,7 @@ func Print(args ...interface{}) {
 //
 // It has same signature with log.Printf, which helps to migrate from the
 // standard library to this package.
-func Printf(format string, args ...interface{}) {
+func Printf(format string, args ...any) {
 	if l := _l(); l.Core().Enabled(zap.InfoLevel) {
 		l.Info(fmt.Sprintf(format, args...))
 	}
@@ -184,7 +184,7 @@ func Printf(format string, args ...interface{}) {
 //
 // It has same signature with log.Println, which helps to migrate from the
 // standard library to this package.
-func Println(args ...interface{}) {
+func Println(args ...any) {
 	if l := _l(); l.Core().Enabled(zap.InfoLevel) {
 		l.Info(fmt.Sprintln(args...))
 	}

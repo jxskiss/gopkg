@@ -43,12 +43,12 @@ func TestAddOne(t *testing.T) {
 }
 
 func TestGetSelf(t *testing.T) {
-	var getFunc func(interface{}, string)
+	var getFunc func(any, string)
 	assert.NotPanics(t, func() {
 		GetFunc(&getFunc, "github.com/jxskiss/gopkg/v2/unsafe/forceexport.GetFunc")
 	})
 
-	_p := func(fn interface{}) string { return fmt.Sprintf("%p", fn) }
+	_p := func(fn any) string { return fmt.Sprintf("%p", fn) }
 
 	// The two functions should share the same code pointer, so they should
 	// have the same string representation.

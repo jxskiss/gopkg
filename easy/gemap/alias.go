@@ -2,8 +2,8 @@ package gemap
 
 import "github.com/jxskiss/gopkg/v2/easy/ezmap"
 
-// Map is a map of string key and interface{} value.
-// It provides many useful methods to work with map[string]interface{}.
+// Map is a map of string key and any value.
+// It provides many useful methods to work with map[string]any.
 //
 // Deprecated: this package has been renamed to ezmap.
 type Map = ezmap.Map

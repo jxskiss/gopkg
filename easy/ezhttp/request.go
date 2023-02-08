@@ -49,9 +49,9 @@ type Request struct {
 	// the following types:
 	// - map[string]string
 	// - map[string][]string
-	// - map[string]interface{}
+	// - map[string]any
 	// - url.Values
-	Params interface{}
+	Params any
 
 	// JSON specifies optional body data for request which can take body,
 	// the content-type will be "application/json", it must be one of
@@ -59,8 +59,8 @@ type Request struct {
 	// - io.Reader
 	// - []byte (will be wrapped with bytes.NewReader)
 	// - string (will be wrapped with strings.NewReader)
-	// - interface{} (will be marshaled with json.Marshal)
-	JSON interface{}
+	// - any (will be marshaled with json.Marshal)
+	JSON any
 
 	// XML specifies optional body data for request which can take body,
 	// the content-type will be "application/xml", it must be one of
@@ -68,8 +68,8 @@ type Request struct {
 	// - io.Reader
 	// - []byte (will be wrapped with bytes.NewReader)
 	// - string (will be wrapped with strings.NewReader)
-	// - interface{} (will be marshaled with xml.Marshal)
-	XML interface{}
+	// - any (will be marshaled with xml.Marshal)
+	XML any
 
 	// Form specifies optional body data for request which can take body,
 	// the content-type will be "application/x-www-form-urlencoded",
@@ -80,8 +80,8 @@ type Request struct {
 	// - url.Values (will be encoded and wrapped as io.Reader)
 	// - map[string]string (will be converted to url.Values)
 	// - map[string][]string (will be converted to url.Values)
-	// - map[string]interface{} (will be converted to url.Values)
-	Form interface{}
+	// - map[string]any (will be converted to url.Values)
+	Form any
 
 	// Body specifies optional body data for request which can take body,
 	// the content-type will be detected from the content (may be incorrect),
@@ -89,7 +89,7 @@ type Request struct {
 	// - io.Reader
 	// - []byte (will be wrapped with bytes.NewReader)
 	// - string (will be wrapped with strings.NewReader)
-	Body interface{}
+	Body any
 
 	// Headers will be copied to the request before sent.
 	//
@@ -100,10 +100,10 @@ type Request struct {
 	// Resp specifies an optional destination to unmarshal the response data.
 	// if `Unmarshal` is not provided, the header "Content-Type" will be used to
 	// detect XML content, else `json.Unmarshal` will be used.
-	Resp interface{}
+	Resp any
 
 	// Unmarshal specifies an optional function to unmarshal the response data.
-	Unmarshal func([]byte, interface{}) error
+	Unmarshal func([]byte, any) error
 
 	// Context specifies an optional context.Context to use with http request.
 	Context context.Context
@@ -214,7 +214,7 @@ func (p *Request) prepareRequest(method string) (err error) {
 	return
 }
 
-func mergeQuery(reqURL string, params interface{}) (string, error) {
+func mergeQuery(reqURL string, params any) (string, error) {
 	parsed, err := url.Parse(reqURL)
 	if err != nil {
 		return "", err
@@ -234,7 +234,7 @@ func mergeQuery(reqURL string, params interface{}) (string, error) {
 				query.Add(k, v)
 			}
 		}
-	case map[string]interface{}:
+	case map[string]any:
 		for k, v := range params {
 			switch value := v.(type) {
 			case string:
@@ -261,7 +261,7 @@ func mergeQuery(reqURL string, params interface{}) (string, error) {
 	return parsed.String(), nil
 }
 
-func marshalForm(v interface{}) ([]byte, error) {
+func marshalForm(v any) ([]byte, error) {
 	var form url.Values
 	switch data := v.(type) {
 	case url.Values:
@@ -273,7 +273,7 @@ func marshalForm(v interface{}) ([]byte, error) {
 		for k, v := range data {
 			form[k] = []string{v}
 		}
-	case map[string]interface{}:
+	case map[string]any:
 		form = make(url.Values, len(data))
 		for k, v := range data {
 			switch value := v.(type) {
@@ -295,9 +295,9 @@ func marshalForm(v interface{}) ([]byte, error) {
 	return buf, nil
 }
 
-type marshalFunc func(interface{}) ([]byte, error)
+type marshalFunc func(any) ([]byte, error)
 
-func (p *Request) makeBody(data interface{}, marshal marshalFunc) (io.Reader, error) {
+func (p *Request) makeBody(data any, marshal marshalFunc) (io.Reader, error) {
 	var body io.Reader
 	switch x := data.(type) {
 	case io.Reader:

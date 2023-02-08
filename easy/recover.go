@@ -10,7 +10,7 @@ import (
 
 // PanicError represents an captured panic error.
 type PanicError struct {
-	Exception  interface{}
+	Exception  any
 	Location   string
 	Stacktrace []byte
 }
@@ -117,7 +117,7 @@ func IdentifyPanicSkip(skip int) string {
 
 // EnsureError ensures the given value (should be non-nil) is an error.
 // If it's not an error, `fmt.Errorf("%v", v)` will be used to convert it.
-func EnsureError(v interface{}) error {
+func EnsureError(v any) error {
 	if v == nil {
 		return nil
 	}
@@ -129,7 +129,7 @@ func EnsureError(v interface{}) error {
 }
 
 // PanicOnError fires a panic if any of the args is non-nil error.
-func PanicOnError(args ...interface{}) {
+func PanicOnError(args ...any) {
 	for _, arg := range args {
 		if err, ok := arg.(error); ok && err != nil {
 			panic(err)

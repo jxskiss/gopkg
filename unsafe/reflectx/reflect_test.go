@@ -14,7 +14,7 @@ func (_ *dummyError) Error() string { return "dummyError" }
 
 func TestIsNil(t *testing.T) {
 	testcases := []struct {
-		v    interface{}
+		v    any
 		want bool
 	}{
 		{nil, true},
@@ -37,7 +37,7 @@ func TestIsNil(t *testing.T) {
 }
 
 func TestCastInt(t *testing.T) {
-	values := []interface{}{
+	values := []any{
 		int8(1), int8(math.MinInt8), int8(math.MaxInt8),
 		int16(1), int16(math.MinInt16), int16(math.MaxInt16),
 		int32(1), int32(math.MinInt32), int32(math.MaxInt32),

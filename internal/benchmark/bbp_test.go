@@ -29,7 +29,7 @@ var str = []string{
 }
 
 var (
-	stdBytesBufferPool = sync.Pool{New: func() interface{} {
+	stdBytesBufferPool = sync.Pool{New: func() any {
 		return &bytes.Buffer{}
 	}}
 	bbpPool bbp.Pool

@@ -105,7 +105,7 @@ func TestFilter(t *testing.T) {
 	assert.Len(t, got3, 1)
 }
 
-func callFunction(f interface{}, args ...interface{}) interface{} {
+func callFunction(f any, args ...any) any {
 	fVal := reflect.ValueOf(f)
 	argsVal := make([]reflect.Value, 0, len(args))
 	for _, arg := range args {
@@ -118,7 +118,7 @@ func callFunction(f interface{}, args ...interface{}) interface{} {
 	return nil
 }
 
-var splitBatchTests = []map[string]interface{}{
+var splitBatchTests = []map[string]any{
 	{
 		"total": 0,
 		"batch": 10,
@@ -159,7 +159,7 @@ func TestRepeat(t *testing.T) {
 	assert.Equal(t, []int{1, 2, 3, 1, 2, 3, 1, 2, 3}, got)
 }
 
-var reverseSliceTests = []map[string]interface{}{
+var reverseSliceTests = []map[string]any{
 	{
 		"func":  ReverseInt64s,
 		"slice": []int64{1, 2, 3},
@@ -199,7 +199,7 @@ func TestReverseSlice(t *testing.T) {
 	}
 }
 
-var reverseSliceInplaceTests = []map[string]interface{}{
+var reverseSliceInplaceTests = []map[string]any{
 	{
 		"func":  ReverseInt64s,
 		"slice": []int64{1, 2, 3},
@@ -240,7 +240,7 @@ func TestReverseSliceInplace(t *testing.T) {
 	}
 }
 
-var uniqueSliceTests = []map[string]interface{}{
+var uniqueSliceTests = []map[string]any{
 	{
 		"func":  UniqueInt64s,
 		"slice": []int64{2, 2, 1, 3, 2, 3, 1, 3},

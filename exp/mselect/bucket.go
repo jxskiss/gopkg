@@ -3,7 +3,7 @@ package mselect
 const bucketSize = 512
 
 var (
-	blockch   chan interface{}
+	blockch   chan any
 	blockTask = NewTask(blockch, nil, nil)
 )
 

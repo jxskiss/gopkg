@@ -88,7 +88,7 @@ func TestHumanFriendlyIndentation(t *testing.T) {
         "url": "https://api.github.com/repos/octocat/Hello-World/commits/6dcb09b5b57875f334f61aebed695e2e4193db5e"
     }
 ]`
-	var m []interface{}
+	var m []any
 	err := UnmarshalFromString(data, &m)
 	assert.Nil(t, err)
 

@@ -7,12 +7,12 @@ import (
 	jsoniter "github.com/json-iterator/go"
 )
 
-func jsoniterMarshalNoMapOrdering(v interface{}) ([]byte, error) {
+func jsoniterMarshalNoMapOrdering(v any) ([]byte, error) {
 	return jsoniter.ConfigFastest.Marshal(v)
 }
 
-func jsoniterMarshalNoHTMLEscape(cfg jsoniter.API) func(v interface{}, prefix, indent string) ([]byte, error) {
-	return func(v interface{}, prefix, indent string) ([]byte, error) {
+func jsoniterMarshalNoHTMLEscape(cfg jsoniter.API) func(v any, prefix, indent string) ([]byte, error) {
+	return func(v any, prefix, indent string) ([]byte, error) {
 		var buf bytes.Buffer
 		enc := cfg.NewEncoder(&buf)
 		enc.SetEscapeHTML(false)

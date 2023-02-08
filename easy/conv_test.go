@@ -40,7 +40,7 @@ func TestToMap(t *testing.T) {
 
 func TestToInterfaceSlice(t *testing.T) {
 	slice1 := []int{1, 2, 3}
-	want := []interface{}{1, 2, 3}
+	want := []any{1, 2, 3}
 	got := ToInterfaceSlice(slice1)
 	assert.Equal(t, want, got)
 

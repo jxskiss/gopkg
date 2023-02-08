@@ -29,7 +29,7 @@ func Trace(msg string, fields ...zap.Field) {
 //
 // If trace messages are disabled by GlobalConfig, calling this function
 // is a no-op.
-func Tracef(format string, args ...interface{}) {
+func Tracef(format string, args ...any) {
 	if !disableTrace {
 		msg := formatMessage(format, args)
 		msg = TracePrefix + msg
@@ -54,14 +54,14 @@ func Tracef(format string, args ...interface{}) {
 //
 // If trace messages are disabled by GlobalConfig, calling this function
 // is a no-op.
-func TRACE(args ...interface{}) {
+func TRACE(args ...any) {
 	if !disableTrace {
 		_slowPathTrace(0, args...)
 	}
 }
 
 // TRACE1 is similar to TRACE, but it accepts an extra arg0 before args.
-func TRACE1(arg0 interface{}, args ...interface{}) {
+func TRACE1(arg0 any, args ...any) {
 	if !disableTrace {
 		_slowPathTrace1(0, arg0, args)
 	}
@@ -73,28 +73,28 @@ func TRACE1(arg0 interface{}, args ...interface{}) {
 //
 // If trace messages are disabled by GlobalConfig, calling this function
 // is a no-op.
-func TRACESkip(skip int, args ...interface{}) {
+func TRACESkip(skip int, args ...any) {
 	if !disableTrace {
 		_slowPathTrace(skip, args...)
 	}
 }
 
 // TRACESkip1 is similar to TRACESkip, but it accepts an extra arg0 before args.
-func TRACESkip1(skip int, arg0 interface{}, args ...interface{}) {
+func TRACESkip1(skip int, arg0 any, args ...any) {
 	if !disableTrace {
 		_slowPathTrace1(skip, arg0, args)
 	}
 }
 
-func _slowPathTrace(skip int, args ...interface{}) {
-	var a0 interface{}
+func _slowPathTrace(skip int, args ...any) {
+	var a0 any
 	if len(args) > 0 {
 		a0, args = args[0], args[1:]
 	}
 	_slowPathTrace1(skip+1, a0, args)
 }
 
-func _slowPathTrace1(skip int, a0 interface{}, args []interface{}) {
+func _slowPathTrace1(skip int, a0 any, args []any) {
 	logger, msg, fields := parseLoggerAndParams(skip, a0, args)
 	msg = addCallerPrefix(skip, TracePrefix, msg)
 	if ce := logger.Check(TraceLevel.ToZapLevel(), msg); ce != nil {
@@ -102,7 +102,7 @@ func _slowPathTrace1(skip int, a0 interface{}, args []interface{}) {
 	}
 }
 
-func parseLoggerAndParams(skip int, a0 interface{}, args []interface{}) (*zap.Logger, string, []zap.Field) {
+func parseLoggerAndParams(skip int, a0 any, args []any) (*zap.Logger, string, []zap.Field) {
 	var logger = L()
 	if a0 != nil {
 		switch a0 := a0.(type) {
@@ -113,7 +113,7 @@ func parseLoggerAndParams(skip int, a0 interface{}, args []interface{}) (*zap.Lo
 		case *zap.SugaredLogger:
 			logger = a0.Desugar()
 		default:
-			args = append([]interface{}{a0}, args...)
+			args = append([]any{a0}, args...)
 		}
 	}
 	logger = logger.WithOptions(zap.AddCallerSkip(skip + 2))
@@ -150,7 +150,7 @@ func addCallerPrefix(skip int, prefix, msg string) string {
 	return fmt.Sprintf("%s[%s] %s", prefix, caller, msg)
 }
 
-func tryConvertFields(args []interface{}) ([]zap.Field, bool) {
+func tryConvertFields(args []any) ([]zap.Field, bool) {
 	if len(args) == 0 {
 		return nil, true
 	}
@@ -166,7 +166,7 @@ func tryConvertFields(args []interface{}) ([]zap.Field, bool) {
 	return fields, true
 }
 
-func formatMessage(template string, fmtArgs []interface{}) string {
+func formatMessage(template string, fmtArgs []any) string {
 	if len(fmtArgs) == 0 {
 		return template
 	}

@@ -8,7 +8,7 @@ import (
 )
 
 func TestHash(t *testing.T) {
-	cases := []interface{}{
+	cases := []any{
 		"abc",
 		int8(19),
 		uint8(19),

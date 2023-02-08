@@ -89,7 +89,7 @@ func init() {
 			size = 1<<j + quarter*k
 		}
 		bufSizeTable[i] = size
-		sizedPools[i].New = func() interface{} {
+		sizedPools[i].New = func() any {
 			buf := make([]byte, 0, size)
 			return _toPtr(buf)
 		}

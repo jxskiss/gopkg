@@ -77,7 +77,7 @@ type Config struct {
 
 	// CustomLoader optionally loads fields which have a `custom` tag,
 	// the field's type and the tag value will be passed to the custom loader.
-	CustomLoader func(typ reflect.Type, tag string) (interface{}, error)
+	CustomLoader func(typ reflect.Type, tag string) (any, error)
 
 	// FlagSet optionally specifies a flag set to lookup flag value
 	// for fields which have a `flag` tag. The tag value should be the
@@ -116,7 +116,7 @@ func New(config *Config) *Loader {
 
 // Load creates a Loader with nil config and loads configuration to dst,
 // it is a shortcut for New(nil).Load(dst, files...).
-func Load(dst interface{}, files ...string) error {
+func Load(dst any, files ...string) error {
 	return New(nil).Load(dst, files...)
 }
 
@@ -124,11 +124,11 @@ func Load(dst interface{}, files ...string) error {
 // and the given configuration files.
 //
 // See Loader and Config for detailed document.
-func (p *Loader) Load(dst interface{}, files ...string) error {
+func (p *Loader) Load(dst any, files ...string) error {
 	return p.load(dst, files...)
 }
 
-func (p *Loader) load(dst interface{}, files ...string) error {
+func (p *Loader) load(dst any, files ...string) error {
 	dstTyp := reflect.TypeOf(dst)
 	if dstTyp.Kind() != reflect.Ptr || dstTyp.Elem().Kind() != reflect.Struct {
 		return errors.New("invalid destination, should be a struct pointer")
@@ -159,7 +159,7 @@ func (p *Loader) getLogFunc() func(format string, v ...any) {
 	return zlog.StdLogger.Infof
 }
 
-func (p *Loader) loadFiles(config interface{}, files ...string) error {
+func (p *Loader) loadFiles(config any, files ...string) error {
 	for i := len(files) - 1; i >= 0; i-- {
 		file := files[i]
 		err := p.processFile(config, file)
@@ -170,13 +170,13 @@ func (p *Loader) loadFiles(config interface{}, files ...string) error {
 	return nil
 }
 
-func (p *Loader) processFile(config interface{}, file string) error {
+func (p *Loader) processFile(config any, file string) error {
 	if info, err := os.Stat(file); err != nil || !info.Mode().IsRegular() {
 		return fmt.Errorf("invalid configuration file: %s", file)
 	}
 
 	p.getLogFunc()(fmt.Sprintf("loading configuration from file: %v", file))
-	var unmarshalFunc func(data []byte, v interface{}, disallowUnknownFields bool) error
+	var unmarshalFunc func(data []byte, v any, disallowUnknownFields bool) error
 	extname := path.Ext(file)
 	switch strings.ToLower(extname) {
 	case ".json":
@@ -199,7 +199,7 @@ func (p *Loader) processFile(config interface{}, file string) error {
 	return nil
 }
 
-func unmarshalJSON(data []byte, v interface{}, disallowUnknownFields bool) error {
+func unmarshalJSON(data []byte, v any, disallowUnknownFields bool) error {
 	if disallowUnknownFields {
 		dec := json.NewDecoder(bytes.NewReader(data))
 		dec.DisallowUnknownFields()
@@ -208,7 +208,7 @@ func unmarshalJSON(data []byte, v interface{}, disallowUnknownFields bool) error
 	return json.Unmarshal(data, v)
 }
 
-func unmarshalYAML(data []byte, v interface{}, disallowUnknownFields bool) error {
+func unmarshalYAML(data []byte, v any, disallowUnknownFields bool) error {
 	dec := yaml.NewDecoder(bytes.NewReader(data))
 	if disallowUnknownFields {
 		dec.KnownFields(true)
@@ -216,7 +216,7 @@ func unmarshalYAML(data []byte, v interface{}, disallowUnknownFields bool) error
 	return dec.Decode(v)
 }
 
-func unmarshalTOML(data []byte, v interface{}, disallowUnknownFields bool) error {
+func unmarshalTOML(data []byte, v any, disallowUnknownFields bool) error {
 	meta, err := toml.Decode(string(data), v)
 	if err == nil && len(meta.Undecoded()) > 0 && disallowUnknownFields {
 		return fmt.Errorf("toml: unknown fields %v", meta.Undecoded())
@@ -224,7 +224,7 @@ func unmarshalTOML(data []byte, v interface{}, disallowUnknownFields bool) error
 	return err
 }
 
-func (p *Loader) processDefaults(config interface{}) error {
+func (p *Loader) processDefaults(config any) error {
 	configVal := reflect.Indirect(reflect.ValueOf(config))
 	configTyp := configVal.Type()
 
@@ -273,7 +273,7 @@ func (p *Loader) processDefaults(config interface{}) error {
 	return nil
 }
 
-func (p *Loader) processFlags(config interface{}) error {
+func (p *Loader) processFlags(config any) error {
 	if p.FlagSet == nil {
 		return nil
 	}
@@ -334,7 +334,7 @@ func lookupFlag(fs *flag.FlagSet, name string) (out *flag.Flag, isSet bool) {
 	return
 }
 
-func (p *Loader) processEnv(config interface{}, prefix string) error {
+func (p *Loader) processEnv(config any, prefix string) error {
 	configVal := reflect.Indirect(reflect.ValueOf(config))
 	configTyp := configVal.Type()
 
@@ -408,7 +408,7 @@ func (p *Loader) getEnvName(prefix string, name string) string {
 	return prefix + "_" + string(envName)
 }
 
-func (p *Loader) processCustom(config interface{}) error {
+func (p *Loader) processCustom(config any) error {
 	if p.CustomLoader == nil {
 		return nil
 	}
@@ -466,7 +466,7 @@ func assignFlagValue(dst reflect.Value, ff *flag.Flag, isSet bool) error {
 	return nil
 }
 
-func assignFieldValue(dst reflect.Value, value interface{}) error {
+func assignFieldValue(dst reflect.Value, value any) error {
 	inputVal := reflect.ValueOf(value)
 	if dst.Type() == inputVal.Type() {
 		dst.Set(inputVal)
@@ -485,7 +485,7 @@ func assignFieldValue(dst reflect.Value, value interface{}) error {
 	}
 
 	var err error
-	var val interface{}
+	var val any
 	switch dst.Interface().(type) {
 	case bool:
 		val, err = toBooleanE(value)
@@ -519,7 +519,7 @@ func assignFieldValue(dst reflect.Value, value interface{}) error {
 		val, err = cast.ToStringMapStringE(value)
 	case map[string][]string:
 		val, err = cast.ToStringMapStringSliceE(value)
-	case map[string]interface{}:
+	case map[string]any:
 		val, err = cast.ToStringMapE(value)
 	case time.Duration:
 		if str, ok := value.(string); ok {
@@ -541,7 +541,7 @@ func assignFieldValue(dst reflect.Value, value interface{}) error {
 	return nil
 }
 
-func toBooleanE(v interface{}) (bool, error) {
+func toBooleanE(v any) (bool, error) {
 	if strval, ok := v.(string); ok {
 		switch strval {
 		case "", "0", "f", "false", "no", "off":
@@ -555,7 +555,7 @@ func toBooleanE(v interface{}) (bool, error) {
 	return cast.ToBoolE(v)
 }
 
-func toInt64SliceE(v interface{}) ([]int64, error) {
+func toInt64SliceE(v any) ([]int64, error) {
 	intValues, err := cast.ToIntSliceE(v)
 	if err != nil {
 		return nil, err
@@ -567,7 +567,7 @@ func toInt64SliceE(v interface{}) ([]int64, error) {
 	return out, nil
 }
 
-func toInt32SliceE(v interface{}) ([]int32, error) {
+func toInt32SliceE(v any) ([]int32, error) {
 	intValues, err := cast.ToIntSliceE(v)
 	if err != nil {
 		return nil, err

@@ -76,9 +76,9 @@ func TestTRACESkip(t *testing.T) {
 	}
 }
 
-func wrappedTRACE(args ...interface{}) {
+func wrappedTRACE(args ...any) {
 
-	var wrappedLevel2 = func(args ...interface{}) {
+	var wrappedLevel2 = func(args ...any) {
 		TRACESkip(2, args...)
 		return
 	}
@@ -87,9 +87,9 @@ func wrappedTRACE(args ...interface{}) {
 	wrappedLevel2(args...)
 }
 
-func wrappedTRACE1(arg0 interface{}, args ...interface{}) {
+func wrappedTRACE1(arg0 any, args ...any) {
 
-	var wrappedLevel2 = func(arg0 interface{}, args ...interface{}) {
+	var wrappedLevel2 = func(arg0 any, args ...any) {
 		TRACESkip1(2, arg0, args...)
 		return
 	}

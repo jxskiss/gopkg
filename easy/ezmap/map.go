@@ -8,9 +8,9 @@ import (
 	"time"
 )
 
-// Map is a map of string key and interface{} value.
-// It provides many useful methods to work with map[string]interface{}.
-type Map map[string]interface{}
+// Map is a map of string key and any value.
+// It provides many useful methods to work with map[string]any.
+type Map map[string]any
 
 // NewMap returns a new initialized Map.
 func NewMap() Map {
@@ -19,26 +19,26 @@ func NewMap() Map {
 
 // MarshalJSON implements the json.Marshaler interface.
 func (p Map) MarshalJSON() ([]byte, error) {
-	x := map[string]interface{}(p)
+	x := map[string]any(p)
 	return json.Marshal(x)
 }
 
 // MarshalJSONPretty returns its marshaled data as `[]byte` with
 // indentation using two spaces.
 func (p Map) MarshalJSONPretty() ([]byte, error) {
-	x := map[string]interface{}(p)
+	x := map[string]any(p)
 	return json.MarshalIndent(x, "", "  ")
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (p *Map) UnmarshalJSON(data []byte) error {
-	x := (*map[string]interface{})(p)
+	x := (*map[string]any)(p)
 	return json.Unmarshal(data, x)
 }
 
 // Set is used to store a new key/value pair exclusively in the map.
 // It also lazily initializes the map if it was not used previously.
-func (p *Map) Set(key string, value interface{}) {
+func (p *Map) Set(key string, value any) {
 	if *p == nil {
 		*p = make(Map)
 	}
@@ -47,13 +47,13 @@ func (p *Map) Set(key string, value interface{}) {
 
 // Get returns the value for the given key, ie: (value, true).
 // If the value does not exist it returns (nil, false)
-func (p Map) Get(key string) (value interface{}, exists bool) {
+func (p Map) Get(key string) (value any, exists bool) {
 	value, exists = p[key]
 	return
 }
 
 // MustGet returns the value for the given key if it exists, otherwise it panics.
-func (p Map) MustGet(key string) interface{} {
+func (p Map) MustGet(key string) any {
 	if val, ok := p[key]; ok {
 		return val
 	}
@@ -205,7 +205,7 @@ func (p Map) GetStrings(key string) []string {
 // GetSlice returns the value associated with the key as a slice.
 // It returns nil if key does not present in Map or the value's type
 // is not a slice.
-func (p Map) GetSlice(key string) interface{} {
+func (p Map) GetSlice(key string) any {
 	val, ok := p[key]
 	if !ok || reflect.TypeOf(val).Kind() != reflect.Slice {
 		return nil
@@ -213,14 +213,14 @@ func (p Map) GetSlice(key string) interface{} {
 	return val
 }
 
-// GetMap returns the value associated with the key as a Map (map[string]interface{}).
+// GetMap returns the value associated with the key as a Map (map[string]any).
 func (p Map) GetMap(key string) Map {
 	val, ok := p[key]
 	if ok {
 		switch val := val.(type) {
 		case Map:
 			return val
-		case map[string]interface{}:
+		case map[string]any:
 			return val
 		}
 	}
@@ -238,7 +238,7 @@ func (p Map) GetStringMap(key string) map[string]string {
 // Iterate iterates the map in unspecified order, the given function fn
 // will be called for each key value pair.
 // The iteration can be aborted by returning a non-zero value from fn.
-func (p Map) Iterate(fn func(k string, v interface{}) int) {
+func (p Map) Iterate(fn func(k string, v any) int) {
 	for k, v := range p {
 		if fn(k, v) != 0 {
 			return

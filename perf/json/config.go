@@ -34,10 +34,10 @@ func Config(opts Options) {
 // Also, this config can encode data with `interface{}` as map keys,
 // in contrast, the standard library fails in this case.
 var HumanFriendly struct {
-	Marshal             func(v interface{}) ([]byte, error)
-	MarshalToString     func(v interface{}) (string, error)
-	MarshalIndent       func(v interface{}, prefix, indent string) ([]byte, error)
-	MarshalIndentString func(v interface{}, prefix, indent string) (string, error)
+	Marshal             func(v any) ([]byte, error)
+	MarshalToString     func(v any) (string, error)
+	MarshalIndent       func(v any, prefix, indent string) ([]byte, error)
+	MarshalIndentString func(v any, prefix, indent string) (string, error)
 	NewEncoder          func(w io.Writer) *Encoder
 }
 
@@ -58,20 +58,20 @@ func init() {
 }
 
 type apiProxy struct {
-	Marshal       func(v interface{}) ([]byte, error)
-	MarshalIndent func(v interface{}, prefix, indent string) ([]byte, error)
-	Unmarshal     func(data []byte, v interface{}) error
+	Marshal       func(v any) ([]byte, error)
+	MarshalIndent func(v any, prefix, indent string) ([]byte, error)
+	Unmarshal     func(data []byte, v any) error
 	Valid         func(data []byte) bool
 
-	MarshalToString     func(v interface{}) (string, error)
-	UnmarshalFromString func(data string, v interface{}) error
+	MarshalToString     func(v any) (string, error)
+	UnmarshalFromString func(data string, v any) error
 
 	Compact    func(dst *bytes.Buffer, src []byte) error
 	HTMLEscape func(dst *bytes.Buffer, src []byte)
 	Indent     func(dst *bytes.Buffer, src []byte, prefix, indent string) error
 
-	MarshalNoMapOrdering func(v interface{}) ([]byte, error)
-	MarshalNoHTMLEscape  func(v interface{}, prefix, indent string) ([]byte, error)
+	MarshalNoMapOrdering func(v any) ([]byte, error)
+	MarshalNoHTMLEscape  func(v any, prefix, indent string) ([]byte, error)
 
 	NewEncoder func(w io.Writer) underlyingEncoder
 	NewDecoder func(r io.Reader) underlyingDecoder

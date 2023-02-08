@@ -69,7 +69,7 @@ func (p *Pool) CtxGo(ctx context.Context, f func()) {
 	p.submit(ctx, f, funcTaskRunner)
 }
 
-func (p *Pool) submit(ctx context.Context, arg interface{}, runner taskRunner) {
+func (p *Pool) submit(ctx context.Context, arg any, runner taskRunner) {
 	t := newTask()
 	t.ctx = ctx
 	t.arg = arg

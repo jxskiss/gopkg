@@ -86,7 +86,7 @@ func ReverseStrings(slice []string, inplace bool) []string {
 // of type [][]T whose elements are sub slices of slice.
 //
 // Deprecated: the generic function Split is favored over this.
-func SplitSlice[S ~[]E, E any](slice S, batch int) interface{} {
+func SplitSlice[S ~[]E, E any](slice S, batch int) any {
 	return Split[S, E](slice, batch)
 }
 
@@ -168,7 +168,7 @@ func DiffStrings(a []string, b []string) []string {
 // The keys will be in an indeterminate order.
 //
 // Deprecated: the generic function Keys is favored over this.
-func MapKeys[M ~map[K]V, K comparable, V any](m M) interface{} {
+func MapKeys[M ~map[K]V, K comparable, V any](m M) any {
 	return Keys[M, K, V](m)
 }
 
@@ -176,7 +176,7 @@ func MapKeys[M ~map[K]V, K comparable, V any](m M) interface{} {
 // The values will be in an indeterminate order.
 //
 // Deprecated: the generic function Values is favored over this.
-func MapValues[M ~map[K]V, K comparable, V any](m M) interface{} {
+func MapValues[M ~map[K]V, K comparable, V any](m M) any {
 	return Values[M, K, V](m)
 }
 

@@ -9,7 +9,7 @@ but the behavior can be configured, e.g.
 using the standard library or using a custom sonic config,
 or switch to a [jsoniter] config.
 
-When you are encoding data using `interface{}` as map keys (e.g. `map[interface{}]interface{}`),
+When you are encoding data using `interface{}` as map keys (e.g. `map[any]any`),
 both the standard library and sonic will fail, you should use jsoniter.
 
 [bytedance/sonic]: https://github.com/bytedance/sonic
@@ -37,8 +37,8 @@ See https://github.com/bytedance/sonic#benchmarks.
 
 String operation avoiding unnecessary memory allocation:
 
-1. `MarshalToString(v interface{}) (string, error)`
-2. `UnmarshalFromString(str string, v interface{}) error`
+1. `MarshalToString(v any) (string, error)`
+2. `UnmarshalFromString(str string, v any) error`
 
 Encoder and Decoder with method chaining capabilities:
 
@@ -47,12 +47,12 @@ Encoder and Decoder with method chaining capabilities:
 
 Disable HTMLEscape to get output more friendly to read for human:
 
-1. `MarshalNoHTMLEscape(v interface{}, prefix, indent string) ([]byte, error)`
+1. `MarshalNoHTMLEscape(v any, prefix, indent string) ([]byte, error)`
 
 Handy shortcuts to load and dump JSON data from/to a file:
 
-1. `Load(path string, v interface{}) error`
-2. `Dump(path string, v interface{}, prefix, indent string) error`
+1. `Load(path string, v any) error`
+2. `Dump(path string, v any, prefix, indent string) error`
 
 ## Other JSON libraries
 

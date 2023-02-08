@@ -18,7 +18,7 @@ func TestRType(t *testing.T) {
 		threeInt int   = 3
 		strA           = "a"
 	)
-	types := []interface{}{
+	types := []any{
 		int8(1),
 		&oneI8,
 		int32(2),

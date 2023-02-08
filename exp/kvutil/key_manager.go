@@ -14,7 +14,7 @@ var argPattern = regexp.MustCompile(`\{[^{]*\}`)
 
 // Key is a function which formats arguments to a string key using
 // predefined key format.
-type Key func(args ...interface{}) string
+type Key func(args ...any) string
 
 // KeyManager provides utilities to work with cache keys.
 type KeyManager struct {
@@ -52,7 +52,7 @@ func (km *KeyManager) newSprintfKey(format string, argNames ...string) Key {
 		}
 		tmpl = strings.NewReplacer(oldnew...).Replace(format)
 	}
-	return func(args ...interface{}) string {
+	return func(args ...any) string {
 		return km.prefix + fmt.Sprintf(tmpl, args...)
 	}
 }
@@ -75,12 +75,12 @@ func (km *KeyManager) newBuilderKey(format string, argNames ...string) Key {
 		tmpl = exp.Split(format, -1)
 		vars = exp.FindAllString(format, -1)
 	}
-	return func(args ...interface{}) string {
+	return func(args ...any) string {
 		return buildKey(km.prefix, tmpl, vars, args)
 	}
 }
 
-func buildKey(prefix string, tmpl, vars []string, args []interface{}) string {
+func buildKey(prefix string, tmpl, vars []string, args []any) string {
 	buf := make([]byte, 0, 128)
 	buf = append(buf, prefix...)
 	var i int

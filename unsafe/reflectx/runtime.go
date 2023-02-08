@@ -21,7 +21,7 @@ func ArrayAt(p unsafe.Pointer, i int, elemSize uintptr) unsafe.Pointer {
 }
 
 // MakeSlice makes a new slice of the given reflect.Type and length, capacity.
-func MakeSlice(elemTyp reflect.Type, length, capacity int) (slice interface{}, header *SliceHeader) {
+func MakeSlice(elemTyp reflect.Type, length, capacity int) (slice any, header *SliceHeader) {
 	elemRType := ToRType(elemTyp)
 	data := linkname.Reflect_unsafe_NewArray(unsafe.Pointer(elemRType), capacity)
 	header = &SliceHeader{
@@ -29,7 +29,7 @@ func MakeSlice(elemTyp reflect.Type, length, capacity int) (slice interface{}, h
 		Len:  length,
 		Cap:  capacity,
 	}
-	slice = *(*interface{})(unsafe.Pointer(&EmptyInterface{
+	slice = *(*any)(unsafe.Pointer(&EmptyInterface{
 		RType: SliceOf(elemRType),
 		Word:  unsafe.Pointer(header),
 	}))
@@ -38,7 +38,7 @@ func MakeSlice(elemTyp reflect.Type, length, capacity int) (slice interface{}, h
 
 // MapLen returns the length of the given map interface{} value.
 // The provided m must be a map, else it panics.
-func MapLen(m interface{}) int {
+func MapLen(m any) int {
 	return linkname.Reflect_maplen(EfaceOf(&m).Word)
 }
 

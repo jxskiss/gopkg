@@ -81,11 +81,11 @@ func ToMap[S ~[]E, E any, K comparable, V any](slice S, f func(E) (K, V)) map[K]
 }
 
 // ToInterfaceSlice returns a []interface{} containing elements from slice.
-func ToInterfaceSlice[S ~[]E, E any](slice S) []interface{} {
+func ToInterfaceSlice[S ~[]E, E any](slice S) []any {
 	if len(slice) == 0 {
 		return nil
 	}
-	out := make([]interface{}, len(slice))
+	out := make([]any, len(slice))
 	for i, elem := range slice {
 		out[i] = elem
 	}

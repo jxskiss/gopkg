@@ -102,8 +102,8 @@ func testLoad_SingleFile(t *testing.T, files ...string) {
 func assertSingleFileConfig(t *testing.T, cfg *TestConfig, exclude ...string) {
 	testFields := []struct {
 		Key      string
-		Expected interface{}
-		Actual   interface{}
+		Expected any
+		Actual   any
 	}{
 		{"some_1", "some_1", cfg.Some1},
 		{"some_1_ptr", "some_1_ptr", *cfg.Some1Ptr},
@@ -343,11 +343,11 @@ func testLoad_CustomLoader(t *testing.T, files ...string) {
 	}, *cfg.SomeRemoteStruct)
 }
 
-func testCustomLoader(typ reflect.Type, tag string) (interface{}, error) {
+func testCustomLoader(typ reflect.Type, tag string) (any, error) {
 	return testCustomLoaderData[tag], nil
 }
 
-var testCustomLoaderData = map[string]interface{}{
+var testCustomLoaderData = map[string]any{
 	"some_remote_value_1":     "remote_value_1",
 	"some_remote_value_1_ptr": "remote_value_1_ptr",
 	"some_remote_value_2":     []string{"a", "b", "c"},

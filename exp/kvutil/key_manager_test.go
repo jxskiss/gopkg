@@ -18,27 +18,27 @@ func Test_Key(t *testing.T) {
 func Test_Key_Corner(t *testing.T) {
 	cases := []struct {
 		key  string
-		args []interface{}
+		args []any
 		want string
 	}{
 		{
 			key:  "%v:blah:%v",
-			args: []interface{}{1234567, "x0BtEadepz6L"},
+			args: []any{1234567, "x0BtEadepz6L"},
 			want: "1234567:blah:x0BtEadepz6L",
 		},
 		{
 			key:  "%v%v:blah:",
-			args: []interface{}{1234567, "x0BtEadepz6L"},
+			args: []any{1234567, "x0BtEadepz6L"},
 			want: "1234567x0BtEadepz6L:blah:",
 		},
 		{
 			key:  "%v:%v:blah",
-			args: []interface{}{1234567, "x0BtEadepz6L"},
+			args: []any{1234567, "x0BtEadepz6L"},
 			want: "1234567:x0BtEadepz6L:blah",
 		},
 		{
 			key:  "blah:%v%v",
-			args: []interface{}{1234567, "x0BtEadepz6L"},
+			args: []any{1234567, "x0BtEadepz6L"},
 			want: "blah:1234567x0BtEadepz6L",
 		},
 	}
@@ -57,27 +57,27 @@ func Test_Key_Corner(t *testing.T) {
 func Test_Key_CurlyBrace(t *testing.T) {
 	cases := []struct {
 		key  string
-		args []interface{}
+		args []any
 		want string
 	}{
 		{
 			key:  "{}:blah:{}",
-			args: []interface{}{1234567, "x0BtEadepz6L"},
+			args: []any{1234567, "x0BtEadepz6L"},
 			want: "1234567:blah:x0BtEadepz6L",
 		},
 		{
 			key:  "{}{}:blah:",
-			args: []interface{}{uint32(1234567), "x0BtEadepz6L"},
+			args: []any{uint32(1234567), "x0BtEadepz6L"},
 			want: "1234567x0BtEadepz6L:blah:",
 		},
 		{
 			key:  "{}:{}:blah",
-			args: []interface{}{1234567, "x0BtEadepz6L"},
+			args: []any{1234567, "x0BtEadepz6L"},
 			want: "1234567:x0BtEadepz6L:blah",
 		},
 		{
 			key:  "blah:{}{}",
-			args: []interface{}{uint64(1234567), "x0BtEadepz6L"},
+			args: []any{uint64(1234567), "x0BtEadepz6L"},
 			want: "blah:1234567x0BtEadepz6L",
 		},
 	}
@@ -147,15 +147,15 @@ func Test_SetKeyPrefix(t *testing.T) {
 var benchmarkData = []struct {
 	format   string
 	argNames []string
-	args     []interface{}
+	args     []any
 }{
 	{"abc:{some_id}:{dummy}", nil,
-		[]interface{}{1234567, "x0BtEadepz6L"}},
+		[]any{1234567, "x0BtEadepz6L"}},
 	{"{}:blah:{}", nil,
-		[]interface{}{1234567, "x0BtEadepz6L"}},
+		[]any{1234567, "x0BtEadepz6L"}},
 	{"{{some_id_1}_foo_bar_count}:{some_id_2}",
 		[]string{"some_id_1", "some_id_2"},
-		[]interface{}{1234567, "x0BtEadepz6L"}},
+		[]any{1234567, "x0BtEadepz6L"}},
 }
 
 var benchmarkSprintfKeys []Key

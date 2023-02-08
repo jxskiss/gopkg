@@ -11,7 +11,7 @@ import (
 // SetDefault checks whether dst points to a zero value, if yes, it sets
 // the first non-zero value to dst.
 // dst must be a pointer to same type as value, else it panics.
-func SetDefault(dst interface{}, value ...interface{}) {
+func SetDefault(dst any, value ...any) {
 	dstVal := reflect.ValueOf(dst)
 	if dstVal.Kind() != reflect.Ptr || !reflect.Indirect(dstVal).IsValid() {
 		panic("SetDefault: dst must be a non-nil pointer")

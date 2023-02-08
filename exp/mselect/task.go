@@ -19,7 +19,7 @@ func NewTask[T any](
 		newFunc: func() unsafe.Pointer {
 			return unsafe.Pointer(new(T))
 		},
-		convFunc: func(p unsafe.Pointer) interface{} {
+		convFunc: func(p unsafe.Pointer) any {
 			return *(*T)(p)
 		},
 	}
@@ -32,7 +32,7 @@ type Task struct {
 	ch       reflect.Value
 	execFunc func(v unsafe.Pointer, ok bool)
 	newFunc  func() unsafe.Pointer
-	convFunc func(p unsafe.Pointer) interface{}
+	convFunc func(p unsafe.Pointer) any
 }
 
 func (t *Task) newRuntimeSelect() runtimeSelect {

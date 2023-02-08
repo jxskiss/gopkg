@@ -29,7 +29,7 @@ func Or(conds ...*Condition) *Condition {
 }
 
 // Cond creates a new *Condition from the given params.
-func Cond(clause string, args ...interface{}) *Condition {
+func Cond(clause string, args ...any) *Condition {
 	return new(Condition).And(clause, args...)
 }
 
@@ -37,11 +37,11 @@ func Cond(clause string, args ...interface{}) *Condition {
 type Condition struct {
 	builder strings.Builder
 	prefix  []byte
-	args    []interface{}
+	args    []any
 }
 
 // And combines the given query filter to Condition using "AND" operator.
-func (p *Condition) And(clause string, args ...interface{}) *Condition {
+func (p *Condition) And(clause string, args ...any) *Condition {
 	if clause == "" {
 		return p
 	}
@@ -69,7 +69,7 @@ func (p *Condition) AndCond(c *Condition) *Condition {
 }
 
 // Or combines the given query filter to Condition using "OR" operator.
-func (p *Condition) Or(clause string, args ...interface{}) *Condition {
+func (p *Condition) Or(clause string, args ...any) *Condition {
 	if clause == "" {
 		return p
 	}
@@ -100,7 +100,7 @@ func (p *Condition) OrCond(c *Condition) *Condition {
 
 // IfAnd checks cond, if cond is true, it combines the query filter
 // to Condition using "AND" operator.
-func (p *Condition) IfAnd(cond bool, clause string, args ...interface{}) *Condition {
+func (p *Condition) IfAnd(cond bool, clause string, args ...any) *Condition {
 	if cond {
 		return p.And(clause, args...)
 	}
@@ -118,7 +118,7 @@ func (p *Condition) IfAndCond(cond bool, c *Condition) *Condition {
 
 // IfOr checks cond, it cond is true, it combines the query filter
 // to Condition using "OR" operator.
-func (p *Condition) IfOr(cond bool, clause string, args ...interface{}) *Condition {
+func (p *Condition) IfOr(cond bool, clause string, args ...any) *Condition {
 	if cond {
 		return p.Or(clause, args...)
 	}
@@ -135,7 +135,7 @@ func (p *Condition) IfOrCond(cond bool, c *Condition) *Condition {
 }
 
 // Build returns the query filter clause and parameters of the Condition.
-func (p *Condition) Build() (string, []interface{}) {
+func (p *Condition) Build() (string, []any) {
 	buf := make([]byte, len(p.prefix)+p.builder.Len())
 	copy(buf, p.prefix)
 	copy(buf[len(p.prefix):], p.builder.String())

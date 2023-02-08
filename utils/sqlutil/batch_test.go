@@ -74,7 +74,7 @@ func TestMakeBatchInsertSQL_OmitCols(t *testing.T) {
 }
 
 func TestMakeBatchInsertSQL_Panic(t *testing.T) {
-	for _, test := range []interface{}{
+	for _, test := range []any{
 		nil,
 		TestObject{},
 		&TestObject{},
@@ -96,11 +96,11 @@ func countPlaceholder(query string) int {
 
 type dummyExecutor struct{}
 
-func (p dummyExecutor) Exec(query string, args ...interface{}) (sql.Result, error) {
+func (p dummyExecutor) Exec(query string, args ...any) (sql.Result, error) {
 	return dummyResult{}, nil
 }
 
-func (p dummyExecutor) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
+func (p dummyExecutor) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
 	return dummyResult{}, nil
 }
 

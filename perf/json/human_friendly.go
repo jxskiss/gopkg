@@ -53,7 +53,7 @@ type hFriendlyEncoder struct {
 	indent string
 }
 
-func (h *hFriendlyEncoder) Encode(val interface{}) error {
+func (h *hFriendlyEncoder) Encode(val any) error {
 	var buf []byte
 	var err error
 	if h.prefix == "" && h.indent == "" {

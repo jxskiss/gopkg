@@ -24,16 +24,16 @@ func TestManySelect_NormalCase(t *testing.T) {
 		got2 int64
 		got3 testData
 		got4 *testData
-		got5 interface{}
+		got5 any
 		got6 fmt.Stringer
-		got7 interface{}
+		got7 any
 	}
 
 	ch1 := make(chan string)
 	ch2 := make(chan int64)
 	ch3 := make(chan testData)
 	ch4 := make(chan *testData)
-	ch5 := make(chan interface{})
+	ch5 := make(chan any)
 	ch6 := make(chan fmt.Stringer)
 	ch7 := make(chan *struct{})
 
@@ -62,7 +62,7 @@ func TestManySelect_NormalCase(t *testing.T) {
 		defer mu.Unlock()
 		result.got4 = v
 	}))
-	msel.Submit(NewTask(ch5, nil, func(v interface{}, ok bool) {
+	msel.Submit(NewTask(ch5, nil, func(v any, ok bool) {
 		assert.True(t, ok)
 		mu.Lock()
 		defer mu.Unlock()

@@ -95,7 +95,7 @@ func OnConflict(clause string) InsertOpt {
 // Executor is the minimal interface for batch inserting requires.
 // The interface is implemented by *sql.DB, *sql.Tx, *sqlx.DB, *sqlx.Tx.
 type Executor interface {
-	Exec(query string, args ...interface{}) (sql.Result, error)
+	Exec(query string, args ...any) (sql.Result, error)
 }
 
 // ContextExecutor is an optional interface to support context execution.
@@ -103,13 +103,13 @@ type Executor interface {
 // provided Executor implements this interface, then the method
 // `ExecContext` will be called instead of the method `Exec`.
 type ContextExecutor interface {
-	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 }
 
 // BatchInsert generates SQL and executes it on the provided Executor.
 // The provided param `rows` must be a slice of struct or pointer to struct,
 // and the slice must have at least one element, or it returns error.
-func BatchInsert(conn Executor, rows interface{}, opts ...InsertOpt) (result sql.Result, err error) {
+func BatchInsert(conn Executor, rows any, opts ...InsertOpt) (result sql.Result, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("%v", r)
@@ -136,12 +136,12 @@ func BatchInsert(conn Executor, rows interface{}, opts ...InsertOpt) (result sql
 // The returned query uses `?` as parameter placeholder, if you are using this function
 // with database which don't use `?` as placeholder, you may check the `Rebind` function
 // from package `github.com/jmoiron/sqlx` to replace placeholders.
-func MakeBatchInsertSQL(rows interface{}, opts ...InsertOpt) (sql string, args []interface{}) {
+func MakeBatchInsertSQL(rows any, opts ...InsertOpt) (sql string, args []any) {
 	options := new(InsertOptions).apply(opts...)
 	return makeBatchInsertSQL("MakeBatchInsertSQL", rows, options)
 }
 
-func makeBatchInsertSQL(where string, rows interface{}, opts *InsertOptions) (sql string, args []interface{}) {
+func makeBatchInsertSQL(where string, rows any, opts *InsertOptions) (sql string, args []any) {
 	assertSliceOfStructAndLength(where, rows)
 
 	typInfo := parseType(rows)
@@ -187,7 +187,7 @@ func makeBatchInsertSQL(where string, rows interface{}, opts *InsertOptions) (sq
 	rowsVal := reflect.ValueOf(rows)
 	length := rowsVal.Len()
 	fieldNum := len(typInfo.fieldIndex)
-	args = make([]interface{}, 0, length*fieldNum)
+	args = make([]any, 0, length*fieldNum)
 	for i := 0; i < length; i++ {
 		if i > 0 {
 			buf.WriteByte(',')
@@ -224,7 +224,7 @@ type typeInfo struct {
 	fieldIndex   []int
 }
 
-func parseType(rows interface{}) *typeInfo {
+func parseType(rows any) *typeInfo {
 	typ := reflect.TypeOf(rows)
 	cachedInfo, ok := typeCache.Load(typ)
 	if ok {
@@ -332,7 +332,7 @@ func diffInts(a, b []int) []int {
 	return out
 }
 
-func assertSliceOfStructAndLength(where string, rows interface{}) {
+func assertSliceOfStructAndLength(where string, rows any) {
 	sliceTyp := reflect.TypeOf(rows)
 	if sliceTyp == nil || sliceTyp.Kind() != reflect.Slice {
 		panic(where + ": param is nil or not a slice")

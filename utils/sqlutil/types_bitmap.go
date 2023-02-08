@@ -28,7 +28,7 @@ func (b Bitmap[T]) Value() (driver.Value, error) {
 }
 
 // Scan implements sql.Scanner interface.
-func (b *Bitmap[T]) Scan(src interface{}) error {
+func (b *Bitmap[T]) Scan(src any) error {
 	var tmp sql.NullInt64
 	err := tmp.Scan(src)
 	if err == nil {

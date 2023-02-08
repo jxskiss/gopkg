@@ -29,7 +29,7 @@ type LazyBinary struct {
 
 type lazyobj struct {
 	mu   sync.Mutex
-	data interface{}
+	data any
 	err  error
 }
 
@@ -39,7 +39,7 @@ func (p LazyBinary) Value() (driver.Value, error) {
 }
 
 // Scan implements sql.Scanner interface.
-func (p *LazyBinary) Scan(src interface{}) error {
+func (p *LazyBinary) Scan(src any) error {
 	if src != nil {
 		// NOTE
 		// We MUST copy the src byte slice here, database/sql.Scanner says:
@@ -65,7 +65,7 @@ func (p *LazyBinary) Scan(src interface{}) error {
 }
 
 // Unmarshaler is a function which unmarshalls data from a byte slice.
-type Unmarshaler func([]byte) (interface{}, error)
+type Unmarshaler func([]byte) (any, error)
 
 // GetBytes returns the underlying byte slice.
 func (p *LazyBinary) GetBytes() []byte {
@@ -77,7 +77,7 @@ func (p *LazyBinary) GetBytes() []byte {
 // the provided unmarshalFunc.
 // The unmarshalling work will do only once, the result data and error
 // will be cached and reused for further calling.
-func (p *LazyBinary) Get(unmarshalFunc Unmarshaler) (interface{}, error) {
+func (p *LazyBinary) Get(unmarshalFunc Unmarshaler) (any, error) {
 	obj, created := p.getobj()
 	defer obj.mu.Unlock()
 	if created {
@@ -90,7 +90,7 @@ func (p *LazyBinary) Get(unmarshalFunc Unmarshaler) (interface{}, error) {
 
 // Set sets the data and marshaled bytes to the LazyBinary wrapper.
 // If the param data is nil, the underlying cache will be removed.
-func (p *LazyBinary) Set(b []byte, data interface{}) {
+func (p *LazyBinary) Set(b []byte, data any) {
 	p.raw = b
 	if data == nil {
 		atomic.StorePointer(&p.obj, nil)

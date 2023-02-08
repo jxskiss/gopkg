@@ -13,7 +13,7 @@ var shardingHash = rthash.New()
 
 func buildHashFunction[K comparable]() func(x K) uintptr {
 	var _k K
-	typ := reflect.TypeOf((interface{})(_k))
+	typ := reflect.TypeOf((any)(_k))
 	if typ == nil {
 		return func(x K) uintptr {
 			return shardingHash.Interface(x)

@@ -12,7 +12,7 @@ import (
 // JSON converts given object to a json string, it never returns error.
 // The marshalling method used here does not escape HTML characters,
 // and map keys are sorted, which helps human reading.
-func JSON(v interface{}) string {
+func JSON(v any) string {
 	b, err := json.HumanFriendly.Marshal(v)
 	if err != nil {
 		return fmt.Sprintf("<error: %v>", err)
@@ -25,28 +25,28 @@ func JSON(v interface{}) string {
 // to JSON when it's String method is called.
 // This helps to avoid unnecessary marshaling in some use case,
 // such as leveled logging.
-func LazyJSON(v interface{}) fmt.Stringer {
+func LazyJSON(v any) fmt.Stringer {
 	return _lazyJSON{v}
 }
 
-type _lazyJSON struct{ v interface{} }
+type _lazyJSON struct{ v any }
 
 func (x _lazyJSON) String() string { return JSON(x.v) }
 
 // Pretty converts given object to a pretty formatted json string.
 // If the input is a json string, it will be formatted using json.Indent
 // with four space characters as indent.
-func Pretty(v interface{}) string {
+func Pretty(v any) string {
 	return prettyIndent(v, "    ")
 }
 
 // Pretty2 is like Pretty, but it uses two space characters as indent,
 // instead of four.
-func Pretty2(v interface{}) string {
+func Pretty2(v any) string {
 	return prettyIndent(v, "  ")
 }
 
-func prettyIndent(v interface{}, indent string) string {
+func prettyIndent(v any, indent string) string {
 	var src []byte
 	switch v := v.(type) {
 	case []byte:

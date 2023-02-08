@@ -6,10 +6,11 @@ package unsafeheader_test
 
 import (
 	"bytes"
-	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 	"reflect"
 	"testing"
 	"unsafe"
+
+	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
 
 // TestTypeMatchesReflectType ensures that the name and layout of the
@@ -25,7 +26,7 @@ func TestTypeMatchesReflectType(t *testing.T) {
 	})
 }
 
-func testHeaderMatchesReflect(t *testing.T, header, reflectHeader interface{}) {
+func testHeaderMatchesReflect(t *testing.T, header, reflectHeader any) {
 	h := reflect.TypeOf(header)
 	rh := reflect.TypeOf(reflectHeader)
 

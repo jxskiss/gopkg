@@ -1,10 +1,11 @@
 package internal
 
 import (
-	"github.com/jxskiss/gopkg/v2/internal/linkname"
-	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 	"reflect"
 	"unsafe"
+
+	"github.com/jxskiss/gopkg/v2/internal/linkname"
+	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
 
 // EmptyInterface is the header for an interface{} value.
@@ -15,18 +16,18 @@ type EmptyInterface struct {
 }
 
 // EFaceOf casts the empty interface{} pointer to an EmptyInterface pointer.
-func EFaceOf(ep *interface{}) *EmptyInterface {
+func EFaceOf(ep *any) *EmptyInterface {
 	return (*EmptyInterface)(unsafe.Pointer(ep))
 }
 
 // UnpackSlice unpacks the given slice interface{} to unsafeheader.Slice.
-func UnpackSlice(slice interface{}) unsafeheader.Slice {
+func UnpackSlice(slice any) unsafeheader.Slice {
 	return *(*unsafeheader.Slice)(EFaceOf(&slice).Word)
 }
 
 // CastInt returns an integer v's value as int64.
 // v must be an integer, else it panics.
-func CastInt(v interface{}) int64 {
+func CastInt(v any) int64 {
 	eface := EFaceOf(&v)
 	kind := linkname.Reflect_rtype_Kind(eface.RType)
 	return i64table[kind].Cast(eface.Word)

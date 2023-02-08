@@ -8,7 +8,7 @@ import (
 )
 
 func TestSet_Add(t *testing.T) {
-	t1 := map[interface{}]struct{}{
+	t1 := map[any]struct{}{
 		1: {},
 		2: {},
 		3: {},
@@ -76,7 +76,7 @@ func TestSet_FilterExclude(t *testing.T) {
 func TestSet_Slice(t *testing.T) {
 	set1 := NewSet(1, 2, 3)
 	set1.Add([]int{4, 5, 6})
-	target := []interface{}{1, 2, 3, 4, 5, 6}
+	target := []any{1, 2, 3, 4, 5, 6}
 
 	vals := set1.Slice()
 	sort.Slice(vals, func(i, j int) bool {
@@ -91,7 +91,7 @@ func TestSet_Slice(t *testing.T) {
 func TestSet_Map(t *testing.T) {
 	set1 := NewSet(1, 2, 3)
 	set1.Add([]int{4, 5, 6})
-	target := map[interface{}]bool{
+	target := map[any]bool{
 		1: true,
 		2: true,
 		3: true,

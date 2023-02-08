@@ -49,7 +49,7 @@ func New() Hash {
 // x is of type string, int8, uint8, int16, uint16, int32, uint32,
 // int64, uint64, int, uint, uintptr, float32, float64, complex64,
 // or complex128, else it calls
-func (h Hash) Hash(x interface{}) uintptr {
+func (h Hash) Hash(x any) uintptr {
 	switch v := x.(type) {
 	case string:
 		return h.String(v)
@@ -186,7 +186,7 @@ func (h Hash) Complex128(x complex128) uintptr {
 }
 
 // Interface exposes the efaceHash function from runtime package.
-func (h Hash) Interface(x interface{}) uintptr {
+func (h Hash) Interface(x any) uintptr {
 	return linkname.Runtime_efaceHash(x, h.seed)
 }
 

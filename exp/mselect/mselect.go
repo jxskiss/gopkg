@@ -34,7 +34,7 @@ type ManySelect interface {
 // New creates a new ManySelect.
 func New() ManySelect {
 	msel := &manySelect{
-		tasks: make(chan interface{}, 1),
+		tasks: make(chan any, 1),
 	}
 	return msel
 }
@@ -43,7 +43,7 @@ type manySelect struct {
 	mu      sync.Mutex
 	buckets []*taskBucket
 
-	tasks chan interface{} // *Task
+	tasks chan any // *Task
 
 	count   int32
 	stopped int32

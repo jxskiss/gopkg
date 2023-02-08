@@ -35,7 +35,7 @@ type comptyp struct {
 }
 
 func TestJSON(t *testing.T) {
-	tests := []map[string]interface{}{
+	tests := []map[string]any{
 		{
 			"value": 123,
 			"want":  "123",
@@ -104,7 +104,7 @@ func TestDEBUG_print_func(t *testing.T) {
 	configTestLog(true, nil)
 	msg := "test DEBUG_print_func"
 	prefix := "PREFIX: "
-	logger := func(format string, args ...interface{}) {
+	logger := func(format string, args ...any) {
 		format = prefix + format
 		log.Printf(format, args...)
 	}
@@ -182,26 +182,26 @@ type bufLogger struct {
 	buf *bytes.Buffer
 }
 
-func (p *bufLogger) Debugf(format string, args ...interface{}) {
+func (p *bufLogger) Debugf(format string, args ...any) {
 	if p.buf == nil {
 		p.buf = bytes.NewBuffer(nil)
 	}
 	fmt.Fprintf(p.buf, format, args...)
 }
 
-func (p *bufLogger) Errorf(format string, args ...interface{}) {
+func (p *bufLogger) Errorf(format string, args ...any) {
 	if p.buf == nil {
 		p.buf = bytes.NewBuffer(nil)
 	}
 	fmt.Fprintf(p.buf, format, args...)
 }
 
-func DEBUGWrap(args ...interface{}) {
+func DEBUGWrap(args ...any) {
 	DEBUGSkip(1, args...)
 }
 
-func DEBUGWrapSkip2(args ...interface{}) {
-	skip2 := func(args ...interface{}) {
+func DEBUGWrapSkip2(args ...any) {
+	skip2 := func(args ...any) {
 		DEBUGSkip(2, args...)
 	}
 	skip2(args...)

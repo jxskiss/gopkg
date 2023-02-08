@@ -133,8 +133,8 @@ func (t *RType) IfaceIndir() bool {
 	return linkname.Reflect_ifaceIndir(unsafe.Pointer(t))
 }
 
-func (t *RType) PackInterface(word unsafe.Pointer) interface{} {
-	return *(*interface{})(unsafe.Pointer(&eface{
+func (t *RType) PackInterface(word unsafe.Pointer) any {
+	return *(*any)(unsafe.Pointer(&eface{
 		typ:  t,
 		data: word,
 	}))
@@ -177,8 +177,8 @@ func ToRType(t reflect.Type) *RType {
 	return (*RType)((*iface)(unsafe.Pointer(&t)).data)
 }
 
-// RTypeOf returns the underlying rtype pointer of the given interface{} value.
-func RTypeOf(v interface{}) *RType {
+// RTypeOf returns the underlying rtype pointer of the given any value.
+func RTypeOf(v any) *RType {
 	switch x := v.(type) {
 	case *RType:
 		return x
@@ -193,7 +193,7 @@ func RTypeOf(v interface{}) *RType {
 
 // ---- private things ---- //
 
-func unpackEface(ep *interface{}) *eface {
+func unpackEface(ep *any) *eface {
 	return (*eface)(unsafe.Pointer(ep))
 }
 

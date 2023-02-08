@@ -8,7 +8,7 @@ import (
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
 
-func stdMarshalToString(v interface{}) (string, error) {
+func stdMarshalToString(v any) (string, error) {
 	buf, err := json.Marshal(v)
 	if err != nil {
 		return "", err
@@ -16,12 +16,12 @@ func stdMarshalToString(v interface{}) (string, error) {
 	return unsafeheader.BytesToString(buf), nil
 }
 
-func stdUnmarshalFromString(data string, v interface{}) error {
+func stdUnmarshalFromString(data string, v any) error {
 	buf := unsafeheader.StringToBytes(data)
 	return json.Unmarshal(buf, v)
 }
 
-func stdMarshalNoHTMLEscape(v interface{}, prefix, indent string) ([]byte, error) {
+func stdMarshalNoHTMLEscape(v any, prefix, indent string) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)

@@ -20,7 +20,7 @@ type ErrCode interface {
 
 	// Details returns the error details attached to the Code.
 	// It returns nil if no details are attached.
-	Details() []interface{}
+	Details() []any
 }
 
 // Code represents an error code. It can be created by calling
@@ -29,7 +29,7 @@ type ErrCode interface {
 type Code struct {
 	code    int32
 	msg     string
-	details []interface{}
+	details []any
 	reg     *Registry
 }
 
@@ -61,7 +61,7 @@ func (e *Code) Message() string {
 
 // Details returns the error details attached to the Code.
 // It returns nil if no details are attached.
-func (e *Code) Details() []interface{} { return e.details }
+func (e *Code) Details() []any { return e.details }
 
 func (e *Code) clone() *Code {
 	detailsLen := len(e.details)
@@ -82,7 +82,7 @@ func (e *Code) WithMessage(msg string) (code *Code) {
 
 // AddDetails returns a copy of Code with new error details attached
 // to the returned Code.
-func (e *Code) AddDetails(details ...interface{}) (code *Code) {
+func (e *Code) AddDetails(details ...any) (code *Code) {
 	code = e.clone()
 	code.details = append(code.details, details...)
 	return
@@ -101,9 +101,9 @@ func (e *Code) RemoveDetails() (code *Code) {
 }
 
 type jsonCode struct {
-	Code    int32         `json:"code"`
-	Message string        `json:"message,omitempty"`
-	Details []interface{} `json:"details,omitempty"`
+	Code    int32  `json:"code"`
+	Message string `json:"message,omitempty"`
+	Details []any  `json:"details,omitempty"`
 }
 
 // MarshalJSON implements json.Marshaler.

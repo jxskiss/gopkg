@@ -16,7 +16,7 @@ var (
 	emptyObject = []byte("{}")
 )
 
-// JSON holds a map[string]interface{} value, it implements
+// JSON holds a map[string]any value, it implements
 // sql/driver.Valuer and sql.Scanner. It uses JSON to do serialization.
 //
 // JSON embeds a gemap.Map, thus all methods defined on gemap.Map is also
@@ -42,7 +42,7 @@ func (p JSON) Value() (driver.Value, error) {
 }
 
 // Scan implements sql.Scanner interface.
-func (p *JSON) Scan(src interface{}) error {
+func (p *JSON) Scan(src any) error {
 	var data []byte
 	switch v := src.(type) {
 	case []byte:

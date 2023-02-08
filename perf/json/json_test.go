@@ -25,7 +25,7 @@ var testStringMap = map[string]string{
 	`a:\b":"\"c`: `d\"e:f`,
 }
 
-var testStringInterfaceMap = map[string]interface{}{
+var testStringInterfaceMap = map[string]any{
 	"id":         12345,
 	"id2":        uint(12345),
 	"first_name": "Jeanette",
@@ -83,7 +83,7 @@ var testStringInterfaceMap = map[string]interface{}{
 	"slice_fast_nil0": [][]int32(nil),
 	"slice_fast_nil1": [][]string(nil),
 	"slice_fast_nil2": []map[string]string(nil),
-	"slice_fast_nil3": []map[string]interface{}(nil),
+	"slice_fast_nil3": []map[string]any(nil),
 
 	"slice_fast_typ0": [][]int32{
 		{1, 2, 3},
@@ -97,13 +97,13 @@ var testStringInterfaceMap = map[string]interface{}{
 		{"a": "1"},
 		{"b": "2"},
 	},
-	"slice_fast_typ3": []map[string]interface{}{
+	"slice_fast_typ3": []map[string]any{
 		{"a": "1", "b": 1},
 		{"c": "2", "d": 2},
 		{"e": int64(3), "d": ptr.Uint64(3)},
 		{"f": true, "g": ptr.Bool(false)},
 	},
-	"slice_fast_typ4": []map[string]interface{}{},
+	"slice_fast_typ4": []map[string]any{},
 
 	"slice_fast_typ5": []bool{true, false},
 	"slice_fast_typ6": []*bool{ptr.Bool(true), ptr.Bool(false), nil},
@@ -130,8 +130,8 @@ func TestCompatibility(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, stdOutput, sonicOutput)
 
-	var got1 map[string]interface{}
-	var got2 map[string]interface{}
+	var got1 map[string]any
+	var got2 map[string]any
 	err = stdjson.Unmarshal(stdOutput, &got1)
 	assert.Nil(t, err)
 	err = Unmarshal(sonicOutput, &got2)

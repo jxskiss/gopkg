@@ -56,7 +56,7 @@ type CacheOptions struct {
 	// The returned value from this function should not be changed after
 	// retrieved from the Cache, else it may panic since there may be many
 	// goroutines access the same value concurrently.
-	Fetch func(key string) (interface{}, error)
+	Fetch func(key string) (any, error)
 
 	// ErrorCallback is an optional callback which will be called in a new
 	// goroutine when error is returned by the Fetch function during refresh.
@@ -64,11 +64,11 @@ type CacheOptions struct {
 
 	// ChangeCallback is an optional callback which will be called in a new
 	// goroutine when new value is returned by the Fetch function during refresh.
-	ChangeCallback func(key string, oldData, newData interface{})
+	ChangeCallback func(key string, oldData, newData any)
 
 	// DeleteCallback is an optional callback which will be called in a new
 	// goroutine when a value is deleted from the cache.
-	DeleteCallback func(key string, data interface{})
+	DeleteCallback func(key string, data any)
 }
 
 // Cache is an asynchronous cache which prevents duplicate functions calls
@@ -114,7 +114,7 @@ func (c *Cache) Close() {
 // The param val should not be nil, or it panics.
 //
 // It's useful to warm up the cache.
-func (c *Cache) SetDefault(key string, val interface{}) (exists bool) {
+func (c *Cache) SetDefault(key string, val any) (exists bool) {
 	ent := allocEntry(val, errDefaultVal)
 	_, loaded := c.data.LoadOrStore(key, ent)
 	return loaded
@@ -126,7 +126,7 @@ func (c *Cache) SetDefault(key string, val interface{}) (exists bool) {
 //
 // If error occurs during the first fetching, the error will be cached until
 // the subsequential fetching succeeded.
-func (c *Cache) Get(key string) (interface{}, error) {
+func (c *Cache) Get(key string) (any, error) {
 	val, ok := c.data.Load(key)
 	if ok {
 		ent := val.(*entry)
@@ -142,15 +142,15 @@ func (c *Cache) Get(key string) (interface{}, error) {
 	return c.doFetch(key, nil)
 }
 
-func (c *Cache) doFetch(key string, defaultVal interface{}) (interface{}, error) {
+func (c *Cache) doFetch(key string, defaultVal any) (any, error) {
 	if c.opt.FetchTimeout == 0 {
 		return c.fetchNoTimeout(key, defaultVal)
 	}
 	return c.fetchWithTimeout(key, defaultVal)
 }
 
-func (c *Cache) fetchNoTimeout(key string, defaultVal interface{}) (interface{}, error) {
-	val, err, _ := c.group.Do(key, func() (interface{}, error) {
+func (c *Cache) fetchNoTimeout(key string, defaultVal any) (any, error) {
+	val, err, _ := c.group.Do(key, func() (any, error) {
 		val, err := c.opt.Fetch(key)
 		if err != nil && defaultVal != nil {
 			val, err = defaultVal, errDefaultVal
@@ -162,9 +162,9 @@ func (c *Cache) fetchNoTimeout(key string, defaultVal interface{}) (interface{},
 	return val, err
 }
 
-func (c *Cache) fetchWithTimeout(key string, defaultVal interface{}) (interface{}, error) {
+func (c *Cache) fetchWithTimeout(key string, defaultVal any) (any, error) {
 	timeout := time.NewTimer(c.opt.FetchTimeout)
-	ch := c.group.DoChan(key, func() (interface{}, error) {
+	ch := c.group.DoChan(key, func() (any, error) {
 		val, err := c.opt.Fetch(key)
 		if err != nil && defaultVal != nil {
 			val, err = defaultVal, errDefaultVal
@@ -188,7 +188,7 @@ func (c *Cache) fetchWithTimeout(key string, defaultVal interface{}) (interface{
 //
 // If the fetching fails, the default value will be set into the cache
 // and returned.
-func (c *Cache) GetOrDefault(key string, defaultVal interface{}) interface{} {
+func (c *Cache) GetOrDefault(key string, defaultVal any) any {
 	val, ok := c.data.Load(key)
 	if ok {
 		ent := val.(*entry)
@@ -222,7 +222,7 @@ func (c *Cache) Delete(key string) {
 // the given function.
 func (c *Cache) DeleteFunc(match func(key string) bool) {
 	hasDeleteCallback := c.opt.DeleteCallback != nil
-	c.data.Range(func(key, val interface{}) bool {
+	c.data.Range(func(key, val any) bool {
 		keystr := key.(string)
 		if match(keystr) {
 			if hasDeleteCallback {
@@ -255,7 +255,7 @@ func (c *Cache) refresh() {
 func (c *Cache) doRefresh() {
 	hasErrorCallback := c.opt.ErrorCallback != nil
 	hasChangeCallback := c.opt.ErrorCallback != nil
-	c.data.Range(func(key, val interface{}) bool {
+	c.data.Range(func(key, val any) bool {
 		keystr := key.(string)
 		ent := val.(*entry)
 
@@ -297,7 +297,7 @@ func (c *Cache) expire() {
 
 func (c *Cache) doExpire() {
 	hasDeleteCallback := c.opt.DeleteCallback != nil
-	c.data.Range(func(key, val interface{}) bool {
+	c.data.Range(func(key, val any) bool {
 		keystr := key.(string)
 		ent := val.(*entry)
 
@@ -317,7 +317,7 @@ func (c *Cache) doExpire() {
 	})
 }
 
-func allocEntry(val interface{}, err error) *entry {
+func allocEntry(val any, err error) *entry {
 	ent := &entry{}
 	ent.Store(val, err)
 	return ent
@@ -329,7 +329,7 @@ type entry struct {
 	expire int32
 }
 
-func (e *entry) Load() (interface{}, error) {
+func (e *entry) Load() (any, error) {
 	val := e.val.Load()
 	errp := atomic.LoadPointer(&e.errp)
 	if errp == nil {
@@ -338,7 +338,7 @@ func (e *entry) Load() (interface{}, error) {
 	return val, *(*error)(errp)
 }
 
-func (e *entry) Store(val interface{}, err error) {
+func (e *entry) Store(val any, err error) {
 	if err != nil {
 		atomic.StorePointer(&e.errp, unsafe.Pointer(&err))
 		if val != nil {
@@ -350,7 +350,7 @@ func (e *entry) Store(val interface{}, err error) {
 	}
 }
 
-func (e *entry) SetValue(val interface{}) {
+func (e *entry) SetValue(val any) {
 	if val != nil {
 		e.val.Store(val)
 	}

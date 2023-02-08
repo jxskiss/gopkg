@@ -14,7 +14,7 @@ var (
 
 // JSON serializes the given data as JSON into the response body.
 // It also sets the Content-Type as "application/json".
-func JSON(w http.ResponseWriter, statusCode int, data interface{}) {
+func JSON(w http.ResponseWriter, statusCode int, data any) {
 	jsonBuf, err := json.Marshal(data)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -33,7 +33,7 @@ func JSON(w http.ResponseWriter, statusCode int, data interface{}) {
 // WARNING: we recommend using this only for development purposes
 // since printing pretty JSON is more CPU and bandwidth consuming.
 // Use JSON() instead.
-func JSONHumanFriendly(w http.ResponseWriter, statusCode int, data interface{}) {
+func JSONHumanFriendly(w http.ResponseWriter, statusCode int, data any) {
 	jsonBuf, err := json.HumanFriendly.MarshalIndent(data, "", "    ")
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

@@ -28,7 +28,7 @@ const (
 
 var (
 	bufferpool = buffer.NewPool()
-	logfmtPool = sync.Pool{New: func() interface{} {
+	logfmtPool = sync.Pool{New: func() any {
 		return &logfmtEncoder{}
 	}}
 )
@@ -101,7 +101,7 @@ func (enc *logfmtEncoder) AddInt64(key string, value int64) {
 	enc.AppendInt64(value)
 }
 
-func (enc *logfmtEncoder) AddReflected(key string, value interface{}) error {
+func (enc *logfmtEncoder) AddReflected(key string, value any) error {
 	enc.addKey(key)
 	return enc.AppendReflected(value)
 }
@@ -186,7 +186,7 @@ func (enc *logfmtEncoder) AppendInt64(value int64) {
 	enc.buf.AppendInt(value)
 }
 
-func (enc *logfmtEncoder) AppendReflected(value interface{}) error {
+func (enc *logfmtEncoder) AppendReflected(value any) error {
 	rvalue := reflect.ValueOf(value)
 	switch rvalue.Kind() {
 	case reflect.Chan, reflect.Func, reflect.Map, reflect.Struct:
@@ -554,7 +554,7 @@ func (enc *literalEncoder) AppendObject(zapcore.ObjectMarshaler) error {
 	return ErrUnsupportedValueType
 }
 
-func (enc *literalEncoder) AppendReflected(value interface{}) error {
+func (enc *literalEncoder) AppendReflected(value any) error {
 	typ := reflectx.EfaceOf(&value).RType
 	switch typ.Kind() {
 	case reflect.Bool:

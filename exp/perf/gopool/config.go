@@ -27,7 +27,7 @@ const (
 	defaultScaleThreshold = 1
 )
 
-func defaultPanicHandler(_ context.Context, exc interface{}) {
+func defaultPanicHandler(_ context.Context, exc any) {
 	loc := internal.IdentifyPanic(1)
 	zlog.StdLogger.Errorf("gopool: catch panic: %v, location: %v\n%s\n", exc, loc, debug.Stack())
 }
@@ -44,7 +44,7 @@ type Config struct {
 
 	// PanicHandler specifies a handler when panic occurs.
 	// By default, a panic message with stack information is logged.
-	PanicHandler func(context.Context, interface{})
+	PanicHandler func(context.Context, any)
 
 	// PermanentWorkerNum specifies the number of permanent workers to spawn
 	// when creating a Pool, it defaults to 0 (no permanent worker).
