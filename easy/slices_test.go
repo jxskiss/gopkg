@@ -312,6 +312,22 @@ func TestUniqueByHashset(t *testing.T) {
 	assert.Equal(t, want2, got2)
 }
 
+func TestUniqueFunc(t *testing.T) {
+	src0 := uniqueSliceTests[0]["slice"].([]int64)
+	want0 := uniqueSliceTests[0]["want"].([]int64)
+	got0 := UniqueFunc(src0, false, func(e int64) int32 {
+		return int32(e)
+	})
+	assert.Equal(t, want0, got0)
+
+	src2 := uniqueSliceTests[2]["slice"].([]string)
+	want2 := uniqueSliceTests[2]["want"].([]string)
+	got2 := UniqueFunc(src2, false, func(e string) string {
+		return e
+	})
+	assert.Equal(t, want2, got2)
+}
+
 var benchUniqueData []int64
 var benchUniqueDst []int64
 
