@@ -5,6 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 )
 
 const (
@@ -57,7 +58,8 @@ func (p *Pool) Get() []byte {
 		return v.([]byte)
 	}
 	idx := p.r.getPoolIdx()
-	return sizedPools[idx].Get().([]byte)
+	ptr := sizedPools[idx].Get().(unsafe.Pointer)
+	return _toBuf(ptr, 0)
 }
 
 // GetBuffer returns a Buffer from the pool with dynamic calibrated
@@ -69,7 +71,8 @@ func (p *Pool) GetBuffer() *Buffer {
 		return v.(*Buffer)
 	}
 	idx := p.r.getPoolIdx()
-	return &Buffer{buf: sizedPools[idx].Get().([]byte)}
+	ptr := sizedPools[idx].Get().(unsafe.Pointer)
+	return &Buffer{buf: _toBuf(ptr, 0)}
 }
 
 // Put puts back a byte slice buffer to the pool for reusing.

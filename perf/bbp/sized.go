@@ -3,6 +3,9 @@ package bbp
 import (
 	"math/bits"
 	"sync"
+	"unsafe"
+
+	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
 
 const (
@@ -38,8 +41,8 @@ func Get(length, capacity int) []byte {
 	// Manually inlining.
 	// return get(length, capacity)
 	idx := indexGet(capacity)
-	out := sizedPools[idx].Get().([]byte)
-	return out[:length]
+	ptr := sizedPools[idx].Get().(unsafe.Pointer)
+	return _toBuf(ptr, length)
 }
 
 // Put puts back a byte slice to the pool for reusing.
@@ -88,7 +91,7 @@ func init() {
 		bufSizeTable[i] = size
 		sizedPools[i].New = func() interface{} {
 			buf := make([]byte, 0, size)
-			return buf
+			return _toPtr(buf)
 		}
 	}
 
@@ -98,19 +101,34 @@ func init() {
 	//fmt.Println("")
 }
 
+func _toBuf(ptr unsafe.Pointer, length int) []byte {
+	size := *(*int)(ptr)
+	return *(*[]byte)(unsafe.Pointer(&unsafeheader.Slice{
+		Data: ptr,
+		Len:  length,
+		Cap:  size,
+	}))
+}
+
+func _toPtr(buf []byte) unsafe.Pointer {
+	h := *(*unsafeheader.Slice)(unsafe.Pointer(&buf))
+	*(*int)(h.Data) = h.Cap
+	return h.Data
+}
+
 // callers must guarantee that capacity is not greater than maxBufSize.
 func get(length, capacity int) []byte {
 	idx := indexGet(capacity)
-	out := sizedPools[idx].Get().([]byte)
-	return out[:length]
+	ptr := sizedPools[idx].Get().(unsafe.Pointer)
+	return _toBuf(ptr, length)
 }
 
 func put(buf []byte) {
 	cap_ := cap(buf)
 	if cap_ >= minBufSize && cap_ <= maxBufSize {
 		idx := indexPut(cap_)
-		buf = buf[:0]
-		sizedPools[idx].Put(buf)
+		ptr := _toPtr(buf)
+		sizedPools[idx].Put(ptr)
 	}
 }
 
@@ -126,7 +144,8 @@ func growWithOptions(buf []byte, capacity int, reuseBuf bool) []byte {
 		// Manually inlining.
 		// newBuf = get(len(buf), capacity)
 		idx := indexGet(capacity)
-		newBuf = sizedPools[idx].Get().([]byte)[:len(buf)]
+		ptr := sizedPools[idx].Get().(unsafe.Pointer)
+		newBuf = _toBuf(ptr, len(buf))
 	}
 	copy(newBuf, buf)
 	if reuseBuf {
