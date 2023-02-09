@@ -63,15 +63,15 @@ type CacheConfig[K comparable, V Model] struct {
 	KeyFunc Key
 
 	// MGetBatchSize optionally specifies the batch size for one MGet
-	// call to storage. The default is 100.
+	// call to storage. The default is 200.
 	MGetBatchSize int
 
 	// MSetBatchSize optionally specifies the batch size for one MSet
-	// call to storage. The default is 100.
+	// call to storage. The default is 200.
 	MSetBatchSize int
 
 	// MGetBatchSize optionally specifies the batch size for one MDelete
-	// call to storage. The default is 100.
+	// call to storage. The default is 200.
 	MDeleteBatchSize int
 
 	// LRUCache optionally enables LRU cache, which may help to improve

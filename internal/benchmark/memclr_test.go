@@ -22,7 +22,7 @@ func BenchmarkMemory_LoopZero_4K(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		for j := 0; j < len(tmp); j++ {
+		for j := range tmp {
 			tmp[j] = 0
 		}
 	}

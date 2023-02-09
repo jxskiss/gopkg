@@ -49,6 +49,18 @@ func (b *Buffer) Grow(capacity int) {
 	}
 }
 
+// Append accepts a function which append data to the underlying byte slice.
+// `size` optionally indicates the possible size of data to append,
+// it helps to pre-allocate enough memory.
+func (b *Buffer) Append(size int, f func([]byte) []byte) {
+	old := b.buf
+	b.Grow(len(old) + size)
+	b.buf = f(b.buf)
+	if cap(old) != cap(b.buf) {
+		put(old)
+	}
+}
+
 // ReadFrom implements io.ReaderFrom.
 //
 // The function appends all the data read from r to b.
@@ -176,6 +188,16 @@ func (b *Buffer) SetString(s string) {
 // Reset re-slice the underlying byte slice to empty.
 func (b *Buffer) Reset() {
 	b.buf = b.buf[:0]
+}
+
+// Clone returns a new copy of the buffer, including the underlying
+// byte slice.
+func (b *Buffer) Clone() *Buffer {
+	cp := &Buffer{
+		buf: make([]byte, len(b.buf), cap(b.buf)),
+	}
+	copy(cp.buf, b.buf)
+	return cp
 }
 
 // Bytes returns the underlying byte slice, i.e. all the bytes accumulated

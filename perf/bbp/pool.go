@@ -38,7 +38,6 @@ type Pool struct {
 
 	r Recorder
 
-	sp sync.Pool // []byte
 	bp sync.Pool // *Buffer
 }
 
@@ -47,16 +46,13 @@ type Pool struct {
 // In most cases, declaring a Pool variable is sufficient to initialize
 // a Pool.
 func NewPool(r Recorder) *Pool {
+	r.poolIdx = uintptr(r.getDefaultPoolIdx())
 	return &Pool{r: r}
 }
 
 // Get returns a byte slice buffer from the pool.
 // The returned buffer may be put back to the pool for reusing.
 func (p *Pool) Get() []byte {
-	v := p.sp.Get()
-	if v != nil {
-		return v.([]byte)
-	}
 	idx := p.r.getPoolIdx()
 	ptr := sizedPools[idx].Get().(unsafe.Pointer)
 	return _toBuf(ptr, 0)
@@ -81,9 +77,7 @@ func (p *Pool) GetBuffer() *Buffer {
 // otherwise data races will occur.
 func (p *Pool) Put(buf []byte) {
 	p.r.Record(len(buf))
-	if cap(buf) <= maxBufSize {
-		p.sp.Put(buf[:0])
-	}
+	put(buf)
 }
 
 // PutBuffer puts back a Buffer to the pool for reusing.
@@ -147,6 +141,7 @@ func (p *Recorder) getPoolIdx() int {
 	idx := int(atomic.LoadUintptr(&p.poolIdx))
 	if idx == 0 {
 		idx = p.getDefaultPoolIdx()
+		atomic.StoreUintptr(&p.poolIdx, uintptr(idx))
 	}
 	return idx
 }
@@ -184,7 +179,8 @@ func (p *Recorder) calibrate() {
 	nextCalls := int32(defaultCalibrateCalls)
 	if preCalls > 0 {
 		interval := p.getCalibrateInterval()
-		next := uint64(float64(p.preCalls) * float64(interval) / float64(nowNano-preNano))
+		preInterval := nowNano - preNano
+		next := uint64(float64(p.preCalls) * float64(interval) / float64(preInterval))
 		if next < defaultCalibrateCalls {
 			nextCalls = defaultCalibrateCalls
 		} else if next > math.MaxInt32 {
@@ -221,8 +217,9 @@ func (p *Recorder) calibrate() {
 			}
 		}
 	}
-	if poolIdx == 0 {
-		poolIdx = p.getDefaultPoolIdx()
+	defaultIdx := p.getDefaultPoolIdx()
+	if poolIdx < defaultIdx {
+		poolIdx = defaultIdx
 	}
 	atomic.StoreUintptr(&p.poolIdx, uintptr(poolIdx))
 
