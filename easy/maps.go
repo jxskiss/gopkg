@@ -68,9 +68,13 @@ func MergeMaps[M ~map[K]V, K comparable, V any](maps ...M) M {
 }
 
 // MergeMapsTo adds key values present in others to the dst map.
+// If dst is a nil map, it creates a new map and returns it.
 func MergeMapsTo[M ~map[K]V, K comparable, V any](dst M, others ...M) M {
+	if len(others) == 0 {
+		return dst
+	}
 	if dst == nil {
-		dst = make(M)
+		dst = make(M, len(others[0]))
 	}
 	for _, m := range others {
 		for k, v := range m {
@@ -78,6 +82,16 @@ func MergeMapsTo[M ~map[K]V, K comparable, V any](dst M, others ...M) M {
 		}
 	}
 	return dst
+}
+
+// MergeMapsToPtr is similar to MergeMapsTo, but it accepts a pointer as dst,
+// if dst points to a nil map, it creates a new map and assigns it to dst.
+// If dst is a nil pointer, it panics.
+func MergeMapsToPtr[M ~map[K]V, K comparable, V any](dst *M, others ...M) {
+	if dst == nil {
+		panic("easy.MergeMapsToPtr: dst must not be nil")
+	}
+	*dst = MergeMapsTo(*dst, others...)
 }
 
 // Keys returns the keys of the map m.
