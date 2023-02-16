@@ -92,7 +92,6 @@ func (p *Pool) submit(ctx context.Context, arg any, runner taskRunner) {
 	limit := p.AdhocWorkerLimit()
 	wCnt := p.AdhocWorkerCount()
 	if (tCnt >= p.config.ScaleThreshold && wCnt < limit) || wCnt == 0 {
-		p.incWorkerCount()
 		runAdhocWorker(p, runner)
 	}
 }

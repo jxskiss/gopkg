@@ -33,20 +33,20 @@ func testIncInt32(_ context.Context, arg incInt32Data) {
 	atomic.AddInt32(arg.n, 1)
 }
 
-func TestSpecificPool(t *testing.T) {
-	p := NewSpecificPool(testIncInt32, &Config{AdhocWorkerLimit: 100})
-	testWithSpecificPool(t, p)
+func TestTypedPool(t *testing.T) {
+	p := NewTypedPool(testIncInt32, &Config{AdhocWorkerLimit: 100})
+	testWithTypedPool(t, p)
 }
 
-func TestSpecificPoolWithPermanentWorkers(t *testing.T) {
-	p := NewSpecificPool(testIncInt32, &Config{
+func TestTypedPoolWithPermanentWorkers(t *testing.T) {
+	p := NewTypedPool(testIncInt32, &Config{
 		PermanentWorkerNum: 100,
 		AdhocWorkerLimit:   100,
 	})
-	testWithSpecificPool(t, p)
+	testWithTypedPool(t, p)
 }
 
-func testWithSpecificPool(t *testing.T, p *SpecificPool[incInt32Data]) {
+func testWithTypedPool(t *testing.T, p *TypedPool[incInt32Data]) {
 	var n int32
 	var wg sync.WaitGroup
 	for i := 0; i < 2000; i++ {
@@ -59,8 +59,8 @@ func testWithSpecificPool(t *testing.T, p *SpecificPool[incInt32Data]) {
 	}
 }
 
-func TestSpecificPoolPanic(t *testing.T) {
-	p := NewSpecificPool(func(_ context.Context, arg incInt32Data) {
+func TestTypedPoolPanic(t *testing.T) {
+	p := NewTypedPool(func(_ context.Context, arg incInt32Data) {
 		defer arg.wg.Done()
 		panic("test panic")
 	}, &Config{AdhocWorkerLimit: 100})
@@ -72,28 +72,28 @@ func TestSpecificPoolPanic(t *testing.T) {
 	wg.Wait()
 }
 
-func BenchmarkSpecificPool(b *testing.B) {
-	p := NewSpecificPool(func(_ context.Context, wg *sync.WaitGroup) {
+func BenchmarkTypedPool(b *testing.B) {
+	p := NewTypedPool(func(_ context.Context, wg *sync.WaitGroup) {
 		testFunc()
 		wg.Done()
 	}, &Config{
 		AdhocWorkerLimit: runtime.GOMAXPROCS(0),
 	})
-	benchmarkWithSpecificPool(b, p)
+	benchmarkWithTypedPool(b, p)
 }
 
-func BenchmarkSpecificPoolWithPermanentWorkers(b *testing.B) {
-	p := NewSpecificPool(func(_ context.Context, wg *sync.WaitGroup) {
+func BenchmarkTypedPoolWithPermanentWorkers(b *testing.B) {
+	p := NewTypedPool(func(_ context.Context, wg *sync.WaitGroup) {
 		testFunc()
 		wg.Done()
 	}, &Config{
 		PermanentWorkerNum: runtime.GOMAXPROCS(0),
 		AdhocWorkerLimit:   runtime.GOMAXPROCS(0),
 	})
-	benchmarkWithSpecificPool(b, p)
+	benchmarkWithTypedPool(b, p)
 }
 
-func benchmarkWithSpecificPool(b *testing.B, p *SpecificPool[*sync.WaitGroup]) {
+func benchmarkWithTypedPool(b *testing.B, p *TypedPool[*sync.WaitGroup]) {
 	var wg sync.WaitGroup
 	b.ReportAllocs()
 	b.ResetTimer()

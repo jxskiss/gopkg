@@ -68,7 +68,7 @@ func (l *taskList) pop() (t *task) {
 	if l.head != nil {
 		t = l.head
 		l.head = l.head.next
-		l.count++
+		l.count--
 	}
 	l.mu.Unlock()
 	return

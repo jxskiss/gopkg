@@ -38,6 +38,7 @@ func runPermanentWorker(p *Pool, runner taskRunner) {
 }
 
 func runAdhocWorker(p *Pool, runner taskRunner) {
+	p.incWorkerCount()
 	go func() {
 		for {
 			t := p.taskList.pop()
@@ -60,7 +61,7 @@ func funcTaskRunner(p *Pool, t *task) {
 	t.Recycle()
 }
 
-func newSpecificTaskRunner[T any](handler func(context.Context, T)) taskRunner {
+func newTypedTaskRunner[T any](handler func(context.Context, T)) taskRunner {
 	return func(p *Pool, t *task) {
 		defer func() {
 			if r := recover(); r != nil {
