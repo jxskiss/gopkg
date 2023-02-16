@@ -6,7 +6,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 	"github.com/jxskiss/gopkg/v2/perf/json"
+	"github.com/jxskiss/gopkg/v2/zlog"
 )
 
 var (
@@ -126,6 +126,11 @@ type Request struct {
 
 	// DumpResponse makes the http response being logged after received.
 	DumpResponse bool
+
+	// When DumpRequest or DumpResponse is true, or both are true,
+	// DumpFunc optionally specifies a function to dump the request and response,
+	// by default `zlog.StdLogger.Infof` is used.
+	DumpFunc func(format string, args ...any)
 
 	// RaiseForStatus tells Do to report an error if the response
 	// status code >= 400. The error will be formatted as "unexpected status: <STATUS>".
@@ -339,6 +344,11 @@ func Do(req *Request) (header http.Header, respContent []byte, status int, err e
 	}
 	req.prepareHeaders()
 
+	dumpFunc := req.DumpFunc
+	if dumpFunc == nil {
+		dumpFunc = zlog.StdLogger.Infof
+	}
+
 	httpReq := req.Req
 	if req.Context != nil {
 		httpReq = httpReq.WithContext(req.Context)
@@ -354,7 +364,7 @@ func Do(req *Request) (header http.Header, respContent []byte, status int, err e
 		if err != nil {
 			return
 		}
-		log.Printf("dump http request:\n%s", dump)
+		dumpFunc("dump http request:\n%s", dump)
 	}
 
 	httpClient := req.buildClient()
@@ -372,7 +382,7 @@ func Do(req *Request) (header http.Header, respContent []byte, status int, err e
 		if err != nil {
 			return
 		}
-		log.Printf("dump http response:\n%s", dump)
+		dumpFunc("dump http response:\n%s", dump)
 	}
 
 	respContent, err = io.ReadAll(httpResp.Body)
