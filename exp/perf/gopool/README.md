@@ -57,7 +57,7 @@ Or create a pool to execute a handler to process values of a specific type:
 myHandler := func(ctx context.Context, arg SomeType) {
 	// do your job
 }
-myPool := gopool.NewSpecificPool(myHandler, &gopool.Config{
+myPool := gopool.NewTypedPool(myHandler, &gopool.Config{
 	// configuration
 })
 
