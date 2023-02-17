@@ -6,8 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/jxskiss/gopkg/v2/utils/ptr"
 )
 
 func TestMultiFilesCore(t *testing.T) {
@@ -37,11 +35,11 @@ func TestMultiFilesCore(t *testing.T) {
 	cfg := &Config{
 		File: FileLogConfig{
 			Filename:   f1,
-			MaxSize:    ptr.Int(100),
-			MaxDays:    ptr.Int(3),
-			MaxBackups: nil,
-			LocalTime:  ptr.Bool(true),
-			Compress:   nil,
+			MaxSize:    100,
+			MaxDays:    3,
+			MaxBackups: 0,
+			LocalTime:  true,
+			Compress:   false,
 		},
 		PerLoggerFiles: map[string]FileLogConfig{
 			"access": {Filename: f2},

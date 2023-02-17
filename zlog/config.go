@@ -10,11 +10,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
-
-	"github.com/jxskiss/gopkg/v2/utils/ptr"
 )
-
-const defaultLogMaxSize = 100 // MB
 
 const defaultMethodNameKey = "methodName"
 
@@ -25,24 +21,24 @@ type FileLogConfig struct {
 
 	// MaxSize is the maximum size in MB of the log file before it gets
 	// rotated. It defaults to 100 MB.
-	MaxSize *int `json:"maxSize" yaml:"maxSize"`
+	MaxSize int `json:"maxSize" yaml:"maxSize"`
 
 	// MaxDays is the maximum days to retain old log files based on the
-	// timestamp encoded in their filenames. The default is not to remove
-	// old log files.
-	MaxDays *int `json:"maxDays" yaml:"maxDays"`
+	// timestamp encoded in their filenames.
+	// The default is not to remove old log files.
+	MaxDays int `json:"maxDays" yaml:"maxDays"`
 
 	// MaxBackups is the maximum number of old log files to retain.
-	MaxBackups *int `json:"maxBackups" yaml:"maxBackups"`
+	MaxBackups int `json:"maxBackups" yaml:"maxBackups"`
 
 	// LocalTime determines if the time used for formatting the timestamps in
 	// backup files is the computer's local time.
 	// The default is to use UTC time.
-	LocalTime *bool `json:"localTime" yaml:"localTime"`
+	LocalTime bool `json:"localTime" yaml:"localTime"`
 
 	// Compress determines if the rotated log files should be compressed
 	// using gzip. The default is not to perform compression.
-	Compress *bool `json:"compress" yaml:"compress"`
+	Compress bool `json:"compress" yaml:"compress"`
 }
 
 // GlobalConfig configures some global behavior of this package.
@@ -178,12 +174,6 @@ func (cfg *Config) fillDefaults() *Config {
 			cfg.StacktraceLevel = "warn"
 		} else {
 			cfg.StacktraceLevel = "error"
-		}
-	}
-	if cfg.File.Filename != "" {
-		if cfg.File.MaxSize == nil || *cfg.File.MaxSize <= 0 {
-			deft := defaultLogMaxSize
-			cfg.File.MaxSize = &deft
 		}
 	}
 	return cfg
@@ -435,31 +425,28 @@ func buildFileLogger(fc FileLogConfig) (zapcore.WriteSyncer, error) {
 	}
 	out := &lumberjack.Logger{
 		Filename:   fc.Filename,
-		MaxSize:    ptr.Deref(fc.MaxDays),
-		MaxAge:     ptr.Deref(fc.MaxDays),
-		MaxBackups: ptr.Deref(fc.MaxBackups),
-		LocalTime:  ptr.Deref(fc.LocalTime),
-		Compress:   ptr.Deref(fc.Compress),
+		MaxSize:    fc.MaxSize,
+		MaxAge:     fc.MaxDays,
+		MaxBackups: fc.MaxBackups,
+		LocalTime:  fc.LocalTime,
+		Compress:   fc.Compress,
 	}
 	ws := zapcore.AddSync(out)
 	return ws, nil
 }
 
 func mergeFileLogConfig(fc FileLogConfig, deft FileLogConfig) FileLogConfig {
-	if fc.MaxSize == nil {
-		fc.MaxSize = deft.MaxSize
-	}
-	if fc.MaxDays == nil {
-		fc.MaxDays = deft.MaxDays
-	}
-	if fc.MaxBackups == nil {
-		fc.MaxBackups = deft.MaxBackups
-	}
-	if fc.LocalTime == nil {
-		fc.LocalTime = deft.LocalTime
-	}
-	if fc.Compress == nil {
-		fc.Compress = deft.Compress
-	}
+	setIfZero(&fc.MaxSize, deft.MaxSize)
+	setIfZero(&fc.MaxDays, deft.MaxDays)
+	setIfZero(&fc.MaxBackups, deft.MaxBackups)
+	setIfZero(&fc.LocalTime, deft.LocalTime)
+	setIfZero(&fc.Compress, deft.Compress)
 	return fc
+}
+
+func setIfZero[T comparable](dst *T, value T) {
+	var zero T
+	if *dst == zero {
+		*dst = value
+	}
 }
