@@ -37,15 +37,16 @@ func testIncInt32(_ context.Context, arg incInt32Data) {
 func TestTypedPool(t *testing.T) {
 	cfg := NewConfig()
 	cfg.AdhocWorkerLimit = 100
-	p := NewTypedPool(testIncInt32, cfg)
+	p := NewTypedPool(cfg, testIncInt32)
 	testWithTypedPool(t, p)
 }
 
 func TestTypedPoolWithPermanentWorkers(t *testing.T) {
-	p := NewTypedPool(testIncInt32, &Config{
+	cfg := &Config{
 		PermanentWorkerNum: 100,
 		AdhocWorkerLimit:   100,
-	})
+	}
+	p := NewTypedPool(cfg, testIncInt32)
 	testWithTypedPool(t, p)
 }
 
@@ -67,10 +68,11 @@ func testWithTypedPool(t *testing.T, p *TypedPool[incInt32Data]) {
 }
 
 func TestTypedPoolPanic(t *testing.T) {
-	p := NewTypedPool(func(_ context.Context, arg incInt32Data) {
+	cfg := &Config{AdhocWorkerLimit: 100}
+	p := NewTypedPool(cfg, func(_ context.Context, arg incInt32Data) {
 		defer arg.wg.Done()
 		panic("test panic")
-	}, &Config{AdhocWorkerLimit: 100})
+	})
 
 	var n int32
 	var wg sync.WaitGroup
@@ -80,22 +82,24 @@ func TestTypedPoolPanic(t *testing.T) {
 }
 
 func BenchmarkTypedPool(b *testing.B) {
-	p := NewTypedPool(func(_ context.Context, wg *sync.WaitGroup) {
+	cfg := &Config{
+		AdhocWorkerLimit: runtime.GOMAXPROCS(0),
+	}
+	p := NewTypedPool(cfg, func(_ context.Context, wg *sync.WaitGroup) {
 		testFunc()
 		wg.Done()
-	}, &Config{
-		AdhocWorkerLimit: runtime.GOMAXPROCS(0),
 	})
 	benchmarkWithTypedPool(b, p)
 }
 
 func BenchmarkTypedPoolWithPermanentWorkers(b *testing.B) {
-	p := NewTypedPool(func(_ context.Context, wg *sync.WaitGroup) {
-		testFunc()
-		wg.Done()
-	}, &Config{
+	cfg := &Config{
 		PermanentWorkerNum: runtime.GOMAXPROCS(0),
 		AdhocWorkerLimit:   runtime.GOMAXPROCS(0),
+	}
+	p := NewTypedPool(cfg, func(_ context.Context, wg *sync.WaitGroup) {
+		testFunc()
+		wg.Done()
 	})
 	benchmarkWithTypedPool(b, p)
 }
