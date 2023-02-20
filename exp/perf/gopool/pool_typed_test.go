@@ -21,6 +21,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 type incInt32Data struct {
@@ -34,7 +35,9 @@ func testIncInt32(_ context.Context, arg incInt32Data) {
 }
 
 func TestTypedPool(t *testing.T) {
-	p := NewTypedPool(testIncInt32, &Config{AdhocWorkerLimit: 100})
+	cfg := NewConfig()
+	cfg.AdhocWorkerLimit = 100
+	p := NewTypedPool(testIncInt32, cfg)
 	testWithTypedPool(t, p)
 }
 
@@ -56,6 +59,10 @@ func testWithTypedPool(t *testing.T, p *TypedPool[incInt32Data]) {
 	wg.Wait()
 	if n != 2000 {
 		t.Error(n)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if x := p.AdhocWorkerCount(); x != 0 {
+		t.Errorf("adhoc worker count, want 0, got %d", x)
 	}
 }
 
