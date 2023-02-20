@@ -20,12 +20,9 @@ import (
 	"sync/atomic"
 )
 
-// Pool manages a goroutine pool and tasks for better performance,
-// it reuses goroutines and limits the number of goroutines.
-type Pool struct {
-
-	// Configuration information
+type internalPool struct {
 	config *Config
+	runner taskRunner
 
 	// Limit of adhoc workers that can run simultaneously
 	adhocLimit int32
@@ -37,39 +34,26 @@ type Pool struct {
 	taskList taskList
 }
 
-// NewPool creates a new pool with the config.
-func NewPool(config *Config) *Pool {
+func (p *internalPool) init(config *Config, runner taskRunner) {
 	config.checkAndSetDefaults()
-	p := &Pool{
-		config:     config,
-		adhocLimit: getAdhocWorkerLimit(config.AdhocWorkerLimit),
-	}
-	p.spawnPermanentWorkers(funcTaskRunner)
-	return p
+	p.config = config
+	p.runner = runner
+	p.adhocLimit = getAdhocWorkerLimit(config.AdhocWorkerLimit)
+	p.startPermanentWorkers()
 }
 
 // Name returns the name of a pool.
-func (p *Pool) Name() string {
+func (p *internalPool) Name() string {
 	return p.config.Name
 }
 
 // SetAdhocWorkerLimit changes the limit of adhoc workers.
 // 0 or negative value means no limit.
-func (p *Pool) SetAdhocWorkerLimit(limit int) {
+func (p *internalPool) SetAdhocWorkerLimit(limit int) {
 	atomic.StoreInt32(&p.adhocLimit, getAdhocWorkerLimit(limit))
 }
 
-// Go submits a function to the pool.
-func (p *Pool) Go(f func()) {
-	p.CtxGo(context.Background(), f)
-}
-
-// CtxGo submits a function to the pool, it's preferred over Go.
-func (p *Pool) CtxGo(ctx context.Context, f func()) {
-	p.submit(ctx, f, funcTaskRunner)
-}
-
-func (p *Pool) submit(ctx context.Context, arg any, runner taskRunner) {
+func (p *internalPool) submit(ctx context.Context, arg any) {
 	t := newTask()
 	t.ctx = ctx
 	t.arg = arg
@@ -92,39 +76,39 @@ func (p *Pool) submit(ctx context.Context, arg any, runner taskRunner) {
 	limit := p.AdhocWorkerLimit()
 	wCnt := p.AdhocWorkerCount()
 	if (tCnt >= p.config.ScaleThreshold && wCnt < limit) || wCnt == 0 {
-		runAdhocWorker(p, runner)
+		p.runAdhocWorker()
 	}
 }
 
 // AdhocWorkerLimit returns the current limit of adhoc workers.
-func (p *Pool) AdhocWorkerLimit() int32 {
+func (p *internalPool) AdhocWorkerLimit() int32 {
 	return atomic.LoadInt32(&p.adhocLimit)
 }
 
 // AdhocWorkerCount returns the number of running adhoc workers.
-func (p *Pool) AdhocWorkerCount() int32 {
+func (p *internalPool) AdhocWorkerCount() int32 {
 	return atomic.LoadInt32(&p.adhocCount)
 }
 
 // PermanentWorkerCount returns the number of permanent workers.
-func (p *Pool) PermanentWorkerCount() int32 {
+func (p *internalPool) PermanentWorkerCount() int32 {
 	return int32(p.config.PermanentWorkerNum)
 }
 
-func (p *Pool) incWorkerCount() {
+func (p *internalPool) incWorkerCount() {
 	atomic.AddInt32(&p.adhocCount, 1)
 }
 
-func (p *Pool) decWorkerCount() {
+func (p *internalPool) decWorkerCount() {
 	atomic.AddInt32(&p.adhocCount, -1)
 }
 
-func (p *Pool) spawnPermanentWorkers(runner taskRunner) {
+func (p *internalPool) startPermanentWorkers() {
 	if p.config.PermanentWorkerNum <= 0 {
 		return
 	}
 	p.taskCh = make(chan *task)
 	for i := 0; i < p.config.PermanentWorkerNum; i++ {
-		go runPermanentWorker(p, runner)
+		go p.runPermanentWorker()
 	}
 }

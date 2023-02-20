@@ -20,6 +20,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 const benchmarkTimes = 10000
@@ -36,7 +37,9 @@ func testFunc() {
 }
 
 func TestPool(t *testing.T) {
-	p := NewPool(&Config{AdhocWorkerLimit: 100})
+	cfg := NewConfig()
+	cfg.AdhocWorkerLimit = 100
+	p := NewPool(cfg)
 	testWithPool(t, p)
 }
 
@@ -61,6 +64,10 @@ func testWithPool(t *testing.T, p *Pool) {
 	wg.Wait()
 	if n != 2000 {
 		t.Error(n)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if x := p.AdhocWorkerCount(); x != 0 {
+		t.Errorf("adhoc worker count, want 0, got %d", x)
 	}
 }
 

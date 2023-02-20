@@ -49,7 +49,7 @@ func Default() *Pool {
 //
 // See package doc for detailed introduction.
 func Go(f func()) {
-	CtxGo(context.Background(), f)
+	defaultPool.CtxGo(context.Background(), f)
 }
 
 // CtxGo is preferred over Go.
