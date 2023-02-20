@@ -17,13 +17,13 @@ package gopool
 
 import "context"
 
-type taskRunner func(p *Pool, t *task)
+type taskRunner func(p *internalPool, t *task)
 
-func runPermanentWorker(p *Pool, runner taskRunner) {
+func (p *internalPool) runPermanentWorker() {
 	for {
 		select {
 		case t := <-p.taskCh:
-			runner(p, t)
+			p.runner(p, t)
 
 			// Drain pending tasks.
 			for {
@@ -31,13 +31,13 @@ func runPermanentWorker(p *Pool, runner taskRunner) {
 				if t == nil {
 					break
 				}
-				runner(p, t)
+				p.runner(p, t)
 			}
 		}
 	}
 }
 
-func runAdhocWorker(p *Pool, runner taskRunner) {
+func (p *internalPool) runAdhocWorker() {
 	p.incWorkerCount()
 	go func() {
 		for {
@@ -46,12 +46,12 @@ func runAdhocWorker(p *Pool, runner taskRunner) {
 				p.decWorkerCount()
 				return
 			}
-			runner(p, t)
+			p.runner(p, t)
 		}
 	}()
 }
 
-func funcTaskRunner(p *Pool, t *task) {
+func funcTaskRunner(p *internalPool, t *task) {
 	defer func() {
 		if r := recover(); r != nil {
 			p.config.PanicHandler(t.ctx, r)
@@ -62,7 +62,7 @@ func funcTaskRunner(p *Pool, t *task) {
 }
 
 func newTypedTaskRunner[T any](handler func(context.Context, T)) taskRunner {
-	return func(p *Pool, t *task) {
+	return func(p *internalPool, t *task) {
 		defer func() {
 			if r := recover(); r != nil {
 				p.config.PanicHandler(t.ctx, r)

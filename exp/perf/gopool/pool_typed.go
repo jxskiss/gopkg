@@ -25,58 +25,23 @@ import (
 // Compared to Pool, it helps to reduce unnecessary memory allocation of
 // closures when submitting tasks.
 type TypedPool[T any] struct {
-	pool    *Pool
-	handler func(context.Context, T)
-	runner  taskRunner
+	internalPool
 }
 
 // NewTypedPool creates a new task-specific pool with given handler and config.
-func NewTypedPool[T any](handler func(context.Context, T), config *Config) *TypedPool[T] {
-	config.checkAndSetDefaults()
-	p := &TypedPool[T]{
-		pool: &Pool{
-			config:     config,
-			adhocLimit: getAdhocWorkerLimit(config.AdhocWorkerLimit),
-		},
-		handler: handler,
-		runner:  newTypedTaskRunner(handler),
-	}
-	p.pool.spawnPermanentWorkers(p.runner)
+func NewTypedPool[T any](config *Config, handler func(context.Context, T)) *TypedPool[T] {
+	runner := newTypedTaskRunner(handler)
+	p := &TypedPool[T]{}
+	p.init(config, runner)
 	return p
-}
-
-// Name returns the name of a pool.
-func (p *TypedPool[_]) Name() string {
-	return p.pool.config.Name
-}
-
-// SetAdhocWorkerLimit changes the limit of adhoc workers.
-// 0 or negative value means no limit.
-func (p *TypedPool[_]) SetAdhocWorkerLimit(limit int) {
-	p.pool.SetAdhocWorkerLimit(limit)
 }
 
 // Go submits a task to the pool.
 func (p *TypedPool[T]) Go(arg T) {
-	p.CtxGo(context.Background(), arg)
+	p.submit(context.Background(), arg)
 }
 
 // CtxGo submits a task to the pool, it's preferred over Go.
 func (p *TypedPool[T]) CtxGo(ctx context.Context, arg T) {
-	p.pool.submit(ctx, arg, p.runner)
-}
-
-// AdhocWorkerLimit returns the current limit of adhoc workers.
-func (p *TypedPool[_]) AdhocWorkerLimit() int32 {
-	return p.pool.AdhocWorkerLimit()
-}
-
-// AdhocWorkerCount returns the number of running adhoc workers.
-func (p *TypedPool[_]) AdhocWorkerCount() int32 {
-	return p.pool.AdhocWorkerCount()
-}
-
-// PermanentWorkerCount returns the number of permanent workers.
-func (p *TypedPool[_]) PermanentWorkerCount() int32 {
-	return p.pool.PermanentWorkerCount()
+	p.submit(ctx, arg)
 }
