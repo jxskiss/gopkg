@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 TBD.
 
+## [2.5.0] - 2023-02-20
+
+* Refactor: replace `interface{}` to `any` for cleaner code
+* Feat: new utility function `easy.MergeMapsToPtr`
+* Feat: [easy/ezhttp] allow to specify custom function to dump request/response
+* Feat: fix `exp/perf/gopool` issues and move to `perf/gopool`
+* Change: use value fields for `zlog.FileLogConfig`
+
 ## [2.4.0] - 2023-02-07
 
 * Feat: [zlog] optimize std log redirection (#31)

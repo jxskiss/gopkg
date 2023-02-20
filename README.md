@@ -59,11 +59,6 @@ reasonable API compatibility and versioning.
 1. `exp/mselect` can run many channel receiving operations simultaneously,
    tasks can be added dynamically.
 
-1. `exp/perf/gopool` is a fork of `github.com/bytedance/gopkg/util/gopool`
-   with opinionated changes.
-   It's a high-performance goroutine pool which aims to reuse goroutines
-   and limit the number of goroutines.
-
 1. `exp/singleflight` contains an async cache which can be used to fetch and update the
    latest data periodically and supports expiring a key if it's unused for a period.
    To be easy to use, it also re-exports `Group` and `Result` as alias names from package
@@ -80,6 +75,11 @@ reasonable API compatibility and versioning.
 1. `perf/fastrand` exported a set of pseudo-random generator methods wrapped around the fastrand
    function from the Go runtime. There is a generator per-M (physical thread), thus it doesn't
    need to do synchronization when generate random sequence, which makes it very scalable.
+
+1. `perf/gopool` is a fork of `github.com/bytedance/gopkg/util/gopool`
+   with opinionated changes.
+   It's a high-performance goroutine pool which aims to reuse goroutines
+   and limit the number of goroutines.
 
 1. `perf/json` provides a drop-in replacement of `encoding/json` and extended features.
    By default, it uses [bytedance/sonic](https://github.com/bytedance/sonic) in underlying,
