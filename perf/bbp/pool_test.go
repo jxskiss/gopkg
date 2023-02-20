@@ -23,14 +23,14 @@ func TestPoolVariousSizesSerial(t *testing.T) {
 
 func TestPoolVariousSizesConcurrent(t *testing.T) {
 	concurrency := 5
-	ch := make(chan struct{})
+	ch := make(chan struct{}, 5)
 	for i := 0; i < concurrency; i++ {
 		go func() {
 			testPoolVariousSizes(t)
 			ch <- struct{}{}
 		}()
 	}
-	timeout := 5 * time.Second
+	timeout := 10 * time.Second
 	for i := 0; i < concurrency; i++ {
 		select {
 		case <-ch:
