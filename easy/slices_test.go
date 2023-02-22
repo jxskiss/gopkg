@@ -105,6 +105,11 @@ func TestFilter(t *testing.T) {
 	assert.Len(t, got3, 1)
 }
 
+func TestInSlice(t *testing.T) {
+	assert.True(t, InSlice([]int32{4, 5, 6}, int32(6)))
+	assert.False(t, InSlice([]string{"4", "5", "6"}, "7"))
+}
+
 func callFunction(f any, args ...any) any {
 	fVal := reflect.ValueOf(f)
 	argsVal := make([]reflect.Value, 0, len(args))

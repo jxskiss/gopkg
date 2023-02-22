@@ -130,6 +130,11 @@ func Filter[S ~[]E, E any](predicate func(i int, elem E) bool, slices ...S) S {
 	return out
 }
 
+// InSlice tells whether the value elem is in the slice.
+func InSlice[E comparable](slice []E, elem E) bool {
+	return Index(slice, elem) >= 0
+}
+
 // Index returns the index of the first occurrence of v in s,
 // or -1 if not present.
 func Index[S ~[]E, E comparable](s S, v E) int {
