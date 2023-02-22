@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 TBD.
 
+## [2.5.1] - 2023-02-22
+
+* Feat: new utility function `easy.InSlice`
+* Feat: upgrade sonic to v1.8.1 to support Go 1.20 and better fallback strategy
+
 ## [2.5.0] - 2023-02-20
 
 * Refactor: replace `interface{}` to `any` for cleaner code

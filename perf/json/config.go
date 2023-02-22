@@ -44,9 +44,13 @@ var HumanFriendly struct {
 var _J apiProxy
 
 func init() {
-	// We use sonic.ConfigStd as default, for a reasonable balance between
-	// performance and compatibility with standard library.
-	_J.useSonicConfig(sonicDefault)
+	// If sonic is available for the building, we use it as default
+	// for better performance, else we use jsoniter as default.
+	if !isSonicFallbackImpl {
+		_J.useSonicConfig(sonicDefault)
+	} else {
+		_J.useJSONIterConfig(jsoniterDefault)
+	}
 
 	HumanFriendly.Marshal = hFriendlyMarshal
 	HumanFriendly.MarshalToString = hFriendlyMarshalToString
