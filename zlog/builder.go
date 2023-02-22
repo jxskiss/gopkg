@@ -191,6 +191,7 @@ func (b *Builder) Sugar() *zap.SugaredLogger {
 	return b.getFinalLogger().Sugar()
 }
 
+//nolint:predeclared
 func appendFields(old []zap.Field, new []zap.Field) []zap.Field {
 	if len(new) == 0 {
 		return old

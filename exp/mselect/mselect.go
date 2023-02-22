@@ -93,6 +93,7 @@ func (p *manySelect) decrCount() {
 
 //go:noescape
 //go:linkname reflect_rselect reflect.rselect
+//nolint:all
 func reflect_rselect([]runtimeSelect) (chosen int, recvOK bool)
 
 // A runtimeSelect is a single case passed to reflect_rselect.

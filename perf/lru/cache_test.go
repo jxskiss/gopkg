@@ -113,6 +113,10 @@ func TestConcurrentGet(t *testing.T) {
 	c := createFilledCache(time.Second)
 	s := createRandInts(50000)
 
+	runConcurrentGetTest(t, c, s)
+}
+
+func runConcurrentGetTest(t *testing.T, c Interface[int64, int64], s []int64) {
 	done := make(chan bool)
 	worker := func() {
 		for i := 0; i < 5000; i++ {
@@ -138,6 +142,10 @@ func TestConcurrentSet(t *testing.T) {
 	c := createFilledCache(time.Second)
 	s := createRandInts(5000)
 
+	runConcurrentSetTest(t, c, s)
+}
+
+func runConcurrentSetTest(t *testing.T, c Interface[int64, int64], s []int64) {
 	done := make(chan bool)
 	worker := func() {
 		ttl := 4 * time.Second
@@ -161,6 +169,10 @@ func TestConcurrentGetSet(t *testing.T) {
 	c := createFilledCache(time.Second)
 	s := createRandInts(5000)
 
+	runConcurrentGetSetTest(t, c, s)
+}
+
+func runConcurrentGetSetTest(t *testing.T, c Interface[int64, int64], s []int64) {
 	done := make(chan bool)
 	getWorker := func() {
 		for i := 0; i < 5000; i++ {

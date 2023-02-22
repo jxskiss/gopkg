@@ -124,9 +124,9 @@ func get(length, capacity int) []byte {
 }
 
 func put(buf []byte) {
-	cap_ := cap(buf)
-	if cap_ >= minBufSize && cap_ <= maxBufSize {
-		idx := indexPut(cap_)
+	c := cap(buf)
+	if c >= minBufSize && c <= maxBufSize {
+		idx := indexPut(c)
 		ptr := _toPtr(buf)
 		sizedPools[idx].Put(ptr)
 	}
@@ -166,7 +166,6 @@ func indexGet(size int) int {
 
 	// For better performance, bsr and isPowerOfTwo are inlined here
 	// to ensure that this function can be inlined.
-
 	p2i := bits.Len32(uint32(size)) - 1
 	idx := powerOfTwoIdxTable[p2i]
 
@@ -177,11 +176,12 @@ func indexGet(size int) int {
 		} else if size > size12KB {
 			idx = idx12KB
 		}
-		idx += 1
+		idx++
 	}
 	return idx
 }
 
+//nolint:all
 func indexGet_readable(size int) int {
 	if size <= minBufSize {
 		return minPoolIdx
@@ -214,10 +214,8 @@ func indexGet_readable(size int) int {
 //
 // See indexPut_readable for a more readable version of this function.
 func indexPut(size int) int {
-
 	// For better performance, bsr and isPowerOfTwo are inlined here
 	// to ensure that this function can be inlined.
-
 	p2i := bits.Len32(uint32(size)) - 1
 	idx := powerOfTwoIdxTable[p2i]
 
@@ -232,6 +230,7 @@ func indexPut(size int) int {
 	return idx
 }
 
+//nolint:all
 func indexPut_readable(size int) int {
 	idx := bsr(size)
 	if isPowerOfTwo(size) || idx < idx8KB {

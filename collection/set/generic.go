@@ -114,17 +114,17 @@ func (s Generic[T]) DiffSlice(other []T) Generic[T] {
 			}
 		}
 		return res
-	} else {
-		res := NewWithSize[T](s.Size())
-		for val := range s.m {
-			res.m[val] = struct{}{}
-		}
-		for i := 0; i < otherLen; i++ {
-			val := other[i]
-			delete(res.m, val)
-		}
-		return res
 	}
+
+	res := NewWithSize[T](s.Size())
+	for val := range s.m {
+		res.m[val] = struct{}{}
+	}
+	for i := 0; i < otherLen; i++ {
+		val := other[i]
+		delete(res.m, val)
+	}
+	return res
 }
 
 // FilterContains returns a new slice which contains values that present

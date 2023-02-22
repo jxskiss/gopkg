@@ -59,7 +59,7 @@ var i64table = [...]intInfo{
 	reflect.Uint16:  {2, func(p unsafe.Pointer) int64 { return int64(*(*uint16)(p)) }},
 	reflect.Int32:   {4, func(p unsafe.Pointer) int64 { return int64(*(*int32)(p)) }},
 	reflect.Uint32:  {4, func(p unsafe.Pointer) int64 { return int64(*(*uint32)(p)) }},
-	reflect.Int64:   {8, func(p unsafe.Pointer) int64 { return int64(*(*int64)(p)) }},
+	reflect.Int64:   {8, func(p unsafe.Pointer) int64 { return *(*int64)(p) }},
 	reflect.Uint64:  {8, func(p unsafe.Pointer) int64 { return int64(*(*uint64)(p)) }},
 	reflect.Int:     {ptrByteSize, func(p unsafe.Pointer) int64 { return int64(*(*int)(p)) }},
 	reflect.Uint:    {ptrByteSize, func(p unsafe.Pointer) int64 { return int64(*(*uint)(p)) }},

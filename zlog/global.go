@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 )
 
+//nolint:all
 var (
 	gL, gL_1 *zap.Logger
 	gS, gS_1 *zap.SugaredLogger

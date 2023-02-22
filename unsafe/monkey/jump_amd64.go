@@ -15,6 +15,7 @@ func branchInto(to uintptr) []byte {
 	}
 }
 
+//nolint:unused
 func branchTo(to uintptr) []byte {
 	return []byte{
 		0x48, 0xba,

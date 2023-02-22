@@ -169,7 +169,7 @@ func (p *Request) prepareRequest(method string) (err error) {
 	}
 	if method == "" || method == "GET" {
 		p.Req, err = http.NewRequest(method, reqURL, nil)
-		return
+		return err
 	}
 
 	var body io.Reader
@@ -216,7 +216,7 @@ func (p *Request) prepareRequest(method string) (err error) {
 	if contentType != "" {
 		p.Req.Header.Set(hdrContentTypeKey, contentType)
 	}
-	return
+	return nil
 }
 
 func mergeQuery(reqURL string, params any) (string, error) {
@@ -340,7 +340,7 @@ func (p *Request) prepareHeaders() {
 // you may take a look at the awesome library `https://github.com/go-resty/resty/`.
 func Do(req *Request) (header http.Header, respContent []byte, status int, err error) {
 	if err = req.prepareRequest(""); err != nil {
-		return
+		return header, respContent, status, err
 	}
 	req.prepareHeaders()
 
@@ -362,7 +362,7 @@ func Do(req *Request) (header http.Header, respContent []byte, status int, err e
 		var dump []byte
 		dump, err = httputil.DumpRequestOut(httpReq, true)
 		if err != nil {
-			return
+			return header, respContent, status, err
 		}
 		dumpFunc("dump http request:\n%s", dump)
 	}
@@ -370,7 +370,7 @@ func Do(req *Request) (header http.Header, respContent []byte, status int, err e
 	httpClient := req.buildClient()
 	httpResp, err := httpClient.Do(httpReq)
 	if err != nil {
-		return
+		return header, respContent, status, err
 	}
 	defer httpResp.Body.Close()
 
@@ -380,19 +380,19 @@ func Do(req *Request) (header http.Header, respContent []byte, status int, err e
 		var dump []byte
 		dump, err = httputil.DumpResponse(httpResp, true)
 		if err != nil {
-			return
+			return header, respContent, status, err
 		}
 		dumpFunc("dump http response:\n%s", dump)
 	}
 
 	respContent, err = io.ReadAll(httpResp.Body)
 	if err != nil {
-		return
+		return header, respContent, status, err
 	}
 	if req.RaiseForStatus {
 		if httpResp.StatusCode >= 400 {
 			err = fmt.Errorf("unexpected status: %v", httpResp.Status)
-			return
+			return header, respContent, status, err
 		}
 	}
 
@@ -410,8 +410,8 @@ func Do(req *Request) (header http.Header, respContent []byte, status int, err e
 		}
 		err = unmarshal(respContent, req.Resp)
 		if err != nil {
-			return
+			return header, respContent, status, err
 		}
 	}
-	return
+	return header, respContent, status, err
 }

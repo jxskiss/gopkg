@@ -72,9 +72,9 @@ func retry(opt options, f func() error, opts ...Option) (r Result) {
 	if err = f(); err == nil {
 		r.Ok = true
 		if opt.Breaker != nil {
-			opt.Breaker.succ.incr(time.Now().Unix(), 1)
+			opt.Breaker.succ.incr(time.Now().Unix())
 		}
-		return
+		return r
 	}
 
 	var merr = NewSizedError(opt.MaxErrors)
@@ -95,7 +95,7 @@ func retry(opt options, f func() error, opts ...Option) (r Result) {
 		merr.Append(err)
 		opt.Hook(r.Attempts, err)
 		if opt.Breaker != nil {
-			opt.Breaker.fail.incr(time.Now().Unix(), 1)
+			opt.Breaker.fail.incr(time.Now().Unix())
 		}
 
 		if opt.MaxSleep > 0 && sleep > opt.MaxSleep {
@@ -110,7 +110,7 @@ func retry(opt options, f func() error, opts ...Option) (r Result) {
 		if err = f(); err == nil {
 			r.Ok = true
 			if opt.Breaker != nil {
-				opt.Breaker.succ.incr(time.Now().Unix(), 1)
+				opt.Breaker.succ.incr(time.Now().Unix())
 			}
 			break
 		}
@@ -123,17 +123,16 @@ func retry(opt options, f func() error, opts ...Option) (r Result) {
 			opt.Hook(r.Attempts, s.Err)
 
 			// Stop error from caller don't count for circuit breaker.
-
 		} else {
 			merr.Append(err)
 			opt.Hook(r.Attempts, err)
 			if opt.Breaker != nil {
-				opt.Breaker.fail.incr(time.Now().Unix(), 1)
+				opt.Breaker.fail.incr(time.Now().Unix())
 			}
 		}
 	}
 	r.Error = merr.ErrOrNil()
-	return
+	return r
 }
 
 type Result struct {

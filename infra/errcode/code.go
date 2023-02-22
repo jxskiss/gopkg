@@ -154,7 +154,6 @@ func IsErrCode(err error) bool {
 }
 
 func unwrapErrCode(err error) ErrCode {
-
 	type causer interface {
 		Cause() error
 	}

@@ -40,7 +40,7 @@ func GCMEncrypt(plaintext, key []byte, opts ...Option) (ciphertext []byte, err e
 	}
 
 	ciphertext = gcm.Seal(nil, nonce, plaintext, opt.additionalData)
-	ciphertext = append(nonce, ciphertext...)
+	ciphertext = append(nonce, ciphertext...) //nolint:makezero
 	ciphertext, err = opt.encode(ciphertext)
 	if err != nil {
 		return nil, err

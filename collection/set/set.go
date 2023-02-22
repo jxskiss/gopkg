@@ -159,17 +159,17 @@ func (s Set) DiffSlice(other any) Set {
 			}
 		}
 		return res
-	} else {
-		res := NewSetWithSize(s.Size())
-		for val := range s.m {
-			res.m[val] = struct{}{}
-		}
-		for i := 0; i < otherLen; i++ {
-			val := otherVal.Index(i).Interface()
-			delete(res.m, val)
-		}
-		return res
 	}
+
+	res := NewSetWithSize(s.Size())
+	for val := range s.m {
+		res.m[val] = struct{}{}
+	}
+	for i := 0; i < otherLen; i++ {
+		val := otherVal.Index(i).Interface()
+		delete(res.m, val)
+	}
+	return res
 }
 
 // FilterInclude returns a new slice which contains values that present

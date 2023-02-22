@@ -10,6 +10,8 @@ import (
 // Reference:
 // https://en.wikipedia.org/wiki/Byte_order_mark
 // and https://www.unicode.org/faq/utf_bom.html
+//
+//nolint:all
 const (
 	BOM_UTF8               = "\xEF\xBB\xBF"
 	BOM_UTF16_BigEndian    = "\xFE\xFF"
