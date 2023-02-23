@@ -212,7 +212,7 @@ func makeBatchInsertSQL(where string, rows any, opts *InsertOptions) (sql string
 	}
 
 	sql = buf.String()
-	return
+	return sql, args
 }
 
 var typeCache sync.Map

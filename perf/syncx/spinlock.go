@@ -18,7 +18,6 @@ func NewSpinLock() sync.Locker {
 // Lock acquires the lock.
 func (p *spinLock) Lock() {
 	if !atomic.CompareAndSwapUintptr((*uintptr)(p), 0, 1) {
-
 		// Outlined slow-path to allow inlining of the fast-path.
 		p.lockSlowPath()
 	}

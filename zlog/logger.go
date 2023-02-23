@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	_ "unsafe"
 
 	"go.uber.org/zap"
 )
@@ -38,40 +37,34 @@ var StdLogger Logger = stdLogger{}
 
 type stdLogger struct{}
 
-// log_std links to log.std to get correct caller depth for both
-// with and without setting GlobalConfig.RedirectStdLog.
-//
-//go:linkname log_std log.std
-var log_std *log.Logger
-
 const _stdLogDepth = 2
 
 func (l stdLogger) Debugf(format string, args ...any) {
 	if GetLevel() <= DebugLevel {
-		log_std.Output(_stdLogDepth, l.formatMessage(DebugPrefix, format, args))
+		log.Default().Output(_stdLogDepth, l.formatMessage(DebugPrefix, format, args))
 	}
 }
 
 func (l stdLogger) Infof(format string, args ...any) {
 	if GetLevel() <= InfoLevel {
-		log_std.Output(_stdLogDepth, l.formatMessage(InfoPrefix, format, args))
+		log.Default().Output(_stdLogDepth, l.formatMessage(InfoPrefix, format, args))
 	}
 }
 
 func (l stdLogger) Warnf(format string, args ...any) {
 	if GetLevel() <= WarnLevel {
-		log_std.Output(_stdLogDepth, l.formatMessage(WarnPrefix, format, args))
+		log.Default().Output(_stdLogDepth, l.formatMessage(WarnPrefix, format, args))
 	}
 }
 
 func (l stdLogger) Errorf(format string, args ...any) {
 	if GetLevel() <= ErrorLevel {
-		log_std.Output(_stdLogDepth, l.formatMessage(ErrorPrefix, format, args))
+		log.Default().Output(_stdLogDepth, l.formatMessage(ErrorPrefix, format, args))
 	}
 }
 
 func (l stdLogger) Fatalf(format string, args ...any) {
-	log_std.Output(_stdLogDepth, l.formatMessage(FatalPrefix, format, args))
+	log.Default().Output(_stdLogDepth, l.formatMessage(FatalPrefix, format, args))
 	Sync()
 	os.Exit(1)
 }

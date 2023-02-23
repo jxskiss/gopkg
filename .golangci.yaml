@@ -16,7 +16,7 @@ linters:
   disable-all: true
   enable:
     - bodyclose
-    - dogsled
+    # - dogsled
     - dupl
     - durationcheck
     - exportloopref
@@ -54,10 +54,14 @@ issues:
   exclude-rules:
     - path: 'internal/linkname/(.+).go'
       linters:
+        - govet
         - revive
+        - stylecheck
     - path: 'unsafe/(.+)\.go'
       linters:
+        - govet
         - revive
+        - stylecheck
     - path: '(.+)_test\.go'
       linters:
         - errcheck

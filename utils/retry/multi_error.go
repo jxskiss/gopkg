@@ -7,23 +7,23 @@ import (
 )
 
 // NewSizedError returns an multiple error which holds at most size errors.
-// The sizedError implementation is copied from github.com/jxskiss/errors
+// The SizedError implementation is copied from github.com/jxskiss/errors
 // to remove dependency of the package and for better compatibility for
 // future go versions.
-func NewSizedError(size int) *sizedError {
-	return &sizedError{
+func NewSizedError(size int) *SizedError {
+	return &SizedError{
 		errs: make([]error, size),
 		size: size,
 	}
 }
 
-type sizedError struct {
+type SizedError struct {
 	errs  []error
 	size  int
 	count int
 }
 
-func (E *sizedError) Append(errs ...error) {
+func (E *SizedError) Append(errs ...error) {
 	for _, err := range errs {
 		if err != nil {
 			E.errs[E.count%E.size] = err
@@ -32,7 +32,7 @@ func (E *sizedError) Append(errs ...error) {
 	}
 }
 
-func (E *sizedError) Error() string {
+func (E *SizedError) Error() string {
 	if E == nil || E.count == 0 {
 		return "<nil>"
 	}
@@ -49,7 +49,7 @@ func (E *sizedError) Error() string {
 	return buf.String()
 }
 
-func (E *sizedError) ErrOrNil() error {
+func (E *SizedError) ErrOrNil() error {
 	if E == nil || E.count == 0 {
 		return nil
 	}
@@ -59,7 +59,7 @@ func (E *sizedError) ErrOrNil() error {
 // Errors returns the errors as a slice in reversed order, if the underlying
 // errors are more than size, only size errors will be returned, plus an
 // additional error indicates the omitted error count.
-func (E *sizedError) Errors() (errors []error) {
+func (E *SizedError) Errors() (errors []error) {
 	if E.count == 0 {
 		return nil
 	}
@@ -81,7 +81,7 @@ func (E *sizedError) Errors() (errors []error) {
 	return errors
 }
 
-func (E *sizedError) Format(f fmt.State, c rune) {
+func (E *SizedError) Format(f fmt.State, c rune) {
 	if c == 'v' && f.Flag('+') {
 		f.Write(formatMultiLine(E.Errors()))
 	} else {

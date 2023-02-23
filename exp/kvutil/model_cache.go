@@ -56,8 +56,8 @@ type CacheConfig[K comparable, V Model] struct {
 	// as the underlying key-value storage.
 	Storage func(ctx context.Context) Storage
 
-	// IdFunc returns the primary key of a Model object.
-	IdFunc func(V) K
+	// IDFunc returns the primary key of a Model object.
+	IDFunc func(V) K
 
 	// KeyFunc specifies the key function to use with the storage.
 	KeyFunc Key
@@ -293,7 +293,7 @@ func (p *Cache[K, V]) mget(ctx context.Context, pks []K, f func(pk K, elem V)) e
 			if err != nil {
 				return err
 			}
-			pk := p.config.IdFunc(elem)
+			pk := p.config.IDFunc(elem)
 			if fromCache != nil {
 				fromCache[pk] = elem
 			}
@@ -306,7 +306,6 @@ func (p *Cache[K, V]) mget(ctx context.Context, pks []K, f func(pk K, elem V)) e
 	var fromLoader map[K]V
 	if p.config.Loader != nil &&
 		cachedPKs.Size() < len(lruMissingPKs) {
-
 		cacheMissingPKs := cachedPKs.FilterNotContains(lruMissingPKs)
 		fromLoader = make(map[K]V, len(cacheMissingPKs))
 		batchPKs := easy.Split(cacheMissingPKs, p.config.LoaderBatchSize)
@@ -373,7 +372,7 @@ func (p *Cache[K, V]) MSetSlice(ctx context.Context, models []V, expiration time
 		if err != nil {
 			return err
 		}
-		pk := p.config.IdFunc(elem)
+		pk := p.config.IDFunc(elem)
 		key := p.config.KeyFunc(pk)
 		kvPairs = append(kvPairs, KVPair{key, buf})
 		kvMap[pk] = elem

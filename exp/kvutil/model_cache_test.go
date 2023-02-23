@@ -248,7 +248,7 @@ func makeTestingCache[K comparable, V Model](testName string, idFunc func(V) K) 
 	km := KeyManager{}
 	return NewCache(&CacheConfig[K, V]{
 		Storage:          testClientFunc(testName),
-		IdFunc:           idFunc,
+		IDFunc:           idFunc,
 		KeyFunc:          km.NewKey("test_model:{id}"),
 		MGetBatchSize:    2,
 		MSetBatchSize:    2,

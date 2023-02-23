@@ -59,24 +59,7 @@ func TestShardedConcurrentGet(t *testing.T) {
 	c := createFilledShardedCache(time.Second)
 	s := createRandInts(50000)
 
-	done := make(chan bool)
-	worker := func() {
-		for i := 0; i < 5000; i++ {
-			key := s[i]
-			v, exists, _ := c.Get(key)
-			if exists && v != key {
-				t.Errorf("value not match: want= %v, got= %v", key, v)
-			}
-		}
-		done <- true
-	}
-	workers := 4
-	for i := 0; i < workers; i++ {
-		go worker()
-	}
-	for i := 0; i < workers; i++ {
-		_ = <-done
-	}
+	runConcurrentGetTest(t, c, s)
 }
 
 func TestShardedConcurrentSet(t *testing.T) {
@@ -84,22 +67,7 @@ func TestShardedConcurrentSet(t *testing.T) {
 	c := createFilledShardedCache(time.Second)
 	s := createRandInts(5000)
 
-	done := make(chan bool)
-	worker := func() {
-		ttl := 4 * time.Second
-		for i := 0; i < 5000; i++ {
-			key := s[i]
-			c.Set(key, key, ttl)
-		}
-		done <- true
-	}
-	workers := 4
-	for i := 0; i < workers; i++ {
-		go worker()
-	}
-	for i := 0; i < workers; i++ {
-		_ = <-done
-	}
+	runConcurrentSetTest(t, c, s)
 }
 
 func TestShardedConcurrentGetSet(t *testing.T) {
@@ -107,33 +75,7 @@ func TestShardedConcurrentGetSet(t *testing.T) {
 	c := createFilledShardedCache(time.Second)
 	s := createRandInts(5000)
 
-	done := make(chan bool)
-	getWorker := func() {
-		for i := 0; i < 5000; i++ {
-			key := s[i]
-			v, exists, _ := c.Get(key)
-			if exists && v != key {
-				t.Errorf("value not match: want= %v, got= %v", key, v)
-			}
-		}
-		done <- true
-	}
-	setWorker := func() {
-		ttl := 4 * time.Second
-		for i := 0; i < 5000; i++ {
-			key := s[i]
-			c.Set(key, key, ttl)
-		}
-		done <- true
-	}
-	workers := 4
-	for i := 0; i < workers; i++ {
-		go getWorker()
-		go setWorker()
-	}
-	for i := 0; i < workers*2; i++ {
-		_ = <-done
-	}
+	runConcurrentGetSetTest(t, c, s)
 }
 
 func BenchmarkShardedConcurrentGetLRUCache(bb *testing.B) {

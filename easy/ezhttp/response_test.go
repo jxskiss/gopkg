@@ -17,6 +17,7 @@ func TestJSON(t *testing.T) {
 	JSON(w, 200, data)
 
 	result := w.Result()
+	defer result.Body.Close()
 	assert.Equal(t, 200, result.StatusCode)
 	assert.Equal(t, contentTypeJSON, result.Header.Get(hdrContentTypeKey))
 
@@ -34,6 +35,7 @@ func TestJSONHumanFriendly(t *testing.T) {
 	JSONHumanFriendly(w, 500, data)
 
 	result := w.Result()
+	defer result.Body.Close()
 	assert.Equal(t, 500, result.StatusCode)
 	assert.Equal(t, contentTypeJSON, result.Header.Get(hdrContentTypeKey))
 

@@ -20,7 +20,7 @@ func Test_Retry(t *testing.T) {
 	is.True(cost > 150*time.Millisecond)
 	is.True(cost < 450*time.Millisecond)
 
-	merr, ok := r.Error.(*sizedError)
+	merr, ok := r.Error.(*SizedError)
 	is.True(ok)
 	merrors := merr.Errors()
 	is.Equal(len(merrors), 3)
@@ -37,7 +37,7 @@ func Test_Retry(t *testing.T) {
 	is.True(cost > 350*time.Millisecond)
 	is.True(cost < 1050*time.Millisecond)
 
-	merr, ok = r.Error.(*sizedError)
+	merr, ok = r.Error.(*SizedError)
 	is.True(ok)
 	merrors = merr.Errors()
 	is.Equal(len(merrors), 3)

@@ -12,8 +12,17 @@ const cacheLineSize = 64
 
 var (
 	shardsLen  int
-	shardsMask int = 1
+	shardsMask int
 )
+
+func init() {
+	shardsLen = runtime.GOMAXPROCS(0)
+	shardsLen = int(internal.NextPowerOfTwo(uint(shardsLen)))
+	shardsMask = 1
+	if shardsLen > 1 {
+		shardsMask = shardsLen - 1
+	}
+}
 
 // RWLock holds a group of sharded RWMutex, it gives better performance
 // in read-heavy workloads by reducing lock contention, but the performance
@@ -23,14 +32,6 @@ type RWLock []rwlockShard
 type rwlockShard struct {
 	_ [cacheLineSize]byte
 	sync.RWMutex
-}
-
-func init() {
-	shardsLen = runtime.GOMAXPROCS(0)
-	shardsLen = int(internal.NextPowerOfTwo(uint(shardsLen)))
-	if shardsLen > 1 {
-		shardsMask = shardsLen - 1
-	}
 }
 
 // NewRWLock creates a new RWLock.

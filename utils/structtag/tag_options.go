@@ -40,7 +40,7 @@ func ParseOptions(tag string, optionSep, kvSep string) Options {
 		return nil
 	}
 
-	var options []Option
+	var options = make([]Option, 0, 4)
 	var opts []string
 	if optionSep == "" {
 		opts = []string{tag}

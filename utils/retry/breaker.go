@@ -52,17 +52,14 @@ type bucket struct {
 	count [windowSize]float64
 }
 
-func (b *bucket) incr(nowUnix int64, i float64) {
-	if i == 0 {
-		return
-	}
+func (b *bucket) incr(nowUnix int64) {
 	idx := nowUnix % windowSize
 	b.mu.Lock()
 	if b.index[idx] != nowUnix {
 		b.index[idx] = nowUnix
 		b.count[idx] = 0
 	}
-	b.count[idx] += i
+	b.count[idx]++
 	b.mu.Unlock()
 }
 
