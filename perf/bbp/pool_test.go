@@ -42,7 +42,7 @@ func TestPoolVariousSizesConcurrent(t *testing.T) {
 
 func testPoolVariousSizes(t *testing.T) {
 	for i := 0; i < poolSize-minPoolIdx; i++ {
-		n := bufSizeTable[i]
+		n := sizedPools[i].size
 
 		testGetPut(t, n)
 		testGetPut(t, n+1)
@@ -55,7 +55,7 @@ var testPool Pool
 func testGetPut(t *testing.T, n int) {
 	bb := testPool.Get()
 	if len(bb) > 0 {
-		t.Fatalf("non-empty byte buffer returned from acquire")
+		t.Fatalf("non-empty byte buffer returned from Pool.Get")
 	}
 	bb = allocNBytes(bb, n)
 	testPool.Put(bb)
@@ -66,5 +66,5 @@ func allocNBytes(dst []byte, n int) []byte {
 	if diff <= 0 {
 		return dst[:n]
 	}
-	return append(dst, make([]byte, diff)...)
+	return append(dst[:cap(dst)], make([]byte, diff)...)
 }
