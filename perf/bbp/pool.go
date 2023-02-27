@@ -5,14 +5,13 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe"
 )
 
 const (
 	defaultPoolIdx           = 10 // 1024 bytes
 	defaultCalibrateCalls    = 10000
 	defaultCalibrateInterval = 3 * time.Minute
-	defaultResizePercentile  = 90
+	defaultResizePercentile  = 95
 )
 
 // Pool is a byte buffer pool which reuses byte slice. It uses dynamic
@@ -34,8 +33,6 @@ const (
 // The zero value for Pool is ready to use. A Pool value shall not be
 // copied after initialized.
 type Pool struct {
-	noCopy noCopy //nolint:unused
-
 	r Recorder
 
 	bp sync.Pool // *Buffer
@@ -54,8 +51,16 @@ func NewPool(r Recorder) *Pool {
 // The returned buffer may be put back to the pool for reusing.
 func (p *Pool) Get() []byte {
 	idx := p.r.getPoolIdx()
-	ptr := sizedPools[idx].Get().(unsafe.Pointer)
-	return _toBuf(ptr, 0)
+	return sizedPools[idx].Get(0)
+}
+
+// Put puts back a byte slice buffer to the pool for reusing.
+//
+// The buf mustn't be touched after returning it to the pool,
+// otherwise data races will occur.
+func (p *Pool) Put(buf []byte) {
+	p.r.Record(len(buf))
+	put(buf)
 }
 
 // GetBuffer returns a Buffer from the pool with dynamic calibrated
@@ -67,17 +72,8 @@ func (p *Pool) GetBuffer() *Buffer {
 		return v.(*Buffer)
 	}
 	idx := p.r.getPoolIdx()
-	ptr := sizedPools[idx].Get().(unsafe.Pointer)
-	return &Buffer{buf: _toBuf(ptr, 0)}
-}
-
-// Put puts back a byte slice buffer to the pool for reusing.
-//
-// The buf mustn't be touched after returning it to the pool,
-// otherwise data races will occur.
-func (p *Pool) Put(buf []byte) {
-	p.r.Record(len(buf))
-	put(buf)
+	buf := sizedPools[idx].Get(0)
+	return &Buffer{buf: buf}
 }
 
 // PutBuffer puts back a Buffer to the pool for reusing.
@@ -107,7 +103,7 @@ type Recorder struct {
 
 	// ResizePercentile optionally configs the percentile to reset the
 	// default size when doing calibrating, the value should be in range
-	// [50, 100). Default is 90.
+	// [50, 100). Default is 95.
 	ResizePercentile int
 
 	poolIdx uintptr
@@ -225,16 +221,3 @@ func (p *Recorder) calibrate() {
 
 	atomic.StoreUintptr(&p.calibrating, 0)
 }
-
-// noCopy may be added to structs which must not be copied
-// after the first use.
-//
-// See https://golang.org/issues/8005#issuecomment-190753527
-// for details.
-//
-// Note that it must not be embedded, due to the Lock and Unlock methods.
-type noCopy struct{} //nolint:all
-
-// Lock is a no-op used by -copylocks checker from `go vet`.
-func (*noCopy) Lock()   {}
-func (*noCopy) Unlock() {}

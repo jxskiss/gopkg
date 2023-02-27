@@ -16,17 +16,8 @@ const (
 	minBufSize = 1 << minShift
 	maxBufSize = 1 << maxShift
 
-	idx4KB   = 12       // 4KB
-	idx8KB   = 13       // 8KB
-	idx12KB  = 14       // 8KB + 4KB
-	idx16KB  = 15       // 8KB + (2 * 4KB)
-	size4KB  = 4 << 10  // 4KB
-	size8KB  = 8 << 10  // 8KB
-	size12KB = 12 << 10 // 8KB + 4KB
-	size16KB = 16 << 10 // 8KB + (2 * 4KB)
-
 	minPoolIdx = 6
-	maxPoolIdx = maxShift + (maxShift-idx8KB)*3 - 2
+	maxPoolIdx = maxShift
 	poolSize   = maxPoolIdx + 1
 )
 
@@ -41,8 +32,7 @@ func Get(length, capacity int) []byte {
 	// Manually inlining.
 	// return get(length, capacity)
 	idx := indexGet(capacity)
-	ptr := sizedPools[idx].Get().(unsafe.Pointer)
-	return _toBuf(ptr, length)
+	return sizedPools[idx].Get(length)
 }
 
 // Put puts back a byte slice to the pool for reusing.
@@ -51,54 +41,48 @@ func Get(length, capacity int) []byte {
 // otherwise data races will occur.
 func Put(buf []byte) { put(buf) }
 
-// Grow returns a new byte buffer from the pool which is at least of
-// specified capacity.
+// Grow checks capacity of buf, it returns a new byte buffer from the pool,
+// if necessary, to guarantee space for another n bytes.
+// After Grow(n), at least n bytes can be appended to the returned buffer
+// without another allocation.
+// If n is negative, Grow will panic.
 //
 // Note that if reuseBuf is true and a new slice is returned, the old
 // buf will be put back to the pool, the caller must not retain reference
-// to the buf and must not touch it after this calling returns, else
-// data race happens.
-func Grow(buf []byte, capacity int, reuseBuf bool) []byte {
-	if cap(buf) >= capacity {
+// to the old buf and must not access it again, else data race happens.
+func Grow(buf []byte, n int, reuseBuf bool) []byte {
+	if n < 0 {
+		panic("bbp.Grow: negative size to grow")
+	}
+	if cap(buf) >= len(buf)+n {
 		return buf
 	}
-	return growWithOptions(buf, capacity, reuseBuf)
+	return growWithOptions(buf, len(buf)+n, reuseBuf)
 }
 
 // -------- sized pools -------- //
 
 var (
-	powerOfTwoIdxTable = [maxShift + 1]int{
-		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, // 0 - 13 [1B, 8KB]
-		15, 19, 23, 27, 31, 35, 39, 43, 47, 51, 55, 59, // 14 - 26 [16KB, 32MB]
-	}
-	bufSizeTable [poolSize]int
-	sizedPools   [poolSize]sync.Pool
+	sizedPools [poolSize]*bufPool
 )
 
 func init() {
 	for i := 0; i < poolSize; i++ {
-		var size int
-		if i <= 13 { // <= 8KB (idx8KB)
-			size = 1 << i
-		} else if i == 14 {
-			size = size12KB // 12KB
-		} else { // i >= 15, size >= 16KB
-			j, k := 14+(i-15)/4, (i-15)%4
-			quarter := (1 << j) / 4
-			size = 1<<j + quarter*k
-		}
-		bufSizeTable[i] = size
-		sizedPools[i].New = func() any {
-			buf := make([]byte, 0, size)
-			return _toPtr(buf)
-		}
+		size := 1 << i
+		sizedPools[i] = &bufPool{size: size}
 	}
+}
 
-	//for i := 0; i < poolSize; i++ {
-	//	fmt.Printf("(%d) %d, ", i, bufSizeTable[i])
-	//}
-	//fmt.Println("")
+type bufPool struct {
+	size int
+	pool sync.Pool
+}
+
+func (p *bufPool) Get(length int) []byte {
+	if ptr := p.pool.Get(); ptr != nil {
+		return _toBuf(ptr.(unsafe.Pointer), length)
+	}
+	return make([]byte, length, p.size)
 }
 
 func _toBuf(ptr unsafe.Pointer, length int) []byte {
@@ -119,8 +103,7 @@ func _toPtr(buf []byte) unsafe.Pointer {
 // callers must guarantee that capacity is not greater than maxBufSize.
 func get(length, capacity int) []byte {
 	idx := indexGet(capacity)
-	ptr := sizedPools[idx].Get().(unsafe.Pointer)
-	return _toBuf(ptr, length)
+	return sizedPools[idx].Get(length)
 }
 
 func put(buf []byte) {
@@ -128,7 +111,7 @@ func put(buf []byte) {
 	if c >= minBufSize && c <= maxBufSize {
 		idx := indexPut(c)
 		ptr := _toPtr(buf)
-		sizedPools[idx].Put(ptr)
+		sizedPools[idx].pool.Put(ptr)
 	}
 }
 
@@ -144,8 +127,7 @@ func growWithOptions(buf []byte, capacity int, reuseBuf bool) []byte {
 		// Manually inlining.
 		// newBuf = get(len(buf), capacity)
 		idx := indexGet(capacity)
-		ptr := sizedPools[idx].Get().(unsafe.Pointer)
-		newBuf = _toBuf(ptr, len(buf))
+		newBuf = sizedPools[idx].Get(len(buf))
 	}
 	copy(newBuf, buf)
 	if reuseBuf {
@@ -157,105 +139,39 @@ func growWithOptions(buf []byte, capacity int, reuseBuf bool) []byte {
 // indexGet finds the pool index for the given size to get buffer from,
 // if size not equals to a predefined size, it returns the index of the
 // next predefined size.
-//
-// See indexGet_readable for a more readable version of this function.
 func indexGet(size int) int {
 	if size <= minBufSize {
 		return minPoolIdx
 	}
 
-	// For better performance, bsr and isPowerOfTwo are inlined here
-	// to ensure that this function can be inlined.
-	p2i := bits.Len32(uint32(size)) - 1
-	idx := powerOfTwoIdxTable[p2i]
-
-	if size&(size-1) != 0 { // not power of two
-		if size > size16KB {
-			mod := size & (1<<p2i - 1)    // size % (2^p2i)
-			idx += (mod - 1) >> (p2i - 2) // (mod - 1) / (2^p2i / 4)
-		} else if size > size12KB {
-			idx = idx12KB
-		}
-		idx++
+	// Manually inline bsr and isPowerOfTwo here.
+	idx := bits.Len32(uint32(size))
+	if size&(size-1) == 0 {
+		idx -= 1 //nolint:revive
 	}
 	return idx
-}
-
-//nolint:all
-func indexGet_readable(size int) int {
-	if size <= minBufSize {
-		return minPoolIdx
-	}
-
-	idx := bsr(size)
-	if isPowerOfTwo(size) {
-		return powerOfTwoIdxTable[idx]
-	}
-
-	if idx < idx8KB {
-		return powerOfTwoIdxTable[idx] + 1
-	}
-
-	if idx == idx8KB { // (8KB, 16KB)
-		const half = size4KB
-		mod := size & (1<<idx - 1) // size % (2^idx)
-		return powerOfTwoIdxTable[idx] + (mod+half-1)/half
-	}
-
-	// larger than 16KB
-	mod := size & (1<<idx - 1) // size % (2^idx)
-	quarter := 1 << (idx - 2)  // (2^idx) / 4
-	return powerOfTwoIdxTable[idx] + (mod+quarter-1)/quarter
 }
 
 // indexPut finds the pool index for the given size to put buffer back,
 // if size not equals to a predefined size, it returns the index of the
 // previous predefined size.
-//
-// See indexPut_readable for a more readable version of this function.
 func indexPut(size int) int {
-	// For better performance, bsr and isPowerOfTwo are inlined here
-	// to ensure that this function can be inlined.
-	p2i := bits.Len32(uint32(size)) - 1
-	idx := powerOfTwoIdxTable[p2i]
-
-	if size&(size-1) != 0 { // not power of two
-		if size > size16KB {
-			mod := size & (1<<p2i - 1) // size % (2^p2i)
-			idx += mod >> (p2i - 2)    // mod / (2^p2i / 4)
-		} else if size >= size12KB {
-			idx = idx12KB
-		}
-	}
-	return idx
-}
-
-//nolint:all
-func indexPut_readable(size int) int {
-	idx := bsr(size)
-	if isPowerOfTwo(size) || idx < idx8KB {
-		return powerOfTwoIdxTable[idx]
-	}
-
-	if idx == idx8KB {
-		const half = size4KB
-		mod := size & (1<<idx - 1) // size % (2^idx)
-		return powerOfTwoIdxTable[idx] + mod/half
-	}
-
-	mod := size & (1<<idx - 1) // size % (2^idx)
-	quarter := 1 << (idx - 2)  // (2^idx) / 4
-	return powerOfTwoIdxTable[idx] + mod/quarter
+	// Manually inline bsr.
+	return bits.Len32(uint32(size)) - 1
 }
 
 // bsr.
 //
 // Callers within this package guarantee that n doesn't overflow int32.
+//
+//nolint:unused
 func bsr(n int) int {
 	return bits.Len32(uint32(n)) - 1
 }
 
 // isPowerOfTwo reports whether n is a power of two.
+//
+//nolint:unused
 func isPowerOfTwo(n int) bool {
 	return n&(n-1) == 0
 }

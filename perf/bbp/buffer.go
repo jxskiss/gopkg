@@ -3,7 +3,8 @@ package bbp
 import (
 	"io"
 	"unicode/utf8"
-	"unsafe"
+
+	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
 
 // MinRead is the minimum slice size passed to a Read call by Buffer.ReadFrom.
@@ -41,54 +42,48 @@ func (b *Buffer) Len() int {
 	return len(b.buf)
 }
 
-// Grow ensures that the underlying byte slice is at least of
-// specified capacity.
-func (b *Buffer) Grow(capacity int) {
-	if capacity > cap(b.buf) {
-		b.buf = grow(b.buf, capacity)
+// Grow grows the buffer's capacity, if necessary, to guarantee space for
+// another n bytes. After Grow(n), at least n bytes can be written to the
+// buffer without another allocation.
+// If n is negative, Grow will panic.
+func (b *Buffer) Grow(n int) {
+	if n < 0 {
+		panic("bbp.Buffer.Grow: negative size to grow")
+	}
+	if newCap := len(b.buf) + n; newCap > cap(b.buf) {
+		b.buf = grow(b.buf, newCap)
 	}
 }
 
 // Append accepts a function which append data to the underlying byte slice.
-// `size` optionally indicates the possible size of data to append,
-// it helps to pre-allocate enough memory.
-func (b *Buffer) Append(size int, f func([]byte) []byte) {
-	old := b.buf
-	b.Grow(len(old) + size)
+func (b *Buffer) Append(f func([]byte) []byte) {
 	b.buf = f(b.buf)
-	if cap(old) != cap(b.buf) {
-		put(old)
-	}
 }
 
 // ReadFrom implements io.ReaderFrom.
 //
 // The function appends all the data read from r to b.
 func (b *Buffer) ReadFrom(r io.Reader) (int64, error) {
-	bb := b.buf
-	nStart := len(bb)
-	nMax := cap(bb)
+	p := b.buf
+	nStart := len(p)
+	nMax := cap(p)
 	n := nStart
 	if nMax == 0 {
 		nMax = MinRead
-		bb = get(nMax, nMax)
+		p = get(nMax, nMax)
 	} else {
-		bb = bb[:nMax]
+		p = p[:nMax]
 	}
 	for {
 		if n == nMax {
-			incr := MinRead
-			if b.Len() >= maxBufSize {
-				incr = 8 << 20 // 8MB
-			}
-			nMax += incr
-			bb = grow(bb, nMax)
-			bb = bb[:nMax]
+			nMax *= 2
+			p = grow(p, nMax)
+			p = p[:nMax]
 		}
-		nn, err := r.Read(bb[n:])
+		nn, err := r.Read(p[n:])
 		n += nn
 		if err != nil {
-			b.buf = bb[:n]
+			b.buf = p[:n]
 			n -= nStart
 			if err == io.EOF {
 				return int64(n), nil
@@ -106,52 +101,29 @@ func (b *Buffer) WriteTo(w io.Writer) (int64, error) {
 
 // Write implements io.Writer - it appends p to the underlying byte buffer.
 func (b *Buffer) Write(p []byte) (int, error) {
-	if len(p) == 0 {
-		return 0, nil
-	}
-	return b.WriteString(b2s(p))
+	b.buf = append(b.buf, p...)
+	return len(p), nil
 }
 
 // WriteByte appends the byte c to the buffer.
-//
 // The purpose of this function is bytes.Buffer compatibility.
-//
-// The function always returns nil.
 func (b *Buffer) WriteByte(c byte) error {
-	want := len(b.buf) + 1
-	if want > cap(b.buf) {
-		b.buf = grow(b.buf, want)
-	}
 	b.buf = append(b.buf, c)
 	return nil
 }
 
 // WriteRune appends the UTF-8 encoding of Unicode code point r to the buffer.
-//
 // The purpose of this function is bytes.Buffer compatibility.
-//
-// The function always returns nil.
 func (b *Buffer) WriteRune(r rune) (n int, err error) {
-	lenb := len(b.buf)
-	want := lenb + utf8.UTFMax
-	if want > cap(b.buf) {
-		b.buf = grow(b.buf, want)
-	}
-	n = utf8.EncodeRune(b.buf[lenb:lenb+utf8.UTFMax], r)
-	b.buf = b.buf[:lenb+n]
-	return n, nil
+	oldLen := len(b.buf)
+	b.buf = utf8.AppendRune(b.buf, r)
+	return len(b.buf) - oldLen, nil
 }
 
 // WriteString appends s to the underlying byte slice.
 func (b *Buffer) WriteString(s string) (int, error) {
-	lenb, lens := len(b.buf), len(s)
-	want := lenb + lens
-	if want > cap(b.buf) {
-		b.buf = grow(b.buf, want)
-	}
-	b.buf = b.buf[:want]
-	copy(b.buf[lenb:], s)
-	return lens, nil
+	b.buf = append(b.buf, s...)
+	return len(s), nil
 }
 
 // WriteStrings appends a slice of strings to the underlying byte slice.
@@ -166,8 +138,8 @@ func (b *Buffer) WriteStrings(s []string) (int, error) {
 		b.buf = grow(b.buf, want)
 	}
 	b.buf = b.buf[:want]
-	for i := 0; i < len(s); i++ {
-		lenb += copy(b.buf[lenb:], s[i])
+	for _, x := range s {
+		lenb += copy(b.buf[lenb:], x)
 	}
 	return lens, nil
 }
@@ -175,14 +147,13 @@ func (b *Buffer) WriteStrings(s []string) (int, error) {
 // Set first re-slice the underlying byte slice to empty,
 // then write p to the buffer.
 func (b *Buffer) Set(p []byte) {
-	b.buf = b.buf[:0]
-	_, _ = b.WriteString(b2s(p))
+	b.buf = append(b.buf[:0], p...)
 }
 
-// SetString sets Buffer.B to s.
+// SetString first re-slice the underlying byte slice to empty,
+// then write s to the buffer.
 func (b *Buffer) SetString(s string) {
-	b.buf = b.buf[:0]
-	_, _ = b.WriteString(s)
+	b.buf = append(b.buf[:0], s...)
 }
 
 // Reset re-slice the underlying byte slice to empty.
@@ -227,9 +198,5 @@ func (b *Buffer) String() string {
 // is _NOT_ copied, so modifying this buffer after calling StringUnsafe
 // will lead to undefined behavior.
 func (b *Buffer) StringUnsafe() string {
-	return b2s(b.buf)
-}
-
-func b2s(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
+	return unsafeheader.BytesToString(b.buf)
 }
