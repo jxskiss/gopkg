@@ -85,6 +85,12 @@ func (p *bufPool) Get(length int) []byte {
 	return make([]byte, length, p.size)
 }
 
+func (p *bufPool) Put(buf []byte) {
+	if cap(buf) >= p.size {
+		p.pool.Put(_toPtr(buf))
+	}
+}
+
 func _toBuf(ptr unsafe.Pointer, length int) []byte {
 	size := *(*int)(ptr)
 	return *(*[]byte)(unsafe.Pointer(&unsafeheader.Slice{

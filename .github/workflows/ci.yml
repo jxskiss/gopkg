@@ -49,7 +49,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # Can't run race detector on windows with go 1.18 or lower due to a bug.
+      # See https://github.com/golang/go/issues/46099.
+      - name: Test Windows 1.18
+        if: ${{ matrix.os == 'windows-latest' && matrix.go == '1.18' }}
+        run: go test -v ./...
+
       - name: Test
+        if: ${{ matrix.os != 'windows-latest' || matrix.go != '1.18' }}
         run: go test -race -v ./...
 
   lint:
