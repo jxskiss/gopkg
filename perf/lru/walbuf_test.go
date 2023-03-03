@@ -41,14 +41,13 @@ func TestFastHashset(t *testing.T) {
 		values[i] = uint32(rand.Int31n(1000))
 	}
 
-	var setBuf [walSetSize]uint32
-	fastSet := fastHashset(setBuf)
+	var fastSet fastHashset
 	for _, x := range values {
 		fastSet.add(x)
 	}
 
 	fmt.Println(values)
-	fmt.Println(setBuf)
+	fmt.Println(fastSet)
 
 	mapSet := make(map[uint32]bool)
 	for _, x := range values {

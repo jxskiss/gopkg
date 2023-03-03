@@ -16,8 +16,15 @@ func Runtime_fastrand64() uint64 {
 //
 // DON'T use this if you don't know what it does.
 func Runtime_sysAlloc(n uintptr) []byte {
-	var memStat uint64
-	addr := runtime_sysAlloc(n, &memStat)
+	addr := runtime_sysAlloc(n, &sysAllocMemStat)
+	if addr == nil {
+		// Don't allow the caller to capture this panic,
+		// and block to wait the program exiting.
+		go func() {
+			panic("Runtime_sysAlloc: out of memory")
+		}()
+		select {}
+	}
 	return *(*[]byte)(unsafe.Pointer(&reflect.SliceHeader{
 		Data: uintptr(addr),
 		Len:  int(n),
@@ -31,8 +38,7 @@ func Runtime_sysAlloc(n uintptr) []byte {
 func Runtime_sysFree(mem []byte) {
 	addr := unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&mem)).Data)
 	n := uintptr(cap(mem))
-	memStat := uint64(n)
-	runtime_sysFree(addr, n, &memStat)
+	runtime_sysFree(addr, n, &sysAllocMemStat)
 }
 
 //go:linkname runtime_sysAlloc runtime.sysAlloc

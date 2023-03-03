@@ -5,6 +5,8 @@ import (
 	"unsafe"
 )
 
+var sysAllocMemStat uint64
+
 // Runtime_memclrNoHeapPointers clears n bytes starting at ptr.
 //
 // Usually you should use typedmemclr. Runtime_memclrNoHeapPointers should be
