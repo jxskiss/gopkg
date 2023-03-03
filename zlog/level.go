@@ -142,6 +142,9 @@ func (l Level) ToZapLevel() zapcore.Level {
 	if l < 0 {
 		return zapcore.Level(l)
 	}
+	if l > FatalLevel {
+		return zapcore.FatalLevel
+	}
 	return mapZapLevels[l]
 }
 
@@ -226,7 +229,11 @@ func (l *Level) unmarshalText(text []byte) bool {
 	case "fatal", "FATAL":
 		*l = FatalLevel
 	default:
-		return false
+		i, err := strconv.Atoi(string(text))
+		if err != nil {
+			return false
+		}
+		*l = Level(i)
 	}
 	return true
 }
@@ -277,7 +284,7 @@ func fromZapLevel(lvl zapcore.Level) Level {
 		return FatalLevel
 	}
 	if lvl < zapcore.DebugLevel {
-		return TraceLevel
+		return Level(lvl)
 	}
 	return FatalLevel
 }

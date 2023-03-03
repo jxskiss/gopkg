@@ -6,6 +6,7 @@ require (
 	github.com/BurntSushi/toml v1.2.1
 	github.com/bytedance/sonic v1.8.3
 	github.com/davecgh/go-spew v1.1.1
+	github.com/go-logr/logr v1.2.3
 	github.com/json-iterator/go v1.1.12
 	github.com/jxskiss/base62 v1.1.0
 	github.com/spf13/cast v1.5.0
@@ -24,10 +25,12 @@ require (
 	github.com/klauspost/cpuid/v2 v2.2.4 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
 	golang.org/x/sys v0.5.0 // indirect
+	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )
 
 retract v2.3.5 // Has bug.

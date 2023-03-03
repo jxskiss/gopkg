@@ -310,8 +310,8 @@ func NewWithOutput(cfg *Config, output zapcore.WriteSyncer, opts ...zap.Option) 
 		return nil, nil, err
 	}
 
-	// base core at trace level
-	core := zapcore.NewCore(encoder, output, TraceLevel)
+	// base core logging any level messages
+	core := zapcore.NewCore(encoder, output, Level(-127))
 
 	aLevel := newAtomicLevel()
 	err = aLevel.UnmarshalText([]byte(cfg.Level))
