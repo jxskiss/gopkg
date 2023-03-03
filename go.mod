@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/BurntSushi/toml v1.2.1
-	github.com/bytedance/sonic v1.8.1
+	github.com/bytedance/sonic v1.8.3
 	github.com/davecgh/go-spew v1.1.1
 	github.com/json-iterator/go v1.1.12
 	github.com/jxskiss/base62 v1.1.0
