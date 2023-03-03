@@ -1,7 +1,6 @@
 package bbp
 
 import (
-	"container/list"
 	"sync"
 	"syscall"
 
@@ -30,7 +29,7 @@ type Arena struct {
 	chunkSize int
 	allocFunc func(size int) []byte
 	freeFunc  func([]byte)
-	lst       list.List
+	chunks    []memChunk
 }
 
 // OffHeapArena is similar to Arena, except that it allocates memory
@@ -89,34 +88,30 @@ func (a *Arena) Alloc(length, capacity int) []byte {
 		return make([]byte, length, capacity)
 	}
 
-	if active := a.lst.Back(); active != nil {
-		chunk := active.Value.(*memChunk)
-		if buf, ok := chunk.alloc(length, capacity); ok {
+	if n := len(a.chunks); n > 0 {
+		c := &a.chunks[len(a.chunks)-1]
+		if buf, ok := c.alloc(length, capacity); ok {
 			return buf
 		}
 	}
 
-	chunk := a.allocNewChunk()
-	buf, _ := chunk.alloc(length, capacity)
+	// Need to alloc new memory chunk.
+	newMem := a.allocFunc(a.chunkSize)
+	a.chunks = append(a.chunks, memChunk{buf: newMem})
+	c := &a.chunks[len(a.chunks)-1]
+	buf, _ := c.alloc(length, capacity)
 	return buf
 }
 
 // Free releases all memory chunks managed by the arena.
 // It returns the memory chunks to pool for reusing.
 func (a *Arena) Free() {
-	for node := a.lst.Front(); node != nil; node = node.Next() {
-		chunk := node.Value.(*memChunk)
-		a.freeFunc(chunk.buf)
+	for i := range a.chunks {
+		a.freeFunc(a.chunks[i].buf)
+		a.chunks[i].buf = nil
 	}
-	a.lst.Init() // clear the list
+	a.chunks = a.chunks[:0]
 	arenaPool.Put(a)
-}
-
-func (a *Arena) allocNewChunk() *memChunk {
-	buf := a.allocFunc(a.chunkSize)
-	chunk := &memChunk{buf: buf}
-	a.lst.PushBack(chunk)
-	return chunk
 }
 
 type memChunk struct {

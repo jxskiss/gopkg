@@ -56,6 +56,7 @@ func BenchmarkNewArena(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		a := NewArena(sysPageSize)
+		_ = a.Alloc(10, 100)
 		a.Free()
 	}
 }
@@ -64,6 +65,7 @@ func BenchmarkNewOffHeapArena(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		a := NewOffHeapArena(sysPageSize)
+		_ = a.Alloc(10, 100)
 		a.Free()
 	}
 }
@@ -72,6 +74,7 @@ func BenchmarkNewCgoArena(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		a := NewCgoArena(sysPageSize)
+		_ = a.Alloc(10, 100)
 		a.Free()
 	}
 }
