@@ -3,6 +3,7 @@ package zlog
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"testing"
@@ -28,6 +29,36 @@ func newTestLogrLogger(lv Level, w io.Writer) *zap.Logger {
 		panic(err)
 	}
 	return logger
+}
+
+func TestR(t *testing.T) {
+	r0 := R()
+	assert.NotNil(t, r0.GetSink().(*logrImpl).c)
+	assert.NotNil(t, r0.GetSink().(*logrImpl).l)
+
+	cfg := &LogrConfig{
+		ErrorKey: "err",
+	}
+	r1 := R(cfg)
+	assert.Equal(t, cfg, r1.GetSink().(*logrImpl).c)
+	assert.NotNil(t, r1.GetSink().(*logrImpl).l)
+	r11 := R(*cfg)
+	assert.Equal(t, "err", r11.GetSink().(*logrImpl).c.ErrorKey)
+	assert.NotNil(t, r1.GetSink().(*logrImpl).l)
+
+	l := L().With(zap.String("ns", "default"))
+	s := l.Sugar()
+	r2 := R(l)
+	r2.Info("test R(*zap.Logger)")
+	r3 := R(s)
+	r3.Info("test R(*zap.SugaredLogger)")
+
+	b := B().With(zap.Int("podnum", 2))
+	ctx := WithBuilder(context.Background(), b)
+	r4 := R(b)
+	r4.Info("test R(*Builder)")
+	r5 := R(ctx)
+	r5.Info("test R(context.Context)")
 }
 
 func TestLogrLoggerInfo(t *testing.T) {

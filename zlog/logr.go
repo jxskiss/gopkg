@@ -17,8 +17,8 @@ var _ logr.CallDepthLogSink = &logrImpl{}
 
 // R creates a new logr.Logger.
 // optionalConfig can be used to customize the behavior of the returned logger,
-// either a *LogrConfig, *zap.Logger, *zap.SugaredLogger, or context.Context
-// can be used as optional config.
+// either a *LogrConfig, *Builder, *zap.Logger, *zap.SugaredLogger,
+// or context.Context can be used as optional config.
 func R(optionalConfig ...any) logr.Logger {
 	cfg := resolveLogrConfig(optionalConfig)
 	l := cfg.Logger.WithOptions(zap.AddCallerSkip(1))
@@ -34,12 +34,14 @@ func resolveLogrConfig(optionalConfig []any) *LogrConfig {
 			cfg = &x
 		case *LogrConfig:
 			cfg = x
+		case *Builder:
+			cfg.Logger = x.Build()
+		case context.Context:
+			cfg.Logger = B(x).Build()
 		case *zap.Logger:
 			cfg.Logger = x
 		case *zap.SugaredLogger:
 			cfg.Logger = x.Desugar()
-		case context.Context:
-			cfg.Logger = B(x).Build()
 		}
 	}
 	cfg.setDefaults()
