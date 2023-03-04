@@ -39,6 +39,10 @@ func TestRType(t *testing.T) {
 	}
 }
 
+func TestRTypeOfEface(t *testing.T) {
+	assert.Equal(t, RTypeOfEface(123), RTypeOf(reflect.TypeOf(123)))
+}
+
 func TestToRType(t *testing.T) {
 	var x int64
 	rtyp1 := RTypeOf(x)

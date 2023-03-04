@@ -191,6 +191,11 @@ func RTypeOf(v any) *RType {
 	}
 }
 
+// RTypeOfEface unpacks an empty interface value and returns its rtype.
+func RTypeOfEface(v any) *RType {
+	return unpackEface(&v).typ
+}
+
 // ---- private things ---- //
 
 func unpackEface(ep *any) *eface {
