@@ -11,22 +11,6 @@ import (
 	"github.com/jxskiss/gopkg/v2/utils/ptr"
 )
 
-func TestAll(t *testing.T) {
-	s1 := []int{1, 2, 3}
-	s2 := []int{4, 5, 6}
-	assert.True(t, All(func(x int) bool { return x < 4 }, s1))
-	assert.False(t, All(func(x int) bool { return x < 4 }, s1, s2))
-	assert.True(t, All(func(x int) bool { return x < 10 }, s1, s2))
-}
-
-func TestAny(t *testing.T) {
-	s1 := []int{1, 2, 3}
-	s2 := []int{4, 5, 6}
-	assert.False(t, Any(func(x int) bool { return x == 5 }, s1))
-	assert.True(t, Any(func(x int) bool { return x == 5 }, s2))
-	assert.False(t, Any(func(x int) bool { return x > 10 }, s1, s2))
-}
-
 func TestClip(t *testing.T) {
 	s := make([]int, 5, 10)
 	got := Clip(s)

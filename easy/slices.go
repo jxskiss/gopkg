@@ -6,40 +6,6 @@ import (
 	"github.com/jxskiss/gopkg/v2/internal/constraints"
 )
 
-// All iterates the given slices, it returns true if predicate(elem)
-// is true for all elements in slices, or if slices have no elements,
-// else it returns false.
-//
-// Deprecated: this function is not common enough to be abstracted
-// in this way, it will be removed in a future release.
-func All[S ~[]E, E any](predicate func(elem E) bool, slices ...S) bool {
-	for _, s := range slices {
-		for _, elem := range s {
-			if !predicate(elem) {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-// Any iterates the given slices, it returns true if predicate(elem)
-// is true for any element in slices, else it returns false.
-// If slices are empty, it returns false.
-//
-// Deprecated: this function is not common enough to be abstracted
-// in this way, it will be removed in a future release.
-func Any[S ~[]E, E any](predicate func(E) bool, slices ...S) bool {
-	for _, s := range slices {
-		for _, elem := range s {
-			if predicate(elem) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 // Clip removes unused capacity from the slice, returning s[:len(s):len(s)].
 func Clip[S ~[]E, E any](s S) S {
 	return s[:len(s):len(s)]

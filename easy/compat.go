@@ -258,15 +258,15 @@ func NewSafeMap() *SafeMap { return ezmap.NewSafeMap() }
 
 // Request represents a request and options to send with the Do function.
 //
-// Deprecated: moved to package httputil, please use ezhttp.Request
-// instead of this.
+// Deprecated: this type has been moved to sub-package [ezhttp],
+// please use [ezhttp.Request] instead of this.
 type Request = ezhttp.Request
 
 // DoRequest is a convenient function to send request and control redirect
 // and debug options.
 //
-// Deprecated: this function has been moved to ezhttp.Do, please use
-// ezhttp.Do instead of this.
+// Deprecated: this function has been moved to sub-package [ezhttp],
+// please use [ezhttp.Do] instead of this.
 func DoRequest(req *Request) (header http.Header, respContent []byte, status int, err error) {
 	return ezhttp.Do(req)
 }
