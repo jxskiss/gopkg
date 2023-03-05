@@ -11,6 +11,18 @@ func Clip[S ~[]E, E any](s S) S {
 	return s[:len(s):len(s)]
 }
 
+// Copy copies a slice to be a new one.
+// optionalCap optionally specifies the capacity of the new slice.
+func Copy[S ~[]E, E any](s S, optionalCap ...int) S {
+	copyCap := len(s)
+	if len(optionalCap) > 0 && optionalCap[0] > copyCap {
+		copyCap = optionalCap[0]
+	}
+	out := make(S, len(s), copyCap)
+	copy(out, s)
+	return out
+}
+
 // Concat concatenates given slices into a single slice.
 func Concat[S ~[]E, E any](slices ...S) S {
 	n := 0

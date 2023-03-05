@@ -18,6 +18,18 @@ func TestClip(t *testing.T) {
 	assert.Equal(t, 5, cap(got))
 }
 
+func TestCopy(t *testing.T) {
+	s := []int64{1, 2, 3}
+
+	got1 := Copy(s)
+	assert.Equal(t, got1, s)
+	assert.Equal(t, 3, cap(got1))
+
+	got2 := Copy(s, 10)
+	assert.Equal(t, got2, s)
+	assert.Equal(t, 10, cap(got2))
+}
+
 func TestConcat(t *testing.T) {
 	s1 := []string{"1", "2"}
 	s2 := []string{"a", "b"}
