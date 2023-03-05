@@ -155,37 +155,24 @@ func (cfg *Config) fillDefaults() *Config {
 	if cfg == nil {
 		cfg = &Config{}
 	}
-	if cfg.Level == "" {
-		if cfg.Development {
-			cfg.Level = "trace"
-		} else {
-			cfg.Level = "info"
-		}
-	}
-	if cfg.Format == "" {
-		if cfg.Development {
-			cfg.Format = "console"
-		} else {
-			cfg.Format = "json"
-		}
-	}
-	if cfg.StacktraceLevel == "" {
-		if cfg.Development {
-			cfg.StacktraceLevel = "warn"
-		} else {
-			cfg.StacktraceLevel = "error"
-		}
+	if cfg.Development {
+		setIfZero(&cfg.Level, "trace")
+		setIfZero(&cfg.Format, "console")
+		setIfZero(&cfg.StacktraceLevel, "warn")
+	} else {
+		setIfZero(&cfg.Level, "info")
+		setIfZero(&cfg.Format, "json")
+		setIfZero(&cfg.StacktraceLevel, "error")
 	}
 	return cfg
 }
 
 func (cfg *Config) buildEncoder() (zapcore.Encoder, error) {
 	encConfig := zap.NewProductionEncoderConfig()
-	encConfig.EncodeLevel = func(lv zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
-		enc.AppendString(fromZapLevel(lv).String())
-	}
+	encConfig.EncodeLevel = encodeZapLevelLowercase
 	if cfg.Development {
 		encConfig = zap.NewDevelopmentEncoderConfig()
+		encConfig.EncodeLevel = encodeZapLevelCapital
 	}
 	encConfig.FunctionKey = cfg.FunctionKey
 	if cfg.DisableTimestamp {
@@ -195,9 +182,9 @@ func (cfg *Config) buildEncoder() (zapcore.Encoder, error) {
 	case "json":
 		return zapcore.NewJSONEncoder(encConfig), nil
 	case "console":
-		encConfig.EncodeLevel = func(lv zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
-			enc.AppendString(fromZapLevel(lv).CapitalString())
-		}
+		// Force capital level and ISO8601 time format for console encoder.
+		encConfig.EncodeLevel = encodeZapLevelCapital
+		encConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 		return zapcore.NewConsoleEncoder(encConfig), nil
 	case "logfmt":
 		return NewLogfmtEncoder(encConfig), nil

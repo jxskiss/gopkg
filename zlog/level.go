@@ -175,33 +175,6 @@ func (l Level) String() string {
 	}
 }
 
-func (l Level) CapitalString() string {
-	switch l {
-	case TraceLevel:
-		return "TRACE"
-	case DebugLevel:
-		return "DEBUG"
-	case InfoLevel:
-		return "INFO"
-	case NoticeLevel:
-		return "NOTICE"
-	case WarnLevel:
-		return "WARN"
-	case ErrorLevel:
-		return "ERROR"
-	case CriticalLevel:
-		return "CRITICAL"
-	case DPanicLevel:
-		return "DPANIC"
-	case PanicLevel:
-		return "PANIC"
-	case FatalLevel:
-		return "FATAL"
-	default:
-		return strconv.FormatInt(int64(l), 10)
-	}
-}
-
 func (l Level) Enabled(lvl zapcore.Level) bool {
 	return lvl >= l.ToZapLevel()
 }
@@ -287,4 +260,20 @@ func fromZapLevel(lvl zapcore.Level) Level {
 		return Level(lvl)
 	}
 	return FatalLevel
+}
+
+func encodeZapLevelLowercase(lv zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
+	if Level(lv) == TraceLevel {
+		enc.AppendString("trace")
+	} else {
+		enc.AppendString(lv.String())
+	}
+}
+
+func encodeZapLevelCapital(lv zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
+	if Level(lv) == TraceLevel {
+		enc.AppendString("TRACE")
+	} else {
+		enc.AppendString(lv.CapitalString())
+	}
 }
