@@ -15,11 +15,15 @@
 
 package gopool
 
-import "context"
+import (
+	"context"
+	"sync"
+)
 
 type taskRunner func(p *internalPool, t *task)
 
 func (p *internalPool) runPermanentWorker() {
+	var lock *sync.Mutex
 	for {
 		select {
 		case t := <-p.taskCh:
@@ -27,7 +31,8 @@ func (p *internalPool) runPermanentWorker() {
 
 			// Drain pending tasks.
 			for {
-				t = p.taskList.pop()
+				t, lock = p.taskList.pop()
+				lock.Unlock()
 				if t == nil {
 					break
 				}
@@ -41,11 +46,13 @@ func (p *internalPool) runAdhocWorker() {
 	p.incWorkerCount()
 	go func() {
 		for {
-			t := p.taskList.pop()
+			t, lock := p.taskList.pop()
 			if t == nil {
 				p.decWorkerCount()
+				lock.Unlock()
 				return
 			}
+			lock.Unlock()
 			p.runner(p, t)
 		}
 	}()

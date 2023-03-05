@@ -63,13 +63,15 @@ func (l *taskList) add(t *task) (count int) {
 	return
 }
 
-func (l *taskList) pop() (t *task) {
+// pop acquired the lock and returns a task from the head of the taskList.
+//
+// Note that the caller takes responsibility to release the lock.
+func (l *taskList) pop() (t *task, lock *sync.Mutex) {
 	l.mu.Lock()
 	if l.head != nil {
 		t = l.head
 		l.head = l.head.next
 		l.count--
 	}
-	l.mu.Unlock()
-	return
+	return t, &l.mu
 }
