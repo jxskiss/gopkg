@@ -78,10 +78,3 @@ func (c *Config) checkAndSetDefaults() {
 		c.PanicHandler = defaultPanicHandler
 	}
 }
-
-func getAdhocWorkerLimit(limit int) int32 {
-	if limit <= 0 {
-		return int32(1<<31 - 1)
-	}
-	return int32(limit)
-}

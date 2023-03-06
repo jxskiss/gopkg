@@ -17,6 +17,7 @@ package gopool
 
 import (
 	"context"
+	"math"
 	"sync/atomic"
 )
 
@@ -38,7 +39,7 @@ func (p *internalPool) init(config *Config, runner taskRunner) {
 	config.checkAndSetDefaults()
 	p.config = config
 	p.runner = runner
-	p.adhocLimit = getAdhocWorkerLimit(config.AdhocWorkerLimit)
+	p.SetAdhocWorkerLimit(config.AdhocWorkerLimit)
 	p.startPermanentWorkers()
 }
 
@@ -50,7 +51,10 @@ func (p *internalPool) Name() string {
 // SetAdhocWorkerLimit changes the limit of adhoc workers.
 // 0 or negative value means no limit.
 func (p *internalPool) SetAdhocWorkerLimit(limit int) {
-	atomic.StoreInt32(&p.adhocLimit, getAdhocWorkerLimit(limit))
+	if limit <= 0 || limit > math.MaxInt32 {
+		limit = math.MaxInt32
+	}
+	atomic.StoreInt32(&p.adhocLimit, int32(limit))
 }
 
 func (p *internalPool) submit(ctx context.Context, arg any) {
@@ -73,9 +77,8 @@ func (p *internalPool) submit(ctx context.Context, arg any) {
 	//   2. The current number of workers is less than the upper limit p.cap.
 	//
 	// Or there are currently no workers.
-	limit := p.AdhocWorkerLimit()
 	wCnt := p.AdhocWorkerCount()
-	if (tCnt >= p.config.ScaleThreshold && wCnt < limit) || wCnt == 0 {
+	if wCnt == 0 || (tCnt >= p.config.ScaleThreshold && wCnt < p.AdhocWorkerLimit()) {
 		p.runAdhocWorker()
 	}
 }
