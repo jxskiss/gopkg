@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 TBD.
 
+## [2.7.0] - 2023-03-06
+
+* Feat: [perf/bbp] use slice to manage arena memory chunks which gives better performance
+* Feat: [zlog] add logr support (#41)
+* Feat: [zlog] tweak log format to be more friendly with the console format
+* Fix: [perf/gopool] fix potential starving of task worker
+* Change: Remove deprecated util functions `easy.All` and `easy.Any`
+
+## [2.6.1] - 2023-03-03
+
+* Feat: update CI workflow to support Go 1.20 (#37)
+* Feat: update bytedance/sonic to v1.8.3
+* Feat: [perf/bbp] new arena feature for perf/bbp (#40)
+* Fix: code-style issues reported by golangci-lint (#37)
+* Change: simplify perf/bbp implementation, notably that the signature of bbp.Grow and bbp.Buffer.Grow, bbp.Buffer.Append have been changed (#38)
+
 ## [2.5.1] - 2023-02-22
 
 * Feat: new utility function `easy.InSlice`
