@@ -40,7 +40,8 @@ func (t *RType) PkgPath() string {
 }
 
 func (t *RType) Size() uintptr {
-	return linkname.Reflect_rtype_Size(unsafe.Pointer(t))
+	//return linkname.Reflect_rtype_Size(unsafe.Pointer(t))
+	return *(*uintptr)(add(unsafe.Pointer(t), rtype_size_offset))
 }
 
 func (t *RType) String() string {
@@ -48,7 +49,8 @@ func (t *RType) String() string {
 }
 
 func (t *RType) Kind() reflect.Kind {
-	return linkname.Reflect_rtype_Kind(unsafe.Pointer(t))
+	//return linkname.Reflect_rtype_Kind(unsafe.Pointer(t))
+	return reflect.Kind(*(*uint8)(add(unsafe.Pointer(t), rtype_kind_offset)) & kindMask)
 }
 
 func (t *RType) Implements(u reflect.Type) bool {
@@ -99,10 +101,6 @@ func (t *RType) FieldByNameFunc(match func(string) bool) (reflect.StructField, b
 	return linkname.Reflect_rtype_FieldByNameFunc(unsafe.Pointer(t), match)
 }
 
-func (t *RType) In(i int) reflect.Type {
-	return linkname.Reflect_rtype_In(unsafe.Pointer(t), i)
-}
-
 func (t *RType) Key() *RType {
 	return ToRType(linkname.Reflect_rtype_Key(unsafe.Pointer(t)))
 }
@@ -123,6 +121,10 @@ func (t *RType) NumOut() int {
 	return linkname.Reflect_rtype_NumOut(unsafe.Pointer(t))
 }
 
+func (t *RType) In(i int) reflect.Type {
+	return linkname.Reflect_rtype_In(unsafe.Pointer(t), i)
+}
+
 func (t *RType) Out(i int) reflect.Type {
 	return linkname.Reflect_rtype_Out(unsafe.Pointer(t), i)
 }
@@ -141,7 +143,8 @@ func (t *RType) PackInterface(word unsafe.Pointer) any {
 }
 
 func (t *RType) ToType() reflect.Type {
-	return linkname.Reflect_toType(unsafe.Pointer(t))
+	//return linkname.Reflect_toType(unsafe.Pointer(t))
+	return packReflectType(t)
 }
 
 func (t *RType) Pointer() unsafe.Pointer {
@@ -208,8 +211,41 @@ type eface struct {
 	data unsafe.Pointer
 }
 
+func packReflectType(rtyp *RType) reflect.Type {
+	t := reflectTypeTmpl
+	t.data = unsafe.Pointer(rtyp)
+	return *(*reflect.Type)(unsafe.Pointer(&t))
+}
+
 // iface is a copy type of [runtime.iface].
 type iface struct {
 	tab  unsafe.Pointer // *itab
 	data unsafe.Pointer
+}
+
+const kindMask = (1 << 5) - 1
+
+//nolint:all
+var (
+	reflectTypeTmpl iface
+
+	rtype_typ         reflect.Type // *reflect.rtype
+	rtype_size_offset uintptr
+	rtype_kind_offset uintptr
+)
+
+func init() {
+	sampleTyp := reflect.TypeOf(0)
+	reflectTypeTmpl = *(*iface)(unsafe.Pointer(&sampleTyp))
+	rtype_typ = reflect.TypeOf(sampleTyp)
+	sizeField, ok := rtype_typ.Elem().FieldByName("size")
+	if !ok {
+		panic("reflectx: cannot find field reflect.rtype.size")
+	}
+	kindField, ok := rtype_typ.Elem().FieldByName("kind")
+	if !ok {
+		panic("reflectx: cannot find field reflect.rtype.kind")
+	}
+	rtype_size_offset = sizeField.Offset
+	rtype_kind_offset = kindField.Offset
 }

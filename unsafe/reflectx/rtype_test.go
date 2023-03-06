@@ -3,8 +3,11 @@ package reflectx
 import (
 	"reflect"
 	"testing"
+	"unsafe"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/jxskiss/gopkg/v2/internal/linkname"
 )
 
 type simple struct {
@@ -37,6 +40,24 @@ func TestRType(t *testing.T) {
 		assert.Equal(t, rtype1, rtype2)
 		assert.Equal(t, rtype2, rtype3)
 	}
+
+	assert.Equal(t, reflect.TypeOf(0).Size(), RTypeOf(0).Size())
+	assert.Equal(t, reflect.Int, RTypeOf(0).Kind())
+	assert.Equal(t, reflect.TypeOf("").Size(), RTypeOf("").Size())
+	assert.Equal(t, reflect.String, RTypeOf("").Kind())
+}
+
+func TestRTypeToType(t *testing.T) {
+	typ := RTypeOf(123)
+	t1 := reflect.TypeOf(123)
+	t2 := typ.ToType()
+	t3 := linkname.Reflect_toType(unsafe.Pointer(typ))
+
+	if1 := (*iface)(unsafe.Pointer(&t1))
+	if2 := (*iface)(unsafe.Pointer(&t2))
+	if3 := (*iface)(unsafe.Pointer(&t3))
+	assert.True(t, if1.tab == if2.tab && if1.tab == if3.tab)
+	assert.True(t, if1.data == if2.data && if1.data == if3.data)
 }
 
 func TestRTypeOfEface(t *testing.T) {
@@ -62,4 +83,20 @@ func TestPtrTo(t *testing.T) {
 	typ1 := PtrTo(RTypeOf(x)).ToType()
 	typ2 := reflect.PtrTo(reflect.TypeOf(x))
 	assert.Equal(t, typ1, typ2)
+}
+
+func BenchmarkRTypeSizeAndKind(b *testing.B) {
+	typ := RTypeOf("hello")
+	for i := 0; i < b.N; i++ {
+		_ = typ.Size()
+		_ = typ.Kind()
+	}
+}
+
+func BenchmarkRTypeSizeAndKind_linkname(b *testing.B) {
+	typ := RTypeOf("hello")
+	for i := 0; i < b.N; i++ {
+		_ = linkname.Reflect_rtype_Size(unsafe.Pointer(typ))
+		_ = linkname.Reflect_rtype_Kind(unsafe.Pointer(typ))
+	}
 }
