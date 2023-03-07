@@ -55,12 +55,19 @@ func TestDefaultPool(t *testing.T) {
 	}
 }
 
+var registerTestPoolOnce sync.Once
+
 func TestRegister(t *testing.T) {
 	p := NewPool(&Config{Name: "testPool"})
-	err := Register(p)
-	if err != nil {
-		t.Error(err)
-	}
+
+	// Use sync.Once to avoid error when run with argument -count=N where N > 1.
+	registerTestPoolOnce.Do(func() {
+		err := Register(p)
+		if err != nil {
+			t.Error(err)
+		}
+	})
+
 	p = Get("testPool")
 	if p == nil {
 		t.Error("Get did not return registered pool")
