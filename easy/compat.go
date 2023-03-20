@@ -230,25 +230,29 @@ func StringValues[M ~map[K]V, K comparable, V ~string](m M) (values []string) {
 
 // -------- ezmap alias names -------- //
 
-// Map is an alias name of ezmap.Map.
+// Map is a map of string key and any value.
+// It provides many useful methods to work with map[string]any.
 //
-// Deprecated: please use ezmap.Map directly, this alias name will be
-// removed in future releases.
+// Deprecated: this type has been moved to sub-package [ezmap],
+// please use ezmap.Map directly, this alias name will be removed
+// in future releases.
 type Map = ezmap.Map
 
-// SafeMap is an alias name of ezmap.SafeMap.
+// SafeMap wraps Map with a RWMutex, user can acquire the lock before
+// accessing to the map to get concurrent safety.
 //
-// Deprecated: please use ezmap.SafeMap directly, this alias name will
-// be removed in future releases.
+// Deprecated: this type has been moved to sub-package [ezmap],
+// please use ezmap.SafeMap directly, this alias name will be removed
+// in future releases.
 type SafeMap = ezmap.SafeMap
 
-// NewMap is an alias name of ezmap.NewMap.
+// NewMap returns a new initialized Map.
 //
 // Deprecated: please use ezmap.NewMap directly, this alias name will
 // be removed in future releases.
 func NewMap() Map { return ezmap.NewMap() }
 
-// NewSafeMap is an alias name of ezmap.NewSafeMap.
+// NewSafeMap returns a new initialized SafeMap.
 //
 // Deprecated: please use ezmap.NewSafeMap directly, this alias name will
 // be removed in future releases.
