@@ -4,24 +4,18 @@ package set
 // The zero value of Int is an empty instance ready to use. A zero Int
 // value shall not be copied, or it may result incorrect behavior.
 //
-// Deprecated: Int wraps Generic[int] to be compatible with old code,
-// please use Generic directly in new code.
+// This type is mainly for compatibility with old code, the generic
+// implementation Generic[int] is favored over this.
 type Int struct {
 	Generic[int]
 }
 
 // NewInt creates an Int set instance.
-//
-// Deprecated: Int wraps Generic[int] to be compatible with old code,
-// please use Generic directly in new code.
 func NewInt(vals ...int) Int {
 	return Int{New(vals...)}
 }
 
 // NewIntWithSize creates an Int set instance with given initial size.
-//
-// Deprecated: Int wraps Generic[int] to be compatible with old code,
-// please use Generic directly in new code.
 func NewIntWithSize(size int) Int {
 	return Int{NewWithSize[int](size)}
 }
@@ -40,24 +34,18 @@ func (s Int) UnionSlice(other []int) Int      { return Int{s.Generic.UnionSlice(
 // The zero value of Int64 is an empty instance ready to use. A zero Int64
 // value shall not be copied, or it may result incorrect behavior.
 //
-// Deprecated: Int64 wraps Generic[int64] to be compatible with old code,
-// please use Generic directly in new code.
+// This type is mainly for compatibility with old code, the generic
+// implementation Generic[int64] is favored over this.
 type Int64 struct {
 	Generic[int64]
 }
 
 // NewInt64 creates an Int64 set instance.
-//
-// Deprecated: Int64 wraps Generic[int64] to be compatible with old code,
-// please use Generic directly in new code.
 func NewInt64(vals ...int64) Int64 {
 	return Int64{New(vals...)}
 }
 
 // NewInt64WithSize creates an Int64 set instance with given initial size.
-//
-// Deprecated: Int64 wraps Generic[int64] to be compatible with old code,
-// please use Generic directly in new code.
 func NewInt64WithSize(size int) Int64 {
 	return Int64{NewWithSize[int64](size)}
 }
@@ -76,24 +64,18 @@ func (s Int64) UnionSlice(other []int64) Int64      { return Int64{s.Generic.Uni
 // The zero value of Int32 is an empty instance ready to use. A zero Int32
 // value shall not be copied, or it may result incorrect behavior.
 //
-// Deprecated: Int32 wraps Generic[int32] to be compatible with old code,
-// please use Generic directly in new code.
+// This type is mainly for compatibility with old code, the generic
+// implementation Generic[int32] is favored over this.
 type Int32 struct {
 	Generic[int32]
 }
 
 // NewInt32 creates an Int32 set instance.
-//
-// Deprecated: Int32 wraps Generic[int32] to be compatible with old code,
-// please use Generic directly in new code.
 func NewInt32(vals ...int32) Int32 {
 	return Int32{New(vals...)}
 }
 
 // NewInt32WithSize creates an Int32 set instance with given initial size.
-//
-// Deprecated: Int32 wraps Generic[int32] to be compatible with old code,
-// please use Generic directly in new code.
 func NewInt32WithSize(size int) Int32 {
 	return Int32{NewWithSize[int32](size)}
 }
@@ -112,24 +94,18 @@ func (s Int32) UnionSlice(other []int32) Int32      { return Int32{s.Generic.Uni
 // The zero value of String is an empty instance ready to use. A zero String
 // value shall not be copied, or it may result incorrect behavior.
 //
-// Deprecated: String wraps Generic[string] to be compatible with old code,
-// please use Generic directly in new code.
+// This type is mainly for compatibility with old code, the generic
+// implementation Generic[string] is favored over this.
 type String struct {
 	Generic[string]
 }
 
 // NewString creates a String set instance.
-//
-// Deprecated: String wraps Generic[string] to be compatible with old code,
-// please use Generic directly in new code.
 func NewString(vals ...string) String {
 	return String{New(vals...)}
 }
 
 // NewStringWithSize creates a String set instance with given initial size.
-//
-// Deprecated: String wraps Generic[string] to be compatible with old code,
-// please use Generic directly in new code.
 func NewStringWithSize(size int) String {
 	return String{NewWithSize[string](size)}
 }
