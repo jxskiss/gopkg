@@ -18,7 +18,7 @@ func IntToStringp[T constraints.Integer](x T) *string {
 		s := strconv.FormatUint(rv.Uint(), 10)
 		return &s
 	}
-	return nil // unreachable
+	panic("bug: unreachable code")
 }
 
 // IntpToStringp converts x to a string pointer.
@@ -36,7 +36,7 @@ func IntpToStringp[T constraints.Integer](x *T) *string {
 		s := strconv.FormatUint(rv.Uint(), 10)
 		return &s
 	}
-	return nil // unreachable
+	panic("bug: unreachable code")
 }
 
 // IntpToString converts x to a string.
@@ -54,5 +54,5 @@ func IntpToString[T constraints.Integer](x *T) string {
 		s := strconv.FormatUint(rv.Uint(), 10)
 		return s
 	}
-	return "" // unreachable
+	panic("bug: unreachable code")
 }

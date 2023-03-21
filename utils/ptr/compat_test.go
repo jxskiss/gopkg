@@ -7,9 +7,12 @@ import (
 )
 
 func TestString(t *testing.T) {
+	type SomeString string
+
 	want := "123"
 	got := []*string{
 		String("123"),
+		String(SomeString("123")),
 		String(123),
 		String(int32(123)),
 		String(int64(123)),
@@ -55,6 +58,25 @@ func TestFloat64(t *testing.T) {
 	for _, x := range got {
 		if *x != want {
 			t.Fatalf("want float64 %f, got %+v", want, x)
+		}
+	}
+}
+
+func TestDerefString(t *testing.T) {
+	type SomeString string
+
+	testCases := []*struct {
+		want string
+		got  string
+	}{
+		{"", DerefString((*string)(nil))},
+		{"1234", DerefString(String("1234"))},
+		{"", DerefString((*SomeString)(nil))},
+		{"1234", DerefString(Ptr(SomeString("1234")))},
+	}
+	for _, tc := range testCases {
+		if tc.got != tc.want {
+			t.Fatalf("want string %q, got %+v", tc.want, tc.got)
 		}
 	}
 }

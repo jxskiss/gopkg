@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strconv"
 	"time"
+	"unsafe"
 
 	"github.com/jxskiss/gopkg/v2/internal/constraints"
 )
@@ -13,12 +14,14 @@ func Time(v time.Time) *time.Time             { return &v }
 func Duration(v time.Duration) *time.Duration { return &v }
 
 func String[T ~string | constraints.Integer](v T) *string {
-	switch s := any(v).(type) {
-	case string:
+	if s, ok := any(v).(string); ok {
 		return &s
 	}
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
+	case reflect.String:
+		s := rv.String()
+		return &s
 	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
 		s := strconv.FormatInt(rv.Int(), 10)
 		return &s
@@ -26,7 +29,7 @@ func String[T ~string | constraints.Integer](v T) *string {
 		s := strconv.FormatUint(rv.Uint(), 10)
 		return &s
 	}
-	return nil // unreachable code
+	panic("bug: unreachable code")
 }
 
 func Int[T constraints.Integer](v T) *int {
@@ -90,9 +93,12 @@ func Float64[T constraints.RealNumber](v T) *float64 {
 }
 
 func DerefBool(v *bool) bool                       { return Deref(v) }
-func DerefString(v *string) string                 { return Deref(v) }
 func DerefTime(v *time.Time) time.Time             { return Deref(v) }
 func DerefDuration(v *time.Duration) time.Duration { return Deref(v) }
+
+func DerefString[T ~string](v *T) string {
+	return Deref((*string)(unsafe.Pointer(v)))
+}
 
 func DerefInt[T constraints.Integer](v *T) (ret int) {
 	if v != nil {
