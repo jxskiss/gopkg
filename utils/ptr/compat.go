@@ -1,15 +1,33 @@
 package ptr
 
 import (
+	"reflect"
+	"strconv"
 	"time"
 
 	"github.com/jxskiss/gopkg/v2/internal/constraints"
 )
 
 func Bool(v bool) *bool                       { return &v }
-func String(v string) *string                 { return &v }
 func Time(v time.Time) *time.Time             { return &v }
 func Duration(v time.Duration) *time.Duration { return &v }
+
+func String[T ~string | constraints.Integer](v T) *string {
+	switch s := any(v).(type) {
+	case string:
+		return &s
+	}
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
+		s := strconv.FormatInt(rv.Int(), 10)
+		return &s
+	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint, reflect.Uintptr:
+		s := strconv.FormatUint(rv.Uint(), 10)
+		return &s
+	}
+	return nil // unreachable code
+}
 
 func Int[T constraints.Integer](v T) *int {
 	x := int(v)

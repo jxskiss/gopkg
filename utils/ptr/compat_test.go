@@ -1,6 +1,31 @@
 package ptr
 
-import "testing"
+import (
+	"fmt"
+	"math"
+	"testing"
+)
+
+func TestString(t *testing.T) {
+	want := "123"
+	got := []*string{
+		String("123"),
+		String(123),
+		String(int32(123)),
+		String(int64(123)),
+	}
+	for _, x := range got {
+		if *x != want {
+			t.Fatalf("want string %q, got %+v", want, x)
+		}
+	}
+
+	want2 := fmt.Sprint(uint64(math.MaxUint64))
+	got2 := String(uint64(math.MaxUint64))
+	if *got2 != want2 {
+		t.Fatalf("want string %q, got %+v", want2, got2)
+	}
+}
 
 func TestInt(t *testing.T) {
 	want := 123
