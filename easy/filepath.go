@@ -79,16 +79,21 @@ func CreateNonExistingFolder(path string, perm os.FileMode) error {
 //
 // If creates the directory if it does not exist instead of reporting an error.
 func WriteFile(name string, data []byte, perm os.FileMode) error {
-	var dirPerm os.FileMode = 0o700
-	if perm&0o060 > 0 {
-		dirPerm |= perm & 0o010
-	}
-	if perm&0o006 > 0 {
-		dirPerm |= perm & 0o001
-	}
+	dirPerm := getDirectoryPermFromFilePerm(perm)
 	err := CreateNonExistingFolder(filepath.Dir(name), dirPerm)
 	if err != nil {
 		return err
 	}
 	return os.WriteFile(name, data, perm)
+}
+
+func getDirectoryPermFromFilePerm(filePerm os.FileMode) os.FileMode {
+	var dirPerm os.FileMode = 0o700
+	if filePerm&0o060 > 0 {
+		dirPerm |= (filePerm & 0o070) | 0o010
+	}
+	if filePerm&0o006 > 0 {
+		dirPerm |= (filePerm & 0o007) | 0x001
+	}
+	return dirPerm
 }
