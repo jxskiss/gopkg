@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func makeGlobTestDir(t *testing.T) {
@@ -86,5 +88,26 @@ func TestGlob(t *testing.T) {
 		if matches[0] != expected {
 			t.Fatalf("matched [%s], expected [%s]", matches[0], expected)
 		}
+	}
+}
+
+func Test_getDirectoryPermFromFilePerm(t *testing.T) {
+	testData := []struct {
+		FilePerm os.FileMode
+		Want     os.FileMode
+	}{
+		{0o020, 0o730},
+		{0o040, 0o750},
+		{0o060, 0o770},
+		{0o002, 0o703},
+		{0o004, 0o705},
+		{0o006, 0o707},
+
+		{0o644, 0o755},
+		{0o666, 0o777},
+	}
+	for _, tCase := range testData {
+		got := getDirectoryPermFromFilePerm(tCase.FilePerm)
+		assert.Equal(t, tCase.Want, got)
 	}
 }

@@ -57,3 +57,43 @@ func (globs globParts) Expand() (matches []string, err error) {
 
 	return matches, nil
 }
+
+// CreateNonExistingFolder checks whether a directory exists,
+// the directory will be created by calling `os.MkdirAll(path, perm)`
+// if it does not exist.
+func CreateNonExistingFolder(path string, perm os.FileMode) error {
+	if perm == 0 {
+		perm = 0o700
+	}
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return os.MkdirAll(path, perm)
+	} else if err != nil {
+		return err
+	}
+	return nil
+}
+
+// WriteFile writes data to the named file, creating it if necessary.
+// If the file does not exist, WriteFile creates it with permissions perm (before umask);
+// otherwise WriteFile truncates it before writing, without changing permissions.
+//
+// If creates the directory if it does not exist instead of reporting an error.
+func WriteFile(name string, data []byte, perm os.FileMode) error {
+	dirPerm := getDirectoryPermFromFilePerm(perm)
+	err := CreateNonExistingFolder(filepath.Dir(name), dirPerm)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(name, data, perm)
+}
+
+func getDirectoryPermFromFilePerm(filePerm os.FileMode) os.FileMode {
+	var dirPerm os.FileMode = 0o700
+	if filePerm&0o060 > 0 {
+		dirPerm |= (filePerm & 0o070) | 0o010
+	}
+	if filePerm&0o006 > 0 {
+		dirPerm |= (filePerm & 0o007) | 0x001
+	}
+	return dirPerm
+}
