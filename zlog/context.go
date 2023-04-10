@@ -14,7 +14,7 @@ const (
 	loggerKey
 )
 
-// AddFields add logging fields to ctx.
+// AddFields add logging fields to ctx which can be retrieved by GetFields.
 // Duplicate field overrides the old in ctx.
 func AddFields(ctx context.Context, fields ...zap.Field) context.Context {
 	var fs []zap.Field
@@ -57,7 +57,10 @@ func WithLogger[T zap.Logger | zap.SugaredLogger](ctx context.Context, logger *T
 }
 
 // GetLogger returns the logger associated with ctx.
-// If there is no logger associated with ctx, it returns a new *zap.Logger.
+// If there is no logger associated with ctx, it checks for associated
+// logging fields and returns a new *zap.Logger with the fields.
+// In case that no fields available, it returns a basic *zap.Logger.
+// Fields specified by param extra will be added to the returned logger.
 func GetLogger(ctx context.Context, extra ...zap.Field) *zap.Logger {
 	if lg := ctx.Value(loggerKey); lg != nil {
 		switch x := lg.(type) {
@@ -78,7 +81,10 @@ func GetLogger(ctx context.Context, extra ...zap.Field) *zap.Logger {
 }
 
 // GetSugaredLogger returns the logger associated with ctx.
-// If there is no logger associated with ctx, it returns a new *zap.SugaredLogger.
+// If there is no logger associated with ctx, it checks for associated
+// logger fields and returns a new *zap.SugaredLogger with the fields.
+// In case that no fields available, it returns a basic *zap.SugaredLogger.
+// Fields specified by param extra will be added to the returned logger.
 func GetSugaredLogger(ctx context.Context, extra ...any) *zap.SugaredLogger {
 	if lg := ctx.Value(loggerKey); lg != nil {
 		switch x := lg.(type) {
