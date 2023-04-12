@@ -7,8 +7,6 @@ import (
 	jsoniter "github.com/json-iterator/go"
 )
 
-var jsoniterDefault = jsoniter.ConfigCompatibleWithStandardLibrary
-
 func jsoniterMarshalNoMapOrdering(v any) ([]byte, error) {
 	return jsoniter.ConfigFastest.Marshal(v)
 }

@@ -1,12 +1,14 @@
 package json
 
-import (
-	"io"
+import "io"
 
-	"github.com/bytedance/sonic"
-)
-
-type underlyingDecoder = sonic.Decoder
+type underlyingDecoder interface {
+	Decode(val interface{}) error
+	Buffered() io.Reader
+	DisallowUnknownFields()
+	More() bool
+	UseNumber()
+}
 
 // Decoder is a wrapper of encoding/json.Decoder.
 // It provides same methods as encoding/json.Decoder but with method
