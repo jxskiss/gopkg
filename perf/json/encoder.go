@@ -1,12 +1,12 @@
 package json
 
-import (
-	"io"
+import "io"
 
-	"github.com/bytedance/sonic"
-)
-
-type underlyingEncoder = sonic.Encoder
+type underlyingEncoder interface {
+	Encode(val interface{}) error
+	SetEscapeHTML(on bool)
+	SetIndent(prefix, indent string)
+}
 
 // Encoder is a wrapper of encoding/json.Encoder.
 // It provides same methods as encoding/json.Encoder but with method

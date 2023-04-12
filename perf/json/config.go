@@ -43,10 +43,15 @@ var HumanFriendly struct {
 
 var _J apiProxy
 
+var (
+	sonicDefault    = sonic.ConfigStd
+	jsoniterDefault = jsoniter.ConfigCompatibleWithStandardLibrary
+)
+
 func init() {
 	// If sonic is available for the building, we use it as default
 	// for better performance, else we use jsoniter as default.
-	if !isSonicFallbackImpl {
+	if isSonicJIT {
 		_J.useSonicConfig(sonicDefault)
 	} else {
 		_J.useJSONIterConfig(jsoniterDefault)
