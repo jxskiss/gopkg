@@ -4,6 +4,7 @@ import (
 	"bytes"
 	std "encoding/json"
 	"io"
+	"log"
 
 	"github.com/bytedance/sonic"
 	jsoniter "github.com/json-iterator/go"
@@ -131,6 +132,11 @@ func (p *apiProxy) useJSONIterConfig(api jsoniter.API) {
 }
 
 func (p *apiProxy) useSonicConfig(api sonic.API) {
+	if !isSonicJIT {
+		log.Println("[WARN] json: bytedance/sonic is not supported, fallback to jsoniter.ConfigCompatibleWithStandardLibrary")
+		p.useJSONIterConfig(jsoniterDefault)
+		return
+	}
 	*p = apiProxy{
 		Marshal:       api.Marshal,
 		MarshalIndent: api.MarshalIndent,
