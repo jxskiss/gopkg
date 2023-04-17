@@ -99,12 +99,13 @@ func (p *moduledata) ftab() []functab {
 }
 
 var (
+	moduledata_type            uintptr
 	moduledata_pclntableOffset uintptr
 	moduledata_ftabOffset      uintptr
 )
 
 func init() {
-	rtmdtype := GetType("runtime.moduledata")
+	rtmdtype := (*reflectx.RType)(unsafe.Pointer(moduledata_type))
 	moduledata_pclntableOffset = getOffset(rtmdtype, "pclntable", "forceexport: moduledata.pclntable not found")
 	moduledata_ftabOffset = getOffset(rtmdtype, "ftab", "foceexport: moduledata.ftab not found")
 }
