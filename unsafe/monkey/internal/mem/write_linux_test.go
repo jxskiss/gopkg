@@ -40,8 +40,8 @@ func Test_write(t *testing.T) {
 	data := uintptr(unsafe.Pointer(&b))
 	res := write(target, data, 3, common.PageOf(target), common.PageSize(), syscall.PROT_READ|syscall.PROT_WRITE)
 	fmt.Printf("a=%x,b=%x,aSlice=%x\n", a, b, arr)
-	assert.Equal(t, 0, res)
-	assert.Equal(t, 0xffff, a)
-	assert.Equal(t, 0xffffffff, b)
+	assert.EqualValues(t, 0, res)
+	assert.EqualValues(t, 0xffff, a)
+	assert.EqualValues(t, 0xffffffff, b)
 	assert.Equal(t, [4]byte{0xff, 0xff, 0xff, 0x00}, *arr)
 }

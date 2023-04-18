@@ -59,6 +59,11 @@ jobs:
         if: ${{ matrix.os != 'windows-latest' || matrix.go != '1.18' }}
         run: go test -race -v ./...
 
+      - name: Test disable inlining
+        env:
+          DISABLE_INLINING: true
+        run: "go test -gcflags=\"all=-l -N\" -v ./unsafe/monkey/..."
+
   lint:
     name: Lint
     runs-on: ubuntu-latest

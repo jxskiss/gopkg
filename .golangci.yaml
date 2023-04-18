@@ -60,8 +60,11 @@ issues:
     - path: 'unsafe/(.+)\.go'
       linters:
         - govet
+        - predeclared
         - revive
         - stylecheck
+        - unparam
+        - unused
         - nolintlint
     - path: '(.+)_test\.go'
       linters:

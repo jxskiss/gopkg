@@ -66,18 +66,14 @@ type varInfo struct {
 	origVar reflect.Value
 }
 
-func (p *Patch) apply() {
+// Patch applies the patch.
+func (p *Patch) Patch() {
+	p.patched = true
 	if p.funcInfo != nil {
 		p.applyFunc()
 	} else if p.varInfo != nil {
 		p.applyVar()
 	}
-}
-
-// Patch applies the patch.
-func (p *Patch) Patch() {
-	p.patched = true
-	p.apply()
 }
 
 // Delete resets target to the state before applying the patch
@@ -196,9 +192,9 @@ func (p *Patch) applyFunc() {
 func (p *Patch) deleteFunc() {
 	p.patched = false
 	if p.parent != nil {
-		p.parent.apply()
+		p.parent.applyFunc()
 	} else {
-		p.apply()
+		p.applyFunc()
 	}
 
 	targetPtr := p.target.Pointer()
@@ -238,7 +234,8 @@ func PatchVar(targetAddr, repl any) *Patch {
 }
 
 func newVarPatch(targetAddr, repl reflect.Value) *Patch {
-	if old := targetMap[targetAddr]; old != nil {
+	ptr := targetAddr.Interface()
+	if old := targetMap[ptr]; old != nil {
 		return old.overrideVar(repl)
 	}
 
@@ -256,7 +253,7 @@ func newVarPatch(targetAddr, repl reflect.Value) *Patch {
 		origVar: orig,
 	}
 
-	targetMap[targetAddr] = p
+	targetMap[ptr] = p
 	patchMap[p.id] = p
 	return p
 }
@@ -272,7 +269,7 @@ func (p *Patch) overrideVar(repl reflect.Value) *Patch {
 	child.varInfo = &varInfo{
 		origVar: p.varInfo.origVar,
 	}
-	targetMap[p.target] = child
+	targetMap[p.target.Interface()] = child
 	patchMap[child.id] = child
 	return child
 }
@@ -288,9 +285,9 @@ func (p *Patch) applyVar() {
 func (p *Patch) deleteVar() {
 	p.patched = false
 	if p.parent != nil {
-		p.parent.apply()
+		p.parent.applyVar()
 	} else {
-		p.apply()
+		p.applyVar()
 	}
 
 	if p.parent == nil {
@@ -298,5 +295,7 @@ func (p *Patch) deleteVar() {
 	} else {
 		targetMap[p.target.Interface()] = p.parent
 	}
+
+	p.varInfo = nil
 	delete(patchMap, p.id)
 }

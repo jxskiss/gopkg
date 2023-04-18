@@ -17,7 +17,9 @@
 package internal
 
 import (
+	"os"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,6 +37,10 @@ func Hook() int {
 func UnsafeTarget() {}
 
 func TestPatchFunc(t *testing.T) {
+	if !isDisableInlining() {
+		t.Skip("skip: inlining not disabled")
+	}
+
 	t.Run("normal", func(t *testing.T) {
 		var proxy func() int
 		patch := patchFunc(Target, Hook, &proxy, false)
@@ -88,4 +94,10 @@ func TestPatchFunc(t *testing.T) {
 		patch.Unpatch(true)
 		assert.NotPanics(t, func() { UnsafeTarget() })
 	})
+}
+
+func isDisableInlining() bool {
+	flag := os.Getenv("DISABLE_INLINING")
+	ret, _ := strconv.ParseBool(flag)
+	return ret
 }
