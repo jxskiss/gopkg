@@ -7,10 +7,10 @@ test_linkname:
 	go clean -testcache ./internal/linkname && go test ./internal/linkname
 
 test_forceexport:
-	go test -gcflags=all=-l ./unsafe/forceexport
+	go test -gcflags="all=-l -N" ./unsafe/forceexport
 
 test_monkey:
-	go test -gcflags=all=-l ./unsafe/monkey
+	go test -gcflags="all=-l -N" ./unsafe/monkey/...
 
 test_coverage:
 	mkdir -p _output/
