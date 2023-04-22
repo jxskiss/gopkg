@@ -3,38 +3,7 @@ package monkey
 import (
 	"fmt"
 	"reflect"
-	"syscall"
-	"unsafe"
 )
-
-var _PAGE_SIZE = uintptr(syscall.Getpagesize())
-
-func pageStart(ptr uintptr) uintptr {
-	return ptr & ^(_PAGE_SIZE - 1)
-}
-
-// type value is a copy of reflect.Value.
-type value struct {
-	typ  unsafe.Pointer
-	ptr  unsafe.Pointer
-	flag uintptr
-}
-
-func getPtr(v reflect.Value) unsafe.Pointer {
-	return (*value)(unsafe.Pointer(&v)).ptr
-}
-
-func getCode(target uintptr, length int) []byte {
-	return *(*[]byte)(unsafe.Pointer(&reflect.SliceHeader{
-		Data: target,
-		Len:  length,
-		Cap:  length,
-	}))
-}
-
-func slicePtr(b []byte) uintptr {
-	return (*reflect.SliceHeader)(unsafe.Pointer(&b)).Data
-}
 
 func assertFunc(target any, argName string) {
 	if reflect.TypeOf(target).Kind() != reflect.Func {

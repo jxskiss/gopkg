@@ -1,13 +1,12 @@
 package monkey
 
 import (
-	"bytes"
 	"fmt"
 	"reflect"
 	"sync/atomic"
 
-	"github.com/jxskiss/gopkg/v2/internal/linkname"
 	"github.com/jxskiss/gopkg/v2/unsafe/forceexport"
+	"github.com/jxskiss/gopkg/v2/unsafe/monkey/internal"
 )
 
 // AutoUnpatch encapsulates a function with a context, which automatically
@@ -54,21 +53,22 @@ type Patch struct {
 	target  reflect.Value
 	repl    reflect.Value
 
-	*funcInfo
-	*varInfo
+	funcInfo *funcInfo
+	varInfo  *varInfo
 }
 
 type funcInfo struct {
-	replCode  []byte
-	origCode  []byte
-	branchPos int
+	proxy reflect.Value
+	patch *internal.Patch
 }
 
 type varInfo struct {
 	origVar reflect.Value
 }
 
-func (p *Patch) apply() {
+// Patch applies the patch.
+func (p *Patch) Patch() {
+	p.patched = true
 	if p.funcInfo != nil {
 		p.applyFunc()
 	} else if p.varInfo != nil {
@@ -76,13 +76,9 @@ func (p *Patch) apply() {
 	}
 }
 
-// Patch applies the patch.
-func (p *Patch) Patch() {
-	p.patched = true
-	p.apply()
-}
-
-// Delete resets target to the state before applying the patch.
+// Delete resets target to the state before applying the patch
+// and destroys the patch.
+// After calling Delete, the patch MUST NOT be used anymore.
 func (p *Patch) Delete() {
 	if p.funcInfo != nil {
 		p.deleteFunc()
@@ -126,16 +122,6 @@ func PatchByName(name string, repl any) *Patch {
 	return patchFunc(targetVal.Elem(), reflect.ValueOf(repl))
 }
 
-// replaceCode copies a slice to a raw memory location,
-// disabling all memory protection before doing so.
-//
-// As it sounds, this function is super unsafe.
-func replaceCode(target uintptr, code []byte) {
-	linkname.Runtime_stopTheWorld()
-	_replace_code(target, code)
-	linkname.Runtime_startTheWorld()
-}
-
 func patchFunc(target, repl reflect.Value) *Patch {
 	assertSameFuncType(target.Interface(), repl.Interface())
 	patch := newFuncPatch(target, repl)
@@ -163,21 +149,11 @@ func newFuncPatch(target, repl reflect.Value) *Patch {
 		repl:    repl,
 	}
 
-	targetCode := getCode(targetPtr, 64)
-	replCode := branchInto(uintptr(getPtr(repl)))
-	branchPos := disassemble(targetCode, len(replCode))
-
-	origCode := linkname.Runtime_sysAlloc(_PAGE_SIZE)
-	origSize := copy(origCode, targetCode[:branchPos])
-	origCode = origCode[:origSize]
-
-	// protect the memory, avoid SIGBUS unexpected fault address error
-	_replace_code(slicePtr(origCode), origCode)
-
+	proxy := reflect.New(target.Type())
+	patch := internal.NewPatch(target, repl, proxy, false)
 	p.funcInfo = &funcInfo{
-		replCode:  replCode,
-		origCode:  origCode,
-		branchPos: branchPos,
+		proxy: proxy,
+		patch: patch,
 	}
 
 	targetMap[targetPtr] = p
@@ -186,7 +162,6 @@ func newFuncPatch(target, repl reflect.Value) *Patch {
 }
 
 func (p *Patch) overrideFunc(repl reflect.Value) *Patch {
-	replCode := branchInto(uintptr(getPtr(repl)))
 	child := &Patch{
 		id:      newPatchID(),
 		parent:  p,
@@ -194,10 +169,11 @@ func (p *Patch) overrideFunc(repl reflect.Value) *Patch {
 		target:  p.target,
 		repl:    repl,
 	}
+	proxy := reflect.New(p.target.Type())
+	patch := internal.NewPatch(p.target, repl, proxy, false)
 	child.funcInfo = &funcInfo{
-		replCode:  replCode,
-		origCode:  p.origCode,
-		branchPos: p.branchPos,
+		proxy: proxy,
+		patch: patch,
 	}
 	targetPtr := p.target.Pointer()
 	targetMap[targetPtr] = child
@@ -206,36 +182,30 @@ func (p *Patch) overrideFunc(repl reflect.Value) *Patch {
 }
 
 func (p *Patch) applyFunc() {
-	targetPtr := p.target.Pointer()
 	if p.patched {
-		code := getCode(targetPtr, len(p.replCode))
-		if !bytes.Equal(code, p.replCode) {
-			replaceCode(targetPtr, p.replCode)
-		}
+		p.funcInfo.patch.Patch()
 	} else {
-		code := getCode(targetPtr, p.branchPos)
-		origCode := p.origCode[:p.branchPos]
-		if !bytes.Equal(code, origCode) {
-			replaceCode(targetPtr, origCode)
-		}
+		p.funcInfo.patch.Unpatch(false)
 	}
 }
 
 func (p *Patch) deleteFunc() {
 	p.patched = false
 	if p.parent != nil {
-		p.parent.apply()
+		p.parent.applyFunc()
 	} else {
-		p.apply()
+		p.applyFunc()
 	}
 
 	targetPtr := p.target.Pointer()
+	p.funcInfo.patch.Delete()
 	if p.parent == nil {
-		linkname.Runtime_sysFree(p.origCode)
 		delete(targetMap, targetPtr)
 	} else {
 		targetMap[targetPtr] = p.parent
 	}
+
+	p.funcInfo = nil
 	delete(patchMap, p.id)
 }
 
@@ -264,7 +234,8 @@ func PatchVar(targetAddr, repl any) *Patch {
 }
 
 func newVarPatch(targetAddr, repl reflect.Value) *Patch {
-	if old := targetMap[targetAddr]; old != nil {
+	ptr := targetAddr.Interface()
+	if old := targetMap[ptr]; old != nil {
 		return old.overrideVar(repl)
 	}
 
@@ -282,7 +253,7 @@ func newVarPatch(targetAddr, repl reflect.Value) *Patch {
 		origVar: orig,
 	}
 
-	targetMap[targetAddr] = p
+	targetMap[ptr] = p
 	patchMap[p.id] = p
 	return p
 }
@@ -298,7 +269,7 @@ func (p *Patch) overrideVar(repl reflect.Value) *Patch {
 	child.varInfo = &varInfo{
 		origVar: p.varInfo.origVar,
 	}
-	targetMap[p.target] = child
+	targetMap[p.target.Interface()] = child
 	patchMap[child.id] = child
 	return child
 }
@@ -314,9 +285,9 @@ func (p *Patch) applyVar() {
 func (p *Patch) deleteVar() {
 	p.patched = false
 	if p.parent != nil {
-		p.parent.apply()
+		p.parent.applyVar()
 	} else {
-		p.apply()
+		p.applyVar()
 	}
 
 	if p.parent == nil {
@@ -324,5 +295,7 @@ func (p *Patch) deleteVar() {
 	} else {
 		targetMap[p.target.Interface()] = p.parent
 	}
+
+	p.varInfo = nil
 	delete(patchMap, p.id)
 }
