@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/jxskiss/gopkg/v2/internal/testutil"
 	"github.com/jxskiss/gopkg/v2/unsafe/monkey"
 	"github.com/jxskiss/gopkg/v2/unsafe/monkey/testpkg"
 )
@@ -15,6 +16,10 @@ func _T(y, d int) time.Time {
 }
 
 func TestMock(t *testing.T) {
+	if !testutil.IsDisableInlining() {
+		t.Skip("skip: inlining not disabled")
+	}
+
 	t.Run("function", func(t *testing.T) {
 		before := time.Now()
 		monkey.AutoUnpatch(func() {

@@ -17,12 +17,12 @@
 package internal
 
 import (
-	"os"
 	"reflect"
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/jxskiss/gopkg/v2/internal/testutil"
 )
 
 //go:noinline
@@ -37,7 +37,7 @@ func Hook() int {
 func UnsafeTarget() {}
 
 func TestPatchFunc(t *testing.T) {
-	if !isDisableInlining() {
+	if !testutil.IsDisableInlining() {
 		t.Skip("skip: inlining not disabled")
 	}
 
@@ -94,10 +94,4 @@ func TestPatchFunc(t *testing.T) {
 		patch.Unpatch(true)
 		assert.NotPanics(t, func() { UnsafeTarget() })
 	})
-}
-
-func isDisableInlining() bool {
-	flag := os.Getenv("DISABLE_INLINING")
-	ret, _ := strconv.ParseBool(flag)
-	return ret
 }
