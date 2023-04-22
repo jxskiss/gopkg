@@ -21,7 +21,7 @@ func assertSameFuncType(target, repl any) {
 		panic(fmt.Sprintf("monkey: replacement %v is not a function", repl))
 	}
 	if targetTyp != replTyp {
-		panic(fmt.Sprintf("monkey: target and replacement have different type"))
+		panic(fmt.Sprintf("monkey: target and replacement have different type, want %v, got %v", targetTyp, replTyp))
 	}
 }
 

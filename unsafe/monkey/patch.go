@@ -40,7 +40,9 @@ func popPatchStack() {
 	for i := len(patchIDs) - 1; i >= 0; i-- {
 		id := patchIDs[i]
 		p := patchMap[id]
-		p.Delete()
+		if p != nil {
+			p.Delete()
+		}
 	}
 	patchStack = patchStack[:len(patchStack)-1]
 }

@@ -8,8 +8,12 @@ import (
 )
 
 // Mock returns a Mocker object which helps to do mocking.
-func Mock() *Mocker {
-	return &Mocker{}
+func Mock(target ...any) *Mocker {
+	m := &Mocker{}
+	if len(target) > 0 {
+		m.Target(target[0])
+	}
+	return m
 }
 
 type Mocker struct {

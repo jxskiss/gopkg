@@ -107,6 +107,11 @@ func (f *f) No() bool {
 	return x < 0
 }
 
+//go:noinline
+func (f *f) Value() int {
+	return 0
+}
+
 func TestPatchMethod(t *testing.T) {
 	i := &f{}
 	assert.True(t, !i.No())
