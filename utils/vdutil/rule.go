@@ -19,9 +19,6 @@ func (f RuleFunc) Validate(ctx context.Context, result *Result) error {
 type Result struct {
 	IsInternalError bool
 
-	CtxUserID   int64
-	CtxTenantID int64
-
 	Extra ezmap.Map
 }
 

@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 TBD.
 
+## [2.8.0] - 2023-04-22
+
+* Feat: [unsafe/monkey] support arm64 with bugfix and more tests (#48)
+* Change: [perf/json] force fallback to jsoniter when bytedance/sonic is using compat implementation
+
+## [2.7.5] - 2023-04-12
+
+* Fix: [perf/json] build failure on arm64 (MacBook M1)
+
+## [2.7.4] - 2023-04-10
+
+* Feat: [utils/vdutil] new utility package helping data validation (#43)
+* Feat: [zlog] utils to work with `context.Context` (#44)
+* Feat: new util functions `easy.CreateNonExistingFolder` and `easy.WriteFile`
+
+## [2.7.3] - 2023-03-21
+
+* Feat: [utils/ptr] support converting integer to string pointer
+
+## [2.7.1] - 2023-03-20
+
+Minor improvements.
+
 ## [2.7.0] - 2023-03-06
 
 * Feat: [perf/bbp] use slice to manage arena memory chunks which gives better performance
