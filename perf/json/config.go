@@ -50,13 +50,22 @@ var (
 )
 
 func init() {
-	// If sonic is available for the building, we use it as default
-	// for better performance, else we use jsoniter as default.
-	if isSonicJIT {
-		_J.useSonicConfig(sonicDefault)
-	} else {
-		_J.useJSONIterConfig(jsoniterDefault)
-	}
+	// bytedance/sonic still has some bugs, which gives incorrect
+	// marshaling/unmarshalling result in some corner case, seems that
+	// it is not ready for being the default choice for production,
+	// thus we change to use jsoniter as the default.
+	//
+	// My may change to bytedance/sonic as default in the future,
+	// when it's fully ready for production deployment.
+
+	//{
+	//	if isSonicJIT {
+	//		_J.useSonicConfig(sonicDefault)
+	//	} else {
+	//		_J.useJSONIterConfig(jsoniterDefault)
+	//	}
+	//}
+	_J.useJSONIterConfig(jsoniterDefault)
 
 	HumanFriendly.Marshal = hFriendlyMarshal
 	HumanFriendly.MarshalToString = hFriendlyMarshalToString
@@ -133,7 +142,7 @@ func (p *apiProxy) useJSONIterConfig(api jsoniter.API) {
 
 func (p *apiProxy) useSonicConfig(api sonic.API) {
 	if !isSonicJIT {
-		log.Println("[WARN] json: bytedance/sonic is not supported, fallback to jsoniter.ConfigCompatibleWithStandardLibrary")
+		log.Println("[WARN] json: bytedance/sonic is not supported, fallback to jsoniterDefault")
 		p.useJSONIterConfig(jsoniterDefault)
 		return
 	}
