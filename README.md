@@ -82,8 +82,9 @@ reasonable API compatibility and versioning.
    and limit the number of goroutines.
 
 1. `perf/json` provides a drop-in replacement of `encoding/json` and extended features.
-   By default, it uses [bytedance/sonic](https://github.com/bytedance/sonic) in underlying,
-   which has better performance than `encoding/json` and many other third-party libraries.
+   By default, it uses [jsoniter] in underlying, which has better performance than `encoding/json`.
+   `amd64` users may use `json.Config` to switch to [bytedance/sonic] for best performance
+   in the cost of a little less maturity.
    Check json/README.md for detailed introduction.
 
 1. `perf/lru` is a high performance implementation of the LRU cache, it features pre-allocation,
@@ -123,9 +124,13 @@ reasonable API compatibility and versioning.
 
 1. `zlog` provides a common logger interface which is implemented by
    many logging libraries, and some opinionated logging facilities wrapped around
-   [zap](https://github.com/uber-go/zap).
+   [zap].
 
 See [GoDoc][godoc] for detailed online docs.
+
+[bytedance/sonic]: https://github.com/bytedance/sonic
+[jsoniter]: https://github.com/json-iterator/go
+[zap]: https://github.com/uber-go/zap
 
 Also note that the following packages, which were originally located in this repository,
 have been moved to standalone repositories:

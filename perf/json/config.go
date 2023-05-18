@@ -51,9 +51,12 @@ var (
 
 func init() {
 	// bytedance/sonic still has some bugs, which gives incorrect
-	// marshaling/unmarshalling result in some corner case, seems that
-	// it is not ready for being the default choice for production,
-	// thus we change to use jsoniter as the default.
+	// marshaling/unmarshalling result silently in some corner case,
+	// seems that it is not fully ready for being the default choice
+	// for production, thus we change to use jsoniter as the default.
+	//
+	// Venturous user may use Config to switch to bytedance/sonic
+	// explicitly, be careful.
 	//
 	// My may change to bytedance/sonic as default in the future,
 	// when it's fully ready for production deployment.
