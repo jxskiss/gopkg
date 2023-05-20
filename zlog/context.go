@@ -17,10 +17,14 @@ const (
 // AddFields add logging fields to ctx which can be retrieved by GetFields.
 // Duplicate field overrides the old in ctx.
 func AddFields(ctx context.Context, fields ...zap.Field) context.Context {
+	if len(fields) == 0 {
+		return ctx
+	}
 	var fs []zap.Field
 	old, ok := ctx.Value(fieldsKey).([]zap.Field)
 	if ok {
-		fs = old
+		fs = make([]zap.Field, len(old), len(old)+len(fields))
+		copy(fs, old)
 	NEXT:
 		for i := range fields {
 			key := fields[i].Key
@@ -99,7 +103,7 @@ func GetSugaredLogger(ctx context.Context, extra ...any) *zap.SugaredLogger {
 		if len(fs) == 0 {
 			return S()
 		}
-		return S().Desugar().With(fs...).Sugar()
+		return L().With(fs...).Sugar()
 	}
 	if len(fs) == 0 {
 		if len(extra) == 0 {
