@@ -101,6 +101,32 @@ func TestFilter(t *testing.T) {
 	assert.Len(t, got3, 1)
 }
 
+func TestFilterInMap(t *testing.T) {
+	s := []int{1, 2, 3, 4, 5}
+	m := map[int]string{1:"", 3:"", 5:""}
+
+	got1 := FilterInMap(s, m, false)
+	assert.Equal(t, []int{1, 3, 5}, got1)
+	assert.Equal(t, []int{1, 2, 3, 4, 5}, s)
+
+	got2 := FilterInMap(s, m, true)
+	assert.Equal(t, []int{1, 3, 5}, got2)
+	assert.Equal(t, []int{1, 3, 5, 4, 5}, s)
+}
+
+func TestFilterNotInMap(t *testing.T) {
+	s := []int{1, 2, 3, 4, 5}
+	m := map[int]string{1:"", 3:"", 5:""}
+
+	got1 := FilterNotInMap(s, m, false)
+	assert.Equal(t, []int{2, 4}, got1)
+	assert.Equal(t, []int{1, 2, 3, 4, 5}, s)
+
+	got2 := FilterNotInMap(s, m, true)
+	assert.Equal(t, []int{2, 4}, got2)
+	assert.Equal(t, []int{2, 4, 3, 4, 5}, s)
+}
+
 func TestInSlice(t *testing.T) {
 	assert.True(t, InSlice([]int32{4, 5, 6}, int32(6)))
 	assert.False(t, InSlice([]string{"4", "5", "6"}, "7"))

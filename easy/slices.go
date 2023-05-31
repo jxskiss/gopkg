@@ -108,6 +108,38 @@ func Filter[S ~[]E, E any](predicate func(i int, elem E) bool, slices ...S) S {
 	return out
 }
 
+// FilterInMap returns a slice containing all elements in s that is also in m.
+// When inplace is true, it writes result to the given slice s,
+// else it allocates a new slice.
+func FilterInMap[S ~[]E, M ~map[E]V, E comparable, V any](s S, m M, inplace bool) S {
+	var out S
+	if inplace {
+		out = s[:0]
+	}
+	for _, x := range s {
+		if _, ok := m[x]; ok {
+			out = append(out, x)
+		}
+	}
+	return out
+}
+
+// FilterNotInMap returns a slice containing all elements in s but not in m.
+// When inplace is true, it writes result to the given slice s,
+// else it allocates a new slice.
+func FilterNotInMap[S ~[]E, M ~map[E]V, E comparable, V any](s S, m M, inplace bool) S {
+	var out S
+	if inplace {
+		out = s[:0]
+	}
+	for _, x := range s {
+		if _, ok := m[x]; !ok {
+			out = append(out, x)
+		}
+	}
+	return out
+}
+
 // InSlice tells whether the value elem is in the slice.
 func InSlice[E comparable](slice []E, elem E) bool {
 	return Index(slice, elem) >= 0
