@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strconv"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 // Map is a map of string key and any value.
@@ -34,6 +36,17 @@ func (p Map) MarshalJSONPretty() ([]byte, error) {
 func (p *Map) UnmarshalJSON(data []byte) error {
 	x := (*map[string]any)(p)
 	return json.Unmarshal(data, x)
+}
+
+// MarshalYAML implements the [yaml.Marshaler] interface.
+func (p Map) MarshalYAML() (any, error) {
+	return (map[string]any)(p), nil
+}
+
+// UnmarshalYAML implements the [yaml.Unmarshaler] interface.
+func (p *Map) UnmarshalYAML(value *yaml.Node) error {
+	x := (*map[string]any)(p)
+	return value.Decode(x)
 }
 
 // Set is used to store a new key/value pair exclusively in the map.
