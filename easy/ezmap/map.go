@@ -65,6 +65,16 @@ func (p Map) Get(key string) (value any, exists bool) {
 	return
 }
 
+// GetOr returns the value for the given key if it exists in the map,
+// else it returns the default value.
+func (p Map) GetOr(key string, defaultVal any) (value any) {
+	value, exists := p[key]
+	if exists {
+		return value
+	}
+	return defaultVal
+}
+
 // MustGet returns the value for the given key if it exists, otherwise it panics.
 func (p Map) MustGet(key string) any {
 	if val, ok := p[key]; ok {
@@ -263,4 +273,14 @@ func (p Map) Iterate(fn func(k string, v any) int) {
 func GetTyped[T any](m map[string]any, key string) T {
 	val, _ := m[key].(T)
 	return val
+}
+
+// GetTypedOr returns typed value for the given key if it exists in the map,
+// else it returns the default value.
+func GetTypedOr[T any](m map[string]any, key string, defaultVal T) T {
+	val, exists := m[key]
+	if exists {
+		return val.(T)
+	}
+	return defaultVal
 }

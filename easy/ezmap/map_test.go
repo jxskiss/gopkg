@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -16,6 +17,9 @@ func TestGetTyped(t *testing.T) {
 	m1 := Map{"a": dummyStruct{A: "a"}, "b": &dummyStruct{}}
 	assert.Equal(t, "a", GetTyped[dummyStruct](m1, "a").A)
 	assert.NotNil(t, GetTyped[*dummyStruct](m1, "b"))
+
+	assert.Equal(t, "a", GetTypedOr(m1, "a", dummyStruct{}).A)
+	assert.Equal(t, "c", GetTypedOr(m1, "c", dummyStruct{A: "c"}.A))
 }
 
 func TestYAMLMarshaling(t *testing.T) {
