@@ -81,13 +81,32 @@ func ToMap[S ~[]E, E any, K comparable, V any](slice S, f func(E) (K, V)) map[K]
 }
 
 // ToInterfaceSlice returns a []interface{} containing elements from slice.
+//
+// Deprecated: this function has been renamed to ToAnySlice.
 func ToInterfaceSlice[S ~[]E, E any](slice S) []any {
+	return ToAnySlice(slice)
+}
+
+// ToAnySlice returns a []any containing elements from slice.
+func ToAnySlice[S ~[]E, E any](slice S) []any {
 	if len(slice) == 0 {
 		return nil
 	}
 	out := make([]any, len(slice))
 	for i, elem := range slice {
 		out[i] = elem
+	}
+	return out
+}
+
+// ToTypedSlice returns a []T slice containing elements from slice.
+func ToTypedSlice[T any](slice []any) []T {
+	if len(slice) == 0 {
+		return nil
+	}
+	out := make([]T, len(slice))
+	for i, elem := range slice {
+		out[i] = elem.(T)
 	}
 	return out
 }

@@ -70,3 +70,10 @@ func TestToInterfaceSlice(t *testing.T) {
 		assert.Equal(t, slice4[i].A, x.(*simple).A)
 	}
 }
+
+func TestToTypedSlice(t *testing.T) {
+	slice1 := []any{1, 2, 3}
+	want := []int{1, 2, 3}
+	got := ToTypedSlice[int](slice1)
+	assert.Equal(t, want, got)
+}
