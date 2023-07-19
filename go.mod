@@ -32,4 +32,4 @@ require (
 	golang.org/x/sys v0.7.0 // indirect
 )
 
-retract v2.3.5 // Has bug.
+retract [v2.3.5, v2.8.4]
