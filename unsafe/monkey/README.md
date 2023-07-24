@@ -13,6 +13,8 @@ Notes
    don't allow memory pages to be both write and execute at the same time.
    With the current approach there's not really a reliable fix for this.
 3. Monkey is super unsafe, be sure you know what you are doing.
+4. Monkey may not work as expected on `arm64` platform, tests failed
+   on MacBook Pro M2, I haven't figured out the problem and solution.
 
 References
 

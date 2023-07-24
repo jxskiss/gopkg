@@ -15,7 +15,7 @@ func sonicMarshalNoMapOrdering(v any) ([]byte, error) {
 }
 
 func sonicMarshalNoHTMLEscape(_ sonic.API) func(v any, prefix, indent string) ([]byte, error) {
-	return jsoniterMarshalNoHTMLEscape(jsoniterDefault)
+	return stdMarshalNoHTMLEscape
 }
 
 func sonicNewEncoder(_ sonic.API) func(w io.Writer) underlyingEncoder {
