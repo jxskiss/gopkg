@@ -86,6 +86,7 @@ func activeModules() []moduledata {
 	return out
 }
 
+// moduledata is an opaque proxy type to runtime.moduledata.
 type moduledata struct {
 	p unsafe.Pointer
 }
