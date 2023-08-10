@@ -1,4 +1,4 @@
-//go:build gc && go1.19 && !go1.21
+//go:build gc && go1.19 && !go1.22
 
 package linkname
 
@@ -44,7 +44,9 @@ func Runtime_sysFree(mem []byte) {
 }
 
 //go:linkname runtime_sysAllocOS runtime.sysAllocOS
+//go:nosplit
 func runtime_sysAllocOS(n uintptr) unsafe.Pointer
 
 //go:linkname runtime_sysFreeOS runtime.sysFreeOS
+//go:nosplit
 func runtime_sysFreeOS(v unsafe.Pointer, n uintptr)

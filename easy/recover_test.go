@@ -34,9 +34,10 @@ func TestRecover(t *testing.T) {
 		willPanic()
 	}()
 	t.Log(got)
-	assert.Contains(t, got, "panic: oops...")
-	assert.Contains(t, got, wantPanicLoc)
-	assert.Contains(t, got, "gopkg/v2/easy.Recover.func1(")
+	assert.Contains(t, got, "panic: oops..., location: github.com/jxskiss/"+wantPanicLoc)
+	assert.Contains(t, got, "gopkg/easy/recover.go:94")
+	assert.Contains(t, got, "gopkg/easy/recover_test.go:20")
+	assert.Contains(t, got, "gopkg/easy/recover_test.go:34")
 }
 
 func TestIdentifyPanicLoc(t *testing.T) {
