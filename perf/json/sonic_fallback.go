@@ -1,4 +1,4 @@
-//go:build !amd64 || go1.21
+//go:build !amd64 || go1.22
 
 package json
 
