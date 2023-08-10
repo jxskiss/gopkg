@@ -1,4 +1,11 @@
-This package is a fork of https://github.com/bouk/monkey.
+# monkey
+
+**Deprecation warning (2023/8/10):<br>
+This package is not maintained, it will be removed in a future release.<br>
+Users are recommend to use [bytedance/mockey](https://github.com/bytedance/mockey),
+which is actively maintained.**
+
+---
 
 As you may expect, this package is unsafe and fragile and probably
 crash you program, it is only recommended for testing usage.
