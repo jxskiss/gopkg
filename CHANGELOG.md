@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 TBD.
 
+## [2.9.0] - 2023-08-11
+
+* Feat: support go1.21
+* Feat: new package [collection/heapx] with easy heap data structures
+* Change: mark package [unsafe/monkey] as DEPRECATED
+
+## [2.8.1] - 2023-05-20
+
+* Fix: [perf/json] change to jsoniter as default JSON impl
+
 ## [2.8.0] - 2023-04-22
 
 * Feat: [unsafe/monkey] support arm64 with bugfix and more tests (#48)

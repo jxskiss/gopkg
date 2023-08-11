@@ -2,7 +2,7 @@
 
 **Deprecation warning (2023/8/10):<br>
 This package is not maintained, it will be removed in a future release.<br>
-Users are recommend to use [bytedance/mockey](https://github.com/bytedance/mockey),
+Users are recommended to use [bytedance/mockey](https://github.com/bytedance/mockey),
 which is actively maintained.**
 
 ---
