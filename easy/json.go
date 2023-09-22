@@ -63,7 +63,7 @@ func prettyIndent(v any, indent string) string {
 		if utf8.Valid(src) {
 			return string(src)
 		}
-		return "<pretty: non-printable bytes>"
+		return fmt.Sprintf("<pretty: non-printable bytes of length %d>", len(src))
 	}
 	buf, err := json.HumanFriendly.MarshalIndent(v, "", indent)
 	if err != nil {
