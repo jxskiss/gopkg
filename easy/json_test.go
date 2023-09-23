@@ -1,8 +1,7 @@
 package easy
 
 import (
-	"crypto/rand"
-	stdjson "encoding/json"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -24,7 +23,7 @@ func TestJSONDisableEscapeHTML(t *testing.T) {
 		"html": "<html></html>",
 	}
 
-	stdRet, err := stdjson.Marshal(m)
+	stdRet, err := json.Marshal(m)
 	assert.Nil(t, err)
 	assert.Equal(t, `{"html":"\u003chtml\u003e\u003c/html\u003e"}`, string(stdRet))
 
@@ -63,8 +62,13 @@ func TestPretty(t *testing.T) {
 	got3 := Pretty(test3)
 	assert.Equal(t, string(test3), got3)
 
-	test4 := make([]byte, 16)
-	rand.Read(test4)
+	test4 := []byte{
+		255, 253, 189, 240, 128, 200, 202, 204,
+	}
 	got4 := Pretty(test4)
-	assert.Equal(t, "<pretty: non-printable bytes>", got4)
+	assert.Equal(t, "<pretty: non-printable bytes of length 8>", got4)
+
+	got5 := Pretty2(map[string]any{"1": 123, "b": "<html>"})
+	want5 := "{\n  \"1\": 123,\n  \"b\": \"<html>\"\n}"
+	assert.Equal(t, want5, got5)
 }

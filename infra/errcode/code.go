@@ -3,6 +3,10 @@ package errcode
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"strings"
+
+	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
 
 // ErrCode is the interface implemented by an error code.
@@ -18,7 +22,7 @@ type ErrCode interface {
 	// If message is not available, it returns an empty string "".
 	Message() string
 
-	// Details returns the error details attached to the Code.
+	// Details returns the error details attached to the error.
 	// It returns nil if no details are attached.
 	Details() []any
 }
@@ -35,14 +39,40 @@ type Code struct {
 
 func (e *Code) String() string { return e.Error() }
 
+func (e *Code) Format(f fmt.State, c rune) {
+	if c == 'v' && f.Flag('+') {
+		e.formatWithDetails(f)
+	} else {
+		errMsg := e.Error()
+		f.Write(unsafeheader.StringToBytes(errMsg))
+	}
+}
+
+func (e *Code) formatWithDetails(w io.Writer) {
+	const (
+		sep    = "\n -  "
+		indent = "\n    "
+	)
+	io.WriteString(w, e.Error())
+	if len(e.details) > 0 {
+		io.WriteString(w, "\ndetails:")
+		for _, x := range e.details {
+			s := fmt.Sprintf("%+v", x)
+			s = strings.ReplaceAll(s, "\n", indent)
+			io.WriteString(w, sep)
+			io.WriteString(w, s)
+		}
+	}
+}
+
 // Error returns the error message, it implements the error interface.
-// If message is not registered for the error code, it uses
-// "(no message)" as a default message.
+// If message is not registered for the error code, it uses "unknown"
+// as a default message.
 func (e *Code) Error() string {
 	code := e.Code()
 	msg := e.Message()
 	if msg == "" {
-		msg = "(no message)"
+		msg = "unknown"
 	}
 	return fmt.Sprintf("[%d] %s", code, msg)
 }
@@ -137,6 +167,15 @@ func (e *Code) Is(target error) bool {
 		return e.code == errCode.Code()
 	}
 	return false
+}
+
+// Details returns the details attached to err if it is an ErrCode,
+// it returns nil if err is not an ErrCode.
+func Details(err error) []any {
+	if errCode := unwrapErrCode(err); errCode != nil {
+		return errCode.Details()
+	}
+	return nil
 }
 
 // Is reports whether any error in err's chain matches the target ErrCode.
