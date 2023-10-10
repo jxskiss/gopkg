@@ -5,7 +5,6 @@ import (
 	"syscall"
 
 	"github.com/jxskiss/gopkg/v2/internal"
-	"github.com/jxskiss/gopkg/v2/internal/linkname"
 )
 
 var sysPageSize = syscall.Getpagesize()
@@ -32,13 +31,6 @@ type Arena struct {
 	chunks    []memChunk
 }
 
-// OffHeapArena is similar to Arena, except that it allocates memory
-// directly from operating system instead of Go's runtime.
-//
-// Note that after working with the memory chunks, user **MUST** call
-// Free to return the memory to operating system, else memory leaks.
-type OffHeapArena Arena
-
 // NewArena creates an Arena object, it allocates memory from the sized
 // buffer pools.
 // The method Free returns memory chunks to the pool for reusing,
@@ -55,31 +47,6 @@ func NewArena(chunkSize int) *Arena {
 	a.allocFunc = bp.Get
 	a.freeFunc = bp.Put
 	return a
-}
-
-// NewOffHeapArena creates an OffHeapArena which allocates memory directly
-// from operating system (without cgo).
-// The method Free frees allocated memory chunks.
-// Free must be called after working with the arena to avoid memory leaks.
-// After Free being called, both the arena and the byte slices allocated
-// from the arena **MUST NOT** be touched again.
-// chunkSize will be round up to the next power of two that is
-// greater than or equal to the system's PAGE_SIZE.
-func NewOffHeapArena(chunkSize int) *OffHeapArena {
-	chunkSize = alignChunkSize(chunkSize)
-	a := arenaPool.Get().(*Arena)
-	a.chunkSize = chunkSize
-	a.allocFunc = offHeapAlloc
-	a.freeFunc = offHeapFree
-	return (*OffHeapArena)(a)
-}
-
-func offHeapAlloc(chunkSize int) []byte {
-	return linkname.Runtime_sysAlloc(uintptr(chunkSize))
-}
-
-func offHeapFree(buf []byte) {
-	linkname.Runtime_sysFree(buf)
 }
 
 // Alloc allocates small byte slice from the arena.
@@ -107,8 +74,10 @@ func (a *Arena) Alloc(length, capacity int) []byte {
 // It returns the memory chunks to pool for reusing.
 func (a *Arena) Free() {
 	for i := range a.chunks {
-		a.freeFunc(a.chunks[i].buf)
-		a.chunks[i].buf = nil
+		if a.chunks[i].buf != nil {
+			a.freeFunc(a.chunks[i].buf)
+			a.chunks[i].buf = nil
+		}
 	}
 	a.chunks = a.chunks[:0]
 	arenaPool.Put(a)
@@ -120,21 +89,10 @@ type memChunk struct {
 }
 
 func (c *memChunk) alloc(length, capacity int) ([]byte, bool) {
-	j := c.i + capacity
-	if j < cap(c.buf) {
+	if j := c.i + capacity; j <= cap(c.buf) {
+		buf := c.buf[c.i:j]
 		c.i = j
-		buf := c.buf[j-capacity : j]
 		return buf[0:length:capacity], true
 	}
 	return nil, false
-}
-
-// Alloc allocates small byte slice from the arena.
-func (a *OffHeapArena) Alloc(length, capacity int) []byte {
-	return (*Arena)(a).Alloc(length, capacity)
-}
-
-// Free returns all memory chunks managed by the arena to the operating system.
-func (a *OffHeapArena) Free() {
-	(*Arena)(a).Free()
 }
