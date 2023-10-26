@@ -69,9 +69,11 @@ func (p *Registry) UpdateMessages(messages map[int32]string) {
 
 // Dump returns all error codes registered with the registry.
 func (p *Registry) Dump() []*Code {
+	msgs, _ := p.messages.Load().(map[int32]string)
 	out := make([]*Code, 0, len(p.codes))
 	for code := range p.codes {
-		out = append(out, &Code{code: code, reg: p})
+		msg := msgs[code]
+		out = append(out, &Code{code: code, msg: msg})
 	}
 	sort.Slice(out, func(i, j int) bool {
 		return out[i].code < out[j].code
