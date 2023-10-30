@@ -36,6 +36,16 @@ func TestMergeMapsTo(t *testing.T) {
 	assert.Equal(t, int64(10), m4[9])
 }
 
+func TestCopyMap(t *testing.T) {
+	m := map[int64]bool{1: true, 2: false}
+
+	got1 := CopyMap(m)
+	assert.Equal(t, m, got1)
+
+	got2 := CopyMap(m, 10)
+	assert.Equal(t, m, got2)
+}
+
 func TestSplitMap(t *testing.T) {
 	got1 := SplitMap(map[int64]bool{}, 10)
 	assert.Nil(t, got1)

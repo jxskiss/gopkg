@@ -144,6 +144,20 @@ func Values[M ~map[K]V, K comparable, V any](m M, filter ...func(K, V) bool) []V
 	return values
 }
 
+// CopyMap copies a map to be a new one.
+// optionalSize optionally specifies the size of the new map.
+func CopyMap[M ~map[K]V, K comparable, V any](m M, optionalSize ...int) M {
+	copySize := len(m)
+	if len(optionalSize) > 0 && optionalSize[0] > copySize {
+		copySize = optionalSize[0]
+	}
+	out := make(M, copySize)
+	for k, v := range m {
+		out[k] = v
+	}
+	return out
+}
+
 // SplitMap splits a large map to batches, it returns a slice
 // of type []M whose elements are subset of the given map.
 func SplitMap[M ~map[K]V, K comparable, V any](m M, batchSize int) []M {
