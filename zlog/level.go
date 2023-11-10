@@ -3,8 +3,8 @@ package zlog
 import (
 	"fmt"
 	"strconv"
+	"sync/atomic"
 
-	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -218,19 +218,19 @@ type atomicLevel struct {
 
 func newAtomicLevel() atomicLevel {
 	return atomicLevel{
-		lvl: atomic.NewInt32(int32(InfoLevel)),
+		lvl: new(atomic.Int32),
 		zl:  zap.NewAtomicLevel(),
 	}
 }
 
 func (l atomicLevel) Level() Level { return Level(l.lvl.Load()) }
 
-func (l *atomicLevel) SetLevel(lvl Level) {
+func (l atomicLevel) SetLevel(lvl Level) {
 	l.lvl.Store(int32(lvl))
 	l.zl.SetLevel(lvl.ToZapLevel())
 }
 
-func (l *atomicLevel) UnmarshalText(text []byte) error {
+func (l atomicLevel) UnmarshalText(text []byte) error {
 	var _lvl Level
 	if !_lvl.unmarshalText(text) {
 		return fmt.Errorf("unrecognized level: %s", text)
