@@ -1,0 +1,40 @@
+package validat
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestValidatingError(t *testing.T) {
+	var vdErr *ValidatingError
+	err := fmt.Errorf("with message: %w", &ValidatingError{Name: "testVar", Err: errors.New("test error")})
+	ok := errors.As(err, &vdErr)
+	assert.True(t, ok)
+	assert.NotNil(t, vdErr)
+	assert.Equal(t, err.Error(), "with message: testVar: test error")
+	assert.Equal(t, vdErr.Error(), "testVar: test error")
+}
+
+func TestValidate(t *testing.T) {
+	ctx := context.Background()
+	got1, err := Validate(ctx,
+		Int64GreaterThanZero("var1", "10", true),
+		LessThanOrEqual("var2", 100, 200),
+	)
+	require.NotNil(t, err)
+	assert.Equal(t, err.Error(), "var2: value 200 > 100")
+	assert.EqualValues(t, 10, got1.Data.GetInt("var1"))
+
+	got2, err := Validate(ctx,
+		GreaterThanZero("var1", 10),
+		LessThanOrEqual("var2", 100, 100),
+		ParseStrsToInt64Slice("var3", []string{"123", "456", "789"}),
+	)
+	require.Nil(t, err)
+	assert.Equal(t, []int64{123, 456, 789}, got2.Data.GetSlice("var3"))
+}

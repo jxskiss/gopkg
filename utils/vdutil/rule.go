@@ -7,25 +7,33 @@ import (
 )
 
 type Rule interface {
-	Validate(ctx context.Context, result *Result) error
+	Validate(ctx context.Context, result *Result) (any, error)
 }
 
-type RuleFunc func(ctx context.Context, result *Result) error
+type RuleFunc func(ctx context.Context, result *Result) (any, error)
 
-func (f RuleFunc) Validate(ctx context.Context, result *Result) error {
+func (f RuleFunc) Validate(ctx context.Context, result *Result) (any, error) {
 	return f(ctx, result)
 }
 
 type Result struct {
-	IsInternalError bool
-
-	Extra ezmap.Map
+	Data       ezmap.Map
+	ErrDetails []any
 }
+
+type ValidatingError struct {
+	Name string
+	Err  error
+}
+
+func (e *ValidatingError) Error() string { return e.Name + ": " + e.Err.Error() }
+
+func (e *ValidatingError) Unwrap() error { return e.Err }
 
 func Validate(ctx context.Context, rules ...Rule) (*Result, error) {
 	ret := &Result{}
 	for _, rule := range rules {
-		err := rule.Validate(ctx, ret)
+		_, err := rule.Validate(ctx, ret)
 		if err != nil {
 			return ret, err
 		}
