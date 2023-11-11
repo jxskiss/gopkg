@@ -1,7 +1,6 @@
 package validat
 
 import (
-	"fmt"
 	"reflect"
 	"strconv"
 	"unsafe"
@@ -19,7 +18,7 @@ func parseInt64[T Int64OrString](value T) (int64, error) {
 		s := any(value).(string)
 		intVal, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
-			return 0, fmt.Errorf("value %s is not integer", s)
+			return 0, err
 		}
 		return intVal, nil
 	}
@@ -36,7 +35,7 @@ func parseInt64s[T Int64OrString](slice []T) ([]int64, error) {
 		for _, s := range slice {
 			intVal, err := strconv.ParseInt(s, 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("value %s is not interger", s)
+				return nil, err
 			}
 			out = append(out, intVal)
 		}
