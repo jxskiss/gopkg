@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestValidatingError(t *testing.T) {
-	var vdErr *ValidatingError
-	err := fmt.Errorf("with message: %w", &ValidatingError{Name: "testVar", Err: errors.New("test error")})
+func TestValidationError(t *testing.T) {
+	var vdErr *ValidationError
+	err := fmt.Errorf("with message: %w", &ValidationError{Name: "testVar", Err: errors.New("test error")})
 	ok := errors.As(err, &vdErr)
 	assert.True(t, ok)
 	assert.NotNil(t, vdErr)
@@ -23,7 +23,7 @@ func TestValidatingError(t *testing.T) {
 func TestValidate(t *testing.T) {
 	ctx := context.Background()
 	got1, err := Validate(ctx,
-		Int64GreaterThanZero("var1", "10", true),
+		GreaterThanZero("var1", "10", true),
 		LessThanOrEqual("var2", 100, 200),
 	)
 	require.NotNil(t, err)
@@ -31,7 +31,7 @@ func TestValidate(t *testing.T) {
 	assert.EqualValues(t, 10, got1.Data.GetInt("var1"))
 
 	got2, err := Validate(ctx,
-		GreaterThanZero("var1", 10),
+		GreaterThanZero("var1", 10, false),
 		LessThanOrEqual("var2", 100, 100),
 		ParseStrsToInt64Slice("var3", []string{"123", "456", "789"}),
 	)

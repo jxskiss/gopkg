@@ -25,7 +25,7 @@ func MatchRegexp[T RegexpOrString](name string, pattern T, value string) RuleFun
 			var err error
 			match := re.MatchString(value)
 			if !match {
-				err = &ValidatingError{Name: name, Err: fmt.Errorf("value %q not match regexp", value)}
+				err = &ValidationError{Name: name, Err: fmt.Errorf("value %q not match regexp", value)}
 			}
 			return value, err
 		}
@@ -48,7 +48,7 @@ func MatchRegexp[T RegexpOrString](name string, pattern T, value string) RuleFun
 		}
 		match := re.MatchString(value)
 		if !match {
-			err = &ValidatingError{Name: name, Err: fmt.Errorf("value %q not match regexp", value)}
+			err = &ValidationError{Name: name, Err: fmt.Errorf("value %q not match regexp", value)}
 		}
 		return value, err
 	}

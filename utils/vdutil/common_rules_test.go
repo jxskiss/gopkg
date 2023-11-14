@@ -10,41 +10,37 @@ import (
 )
 
 func TestGreaterThanZero(t *testing.T) {
-	var vdErr *ValidatingError
+	var vdErr *ValidationError
 
 	_, err := Validate(context.Background(),
-		GreaterThanZero("testVar", 100))
+		GreaterThanZero("testVar", 100, false))
 	require.Nil(t, err)
 
 	_, err = Validate(context.Background(),
-		GreaterThanZero("testVar", -100))
+		GreaterThanZero("testVar", -100, false))
 	require.NotNil(t, err)
 	assert.True(t, errors.As(err, &vdErr))
 	assert.Contains(t, err.Error(), "testVar: value -100 <= 0")
-}
-
-func TestInt64GreaterThanZero(t *testing.T) {
-	var vdErr *ValidatingError
 
 	got1, err := Validate(context.Background(),
-		Int64GreaterThanZero("testVar", int64(100), true))
+		GreaterThanZero("testVar", int64(100), true))
 	require.Nil(t, err)
 	assert.Equal(t, int64(100), got1.Data.GetInt("testVar"))
 
 	got2, err := Validate(context.Background(),
-		Int64GreaterThanZero("testVar", "100", true))
+		GreaterThanZero("testVar", "100", true))
 	require.Nil(t, err)
 	assert.Equal(t, int64(100), got2.Data.GetInt("testVar"))
 
 	got3, err := Validate(context.Background(),
-		Int64GreaterThanZero("testVar", "0", true))
+		GreaterThanZero("testVar", "0", true))
 	require.NotNil(t, err)
 	require.NotNil(t, got3)
 	assert.True(t, errors.As(err, &vdErr))
 	assert.Contains(t, err.Error(), "testVar: value 0 <= 0")
 
 	got4, err := Validate(context.Background(),
-		Int64GreaterThanZero("testVar", "xyz", true))
+		GreaterThanZero("testVar", "xyz", true))
 	require.NotNil(t, err)
 	require.NotNil(t, got4)
 	assert.True(t, errors.As(err, &vdErr))
@@ -52,7 +48,7 @@ func TestInt64GreaterThanZero(t *testing.T) {
 }
 
 func TestLessThanOrEqual(t *testing.T) {
-	var vdErr *ValidatingError
+	var vdErr *ValidationError
 
 	_, err := Validate(context.Background(),
 		LessThanOrEqual("testVar", 20, 20))
@@ -105,7 +101,7 @@ func TestInRangeMode(t *testing.T) {
 		{"testVar", GteAndLt, 1, 20, 20, false, "testVar: value 20 is not in range [1, 20)"},
 	}
 
-	var vdErr *ValidatingError
+	var vdErr *ValidationError
 	for _, c := range testData {
 		_, err := Validate(context.Background(),
 			InRangeMode(c.Name, c.Mode, c.Min, c.Max, c.Value))
@@ -139,15 +135,15 @@ func TestNotNil(t *testing.T) {
 		map[int]int{},
 		[]int{},
 		&Result{},
-		GreaterThanZero("", 1234),
-		Rule(GreaterThanZero("", 1234)),
+		GreaterThanZero("", 1234, false),
+		Rule(GreaterThanZero("", 1234, false)),
 	}
 	for _, x := range notNilValues {
 		_, err := Validate(context.Background(), NotNil("testVar", x))
 		assert.Nil(t, err)
 	}
 
-	var vdErr *ValidatingError
+	var vdErr *ValidationError
 	nilValues := []any{
 		nil,
 		(*int)(nil),

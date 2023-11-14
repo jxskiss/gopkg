@@ -21,14 +21,14 @@ type Result struct {
 	ErrDetails []any
 }
 
-type ValidatingError struct {
+type ValidationError struct {
 	Name string
 	Err  error
 }
 
-func (e *ValidatingError) Error() string { return e.Name + ": " + e.Err.Error() }
+func (e *ValidationError) Error() string { return e.Name + ": " + e.Err.Error() }
 
-func (e *ValidatingError) Unwrap() error { return e.Err }
+func (e *ValidationError) Unwrap() error { return e.Err }
 
 func Validate(ctx context.Context, rules ...Rule) (*Result, error) {
 	ret := &Result{}

@@ -4,36 +4,62 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 
 	"github.com/jxskiss/gopkg/v2/internal/constraints"
 	"github.com/jxskiss/gopkg/v2/unsafe/reflectx"
 )
 
-func GreaterThanZero[T constraints.Integer](name string, value T) RuleFunc {
-	return func(ctx context.Context, result *Result) (any, error) {
-		var err error
-		if value <= 0 {
-			err = &ValidatingError{Name: name, Err: fmt.Errorf("value %v <= 0", value)}
-		}
-		return value, err
-	}
+type IntegerOrString interface {
+	constraints.Integer | ~string
 }
 
-func Int64GreaterThanZero[T Int64OrString](name string, value T, save bool) RuleFunc {
-	var zero int64
-	return func(ctx context.Context, result *Result) (any, error) {
-		intVal, err := parseInt64(value)
-		if err != nil {
-			return zero, &ValidatingError{Name: name, Err: fmt.Errorf("value %v is not integer: %w", value, err)}
+func GreaterThanZero[T IntegerOrString](name string, value T, save bool) RuleFunc {
+	return _greaterThanZero(name, value, save)
+}
+
+func _greaterThanZero(name string, value any, save bool) RuleFunc {
+	rv := reflect.ValueOf(value)
+	switch rv.Kind() {
+	case reflect.String:
+		return func(ctx context.Context, result *Result) (any, error) {
+			i64Val, err := strconv.ParseInt(rv.String(), 10, 64)
+			if err != nil {
+				return int64(0), &ValidationError{Name: name, Err: fmt.Errorf("value %v is not integer: %w", value, err)}
+			}
+			if i64Val <= 0 {
+				return i64Val, &ValidationError{Name: name, Err: fmt.Errorf("value %v <= 0", value)}
+			}
+			if save && name != "" {
+				result.Data.Set(name, i64Val)
+			}
+			return i64Val, nil
 		}
-		if intVal <= 0 {
-			return zero, &ValidatingError{Name: name, Err: fmt.Errorf("value %v <= 0", value)}
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return func(ctx context.Context, result *Result) (any, error) {
+			i64Val := rv.Int()
+			if i64Val <= 0 {
+				return value, &ValidationError{Name: name, Err: fmt.Errorf("value %v <= 0", value)}
+			}
+			if save && name != "" {
+				result.Data.Set(name, value)
+			}
+			return value, nil
 		}
-		if save && name != "" {
-			result.Data.Set(name, intVal)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return func(ctx context.Context, result *Result) (any, error) {
+			u64Val := rv.Uint()
+			if u64Val <= 0 {
+				return value, &ValidationError{Name: name, Err: fmt.Errorf("value %v <= 0", value)}
+			}
+			if save && name != "" {
+				result.Data.Set(name, value)
+			}
+			return value, nil
 		}
-		return intVal, nil
+	default:
+		panic("bug: unreachable code")
 	}
 }
 
@@ -41,7 +67,7 @@ func LessThanOrEqual[T constraints.Integer](name string, limit, value T) RuleFun
 	return func(ctx context.Context, result *Result) (any, error) {
 		var err error
 		if value > limit {
-			err = &ValidatingError{Name: name, Err: fmt.Errorf("value %d > %d", value, limit)}
+			err = &ValidationError{Name: name, Err: fmt.Errorf("value %d > %d", value, limit)}
 		}
 		return value, err
 	}
@@ -60,7 +86,7 @@ func InRange[T constraints.Integer](name string, min, max T, value T) RuleFunc {
 	return func(ctx context.Context, result *Result) (any, error) {
 		var err error
 		if value < min || value > max {
-			err = &ValidatingError{Name: name, Err: fmt.Errorf("value %d is not in range [%d, %d]", value, min, max)}
+			err = &ValidationError{Name: name, Err: fmt.Errorf("value %d is not in range [%d, %d]", value, min, max)}
 		}
 		return value, err
 	}
@@ -72,19 +98,19 @@ func InRangeMode[T constraints.Integer](name string, mode RangeMode, min, max T,
 		switch mode {
 		case GtAndLte:
 			if !(value > min && value <= max) {
-				err = &ValidatingError{Name: name, Err: fmt.Errorf("value %v is not in range (%d, %d]", value, min, max)}
+				err = &ValidationError{Name: name, Err: fmt.Errorf("value %v is not in range (%d, %d]", value, min, max)}
 			}
 		case GtAndLt:
 			if !(value > min && value < max) {
-				err = &ValidatingError{Name: name, Err: fmt.Errorf("value %d is not in range (%d, %d)", value, min, max)}
+				err = &ValidationError{Name: name, Err: fmt.Errorf("value %d is not in range (%d, %d)", value, min, max)}
 			}
 		case GteAndLte:
 			if !(value >= min && value <= max) {
-				err = &ValidatingError{Name: name, Err: fmt.Errorf("value %d is not in range [%d, %d]", value, min, max)}
+				err = &ValidationError{Name: name, Err: fmt.Errorf("value %d is not in range [%d, %d]", value, min, max)}
 			}
 		case GteAndLt:
 			if !(value >= min && value < max) {
-				err = &ValidatingError{Name: name, Err: fmt.Errorf("value %d is not in range [%d, %d)", value, min, max)}
+				err = &ValidationError{Name: name, Err: fmt.Errorf("value %d is not in range [%d, %d)", value, min, max)}
 			}
 		default:
 			err = fmt.Errorf("%s: unknown range mode %v", name, mode)
@@ -99,7 +125,7 @@ func ParseStrsToInt64Slice(name string, values []string) RuleFunc {
 		for _, v := range values {
 			intVal, err := strconv.ParseInt(v, 10, 64)
 			if err != nil {
-				return nil, &ValidatingError{Name: name, Err: fmt.Errorf("value %v is not integer", v)}
+				return nil, &ValidationError{Name: name, Err: fmt.Errorf("value %v is not integer", v)}
 			}
 			out = append(out, intVal)
 		}
@@ -116,7 +142,7 @@ func ParseStrsToInt64Map(name string, values []string) RuleFunc {
 		for _, v := range values {
 			intVal, err := strconv.ParseInt(v, 10, 64)
 			if err != nil {
-				return nil, &ValidatingError{Name: name, Err: fmt.Errorf("value %v is not integer", v)}
+				return nil, &ValidationError{Name: name, Err: fmt.Errorf("value %v is not integer", v)}
 			}
 			out[intVal] = true
 		}
@@ -131,7 +157,7 @@ func NotNil(name string, value any) RuleFunc {
 	return func(ctx context.Context, result *Result) (any, error) {
 		var err error
 		if reflectx.IsNil(value) {
-			err = &ValidatingError{Name: name, Err: errors.New("value is nil")}
+			err = &ValidationError{Name: name, Err: errors.New("value is nil")}
 		}
 		return value, err
 	}

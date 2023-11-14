@@ -14,7 +14,7 @@ import (
 
 func TestMatchRegexp(t *testing.T) {
 	ctx := context.Background()
-	vdErr := &ValidatingError{}
+	vdErr := &ValidationError{}
 
 	t.Run("string pattern", func(t *testing.T) {
 		pattern := `\w+\s+\d+`
