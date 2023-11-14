@@ -135,8 +135,8 @@ func (t *RType) IfaceIndir() bool {
 
 func (t *RType) PackInterface(word unsafe.Pointer) any {
 	return *(*any)(unsafe.Pointer(&eface{
-		typ:  t,
-		data: word,
+		_type: t,
+		data:  word,
 	}))
 }
 
@@ -188,13 +188,13 @@ func RTypeOf(v any) *RType {
 	case reflect.Value:
 		return ToRType(x.Type())
 	default:
-		return unpackEface(&x).typ
+		return unpackEface(&x)._type
 	}
 }
 
 // RTypeOfEface unpacks an empty interface value and returns its rtype.
 func RTypeOfEface(v any) *RType {
-	return unpackEface(&v).typ
+	return unpackEface(&v)._type
 }
 
 // ---- private things ---- //
@@ -203,10 +203,10 @@ func unpackEface(ep *any) *eface {
 	return (*eface)(unsafe.Pointer(ep))
 }
 
-// eface is a copy type of [runtime.eface].
+// eface is a copy type of runtime.eface.
 type eface struct {
-	typ  *RType // *_type
-	data unsafe.Pointer
+	_type *RType // *_type
+	data  unsafe.Pointer
 }
 
 func packReflectType(rtyp *RType) reflect.Type {
