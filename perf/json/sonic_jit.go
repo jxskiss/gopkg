@@ -9,9 +9,9 @@ import (
 	"github.com/bytedance/sonic/encoder"
 )
 
-const isSonicJIT = true
+const supportSonicJIT = true
 
-func sonicMarshalNoMapOrdering(v any) ([]byte, error) {
+func sonicMarshalFastest(v any) ([]byte, error) {
 	return sonic.ConfigFastest.Marshal(v)
 }
 

@@ -8,10 +8,10 @@ import (
 	"github.com/bytedance/sonic"
 )
 
-const isSonicJIT = false
+const supportSonicJIT = false
 
-func sonicMarshalNoMapOrdering(v any) ([]byte, error) {
-	return jsoniterMarshalNoMapOrdering(v)
+func sonicMarshalFastest(v any) ([]byte, error) {
+	return jsoniterMarshalFastest(v)
 }
 
 func sonicMarshalNoHTMLEscape(_ sonic.API) func(v any, prefix, indent string) ([]byte, error) {

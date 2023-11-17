@@ -62,7 +62,7 @@ func init() {
 	// when it's fully ready for production deployment.
 
 	//{
-	//	if isSonicJIT {
+	//	if supportSonicJIT {
 	//		_J.useSonicConfig(sonicDefault)
 	//	} else {
 	//		_J.useJSONIterConfig(jsoniterDefault)
@@ -92,8 +92,8 @@ type apiProxy struct {
 	HTMLEscape func(dst *bytes.Buffer, src []byte)
 	Indent     func(dst *bytes.Buffer, src []byte, prefix, indent string) error
 
-	MarshalNoMapOrdering func(v any) ([]byte, error)
-	MarshalNoHTMLEscape  func(v any, prefix, indent string) ([]byte, error)
+	MarshalFastest      func(v any) ([]byte, error)
+	MarshalNoHTMLEscape func(v any, prefix, indent string) ([]byte, error)
 
 	NewEncoder func(w io.Writer) underlyingEncoder
 	NewDecoder func(r io.Reader) underlyingDecoder
@@ -113,8 +113,8 @@ func (p *apiProxy) useStdlib() {
 		HTMLEscape: std.HTMLEscape,
 		Indent:     std.Indent,
 
-		MarshalNoMapOrdering: std.Marshal,
-		MarshalNoHTMLEscape:  stdMarshalNoHTMLEscape,
+		MarshalFastest:      std.Marshal,
+		MarshalNoHTMLEscape: stdMarshalNoHTMLEscape,
 
 		NewEncoder: stdNewEncoder,
 		NewDecoder: stdNewDecoder,
@@ -135,8 +135,8 @@ func (p *apiProxy) useJSONIterConfig(api jsoniter.API) {
 		HTMLEscape: std.HTMLEscape,
 		Indent:     std.Indent,
 
-		MarshalNoMapOrdering: jsoniterMarshalNoMapOrdering,
-		MarshalNoHTMLEscape:  jsoniterMarshalNoHTMLEscape(api),
+		MarshalFastest:      jsoniterMarshalFastest,
+		MarshalNoHTMLEscape: jsoniterMarshalNoHTMLEscape(api),
 
 		NewEncoder: jsoniterNewEncoder(api),
 		NewDecoder: jsoniterNewDecoder(api),
@@ -144,7 +144,7 @@ func (p *apiProxy) useJSONIterConfig(api jsoniter.API) {
 }
 
 func (p *apiProxy) useSonicConfig(api sonic.API) {
-	if !isSonicJIT {
+	if !supportSonicJIT {
 		log.Println("[WARN] json: bytedance/sonic is not supported, fallback to jsoniterDefault")
 		p.useJSONIterConfig(jsoniterDefault)
 		return
@@ -162,8 +162,8 @@ func (p *apiProxy) useSonicConfig(api sonic.API) {
 		HTMLEscape: std.HTMLEscape,
 		Indent:     std.Indent,
 
-		MarshalNoMapOrdering: sonicMarshalNoMapOrdering,
-		MarshalNoHTMLEscape:  sonicMarshalNoHTMLEscape(api),
+		MarshalFastest:      sonicMarshalFastest,
+		MarshalNoHTMLEscape: sonicMarshalNoHTMLEscape(api),
 
 		NewEncoder: sonicNewEncoder(api),
 		NewDecoder: sonicNewDecoder(api),

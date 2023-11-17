@@ -138,13 +138,3 @@ func TestCompatibility(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, got1, got2)
 }
-
-func TestCompatibility_NoHTMLEscape_Indent(t *testing.T) {
-	stdOutput, err := stdMarshalNoHTMLEscape(testStringInterfaceMap, "  ", "  ")
-	assert.Nil(t, err)
-
-	sonicOutput, err := sonicMarshalNoHTMLEscape(sonicDefault)(testStringInterfaceMap, "  ", "  ")
-	assert.Nil(t, err)
-
-	assert.Equal(t, string(stdOutput), string(sonicOutput))
-}

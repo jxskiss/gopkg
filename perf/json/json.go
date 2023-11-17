@@ -82,13 +82,12 @@ func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
 	return _J.Indent(dst, src, prefix, indent)
 }
 
-// MarshalNoMapOrdering is like Marshal but does not sort map keys.
-// It's useful to optimize performance where map key ordering is not needed.
-//
-// It has effect only the underlying implementation is sonic,
-// else it is an alias name of Marshal.
-func MarshalNoMapOrdering(v any) ([]byte, error) {
-	return _J.MarshalNoMapOrdering(v)
+// MarshalFastest uses the fastest config when this library is configured
+// to use jsoniter or sonic.
+// The result is not compatible with std [encoding/json] in some ways,
+// especially that map keys are not sorted.
+func MarshalFastest(v any) ([]byte, error) {
+	return _J.MarshalFastest(v)
 }
 
 // MarshalNoHTMLEscape is like Marshal but does not escape HTML characters.

@@ -24,9 +24,9 @@ It gives much better performance than `encoding/json` and good compatibility wit
 
 User may use the method `Config` to customize the behavior of this library.
 
-For marshalling map data where key ordering does not matter,
-user may use the shortcut function `MarshalNoMapOrdering`,
-which disables map key ordering in case that jsoniter or sonic is used.
+For best performance, user may use `MarshalFastest` when this library is
+configured to use jsoniter or sonic. The result is not compatible with
+std `encoding/json` in some ways, especially that map keys are not sorted.
 
 ### Benchmark
 

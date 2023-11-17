@@ -1,35 +1,19 @@
 package json
 
 import (
-	"bytes"
 	"io"
 
 	jsoniter "github.com/json-iterator/go"
 )
 
-func jsoniterMarshalNoMapOrdering(v any) ([]byte, error) {
+func jsoniterMarshalFastest(v any) ([]byte, error) {
 	return jsoniter.ConfigFastest.Marshal(v)
 }
 
-func jsoniterMarshalNoHTMLEscape(cfg jsoniter.API) func(v any, prefix, indent string) ([]byte, error) {
-	return func(v any, prefix, indent string) ([]byte, error) {
-		var buf bytes.Buffer
-		enc := cfg.NewEncoder(&buf)
-		enc.SetEscapeHTML(false)
-		enc.SetIndent(prefix, indent)
-		err := enc.Encode(v)
-		if err != nil {
-			return nil, err
-		}
-
-		// json.Encoder always appends '\n' after encoding,
-		// which is not same with json.Marshal.
-		out := buf.Bytes()
-		if len(out) > 0 && out[len(out)-1] == '\n' {
-			out = out[:len(out)-1]
-		}
-		return out, nil
-	}
+// MarshalNoHTMLEscape is not designed for performance critical use-case,
+// we use the std [encoding/json] implementation.
+func jsoniterMarshalNoHTMLEscape(_ jsoniter.API) func(v any, prefix, indent string) ([]byte, error) {
+	return stdMarshalNoHTMLEscape
 }
 
 func jsoniterNewEncoder(cfg jsoniter.API) func(w io.Writer) underlyingEncoder {
