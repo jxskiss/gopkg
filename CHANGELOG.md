@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 TBD.
 
+## [2.10.0] - 2023-11-20
+
+* Fix: [perf/bbp] drop cgo arena implementation, which doesn't work on Windows (#54)
+* Feat: [utils/timeutil] new time related utilities
+* Feat: [easy] new utility functions
+* Change: drop support for Go 1.18, requires 1.19+
+* Change: [utils/vdutil] update and simplify validating utilities (#56)
+* Change: [perf/json] add new api `MarshalFastest`, and remove old api `MarshalNoMapOrdering`
+  which is considered a bad design and there should be nobody using it
+
 ## [2.9.0] - 2023-08-11
 
 * Feat: support go1.21

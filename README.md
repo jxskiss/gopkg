@@ -41,6 +41,9 @@ reasonable API compatibility and versioning.
 
 1. `collection/set` provides generic set data structures.
 
+1. `collection/heapx` contains a ready-to-use heap implementation based on the std package `container/heap`,
+   and a generic priority queue based on heap data structure.
+
 1. `confr` provides a simple but powerful configuration loader.
 
 1. `easy` contains many handy utilities as a complementary to the standard library,
@@ -122,6 +125,8 @@ reasonable API compatibility and versioning.
 
 1. `utils/strutil` provides utilities to work with string data as supplement to the standard
    libraries `strings` and `unicode/utf8`.
+
+1. `utils/timeutil` provides utilities to process time related jobs.
 
 1. `utils/vdutil` helps to do data validation.
 
