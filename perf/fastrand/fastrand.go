@@ -60,8 +60,8 @@ func Int31n(n int32) (x int32) {
 	prod := uint64(u32) * uint64(n)
 	low := uint32(prod)
 	if low < uint32(n) {
-		thresh := uint32(-n) % uint32(n)
-		for low < thresh {
+		threshold := uint32(-n) % uint32(n)
+		for low < threshold {
 			u32 = Uint32()
 			prod = uint64(u32) * uint64(n)
 			low = uint32(prod)

@@ -21,21 +21,7 @@ import "math"
 //
 //	sample = ExpFloat64() / desiredRateParameter
 func ExpFloat64() float64 {
-	for {
-		v := Uint64()
-		j := v >> 11
-		i := v & 0xFF
-		x := float64(j) * we[i]
-		if j < ke[i] {
-			return x
-		}
-		if i == 0 {
-			return re - math.Log(Float64())
-		}
-		if fe[i]+Float64()*(fe[i-1]-fe[i]) < math.Exp(-x) {
-			return x
-		}
-	}
+	return execExpFloat64(globalImpl{})
 }
 
 // ExpFloat64 returns an exponentially distributed float64 in the range
@@ -46,8 +32,12 @@ func ExpFloat64() float64 {
 //
 //	sample = ExpFloat64() / desiredRateParameter
 func (p *PCG64) ExpFloat64() float64 {
+	return execExpFloat64(p)
+}
+
+func execExpFloat64(impl randInterface) float64 {
 	for {
-		v := p.Uint64()
+		v := impl.Uint64()
 		j := v >> 11
 		i := v & 0xFF
 		x := float64(j) * we[i]
@@ -55,9 +45,9 @@ func (p *PCG64) ExpFloat64() float64 {
 			return x
 		}
 		if i == 0 {
-			return re - math.Log(p.Float64())
+			return re - math.Log(impl.Float64())
 		}
-		if fe[i]+p.Float64()*(fe[i-1]-fe[i]) < math.Exp(-x) {
+		if fe[i]+impl.Float64()*(fe[i-1]-fe[i]) < math.Exp(-x) {
 			return x
 		}
 	}

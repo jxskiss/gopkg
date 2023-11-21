@@ -18,7 +18,6 @@ func Fastrandn(n uint32) uint32 {
 }
 
 func makeSeed() (ret uint64) {
-	ret = linkname.Runtime_fastrand64()
 	for ret == 0 {
 		ret = linkname.Runtime_fastrand64()
 	}

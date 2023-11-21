@@ -21,34 +21,7 @@ import "math"
 //
 //	sample = NormFloat64() * desiredStdDev + desiredMean
 func NormFloat64() float64 {
-	for {
-		v := Uint64()
-		j := int64(v) >> 11 // Possibly negative
-		i := v & 0xFF
-		x := float64(j) * wn[i]
-		if absInt64(j) < kn[i] {
-			// This case should be hit better than 99% of the time.
-			return x
-		}
-
-		if i == 0 {
-			// This extra work is only required for the base strip.
-			for {
-				x = -math.Log(Float64()) * (1.0 / rn)
-				y := -math.Log(Float64())
-				if y+y >= x*x {
-					break
-				}
-			}
-			if j > 0 {
-				return rn + x
-			}
-			return -rn - x
-		}
-		if fn[i]+Float64()*(fn[i-1]-fn[i]) < math.Exp(-.5*x*x) {
-			return x
-		}
-	}
+	return execNormFloat64(globalImpl{})
 }
 
 // NormFloat64 returns a normally distributed float64 in
@@ -59,8 +32,12 @@ func NormFloat64() float64 {
 //
 //	sample = NormFloat64() * desiredStdDev + desiredMean
 func (p *PCG64) NormFloat64() float64 {
+	return execNormFloat64(p)
+}
+
+func execNormFloat64(impl randInterface) float64 {
 	for {
-		v := p.Uint64()
+		v := impl.Uint64()
 		j := int64(v) >> 11 // Possibly negative
 		i := v & 0xFF
 		x := float64(j) * wn[i]
@@ -72,8 +49,8 @@ func (p *PCG64) NormFloat64() float64 {
 		if i == 0 {
 			// This extra work is only required for the base strip.
 			for {
-				x = -math.Log(p.Float64()) * (1.0 / rn)
-				y := -math.Log(p.Float64())
+				x = -math.Log(impl.Float64()) * (1.0 / rn)
+				y := -math.Log(impl.Float64())
 				if y+y >= x*x {
 					break
 				}
@@ -83,7 +60,7 @@ func (p *PCG64) NormFloat64() float64 {
 			}
 			return -rn - x
 		}
-		if fn[i]+p.Float64()*(fn[i-1]-fn[i]) < math.Exp(-.5*x*x) {
+		if fn[i]+impl.Float64()*(fn[i-1]-fn[i]) < math.Exp(-.5*x*x) {
 			return x
 		}
 	}
