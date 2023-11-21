@@ -3,15 +3,17 @@ package strutil
 import "unicode"
 
 const (
-	Digits       = "0123456789"
-	HexDigits    = "0123456789abcdefABCDEF"
-	OctDigits    = "01234567"
-	UpperLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	LowerLetters = "abcdefghijklmnopqrstuvwxyz"
-	Letters      = UpperLetters + LowerLetters
-	AlphaDigits  = Letters + Digits
+	Digits         = "0123456789"
+	HexDigits      = "0123456789abcdefABCDEF"
+	OctDigits      = "01234567"
+	UpperLetters   = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	UpperAndDigits = UpperLetters + Digits
+	LowerLetters   = "abcdefghijklmnopqrstuvwxyz"
+	LowerAndDigits = LowerLetters + Digits
+	Letters        = UpperLetters + LowerLetters
+	AlphaDigits    = Letters + Digits
 
-	PasswordSpecial = "!#$%&()*+,-./:;<=>?@[]^_{|}~"
+	PasswordSpecial = "!#$%&()*+-./:;=?@[]^_~"
 )
 
 // IsASCII returns true if the string is empty or all characters in the
