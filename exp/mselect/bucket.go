@@ -1,29 +1,41 @@
 package mselect
 
-const bucketSize = 512
+import (
+	"unsafe"
+
+	"github.com/jxskiss/gopkg/v2/internal/linkname"
+)
+
+const (
+	sigTaskNum = 2
+	bucketSize = 256
+	bucketCap  = bucketSize - sigTaskNum
+)
 
 var (
-	blockch   chan any
-	blockTask = NewTask(blockch, nil, nil)
+	blockCh   chan any
+	blockTask = NewTask(blockCh, nil, nil)
 )
 
 type taskBucket struct {
-	many *manySelect
+	m *manySelect
 
-	cases []runtimeSelect
+	cases []linkname.RuntimeSelect
 	tasks []*Task
 
 	block bool
 }
 
-func newTaskBucket(many *manySelect, userTask *Task) *taskBucket {
+func newTaskBucket(msel *manySelect, userTask *Task) *taskBucket {
 	b := &taskBucket{
-		many:  many,
-		cases: make([]runtimeSelect, 0, 16),
+		m:     msel,
+		cases: make([]linkname.RuntimeSelect, 0, 16),
 		tasks: make([]*Task, 0, 16),
 	}
-	sigTask := NewTask(b.many.tasks, nil, nil)
+	sigTask := msel.sigTask
+	stopTask := NewTask(b.m.stop, nil, nil)
 	b.addTask(sigTask)
+	b.addTask(stopTask)
 	b.addTask(userTask)
 	go b.loop()
 	return b
@@ -32,46 +44,66 @@ func newTaskBucket(many *manySelect, userTask *Task) *taskBucket {
 func (b *taskBucket) loop() {
 	for {
 		// Wait on select cases.
-		i, ok := reflect_rselect(b.cases)
+		i, ok := linkname.Reflect_rselect(b.cases)
 		task := b.tasks[i]
 		recv := task.getAndResetRecvValue(&b.cases[i])
 
 		// Got a signal or a new task submitted.
-		if i == 0 {
-			if !ok { // closed
-				b.purgeTasks()
-				return
+		switch i {
+		case 0: // signal
+			b.processSignal(recv, ok)
+			if !ok {
+				return // stopped
 			}
-
-			// Add a new task.
-			newTask := task.convFunc(recv).(*Task)
-			b.addTask(newTask)
-
-			// If the bucket is full, don't accept new tasks.
-			if len(b.cases) == bucketSize {
-				b.tasks[0] = blockTask
-				b.cases[0] = blockTask.newRuntimeSelect()
-				b.block = true
-			}
-			continue
+		case 1: // stopped
+			b.stop()
+			return
+		default:
+			b.processTask(i, task, recv, ok)
 		}
+	}
+}
 
-		// Execute the registered task.
-		if task.execFunc != nil {
-			task.execFunc(recv, ok)
-		}
+func (b *taskBucket) processSignal(recv unsafe.Pointer, ok bool) {
+	if !ok { // stopped
+		b.stop()
+		return
+	}
 
-		// The channel has been closed, delete the task.
-		if !ok {
-			b.deleteTask(i)
-			if b.block && len(b.cases) < bucketSize {
-				sigTask := NewTask(b.many.tasks, nil, nil)
-				b.tasks[0] = sigTask
-				b.cases[0] = sigTask.newRuntimeSelect()
-				b.block = false
-			}
-			b.many.decrCount()
+	// Add a new task.
+	newTask := *(**Task)(recv)
+	b.addTask(newTask)
+
+	// If the bucket is full, block the signal channel to avoid
+	// accepting new tasks.
+	if len(b.cases) == bucketSize {
+		b.tasks[0] = blockTask
+		b.cases[0] = blockTask.newRuntimeSelect()
+		b.block = true
+	}
+}
+
+func (b *taskBucket) processTask(i int, task *Task, recv unsafe.Pointer, ok bool) {
+	// Execute the task first.
+	// When the channel is closed, call callback functions with
+	// a zero value and ok = false.
+	if task.execFunc != nil {
+		task.execFunc(recv, ok)
+	}
+
+	// Delete task if the channel was closed.
+	if !ok {
+		b.deleteTask(i)
+		b.m.decrCount(1)
+
+		// Reset signal task to accept new tasks.
+		if b.block && len(b.cases) < bucketSize {
+			sigTask := b.m.sigTask
+			b.tasks[0] = sigTask
+			b.cases[0] = sigTask.newRuntimeSelect()
+			b.block = false
 		}
+		return
 	}
 }
 
@@ -82,15 +114,30 @@ func (b *taskBucket) addTask(task *Task) {
 
 func (b *taskBucket) deleteTask(i int) {
 	n := len(b.cases)
-	b.cases[i] = b.cases[n-1]
-	b.cases[n-1] = runtimeSelect{}
-	b.cases = b.cases[:n-1]
-	b.tasks[i] = b.tasks[n-1]
+	if n > sigTaskNum+1 {
+		b.cases[i] = b.cases[n-1]
+		b.tasks[i] = b.tasks[n-1]
+	}
+	b.cases[n-1] = linkname.RuntimeSelect{}
 	b.tasks[n-1] = nil
+	b.cases = b.cases[:n-1]
 	b.tasks = b.tasks[:n-1]
 }
 
-func (b *taskBucket) purgeTasks() {
+func (b *taskBucket) stop() {
+	n := len(b.tasks) - sigTaskNum // don't count the signal tasks
+	b.m.decrCount(n)
 	b.cases = nil
 	b.tasks = nil
+
+	// Drain tasks to un-block any goroutines blocked by sending tasks
+	// to b.m.tasks.
+	for {
+		select {
+		case <-b.m.tasks:
+			continue
+		default:
+			return
+		}
+	}
 }

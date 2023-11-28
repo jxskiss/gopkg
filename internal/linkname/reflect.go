@@ -1,3 +1,5 @@
+//go:build gc && !go1.22
+
 package linkname
 
 import (
@@ -179,3 +181,16 @@ func Reflect_mapiterelem(it unsafe.Pointer) (elem unsafe.Pointer)
 //go:noescape
 //go:linkname Reflect_mapiternext reflect.mapiternext
 func Reflect_mapiternext(it unsafe.Pointer)
+
+//go:noescape
+//go:linkname Reflect_rselect reflect.rselect
+func Reflect_rselect([]RuntimeSelect) (chosen int, recvOK bool)
+
+// A RuntimeSelect is a single case passed to reflect_rselect.
+// This must match reflect.runtimeSelect.
+type RuntimeSelect struct {
+	Dir reflect.SelectDir // SelectSend, SelectRecv or SelectDefault
+	Typ unsafe.Pointer    // *rtype, channel type
+	Ch  unsafe.Pointer    // channel
+	Val unsafe.Pointer    // ptr to data (SendDir) or ptr to receive buffer (RecvDir)
+}

@@ -1,3 +1,5 @@
+//go:build gc && !go1.22
+
 package linkname
 
 import (
