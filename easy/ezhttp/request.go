@@ -110,7 +110,7 @@ type Request struct {
 
 	// Timeout specifies an optional timeout of the http request, if
 	// timeout > 0, the request will be attached an timeout context.Context.
-	// `Timeout` takes higher priority than `Context`, it both available, only
+	// Timeout takes higher priority than Context, if both available, only
 	// `Timeout` takes effect.
 	Timeout time.Duration
 
@@ -120,6 +120,13 @@ type Request struct {
 
 	// DisableRedirect tells the http client don't follow response redirection.
 	DisableRedirect bool
+
+	// CheckRedirect specifies the policy for handling redirects.
+	// See http.Client.CheckRedirect for details.
+	//
+	// CheckRedirect takes higher priority than DisableRedirect,
+	// if both available, only `CheckRedirect` takes effect.
+	CheckRedirect func(req *http.Request, via []*http.Request) error
 
 	// DumpRequest makes the http request being logged before sent.
 	DumpRequest bool
@@ -158,19 +165,27 @@ func (p *Request) SetBasicAuth(username, password string) *Request {
 }
 
 func (p *Request) buildClient() *http.Client {
-	if p.Client == nil && !p.DisableRedirect {
-		return http.DefaultClient
-	}
-	var client = *http.DefaultClient
-	if p.Client != nil {
-		client = *p.Client
-	}
-	if p.DisableRedirect {
-		client.CheckRedirect = func(_ *http.Request, _ []*http.Request) error {
+	checkRedirectFunc := p.CheckRedirect
+	if checkRedirectFunc == nil && p.DisableRedirect {
+		checkRedirectFunc = func(_ *http.Request, _ []*http.Request) error {
 			return http.ErrUseLastResponse
 		}
 	}
+
+	if checkRedirectFunc == nil {
+		return p.getDefaultClient()
+	}
+
+	client := *(p.getDefaultClient())
+	client.CheckRedirect = checkRedirectFunc
 	return &client
+}
+
+func (p *Request) getDefaultClient() *http.Client {
+	if p.Client != nil {
+		return p.Client
+	}
+	return http.DefaultClient
 }
 
 func (p *Request) prepareRequest(method string) (err error) {
