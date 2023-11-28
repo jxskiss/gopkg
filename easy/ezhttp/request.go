@@ -17,8 +17,8 @@ import (
 	"github.com/jxskiss/gopkg/v2/zlog"
 )
 
-var (
-	hdrContentTypeKey = http.CanonicalHeaderKey("Content-Type")
+const (
+	hdrContentTypeKey = "Content-Type"
 	contentTypeJSON   = "application/json"
 	contentTypeXML    = "application/xml"
 	contentTypeForm   = "application/x-www-form-urlencoded"
@@ -177,6 +177,7 @@ func (p *Request) prepareRequest(method string) (err error) {
 	if p.Req != nil {
 		return p.mergeRequest()
 	}
+
 	reqURL := p.URL
 	if p.Params != nil {
 		reqURL, err = mergeQuery(reqURL, p.Params)
@@ -184,25 +185,35 @@ func (p *Request) prepareRequest(method string) (err error) {
 			return err
 		}
 	}
+
 	if method == "" {
 		method = p.Method
-	}
-	if method == "" || method == "GET" {
-		p.Req, err = http.NewRequest(method, reqURL, nil)
-		return err
+		if method == "" {
+			method = http.MethodGet
+		}
 	}
 
-	body, contentType, err := p.buildBody()
-	if err != nil {
-		return err
+	if mayHaveBody(method) {
+		var body io.Reader
+		var contentType string
+		body, contentType, err = p.buildBody()
+		if err != nil {
+			return err
+		}
+		p.Req, err = http.NewRequest(method, reqURL, body)
+		if err != nil {
+			return err
+		}
+		if contentType != "" {
+			p.Req.Header.Set(hdrContentTypeKey, contentType)
+		}
+	} else {
+		p.Req, err = http.NewRequest(method, reqURL, nil)
+		if err != nil {
+			return err
+		}
 	}
-	p.Req, err = http.NewRequest(method, p.URL, body)
-	if err != nil {
-		return err
-	}
-	if contentType != "" {
-		p.Req.Header.Set(hdrContentTypeKey, contentType)
-	}
+
 	p.setHeaders()
 	return nil
 }
@@ -302,8 +313,11 @@ func (p *Request) buildBody() (body io.Reader, contentType string, err error) {
 			contentType = http.DetectContentType(bodyBuf)
 		}
 	} // else no body data
+	if err != nil {
+		return nil, "", err
+	}
 
-	return
+	return body, contentType, nil
 }
 
 func marshalForm(v any) ([]byte, error) {
