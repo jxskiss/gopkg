@@ -135,6 +135,26 @@ type Request struct {
 	// RaiseForStatus tells Do to report an error if the response
 	// status code >= 400. The error will be formatted as "unexpected status: <STATUS>".
 	RaiseForStatus bool
+
+	internalData struct {
+		BasicAuth struct {
+			Username, Password string
+		}
+	}
+}
+
+// SetBasicAuth sets the request's Authorization header to use HTTP
+// Basic Authentication with the provided username and password.
+//
+// With HTTP Basic Authentication the provided username and password
+// are not encrypted. It should generally only be used in an HTTPS
+// request.
+//
+// See http.Request.SetBasicAuth for details.
+func (p *Request) SetBasicAuth(username, password string) *Request {
+	p.internalData.BasicAuth.Username = username
+	p.internalData.BasicAuth.Password = password
+	return p
 }
 
 func (p *Request) buildClient() *http.Client {
@@ -344,6 +364,9 @@ func makeHTTPBody(data any, marshal marshalFunc) (io.Reader, error) {
 func (p *Request) setHeaders() {
 	for k, v := range p.Headers {
 		p.Req.Header.Set(k, v)
+	}
+	if p.internalData.BasicAuth.Username != "" || p.internalData.BasicAuth.Password != "" {
+		p.Req.SetBasicAuth(p.internalData.BasicAuth.Username, p.internalData.BasicAuth.Password)
 	}
 }
 
