@@ -103,7 +103,7 @@ func TestFilter(t *testing.T) {
 
 func TestFilterInMap(t *testing.T) {
 	s := []int{1, 2, 3, 4, 5}
-	m := map[int]string{1:"", 3:"", 5:""}
+	m := map[int]string{1: "", 3: "", 5: ""}
 
 	got1 := FilterInMap(s, m, false)
 	assert.Equal(t, []int{1, 3, 5}, got1)
@@ -116,7 +116,7 @@ func TestFilterInMap(t *testing.T) {
 
 func TestFilterNotInMap(t *testing.T) {
 	s := []int{1, 2, 3, 4, 5}
-	m := map[int]string{1:"", 3:"", 5:""}
+	m := map[int]string{1: "", 3: "", 5: ""}
 
 	got1 := FilterNotInMap(s, m, false)
 	assert.Equal(t, []int{2, 4}, got1)

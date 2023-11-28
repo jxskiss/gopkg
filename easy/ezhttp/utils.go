@@ -3,6 +3,7 @@ package ezhttp
 import (
 	"encoding/xml"
 	"io"
+	"net/http"
 	"regexp"
 
 	"github.com/jxskiss/gopkg/v2/perf/json"
@@ -39,4 +40,18 @@ func DecodeXML(r io.Reader, v any) error {
 // IsXMLType method is to check XML content type or not.
 func IsXMLType(contentType string) bool {
 	return xmlCheck.MatchString(contentType)
+}
+
+// https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods
+func mayHaveBody(method string) bool {
+	switch method {
+	case http.MethodConnect,
+		http.MethodGet,
+		http.MethodHead,
+		http.MethodOptions,
+		http.MethodTrace:
+		return false
+	}
+	// DELETE, PATCH, POST, PUT
+	return true
 }

@@ -17,8 +17,8 @@ import (
 	"github.com/jxskiss/gopkg/v2/zlog"
 )
 
-var (
-	hdrContentTypeKey = http.CanonicalHeaderKey("Content-Type")
+const (
+	hdrContentTypeKey = "Content-Type"
 	contentTypeJSON   = "application/json"
 	contentTypeXML    = "application/xml"
 	contentTypeForm   = "application/x-www-form-urlencoded"
@@ -135,6 +135,26 @@ type Request struct {
 	// RaiseForStatus tells Do to report an error if the response
 	// status code >= 400. The error will be formatted as "unexpected status: <STATUS>".
 	RaiseForStatus bool
+
+	internalData struct {
+		BasicAuth struct {
+			Username, Password string
+		}
+	}
+}
+
+// SetBasicAuth sets the request's Authorization header to use HTTP
+// Basic Authentication with the provided username and password.
+//
+// With HTTP Basic Authentication the provided username and password
+// are not encrypted. It should generally only be used in an HTTPS
+// request.
+//
+// See http.Request.SetBasicAuth for details.
+func (p *Request) SetBasicAuth(username, password string) *Request {
+	p.internalData.BasicAuth.Username = username
+	p.internalData.BasicAuth.Password = password
+	return p
 }
 
 func (p *Request) buildClient() *http.Client {
@@ -155,8 +175,9 @@ func (p *Request) buildClient() *http.Client {
 
 func (p *Request) prepareRequest(method string) (err error) {
 	if p.Req != nil {
-		return nil
+		return p.mergeRequest()
 	}
+
 	reqURL := p.URL
 	if p.Params != nil {
 		reqURL, err = mergeQuery(reqURL, p.Params)
@@ -164,58 +185,52 @@ func (p *Request) prepareRequest(method string) (err error) {
 			return err
 		}
 	}
+
 	if method == "" {
 		method = p.Method
-	}
-	if method == "" || method == "GET" {
-		p.Req, err = http.NewRequest(method, reqURL, nil)
-		return err
+		if method == "" {
+			method = http.MethodGet
+		}
 	}
 
-	var body io.Reader
-	var contentType string
-
-	if p.JSON != nil { // JSON
-		body, err = p.makeBody(p.JSON, json.Marshal)
-		contentType = contentTypeJSON
-	} else if p.XML != nil { // XML
-		body, err = p.makeBody(p.XML, xml.Marshal)
-		contentType = contentTypeXML
-	} else if p.Form != nil { // urlencoded form
-		body, err = p.makeBody(p.Form, marshalForm)
-		contentType = contentTypeForm
-	} else if p.Body != nil { // detect content-type from the body data
-		var bodyBuf []byte
-		switch data := p.Body.(type) {
-		case io.Reader:
-			bodyBuf, err = io.ReadAll(data)
-			if err != nil {
-				return err
-			}
-		case []byte:
-			bodyBuf = data
-		case string:
-			bodyBuf = unsafeheader.StringToBytes(data)
-		default:
-			err = fmt.Errorf("unsupported body data type: %T", data)
+	if mayHaveBody(method) {
+		var body io.Reader
+		var contentType string
+		body, contentType, err = p.buildBody()
+		if err != nil {
 			return err
 		}
-		body = bytes.NewReader(bodyBuf)
-		if p.Headers[hdrContentTypeKey] == "" {
-			contentType = http.DetectContentType(bodyBuf)
+		p.Req, err = http.NewRequest(method, reqURL, body)
+		if err != nil {
+			return err
 		}
-	} // else no body data
+		if contentType != "" {
+			p.Req.Header.Set(hdrContentTypeKey, contentType)
+		}
+	} else {
+		p.Req, err = http.NewRequest(method, reqURL, nil)
+		if err != nil {
+			return err
+		}
+	}
 
-	if err != nil {
-		return err
+	p.setHeaders()
+	return nil
+}
+
+func (p *Request) mergeRequest() (err error) {
+	httpReq := p.Req
+	if p.Params != nil {
+		addQuery := castQueryParams(p.Params).Encode()
+		if addQuery != "" {
+			if httpReq.URL.RawQuery != "" && !strings.HasSuffix(httpReq.URL.RawQuery, "&") {
+				httpReq.URL.RawQuery += "&" + addQuery
+			} else {
+				httpReq.URL.RawQuery += addQuery
+			}
+		}
 	}
-	p.Req, err = http.NewRequest(method, p.URL, body)
-	if err != nil {
-		return err
-	}
-	if contentType != "" {
-		p.Req.Header.Set(hdrContentTypeKey, contentType)
-	}
+	p.setHeaders()
 	return nil
 }
 
@@ -228,42 +243,81 @@ func mergeQuery(reqURL string, params any) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	switch params := params.(type) {
-	case map[string]string:
-		for k, v := range params {
+	addQuery := castQueryParams(params)
+	for k, values := range addQuery {
+		for _, v := range values {
 			query.Add(k, v)
 		}
-	case map[string][]string:
-		for k, values := range params {
-			for _, v := range values {
-				query.Add(k, v)
-			}
-		}
-	case map[string]any:
-		for k, v := range params {
-			switch value := v.(type) {
-			case string:
-				query.Add(k, value)
-			case []string:
-				for _, v := range value {
-					query.Add(k, v)
-				}
-			default:
-				query.Add(k, fmt.Sprint(v))
-			}
-		}
-	case url.Values:
-		for k, values := range params {
-			for _, v := range values {
-				query.Add(k, v)
-			}
-		}
-	default:
-		err = fmt.Errorf("unsupported params type: %T", params)
-		return "", err
 	}
 	parsed.RawQuery = query.Encode()
 	return parsed.String(), nil
+}
+
+func castQueryParams(params any) url.Values {
+	switch x := params.(type) {
+	case url.Values:
+		return x
+	case map[string][]string:
+		return x
+	case map[string]string:
+		var values = make(url.Values, len(x))
+		for k, v := range x {
+			values.Set(k, v)
+		}
+		return values
+	case map[string]any:
+		var values = make(url.Values, len(x))
+		for k, v := range x {
+			switch val := v.(type) {
+			case string:
+				values.Add(k, val)
+			case []string:
+				values[k] = val
+			default:
+				values.Add(k, fmt.Sprint(v))
+			}
+		}
+		return values
+	}
+	return nil
+}
+
+func (p *Request) buildBody() (body io.Reader, contentType string, err error) {
+	if p.JSON != nil { // JSON
+		body, err = makeHTTPBody(p.JSON, json.Marshal)
+		contentType = contentTypeJSON
+	} else if p.XML != nil { // XML
+		body, err = makeHTTPBody(p.XML, xml.Marshal)
+		contentType = contentTypeXML
+	} else if p.Form != nil { // urlencoded form
+		body, err = makeHTTPBody(p.Form, marshalForm)
+		contentType = contentTypeForm
+	} else if p.Body != nil { // detect content-type from the body data
+		var bodyBuf []byte
+		switch data := p.Body.(type) {
+		case io.Reader:
+			bodyBuf, err = io.ReadAll(data)
+			if err != nil {
+				return nil, "", err
+			}
+		case []byte:
+			bodyBuf = data
+		case string:
+			bodyBuf = unsafeheader.StringToBytes(data)
+		default:
+			err = fmt.Errorf("unsupported body data type: %T", data)
+			return nil, "", err
+		}
+		body = bytes.NewReader(bodyBuf)
+		if p.Headers[hdrContentTypeKey] == "" {
+			contentType = http.DetectContentType(bodyBuf)
+		}
+	} // else no body data
+	if err != nil {
+		return nil, "", err
+	}
+
+	return body, contentType, nil
 }
 
 func marshalForm(v any) ([]byte, error) {
@@ -302,7 +356,7 @@ func marshalForm(v any) ([]byte, error) {
 
 type marshalFunc func(any) ([]byte, error)
 
-func (p *Request) makeBody(data any, marshal marshalFunc) (io.Reader, error) {
+func makeHTTPBody(data any, marshal marshalFunc) (io.Reader, error) {
 	var body io.Reader
 	switch x := data.(type) {
 	case io.Reader:
@@ -321,12 +375,12 @@ func (p *Request) makeBody(data any, marshal marshalFunc) (io.Reader, error) {
 	return body, nil
 }
 
-func (p *Request) prepareHeaders() {
-	if p.Req == nil {
-		return
-	}
+func (p *Request) setHeaders() {
 	for k, v := range p.Headers {
 		p.Req.Header.Set(k, v)
+	}
+	if p.internalData.BasicAuth.Username != "" || p.internalData.BasicAuth.Password != "" {
+		p.Req.SetBasicAuth(p.internalData.BasicAuth.Username, p.internalData.BasicAuth.Password)
 	}
 }
 
@@ -339,10 +393,10 @@ func (p *Request) prepareHeaders() {
 // For more powerful controls of a http request and handy utilities,
 // you may take a look at the awesome library `https://github.com/go-resty/resty/`.
 func Do(req *Request) (header http.Header, respContent []byte, status int, err error) {
-	if err = req.prepareRequest(""); err != nil {
+	err = req.prepareRequest("")
+	if err != nil {
 		return header, respContent, status, err
 	}
-	req.prepareHeaders()
 
 	dumpFunc := req.DumpFunc
 	if dumpFunc == nil {
