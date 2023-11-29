@@ -3,6 +3,7 @@ package singleflight
 import (
 	"errors"
 	"runtime"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -167,12 +168,12 @@ func TestDeleteFunc(t *testing.T) {
 
 func TestClose(t *testing.T) {
 	var sleep = 100 * time.Millisecond
-	var count int
+	var count int64
 	opt := CacheOptions{
 		RefreshInterval: sleep - 10*time.Millisecond,
 		FetchFunc: func(key string) (any, error) {
-			count++
-			return count, nil
+			x := atomic.AddInt64(&count, 1)
+			return int(x), nil
 		},
 	}
 	c := NewCache(opt)
@@ -218,17 +219,17 @@ func TestExpire(t *testing.T) {
 	assert.True(t, trigger)
 
 	// first expire will mark entries as inactive
-	c.doExpire()
+	c.doExpire(time.Time{}, true)
 
 	trigger = false
 	c.Get("alive")
 	assert.False(t, trigger)
 
 	// second expire, both default & expire will be removed
-	c.doExpire()
+	c.doExpire(time.Time{}, true)
 
 	// make sure refresh does not affect expire
-	c.doRefresh()
+	c.doRefresh(time.Time{}, true)
 
 	trigger = false
 	c.Get("alive")

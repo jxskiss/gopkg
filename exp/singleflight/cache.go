@@ -7,7 +7,18 @@ import (
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"github.com/jxskiss/gopkg/v2/perf/mselect"
 )
+
+var (
+	mselOnce sync.Once
+	msel     mselect.ManySelect
+)
+
+func initManySelect() {
+	mselOnce.Do(func() { msel = mselect.New() })
+}
 
 // ErrFetchTimeout indicates a timeout error when refresh a cached value
 // if CacheOptions.FetchTimeout is specified.
@@ -92,22 +103,38 @@ type Cache struct {
 	group Group
 	data  sync.Map
 
-	exit chan struct{}
+	refreshTicker *time.Ticker
+	refreshTask   *mselect.Task
+
+	expireTicker *time.Ticker
+	expireTask   *mselect.Task
+
+	closed int32
 }
 
 // NewCache returns a new Cache instance using the given options.
 func NewCache(opt CacheOptions) *Cache {
 	opt.validate()
 	c := &Cache{
-		opt:  opt,
-		exit: make(chan struct{}),
+		opt: opt,
 	}
 	if opt.RefreshInterval > 0 {
-		go c.refresh()
+		initManySelect()
+		ticker := time.NewTicker(opt.RefreshInterval)
+		task := mselect.NewTask(ticker.C, nil, c.doRefresh)
+		msel.Add(task)
+		c.refreshTicker = ticker
+		c.refreshTask = task
 	}
 	if opt.ExpireInterval > 0 {
-		go c.expire()
+		initManySelect()
+		ticker := time.NewTicker(opt.ExpireInterval)
+		task := mselect.NewTask(ticker.C, nil, c.doExpire)
+		msel.Add(task)
+		c.expireTicker = ticker
+		c.expireTask = task
 	}
+
 	return c
 }
 
@@ -117,7 +144,21 @@ func NewCache(opt CacheOptions) *Cache {
 // It should be called when the Cache is no longer needed,
 // or may lead resource leaks.
 func (c *Cache) Close() {
-	close(c.exit)
+	if !atomic.CompareAndSwapInt32(&c.closed, 0, 1) {
+		return
+	}
+	if c.refreshTicker != nil {
+		c.refreshTicker.Stop()
+		msel.Delete(c.refreshTask)
+		c.refreshTicker = nil
+		c.refreshTask = nil
+	}
+	if c.expireTicker != nil {
+		c.expireTicker.Stop()
+		msel.Delete(c.expireTask)
+		c.expireTicker = nil
+		c.expireTask = nil
+	}
 }
 
 // SetDefault sets the default value of a given key if it is new to the cache.
@@ -251,21 +292,11 @@ func (c *Cache) DeleteFunc(match func(key string) bool) {
 	})
 }
 
-func (c *Cache) refresh() {
-	ticker := time.NewTicker(c.opt.RefreshInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			c.doRefresh()
-		case <-c.exit:
-			return
-		}
+func (c *Cache) doRefresh(_ time.Time, _ bool) {
+	if atomic.LoadInt32(&c.closed) > 0 {
+		return
 	}
-}
 
-func (c *Cache) doRefresh() {
 	hasErrorCallback := c.opt.ErrorCallback != nil
 	hasChangeCallback := c.opt.ErrorCallback != nil
 	c.data.Range(func(key, val any) bool {
@@ -294,21 +325,11 @@ func (c *Cache) doRefresh() {
 	})
 }
 
-func (c *Cache) expire() {
-	ticker := time.NewTicker(c.opt.ExpireInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			c.doExpire()
-		case <-c.exit:
-			return
-		}
+func (c *Cache) doExpire(_ time.Time, _ bool) {
+	if atomic.LoadInt32(&c.closed) > 0 {
+		return
 	}
-}
 
-func (c *Cache) doExpire() {
 	hasDeleteCallback := c.opt.DeleteCallback != nil
 	c.data.Range(func(key, val any) bool {
 		keystr := key.(string)
