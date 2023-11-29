@@ -13,7 +13,7 @@ func TestGet(t *testing.T) {
 	var key, val = "key", "val"
 	opt := CacheOptions{
 		RefreshInterval: 50 * time.Millisecond,
-		Fetch: func(key string) (any, error) {
+		FetchFunc: func(key string) (any, error) {
 			return val, nil
 		},
 	}
@@ -40,7 +40,7 @@ func TestGetError(t *testing.T) {
 	var first = true
 	opt := CacheOptions{
 		RefreshInterval: 50 * time.Millisecond,
-		Fetch: func(key string) (any, error) {
+		FetchFunc: func(key string) (any, error) {
 			if first {
 				first = false
 				return nil, errors.New("error")
@@ -68,7 +68,7 @@ func TestGetOrDefault(t *testing.T) {
 	var key, val, defaultVal = "key", "val", "default"
 	opt := CacheOptions{
 		RefreshInterval: 50 * time.Millisecond,
-		Fetch: func(key string) (any, error) {
+		FetchFunc: func(key string) (any, error) {
 			return val, nil
 		},
 	}
@@ -92,7 +92,7 @@ func TestGetOrDefaultError(t *testing.T) {
 	var first = true
 	opt := CacheOptions{
 		RefreshInterval: 50 * time.Millisecond,
-		Fetch: func(key string) (any, error) {
+		FetchFunc: func(key string) (any, error) {
 			if first {
 				first = false
 				return nil, errors.New("error")
@@ -122,7 +122,7 @@ func TestGetOrDefaultError(t *testing.T) {
 func TestSetDefault(t *testing.T) {
 	opt := CacheOptions{
 		RefreshInterval: 50 * time.Millisecond,
-		Fetch: func(key string) (any, error) {
+		FetchFunc: func(key string) (any, error) {
 			return nil, errors.New("error")
 		},
 	}
@@ -149,7 +149,7 @@ func TestSetDefault(t *testing.T) {
 func TestDeleteFunc(t *testing.T) {
 	opt := CacheOptions{
 		RefreshInterval: 50 * time.Millisecond,
-		Fetch: func(key string) (any, error) {
+		FetchFunc: func(key string) (any, error) {
 			return nil, errors.New("error")
 		},
 	}
@@ -170,7 +170,7 @@ func TestClose(t *testing.T) {
 	var count int
 	opt := CacheOptions{
 		RefreshInterval: sleep - 10*time.Millisecond,
-		Fetch: func(key string) (any, error) {
+		FetchFunc: func(key string) (any, error) {
 			count++
 			return count, nil
 		},
@@ -201,7 +201,7 @@ func TestExpire(t *testing.T) {
 	opt := CacheOptions{
 		ExpireInterval:  3 * time.Minute,
 		RefreshInterval: time.Minute,
-		Fetch: func(key string) (any, error) {
+		FetchFunc: func(key string) (any, error) {
 			trigger = true
 			return "", nil
 		},
