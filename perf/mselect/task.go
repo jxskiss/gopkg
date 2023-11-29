@@ -26,16 +26,27 @@ func NewTask[T any](
 		newFunc: func() unsafe.Pointer {
 			return unsafe.Pointer(new(T))
 		},
+		bIdx: -1,
+		tIdx: -1,
 	}
 	return task
 }
 
 // Task is a channel receiving task which can be submitted to ManySelect.
 // A zero Task is not ready to use, use NewTask to create a Task.
+//
+// Task holds internal state data and shall not be reused,
+// user should always use NewTask to create new task objects.
 type Task struct {
 	ch       reflect.Value
 	execFunc func(v unsafe.Pointer, ok bool)
 	newFunc  func() unsafe.Pointer
+
+	bIdx int // bucket index
+	tIdx int // task index
+
+	added   int32
+	deleted int32
 }
 
 func (t *Task) newRuntimeSelect() linkname.RuntimeSelect {

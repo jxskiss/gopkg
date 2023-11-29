@@ -15,10 +15,17 @@ import (
 // they do some simple things when a value is received from a channel,
 // you may use this to avoid running a lot of goroutines.
 type ManySelect interface {
+
 	// Add submits a Task to the task executor.
 	// After a Task's channel being closed, the task will be automatically removed.
 	// Calling this is a no-op after Stop is called.
+	// A task can be added only once, else it panics.
 	Add(task *Task)
+
+	// Delete deletes a Task from the task executor.
+	// To delete a task, the task must be already added,
+	// and a task can be deleted only once, else it panics.
+	Delete(task *Task)
 
 	// Count returns the count of running select tasks.
 	Count() int
@@ -54,6 +61,9 @@ func (p *manySelect) Add(task *Task) {
 	if atomic.LoadInt32(&p.stopped) > 0 {
 		return
 	}
+	if !atomic.CompareAndSwapInt32(&task.added, 0, 1) {
+		panic("mselect: adding task more than once")
+	}
 
 	p.mu.Lock()
 	if atomic.AddInt32(&p.count, 1) < p.cap() {
@@ -64,6 +74,18 @@ func (p *manySelect) Add(task *Task) {
 
 	nb := newTaskBucket(p, task)
 	p.buckets = append(p.buckets, nb)
+	p.mu.Unlock()
+}
+
+func (p *manySelect) Delete(task *Task) {
+	if atomic.LoadInt32(&task.added) == 0 {
+		panic("mselect: the task is not added")
+	}
+	if !atomic.CompareAndSwapInt32(&task.deleted, 0, 1) {
+		panic("mselect: deleting task more than once")
+	}
+	p.mu.Lock()
+	p.buckets[task.bIdx].signalDelete(task)
 	p.mu.Unlock()
 }
 
