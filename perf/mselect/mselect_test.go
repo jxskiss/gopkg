@@ -10,7 +10,7 @@ import (
 )
 
 func TestManySelect_NormalCase(t *testing.T) {
-	msel := New().(*manySelect)
+	msel := New()
 
 	type testData struct {
 		a [200]byte
@@ -37,44 +37,44 @@ func TestManySelect_NormalCase(t *testing.T) {
 	ch6 := make(chan fmt.Stringer)
 	ch7 := make(chan *struct{})
 
-	msel.Submit(NewTask(ch1,
+	msel.Add(NewTask(ch1,
 		func(v string, ok bool) {
 			mu.Lock()
 			defer mu.Unlock()
 			result.got1 = v
 		}, nil))
-	msel.Submit(NewTask(ch2,
+	msel.Add(NewTask(ch2,
 		func(v int64, ok bool) {
 			assert.True(t, ok)
 			mu.Lock()
 			defer mu.Unlock()
 			result.got2 = v
 		}, nil))
-	msel.Submit(NewTask(ch3, nil, func(v testData, ok bool) {
+	msel.Add(NewTask(ch3, nil, func(v testData, ok bool) {
 		assert.True(t, ok)
 		mu.Lock()
 		defer mu.Unlock()
 		result.got3 = v
 	}))
-	msel.Submit(NewTask(ch4, nil, func(v *testData, ok bool) {
+	msel.Add(NewTask(ch4, nil, func(v *testData, ok bool) {
 		assert.True(t, ok)
 		mu.Lock()
 		defer mu.Unlock()
 		result.got4 = v
 	}))
-	msel.Submit(NewTask(ch5, nil, func(v any, ok bool) {
+	msel.Add(NewTask(ch5, nil, func(v any, ok bool) {
 		assert.True(t, ok)
 		mu.Lock()
 		defer mu.Unlock()
 		result.got5 = v
 	}))
-	msel.Submit(NewTask(ch6, func(v fmt.Stringer, ok bool) {
+	msel.Add(NewTask(ch6, func(v fmt.Stringer, ok bool) {
 		assert.True(t, ok)
 		mu.Lock()
 		defer mu.Unlock()
 		result.got6 = v
 	}, nil))
-	msel.Submit(NewTask(ch7, nil, func(v *struct{}, ok bool) {
+	msel.Add(NewTask(ch7, nil, func(v *struct{}, ok bool) {
 		assert.False(t, ok)
 		mu.Lock()
 		defer mu.Unlock()
@@ -84,8 +84,6 @@ func TestManySelect_NormalCase(t *testing.T) {
 	assert.Equal(t, 7, msel.Count())
 
 	time.Sleep(100 * time.Millisecond)
-	// assert.Len(t, msel.buckets[0].cases, 8)
-	// assert.Len(t, msel.buckets[0].tasks, 8)
 
 	ch1 <- "ch1 value"
 	ch2 <- int64(23456)
@@ -127,8 +125,6 @@ func TestManySelect_NormalCase(t *testing.T) {
 	assert.True(t, copyResult.got7.(*struct{}) == nil)
 
 	assert.Equal(t, 6, msel.Count())
-	// assert.Len(t, msel.buckets[0].cases, 7)
-	// assert.Len(t, msel.buckets[0].tasks, 7)
 }
 
 type stringFunc func() string
@@ -163,11 +159,11 @@ func TestManySelect_ManyChannels(t *testing.T) {
 
 	msel := New()
 	for i := 0; i < N; i++ {
-		msel.Submit(makeTask(i))
+		msel.Add(makeTask(i))
 	}
 	assert.Equal(t, N, msel.Count())
 
-	time.Sleep(time.Second)
+	time.Sleep(100 * time.Millisecond)
 
 	mu.Lock()
 	copyResult := make([][]int, N)
@@ -179,4 +175,41 @@ func TestManySelect_ManyChannels(t *testing.T) {
 		assert.Equal(t, i, copyResult[i][0])
 		assert.Equal(t, i+1, copyResult[i][1])
 	}
+}
+
+func TestManySelect_Stop(t *testing.T) {
+	N := 5000
+
+	mu := sync.Mutex{}
+	result := make([][]int, N)
+
+	makeTask := func(i int) *Task {
+		ch := make(chan int)
+		task := NewTask(ch, func(v int, ok bool) {
+			mu.Lock()
+			defer mu.Unlock()
+			result[i] = append(result[i], v)
+		}, nil)
+
+		go func() {
+			time.Sleep(10 * time.Millisecond)
+			ch <- i
+			time.Sleep(10 * time.Millisecond)
+			ch <- i + 1
+		}()
+
+		return task
+	}
+
+	msel := New()
+	for i := 0; i < N; i++ {
+		msel.Add(makeTask(i))
+	}
+	assert.Equal(t, N, msel.Count())
+
+	time.Sleep(11 * time.Millisecond)
+	msel.Stop()
+
+	time.Sleep(100 * time.Millisecond)
+	assert.Equal(t, 0, msel.Count())
 }

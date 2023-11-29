@@ -1,10 +1,8 @@
 package mselect
 
 import (
-	"reflect"
 	"sync"
 	"sync/atomic"
-	"unsafe"
 )
 
 // ManySelect is a channel receiving task executor,
@@ -17,14 +15,12 @@ import (
 // they do some simple things when a value is received from a channel,
 // you may use this to avoid running a lot of goroutines.
 type ManySelect interface {
-	// Submit submits a Task to the task executor.
-	// After a Task's channel being closed, the task will be
-	// automatically removed.
+	// Add submits a Task to the task executor.
+	// After a Task's channel being closed, the task will be automatically removed.
 	// Calling this is a no-op after Stop is called.
-	Submit(task *Task)
+	Add(task *Task)
 
 	// Count returns the count of running select tasks.
-	// It always returns 0 after Stop is called.
 	Count() int
 
 	// Stop stops the task executor.
@@ -34,8 +30,10 @@ type ManySelect interface {
 // New creates a new ManySelect.
 func New() ManySelect {
 	msel := &manySelect{
-		tasks: make(chan any, 1),
+		tasks: make(chan *Task, 1),
+		stop:  make(chan struct{}),
 	}
+	msel.sigTask = NewTask(msel.tasks, nil, nil)
 	return msel
 }
 
@@ -43,13 +41,16 @@ type manySelect struct {
 	mu      sync.Mutex
 	buckets []*taskBucket
 
-	tasks chan any // *Task
+	tasks   chan *Task
+	sigTask *Task
 
-	count   int32
+	stop    chan struct{}
 	stopped int32
+
+	count int32
 }
 
-func (p *manySelect) Submit(task *Task) {
+func (p *manySelect) Add(task *Task) {
 	if atomic.LoadInt32(&p.stopped) > 0 {
 		return
 	}
@@ -67,9 +68,6 @@ func (p *manySelect) Submit(task *Task) {
 }
 
 func (p *manySelect) Count() int {
-	if atomic.LoadInt32(&p.stopped) > 0 {
-		return 0
-	}
 	ret := int(atomic.LoadInt32(&p.count))
 	if ret < 0 {
 		ret = 0
@@ -79,28 +77,17 @@ func (p *manySelect) Count() int {
 
 func (p *manySelect) Stop() {
 	atomic.StoreInt32(&p.stopped, 1)
-	close(p.tasks)
+	close(p.stop)
+
+	// Note that we don't close p.tasks here since we may have
+	// concurrent senders running p.Add.
 }
 
 func (p *manySelect) cap() int32 {
 	bNum := len(p.buckets)
-	return int32(bNum*bucketSize - bNum)
+	return int32(bNum * bucketCap)
 }
 
-func (p *manySelect) decrCount() {
-	atomic.AddInt32(&p.count, -1)
-}
-
-//go:noescape
-//go:linkname reflect_rselect reflect.rselect
-//nolint:all
-func reflect_rselect([]runtimeSelect) (chosen int, recvOK bool)
-
-// A runtimeSelect is a single case passed to reflect_rselect.
-// This must match reflect.runtimeSelect.
-type runtimeSelect struct {
-	Dir reflect.SelectDir // SelectSend, SelectRecv or SelectDefault
-	Typ unsafe.Pointer    // *rtype, channel type
-	Ch  unsafe.Pointer    // channel
-	Val unsafe.Pointer    // ptr to data (SendDir) or ptr to receive buffer (RecvDir)
+func (p *manySelect) decrCount(n int) {
+	atomic.AddInt32(&p.count, -int32(n))
 }

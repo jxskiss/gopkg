@@ -4,10 +4,17 @@ import (
 	"reflect"
 	"unsafe"
 
+	"github.com/jxskiss/gopkg/v2/internal/linkname"
 	"github.com/jxskiss/gopkg/v2/unsafe/reflectx"
 )
 
 // NewTask creates a new Task which can be submitted to ManySelect.
+//
+// If syncCallback or asyncCallback is not nil, or both not nil,
+// when a value is received from ch, syncCallback is called synchronously,
+// asyncCallback will be run asynchronously in a new goroutine.
+// When ch is closed, non-nil syncCallback and asyncCallback will be called
+// with a zero value of T and ok is false.
 func NewTask[T any](
 	ch <-chan T,
 	syncCallback func(v T, ok bool),
@@ -19,9 +26,6 @@ func NewTask[T any](
 		newFunc: func() unsafe.Pointer {
 			return unsafe.Pointer(new(T))
 		},
-		convFunc: func(p unsafe.Pointer) any {
-			return *(*T)(p)
-		},
 	}
 	return task
 }
@@ -32,12 +36,11 @@ type Task struct {
 	ch       reflect.Value
 	execFunc func(v unsafe.Pointer, ok bool)
 	newFunc  func() unsafe.Pointer
-	convFunc func(p unsafe.Pointer) any
 }
 
-func (t *Task) newRuntimeSelect() runtimeSelect {
+func (t *Task) newRuntimeSelect() linkname.RuntimeSelect {
 	rtype := reflectx.ToRType(t.ch.Type())
-	rsel := runtimeSelect{
+	rsel := linkname.RuntimeSelect{
 		Dir: reflect.SelectRecv,
 		Typ: unsafe.Pointer(rtype),
 		Ch:  t.ch.UnsafePointer(),
@@ -46,7 +49,7 @@ func (t *Task) newRuntimeSelect() runtimeSelect {
 	return rsel
 }
 
-func (t *Task) getAndResetRecvValue(rsel *runtimeSelect) unsafe.Pointer {
+func (t *Task) getAndResetRecvValue(rsel *linkname.RuntimeSelect) unsafe.Pointer {
 	recv := rsel.Val
 	rsel.Val = t.newFunc()
 	return recv
