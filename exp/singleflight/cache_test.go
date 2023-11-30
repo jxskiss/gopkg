@@ -219,17 +219,17 @@ func TestExpire(t *testing.T) {
 	assert.True(t, trigger)
 
 	// first expire will mark entries as inactive
-	c.doExpire(time.Time{}, true)
+	c.doExpire()
 
 	trigger = false
 	c.Get("alive")
 	assert.False(t, trigger)
 
 	// second expire, both default & expire will be removed
-	c.doExpire(time.Time{}, true)
+	c.doExpire()
 
 	// make sure refresh does not affect expire
-	c.doRefresh(time.Time{}, true)
+	c.doRefresh()
 
 	trigger = false
 	c.Get("alive")

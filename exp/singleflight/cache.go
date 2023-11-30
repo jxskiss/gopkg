@@ -7,18 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 	"unsafe"
-
-	"github.com/jxskiss/gopkg/v2/perf/mselect"
 )
-
-var (
-	mselOnce sync.Once
-	msel     mselect.ManySelect
-)
-
-func initManySelect() {
-	mselOnce.Do(func() { msel = mselect.New() })
-}
 
 // ErrFetchTimeout indicates a timeout error when refresh a cached value
 // if CacheOptions.FetchTimeout is specified.
@@ -103,11 +92,8 @@ type Cache struct {
 	group Group
 	data  sync.Map
 
-	refreshTicker *time.Ticker
-	refreshTask   *mselect.Task
-
-	expireTicker *time.Ticker
-	expireTask   *mselect.Task
+	refreshTicker callbackTicker
+	expireTicker  callbackTicker
 
 	closed int32
 }
@@ -119,20 +105,10 @@ func NewCache(opt CacheOptions) *Cache {
 		opt: opt,
 	}
 	if opt.RefreshInterval > 0 {
-		initManySelect()
-		ticker := time.NewTicker(opt.RefreshInterval)
-		task := mselect.NewTask(ticker.C, nil, c.doRefresh)
-		msel.Add(task)
-		c.refreshTicker = ticker
-		c.refreshTask = task
+		c.refreshTicker = newCallbackTicker(opt.RefreshInterval, c.doRefresh)
 	}
 	if opt.ExpireInterval > 0 {
-		initManySelect()
-		ticker := time.NewTicker(opt.ExpireInterval)
-		task := mselect.NewTask(ticker.C, nil, c.doExpire)
-		msel.Add(task)
-		c.expireTicker = ticker
-		c.expireTask = task
+		c.expireTicker = newCallbackTicker(opt.ExpireInterval, c.doExpire)
 	}
 
 	return c
@@ -149,15 +125,11 @@ func (c *Cache) Close() {
 	}
 	if c.refreshTicker != nil {
 		c.refreshTicker.Stop()
-		msel.Delete(c.refreshTask)
 		c.refreshTicker = nil
-		c.refreshTask = nil
 	}
 	if c.expireTicker != nil {
 		c.expireTicker.Stop()
-		msel.Delete(c.expireTask)
 		c.expireTicker = nil
-		c.expireTask = nil
 	}
 }
 
@@ -292,7 +264,7 @@ func (c *Cache) DeleteFunc(match func(key string) bool) {
 	})
 }
 
-func (c *Cache) doRefresh(_ time.Time, _ bool) {
+func (c *Cache) doRefresh() {
 	if atomic.LoadInt32(&c.closed) > 0 {
 		return
 	}
@@ -325,7 +297,7 @@ func (c *Cache) doRefresh(_ time.Time, _ bool) {
 	})
 }
 
-func (c *Cache) doExpire(_ time.Time, _ bool) {
+func (c *Cache) doExpire() {
 	if atomic.LoadInt32(&c.closed) > 0 {
 		return
 	}
