@@ -61,9 +61,6 @@ func (p *manySelect) Add(task *Task) {
 	if atomic.LoadInt32(&p.stopped) > 0 {
 		return
 	}
-	if !atomic.CompareAndSwapInt32(&task.added, 0, 1) {
-		panic("mselect: adding task more than once")
-	}
 
 	p.mu.Lock()
 	if atomic.AddInt32(&p.count, 1) < p.cap() {
@@ -78,15 +75,7 @@ func (p *manySelect) Add(task *Task) {
 }
 
 func (p *manySelect) Delete(task *Task) {
-	if atomic.LoadInt32(&task.added) == 0 {
-		panic("mselect: the task is not added")
-	}
-	if !atomic.CompareAndSwapInt32(&task.deleted, 0, 1) {
-		panic("mselect: deleting task more than once")
-	}
-	p.mu.Lock()
-	p.buckets[task.bIdx].signalDelete(task)
-	p.mu.Unlock()
+	task.signalDelete()
 }
 
 func (p *manySelect) Count() int {

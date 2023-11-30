@@ -2,6 +2,7 @@ package mselect
 
 import (
 	"reflect"
+	"sync"
 	"unsafe"
 
 	"github.com/jxskiss/gopkg/v2/internal/linkname"
@@ -26,10 +27,27 @@ func NewTask[T any](
 		newFunc: func() unsafe.Pointer {
 			return unsafe.Pointer(new(T))
 		},
-		bIdx: -1,
 		tIdx: -1,
 	}
 	return task
+}
+
+func buildTaskFunc[T any](
+	syncCallback func(v T, ok bool),
+	asyncCallback func(v T, ok bool),
+) func(v unsafe.Pointer, ok bool) {
+	if syncCallback == nil && asyncCallback == nil {
+		return nil
+	}
+	return func(v unsafe.Pointer, ok bool) {
+		tVal := *(*T)(v)
+		if syncCallback != nil {
+			syncCallback(tVal, ok)
+		}
+		if asyncCallback != nil {
+			go asyncCallback(tVal, ok)
+		}
+	}
 }
 
 // Task is a channel receiving task which can be submitted to ManySelect.
@@ -42,11 +60,11 @@ type Task struct {
 	execFunc func(v unsafe.Pointer, ok bool)
 	newFunc  func() unsafe.Pointer
 
-	bIdx int // bucket index
-	tIdx int // task index
-
-	added   int32
-	deleted int32
+	mu      sync.Mutex
+	bucket  *taskBucket
+	tIdx    int // task index in bucket
+	added   bool
+	deleted bool
 }
 
 func (t *Task) newRuntimeSelect() linkname.RuntimeSelect {
@@ -66,20 +84,18 @@ func (t *Task) getAndResetRecvValue(rsel *linkname.RuntimeSelect) unsafe.Pointer
 	return recv
 }
 
-func buildTaskFunc[T any](
-	syncCallback func(v T, ok bool),
-	asyncCallback func(v T, ok bool),
-) func(v unsafe.Pointer, ok bool) {
-	if syncCallback == nil && asyncCallback == nil {
-		return nil
+func (t *Task) signalDelete() {
+	t.mu.Lock()
+	if t.deleted {
+		t.mu.Unlock()
+		return
 	}
-	return func(v unsafe.Pointer, ok bool) {
-		tVal := *(*T)(v)
-		if syncCallback != nil {
-			syncCallback(tVal, ok)
-		}
-		if asyncCallback != nil {
-			go asyncCallback(tVal, ok)
-		}
+	t.deleted = true
+	bucket := t.bucket
+	t.mu.Unlock()
+
+	// No need to hold lock to send the signal.
+	if bucket != nil {
+		bucket.signalDelete(t)
 	}
 }
