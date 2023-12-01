@@ -1,4 +1,4 @@
-package singleflight
+package acache
 
 import (
 	"sync/atomic"

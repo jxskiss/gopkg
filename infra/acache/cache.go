@@ -1,4 +1,4 @@
-package singleflight
+package acache
 
 import (
 	"errors"
@@ -7,14 +7,30 @@ import (
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"golang.org/x/sync/singleflight"
 )
 
 // ErrFetchTimeout indicates a timeout error when refresh a cached value
-// if CacheOptions.FetchTimeout is specified.
+// if Options.FetchTimeout is specified.
 var ErrFetchTimeout = errors.New("fetch timeout")
 
-// CacheOptions configures the behavior of Cache.
-type CacheOptions struct {
+// Options configures the behavior of Cache.
+type Options struct {
+
+	// FetchFunc is a function which retrieves data from upstream system for
+	// the given key. The returned value or error will be cached till next
+	// refresh execution.
+	// FetchFunc must not be nil, else it panics.
+	//
+	// The provided function must return consistently typed values,
+	// else it panics when storing a value of different type into the
+	// underlying sync/atomic.Value.
+	//
+	// The returned value from this function should not be changed after
+	// retrieved from the Cache, else data race happens since there may be
+	// many goroutines access the same value concurrently.
+	FetchFunc func(key string) (any, error)
 
 	// FetchTimeout is used to timeout the fetch request if given,
 	// default is zero (no timeout).
@@ -47,20 +63,6 @@ type CacheOptions struct {
 	// prevents it being deleted from the cache.
 	ExpireInterval time.Duration
 
-	// FetchFunc is a function which retrieves data from upstream system for
-	// the given key. The returned value or error will be cached till next
-	// refresh execution.
-	// FetchFunc must not be nil, else it panics.
-	//
-	// The provided function must return consistently typed values,
-	// else it panics when storing a value of different type into the
-	// underlying sync/atomic.Value.
-	//
-	// The returned value from this function should not be changed after
-	// retrieved from the Cache, else data race happens since there may be
-	// many goroutines access the same value concurrently.
-	FetchFunc func(key string) (any, error)
-
 	// ErrorCallback is an optional callback which will be called when
 	// an error is returned by the FetchFunc during refresh.
 	ErrorCallback func(key string, err error)
@@ -74,9 +76,9 @@ type CacheOptions struct {
 	DeleteCallback func(key string, data any)
 }
 
-func (p *CacheOptions) validate() {
+func (p *Options) validate() {
 	if p.FetchFunc == nil {
-		panic("async: CacheOptions.FetchFunc must not be nil")
+		panic("acache: Options.FetchFunc must not be nil")
 	}
 }
 
@@ -88,8 +90,8 @@ func (p *CacheOptions) validate() {
 // make a new Cache instance. A Cache value shall not be copied after
 // initialized.
 type Cache struct {
-	opt   CacheOptions
-	group Group
+	opt   Options
+	group singleflight.Group
 	data  sync.Map
 
 	refreshTicker callbackTicker
@@ -102,7 +104,7 @@ type Cache struct {
 }
 
 // NewCache returns a new Cache instance using the given options.
-func NewCache(opt CacheOptions) *Cache {
+func NewCache(opt Options) *Cache {
 	opt.validate()
 	c := &Cache{
 		opt: opt,
@@ -138,18 +140,21 @@ func (c *Cache) Close() {
 
 // SetDefault sets the default value of a given key if it is new to the cache.
 // The param val should not be nil, else it panics.
+// The returned bool value indicates whether the key already exists in the cache,
+// if it already exists, this is a no-op.
 //
 // It's useful to warm up the cache.
-func (c *Cache) SetDefault(key string, val any) (exists bool) {
-	if val == nil {
-		panic("acache: default value must not be nil")
+func (c *Cache) SetDefault(key string, value any) (exists bool) {
+	if value == nil {
+		panic("acache: value must not be nil")
 	}
-	ent := allocEntry(val, errDefaultVal)
+	ent := allocEntry(value, errDefaultVal)
 	_, loaded := c.data.LoadOrStore(key, ent)
 	return loaded
 }
 
 // Update sets a value for key into the cache.
+// If key is not cached in the cache, it adds the given key value to the cache.
 // The param val should not be nil, else it panics.
 func (c *Cache) Update(key string, value any) {
 	if value == nil {
@@ -174,21 +179,26 @@ func (c *Cache) Contains(key string) bool {
 }
 
 // Get tries to fetch a value corresponding to the given key from the cache.
-// If it's not cached, a calling of function FetchFunc will be fired
-// and the result will be cached.
+// If it's not cached, a calling to function Options.FetchFunc
+// will be fired and the result will be cached.
 //
 // If error occurs during the first fetching, the error will be cached until
-// the subsequent fetching succeeded.
+// the subsequent fetching requests triggered by refreshing succeed.
+// The cached error will be returned, it does not trigger a calling to
+// Options.FetchFunc.
+//
+// If a default value is set by SetDefault, the default value will be used,
+// it does not trigger a calling to Options.FetchFunc.
 func (c *Cache) Get(key string) (any, error) {
 	val, ok := c.data.Load(key)
 	if ok {
 		ent := val.(*entry)
 		ent.Touch()
-		val, err := ent.Load()
+		value, err := ent.Load()
 		if err == errDefaultVal {
 			err = nil
 		}
-		return val, err
+		return value, err
 	}
 
 	// Wait the fetch function to get result.
@@ -196,8 +206,8 @@ func (c *Cache) Get(key string) (any, error) {
 }
 
 // GetOrDefault tries to fetch a value corresponding to the given key from
-// the cache. If it's not cached, a calling of function FetchFunc will be
-// fired and the result will be cached.
+// the cache. If it's not cached, a calling to function Options.FetchFunc
+// will be fired and the result will be cached.
 //
 // If error occurs during the first fetching, defaultVal will be set into
 // the cache and returned.
@@ -205,12 +215,12 @@ func (c *Cache) GetOrDefault(key string, defaultVal any) any {
 	val, ok := c.data.Load(key)
 	if ok {
 		ent := val.(*entry)
-		val, err := ent.Load()
-		if err != nil {
-			val = defaultVal
-		}
 		ent.Touch()
-		return val
+		value, err := ent.Load()
+		if err != nil {
+			value = defaultVal
+		}
+		return value
 	}
 
 	// Fetch result from upstream or use the default
@@ -263,9 +273,9 @@ func (c *Cache) Delete(key string) {
 	val, ok := c.data.Load(key)
 	if ok {
 		ent := val.(*entry)
-		val, _ := ent.Load()
-		if val != nil && c.opt.DeleteCallback != nil {
-			c.opt.DeleteCallback(key, val)
+		value, _ := ent.Load()
+		if value != nil && c.opt.DeleteCallback != nil {
+			c.opt.DeleteCallback(key, value)
 		}
 		c.data.Delete(key)
 	}
@@ -280,9 +290,9 @@ func (c *Cache) DeleteFunc(match func(key string) bool) {
 		if match(keystr) {
 			if hasDeleteCallback {
 				ent := val.(*entry)
-				val, _ := ent.Load()
-				if val != nil {
-					c.opt.DeleteCallback(keystr, val)
+				value, _ := ent.Load()
+				if value != nil {
+					c.opt.DeleteCallback(keystr, value)
 				}
 			}
 			c.data.Delete(key)
@@ -358,9 +368,9 @@ func (c *Cache) doExpire(_ time.Time, ok bool) {
 			isActive := atomic.CompareAndSwapInt32(&ent.expire, active, inactive)
 			if !isActive {
 				if hasDeleteCallback {
-					val, _ := ent.Load()
-					if val != nil {
-						c.opt.DeleteCallback(keystr, val)
+					value, _ := ent.Load()
+					if value != nil {
+						c.opt.DeleteCallback(keystr, value)
 					}
 				}
 				c.data.Delete(key)

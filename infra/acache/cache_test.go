@@ -1,4 +1,4 @@
-package singleflight
+package acache
 
 import (
 	"errors"
@@ -18,7 +18,7 @@ func TestGet(t *testing.T) {
 	val := func() string {
 		return _val.Load().(string)
 	}
-	opt := CacheOptions{
+	opt := Options{
 		RefreshInterval: 50 * time.Millisecond,
 		FetchFunc: func(key string) (any, error) {
 			return val(), nil
@@ -49,7 +49,7 @@ func TestGet(t *testing.T) {
 func TestGetError(t *testing.T) {
 	var key, val = "key", "val"
 	var first = true
-	opt := CacheOptions{
+	opt := Options{
 		RefreshInterval: 50 * time.Millisecond,
 		FetchFunc: func(key string) (any, error) {
 			if first {
@@ -77,7 +77,7 @@ func TestGetError(t *testing.T) {
 
 func TestGetOrDefault(t *testing.T) {
 	var key, val, defaultVal = "key", "val", "default"
-	opt := CacheOptions{
+	opt := Options{
 		RefreshInterval: 50 * time.Millisecond,
 		FetchFunc: func(key string) (any, error) {
 			return val, nil
@@ -101,7 +101,7 @@ func TestGetOrDefault(t *testing.T) {
 func TestGetOrDefaultError(t *testing.T) {
 	var key, val, defaultVal1, defaultVal2 = "key", "val", "default1", "default2"
 	var first = true
-	opt := CacheOptions{
+	opt := Options{
 		RefreshInterval: 50 * time.Millisecond,
 		FetchFunc: func(key string) (any, error) {
 			if first {
@@ -131,7 +131,7 @@ func TestGetOrDefaultError(t *testing.T) {
 }
 
 func TestSetDefault(t *testing.T) {
-	opt := CacheOptions{
+	opt := Options{
 		RefreshInterval: 50 * time.Millisecond,
 		FetchFunc: func(key string) (any, error) {
 			return nil, errors.New("error")
@@ -158,7 +158,7 @@ func TestSetDefault(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	opt := CacheOptions{
+	opt := Options{
 		FetchFunc: func(key string) (any, error) {
 			if key == "testError" {
 				return nil, errors.New("test error")
@@ -201,7 +201,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestDeleteFunc(t *testing.T) {
-	opt := CacheOptions{
+	opt := Options{
 		RefreshInterval: 50 * time.Millisecond,
 		FetchFunc: func(key string) (any, error) {
 			return nil, errors.New("error")
@@ -222,7 +222,7 @@ func TestDeleteFunc(t *testing.T) {
 func TestClose(t *testing.T) {
 	var sleep = 100 * time.Millisecond
 	var count int64
-	opt := CacheOptions{
+	opt := Options{
 		RefreshInterval: sleep - 10*time.Millisecond,
 		FetchFunc: func(key string) (any, error) {
 			x := atomic.AddInt64(&count, 1)
@@ -252,7 +252,7 @@ func TestClose(t *testing.T) {
 func TestExpire(t *testing.T) {
 	// trigger is used to mark whether fetch is called
 	trigger := false
-	opt := CacheOptions{
+	opt := Options{
 		ExpireInterval:  3 * time.Minute,
 		RefreshInterval: time.Minute,
 		FetchFunc: func(key string) (any, error) {
