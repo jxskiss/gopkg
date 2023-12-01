@@ -9,10 +9,10 @@ import (
 )
 
 func TestCallbackTicker(t *testing.T) {
-	ticker1 := newCallbackTicker(time.Second, func() {})
+	ticker1 := newCallbackTicker(time.Second, func(_ time.Time, _ bool) {})
 	assert.IsType(t, &stdTickerImpl{}, ticker1)
 
-	ticker2 := newManySelectTicker(time.Second, func() {})
+	ticker2 := newManySelectTicker(time.Second, func(_ time.Time, _ bool) {})
 	assert.IsType(t, &manySelectTickerImpl{}, ticker2)
 
 	time.Sleep(100 * time.Millisecond)
@@ -22,7 +22,7 @@ func TestCallbackTicker(t *testing.T) {
 
 func TestStdTickerImpl(t *testing.T) {
 	var count int32
-	ticker := newStdTicker(100*time.Millisecond, func() {
+	ticker := newStdTicker(100*time.Millisecond, func(_ time.Time, _ bool) {
 		atomic.AddInt32(&count, 1)
 	})
 
@@ -38,7 +38,7 @@ func TestStdTickerImpl(t *testing.T) {
 
 func TestManySelectTickerImpl(t *testing.T) {
 	var count int32
-	ticker := newManySelectTicker(100*time.Millisecond, func() {
+	ticker := newManySelectTicker(100*time.Millisecond, func(_ time.Time, _ bool) {
 		atomic.AddInt32(&count, 1)
 	})
 

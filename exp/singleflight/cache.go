@@ -50,11 +50,11 @@ type CacheOptions struct {
 	// FetchFunc is a function which retrieves data from upstream system for
 	// the given key. The returned value or error will be cached till next
 	// refresh execution.
-	// FetchFunc must not be nil, or it panics.
+	// FetchFunc must not be nil, else it panics.
 	//
-	// The provided function must return consistently typed values, or it
-	// panics when storing a value of different type into the underlying
-	// sync/atomic.Value.
+	// The provided function must return consistently typed values,
+	// else it panics when storing a value of different type into the
+	// underlying sync/atomic.Value.
 	//
 	// The returned value from this function should not be changed after
 	// retrieved from the Cache, else data race happens since there may be
@@ -76,7 +76,7 @@ type CacheOptions struct {
 
 func (p *CacheOptions) validate() {
 	if p.FetchFunc == nil {
-		panic("CacheOptions.FetchFunc must not be nil")
+		panic("async: CacheOptions.FetchFunc must not be nil")
 	}
 }
 
@@ -95,7 +95,10 @@ type Cache struct {
 	refreshTicker callbackTicker
 	expireTicker  callbackTicker
 
-	closed int32
+	needRefresh  int32
+	doingRefresh int32
+	doingExpire  int32
+	closed       int32
 }
 
 // NewCache returns a new Cache instance using the given options.
@@ -134,16 +137,40 @@ func (c *Cache) Close() {
 }
 
 // SetDefault sets the default value of a given key if it is new to the cache.
-// The param val should not be nil, or it panics.
+// The param val should not be nil, else it panics.
 //
 // It's useful to warm up the cache.
 func (c *Cache) SetDefault(key string, val any) (exists bool) {
 	if val == nil {
-		panic("default value must not be nil")
+		panic("acache: default value must not be nil")
 	}
 	ent := allocEntry(val, errDefaultVal)
 	_, loaded := c.data.LoadOrStore(key, ent)
 	return loaded
+}
+
+// Update sets a value for key into the cache.
+// The param val should not be nil, else it panics.
+func (c *Cache) Update(key string, value any) {
+	if value == nil {
+		panic("acache: value must not be nil")
+	}
+	val, ok := c.data.Load(key)
+	if ok {
+		ent := val.(*entry)
+		ent.Store(value, nil)
+	} else {
+		ent := allocEntry(value, nil)
+		c.data.Store(key, ent)
+	}
+}
+
+// Contains tells whether the cache contains the specified key.
+// It returns false if key is never accessed from the cache,
+// true means that a value or an error for key exists in the cache.
+func (c *Cache) Contains(key string) bool {
+	_, ok := c.data.Load(key)
+	return ok
 }
 
 // Get tries to fetch a value corresponding to the given key from the cache.
@@ -264,63 +291,83 @@ func (c *Cache) DeleteFunc(match func(key string) bool) {
 	})
 }
 
-func (c *Cache) doRefresh() {
-	if atomic.LoadInt32(&c.closed) > 0 {
+func (c *Cache) doRefresh(_ time.Time, ok bool) {
+	if !ok {
 		return
 	}
 
-	hasErrorCallback := c.opt.ErrorCallback != nil
-	hasChangeCallback := c.opt.ErrorCallback != nil
-	c.data.Range(func(key, val any) bool {
-		keystr := key.(string)
-		ent := val.(*entry)
+	// The refreshing procedure may run longer than c.RefreshInterval,
+	// we don't allow more than one refreshing jobs run simultaneously,
+	// but allow only one job to run, in that case, we start another
+	// refreshing immediately after the previous complete.
+	atomic.StoreInt32(&c.needRefresh, 1)
 
-		newVal, err := c.opt.FetchFunc(keystr)
-		if err != nil {
-			if hasErrorCallback {
-				c.opt.ErrorCallback(keystr, err)
-			}
-			_, oldErr := ent.Load()
-			if oldErr != nil {
-				ent.SetError(err)
-			}
-			return true
-		}
+	if atomic.CompareAndSwapInt32(&c.doingRefresh, 0, 1) {
+		defer atomic.StoreInt32(&c.doingRefresh, 0)
 
-		// Save the new value from upstream.
-		if hasChangeCallback {
-			oldVal, _ := ent.Load()
-			c.opt.ChangeCallback(keystr, oldVal, newVal)
+		for atomic.CompareAndSwapInt32(&c.needRefresh, 1, 0) {
+			if atomic.LoadInt32(&c.closed) > 0 {
+				return
+			}
+
+			hasErrorCallback := c.opt.ErrorCallback != nil
+			hasChangeCallback := c.opt.ErrorCallback != nil
+			c.data.Range(func(key, val any) bool {
+				keystr := key.(string)
+				ent := val.(*entry)
+
+				newVal, err := c.opt.FetchFunc(keystr)
+				if err != nil {
+					if hasErrorCallback {
+						c.opt.ErrorCallback(keystr, err)
+					}
+					_, oldErr := ent.Load()
+					if oldErr != nil {
+						ent.SetError(err)
+					}
+					return true
+				}
+
+				// Save the new value from upstream.
+				if hasChangeCallback {
+					oldVal, _ := ent.Load()
+					c.opt.ChangeCallback(keystr, oldVal, newVal)
+				}
+				ent.Store(newVal, nil)
+				return true
+			})
 		}
-		ent.Store(newVal, nil)
-		return true
-	})
+	}
 }
 
-func (c *Cache) doExpire() {
-	if atomic.LoadInt32(&c.closed) > 0 {
+func (c *Cache) doExpire(_ time.Time, ok bool) {
+	if !ok || atomic.LoadInt32(&c.closed) > 0 {
 		return
 	}
 
-	hasDeleteCallback := c.opt.DeleteCallback != nil
-	c.data.Range(func(key, val any) bool {
-		keystr := key.(string)
-		ent := val.(*entry)
+	if atomic.CompareAndSwapInt32(&c.doingExpire, 0, 1) {
+		defer atomic.StoreInt32(&c.doingExpire, 0)
 
-		// If entry.expire is "active", we will mark it as "inactive" here.
-		// Then during the next execution, "inactive" entries will be deleted.
-		isActive := atomic.CompareAndSwapInt32(&ent.expire, active, inactive)
-		if !isActive {
-			if hasDeleteCallback {
-				val, _ := ent.Load()
-				if val != nil {
-					c.opt.DeleteCallback(keystr, val)
+		hasDeleteCallback := c.opt.DeleteCallback != nil
+		c.data.Range(func(key, val any) bool {
+			keystr := key.(string)
+			ent := val.(*entry)
+
+			// If entry.expire is "active", we will mark it as "inactive" here.
+			// Then during the next execution, "inactive" entries will be deleted.
+			isActive := atomic.CompareAndSwapInt32(&ent.expire, active, inactive)
+			if !isActive {
+				if hasDeleteCallback {
+					val, _ := ent.Load()
+					if val != nil {
+						c.opt.DeleteCallback(keystr, val)
+					}
 				}
+				c.data.Delete(key)
 			}
-			c.data.Delete(key)
-		}
-		return true
-	})
+			return true
+		})
+	}
 }
 
 func allocEntry(val any, err error) *entry {

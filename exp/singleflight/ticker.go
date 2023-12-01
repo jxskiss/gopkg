@@ -23,7 +23,9 @@ type callbackTicker interface {
 	Stop()
 }
 
-func newCallbackTicker(d time.Duration, callback func()) callbackTicker {
+type callbackFunc func(time.Time, bool)
+
+func newCallbackTicker(d time.Duration, callback callbackFunc) callbackTicker {
 	if d < lowFrequencyThreshold {
 		return newStdTicker(d, callback)
 	}
@@ -33,10 +35,10 @@ func newCallbackTicker(d time.Duration, callback func()) callbackTicker {
 type stdTickerImpl struct {
 	ticker   *time.Ticker
 	close    chan struct{}
-	callback func()
+	callback callbackFunc
 }
 
-func newStdTicker(d time.Duration, callback func()) *stdTickerImpl {
+func newStdTicker(d time.Duration, callback callbackFunc) *stdTickerImpl {
 	impl := &stdTickerImpl{
 		ticker:   time.NewTicker(d),
 		close:    make(chan struct{}),
@@ -54,8 +56,8 @@ func (t *stdTickerImpl) Stop() {
 func (t *stdTickerImpl) run() {
 	for {
 		select {
-		case <-t.ticker.C:
-			t.callback()
+		case tick := <-t.ticker.C:
+			t.callback(tick, true)
 		case <-t.close:
 			return
 		}
@@ -67,15 +69,10 @@ type manySelectTickerImpl struct {
 	task   *mselect.Task
 }
 
-func newManySelectTicker(d time.Duration, asyncCallback func()) *manySelectTickerImpl {
+func newManySelectTicker(d time.Duration, asyncCallback callbackFunc) *manySelectTickerImpl {
 	initManySelect()
 	ticker := time.NewTicker(d)
-	task := mselect.NewTask(ticker.C, nil,
-		func(_ time.Time, ok bool) {
-			if ok {
-				asyncCallback()
-			}
-		})
+	task := mselect.NewTask(ticker.C, nil, asyncCallback)
 	msel.Add(task)
 	impl := &manySelectTickerImpl{
 		ticker: ticker,

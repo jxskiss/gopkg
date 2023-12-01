@@ -11,29 +11,39 @@ import (
 )
 
 func TestGet(t *testing.T) {
-	var key, val = "key", "val"
+	var key = "key"
+	var _val atomic.Value
+	_val.Store("val")
+
+	val := func() string {
+		return _val.Load().(string)
+	}
 	opt := CacheOptions{
 		RefreshInterval: 50 * time.Millisecond,
 		FetchFunc: func(key string) (any, error) {
-			return val, nil
+			return val(), nil
 		},
 	}
 	c := NewCache(opt)
+	assert.False(t, c.Contains(key))
 
 	got, err := c.Get(key)
 	assert.Nil(t, err)
-	assert.Equal(t, val, got)
+	assert.Equal(t, val(), got)
+	assert.True(t, c.Contains(key))
 
 	time.Sleep(opt.RefreshInterval / 2)
-	val = "newVal"
+	_val.Store("newVal")
+
 	got, err = c.Get(key)
 	assert.Nil(t, err)
-	assert.NotEqual(t, val, got)
+	assert.NotEqual(t, val(), got)
+	assert.True(t, c.Contains(key))
 
 	time.Sleep(opt.RefreshInterval)
 	got, err = c.Get(key)
 	assert.Nil(t, err)
-	assert.Equal(t, val, got)
+	assert.Equal(t, val(), got)
 }
 
 func TestGetError(t *testing.T) {
@@ -147,6 +157,49 @@ func TestSetDefault(t *testing.T) {
 	assert.Equal(t, "default2", got)
 }
 
+func TestUpdate(t *testing.T) {
+	opt := CacheOptions{
+		FetchFunc: func(key string) (any, error) {
+			if key == "testError" {
+				return nil, errors.New("test error")
+			}
+			return "val", nil
+		},
+	}
+	c := NewCache(opt)
+
+	got1, err1 := c.Get("key1")
+	assert.Nil(t, err1)
+	assert.Equal(t, "val", got1)
+
+	got2 := c.GetOrDefault("key2", "defaultVal")
+	assert.Equal(t, "val", got2)
+
+	c.SetDefault("key3", "defaultVal")
+	got3, err3 := c.Get("key3")
+	assert.Nil(t, err3)
+	assert.Equal(t, "defaultVal", got3)
+
+	got4 := c.GetOrDefault("testError", "defaultVal")
+	assert.Equal(t, "defaultVal", got4)
+
+	c.Update("key1", "updateVal")
+	c.Update("key2", "updateVal")
+	c.Update("key3", "updateVal")
+	c.Update("testError", "updateVal")
+	c.Update("key4", "updateVal")
+
+	_get := func(k string) any {
+		ret, _ := c.Get(k)
+		return ret
+	}
+	assert.Equal(t, "updateVal", _get("key1"))
+	assert.Equal(t, "updateVal", _get("key2"))
+	assert.Equal(t, "updateVal", _get("key3"))
+	assert.Equal(t, "updateVal", _get("testError"))
+	assert.Equal(t, "updateVal", _get("key4"))
+}
+
 func TestDeleteFunc(t *testing.T) {
 	opt := CacheOptions{
 		RefreshInterval: 50 * time.Millisecond,
@@ -219,17 +272,17 @@ func TestExpire(t *testing.T) {
 	assert.True(t, trigger)
 
 	// first expire will mark entries as inactive
-	c.doExpire()
+	c.doExpire(time.Now(), true)
 
 	trigger = false
 	c.Get("alive")
 	assert.False(t, trigger)
 
 	// second expire, both default & expire will be removed
-	c.doExpire()
+	c.doExpire(time.Now(), true)
 
 	// make sure refresh does not affect expire
-	c.doRefresh()
+	c.doRefresh(time.Now(), true)
 
 	trigger = false
 	c.Get("alive")
