@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	sigTaskNum = 2
+	sigTaskNum = 3
 	bucketSize = 256
 	bucketCap  = bucketSize - sigTaskNum
 )
@@ -20,25 +20,35 @@ var (
 type taskBucket struct {
 	m *manySelect
 
+	delCh chan *Task
+
 	cases []linkname.RuntimeSelect
 	tasks []*Task
 
-	block bool
+	block   bool
+	stopped bool
 }
 
 func newTaskBucket(msel *manySelect, userTask *Task) *taskBucket {
 	b := &taskBucket{
 		m:     msel,
+		delCh: make(chan *Task),
 		cases: make([]linkname.RuntimeSelect, 0, 16),
 		tasks: make([]*Task, 0, 16),
 	}
 	sigTask := msel.sigTask
 	stopTask := NewTask(b.m.stop, nil, nil)
+	delTask := NewTask(b.delCh, nil, nil)
 	b.addTask(sigTask)
 	b.addTask(stopTask)
+	b.addTask(delTask)
 	b.addTask(userTask)
 	go b.loop()
 	return b
+}
+
+func (b *taskBucket) signalDelete(task *Task) {
+	b.delCh <- task
 }
 
 func (b *taskBucket) loop() {
@@ -51,22 +61,25 @@ func (b *taskBucket) loop() {
 		// Got a signal or a new task submitted.
 		switch i {
 		case 0: // signal
-			b.processSignal(recv, ok)
-			if !ok {
-				return // stopped
+			if !ok { // stopped
+				b.stop()
+				return
 			}
+			b.processSignal(recv)
 		case 1: // stopped
 			b.stop()
 			return
+		case 2: // delete task
+			delTask := *(**Task)(recv)
+			b.deleteTask(delTask)
 		default:
-			b.processTask(i, task, recv, ok)
+			b.executeTask(task, recv, ok)
 		}
 	}
 }
 
-func (b *taskBucket) processSignal(recv unsafe.Pointer, ok bool) {
-	if !ok { // stopped
-		b.stop()
+func (b *taskBucket) processSignal(recv unsafe.Pointer) {
+	if b.stopped {
 		return
 	}
 
@@ -83,7 +96,7 @@ func (b *taskBucket) processSignal(recv unsafe.Pointer, ok bool) {
 	}
 }
 
-func (b *taskBucket) processTask(i int, task *Task, recv unsafe.Pointer, ok bool) {
+func (b *taskBucket) executeTask(task *Task, recv unsafe.Pointer, ok bool) {
 	// Execute the task first.
 	// When the channel is closed, call callback functions with
 	// a zero value and ok = false.
@@ -93,8 +106,7 @@ func (b *taskBucket) processTask(i int, task *Task, recv unsafe.Pointer, ok bool
 
 	// Delete task if the channel was closed.
 	if !ok {
-		b.deleteTask(i)
-		b.m.decrCount(1)
+		b.deleteTask(task)
 
 		// Reset signal task to accept new tasks.
 		if b.block && len(b.cases) < bucketSize {
@@ -108,15 +120,50 @@ func (b *taskBucket) processTask(i int, task *Task, recv unsafe.Pointer, ok bool
 }
 
 func (b *taskBucket) addTask(task *Task) {
+	task.mu.Lock()
+	defer task.mu.Unlock()
+
+	if task.deleted {
+		return
+	}
+	if task.added {
+		panic("mselect: task already added")
+	}
+
+	// The fields added, bucket, tIdx are used to coordinate with deletion,
+	// don't write these fields for signal tasks.
+	if idx := len(b.tasks); idx >= sigTaskNum {
+		task.added = true
+		task.bucket = b
+		task.tIdx = idx
+	}
+
 	b.tasks = append(b.tasks, task)
 	b.cases = append(b.cases, task.newRuntimeSelect())
 }
 
-func (b *taskBucket) deleteTask(i int) {
+func (b *taskBucket) deleteTask(task *Task) {
+	task.mu.Lock()
+	defer task.mu.Unlock()
+
+	if !task.added {
+		return
+	}
+	if task.bucket == nil || task.tIdx < sigTaskNum {
+		panic("mselect: invalid task to delete")
+	}
+
+	task.deleted = true
+	b.removeTask(task.tIdx)
+	b.m.decrCount(1)
+}
+
+func (b *taskBucket) removeTask(i int) {
 	n := len(b.cases)
-	if n > sigTaskNum+1 {
+	if n > sigTaskNum+1 && i < n-1 {
 		b.cases[i] = b.cases[n-1]
 		b.tasks[i] = b.tasks[n-1]
+		b.tasks[i].tIdx = i
 	}
 	b.cases[n-1] = linkname.RuntimeSelect{}
 	b.tasks[n-1] = nil
@@ -125,10 +172,15 @@ func (b *taskBucket) deleteTask(i int) {
 }
 
 func (b *taskBucket) stop() {
+	if b.stopped {
+		return
+	}
+
 	n := len(b.tasks) - sigTaskNum // don't count the signal tasks
 	b.m.decrCount(n)
 	b.cases = nil
 	b.tasks = nil
+	b.stopped = true
 
 	// Drain tasks to un-block any goroutines blocked by sending tasks
 	// to b.m.tasks.

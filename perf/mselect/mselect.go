@@ -15,10 +15,17 @@ import (
 // they do some simple things when a value is received from a channel,
 // you may use this to avoid running a lot of goroutines.
 type ManySelect interface {
+
 	// Add submits a Task to the task executor.
 	// After a Task's channel being closed, the task will be automatically removed.
 	// Calling this is a no-op after Stop is called.
+	// A task can be added only once, else it panics.
 	Add(task *Task)
+
+	// Delete deletes a Task from the task executor.
+	// To delete a task, the task must be already added,
+	// and a task can be deleted only once, else it panics.
+	Delete(task *Task)
 
 	// Count returns the count of running select tasks.
 	Count() int
@@ -65,6 +72,10 @@ func (p *manySelect) Add(task *Task) {
 	nb := newTaskBucket(p, task)
 	p.buckets = append(p.buckets, nb)
 	p.mu.Unlock()
+}
+
+func (p *manySelect) Delete(task *Task) {
+	task.signalDelete()
 }
 
 func (p *manySelect) Count() int {

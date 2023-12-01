@@ -2,6 +2,7 @@ package mselect
 
 import (
 	"fmt"
+	"io"
 	"sync"
 	"testing"
 	"time"
@@ -175,6 +176,60 @@ func TestManySelect_ManyChannels(t *testing.T) {
 		assert.Equal(t, i, copyResult[i][0])
 		assert.Equal(t, i+1, copyResult[i][1])
 	}
+}
+
+func TestManySelect_Delete(t *testing.T) {
+	msel := New()
+
+	tickers := make([]*time.Ticker, 0)
+	tasks := make([]*Task, 0)
+
+	callback := func(t time.Time, ok bool) {
+		if !ok {
+			return
+		}
+		io.Discard.Write(t.AppendFormat(nil, time.RFC3339))
+	}
+
+	for i := 0; i < 300; i++ {
+		ticker := time.NewTicker(80 * time.Millisecond)
+		task := NewTask(ticker.C, callback, nil)
+		msel.Add(task)
+		tickers = append(tickers, ticker)
+		tasks = append(tasks, task)
+	}
+	for i := 300; i < 600; i++ {
+		ticker := time.NewTicker(120 * time.Millisecond)
+		task := NewTask(ticker.C, nil, callback)
+		msel.Add(task)
+		tickers = append(tickers, ticker)
+		tasks = append(tasks, task)
+	}
+	assert.Equal(t, 600, msel.Count())
+
+	time.Sleep(500 * time.Millisecond)
+	assert.Equal(t, 600, msel.Count())
+
+	for i := 100; i < 120; i++ {
+		tickers[i].Stop()
+		msel.Delete(tasks[i])
+	}
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, 580, msel.Count())
+
+	for i := 250; i < 280; i++ {
+		tickers[i].Stop()
+		msel.Delete(tasks[i])
+	}
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, 550, msel.Count())
+
+	for i := 550; i < 600; i++ {
+		tickers[i].Stop()
+		msel.Delete(tasks[i])
+	}
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, 500, msel.Count())
 }
 
 func TestManySelect_Stop(t *testing.T) {
