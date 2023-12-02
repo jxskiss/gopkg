@@ -100,11 +100,11 @@ func TestCache(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, modelStrMap, 3)
 
-	err = mcInt.MDelete(ctx, testDeleteIntIds)
+	err = mcInt.Delete(ctx, testDeleteIntIds...)
 	assert.Nil(t, err)
 	assert.Len(t, mcInt.config.Storage(ctx).(*memoryStorage).data, 1)
 
-	err = mcStr.MDelete(ctx, testDeleteStrIds)
+	err = mcStr.Delete(ctx, testDeleteStrIds...)
 	assert.Nil(t, err)
 	assert.Len(t, mcStr.config.Storage(ctx).(*memoryStorage).data, 1)
 }
@@ -149,7 +149,7 @@ func TestCacheWithLRUCache(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, modelMap, 2)
 
-	err = mc.MDelete(ctx, testIntIds)
+	err = mc.Delete(ctx, testIntIds...)
 	assert.Nil(t, err)
 	assert.Len(t, mc.config.Storage(ctx).(*memoryStorage).data, 0)
 	got1, exists1, expired1 = mc.config.LRUCache.Get(111)
@@ -245,14 +245,14 @@ func TestCacheSingleKeyValue(t *testing.T) {
 }
 
 func makeTestingCache[K comparable, V Model](testName string, idFunc func(V) K) *Cache[K, V] {
-	km := KeyManager{}
+	km := KeyFactory{}
 	return NewCache(&CacheConfig[K, V]{
-		Storage:          testClientFunc(testName),
-		IDFunc:           idFunc,
-		KeyFunc:          km.NewKey("test_model:{id}"),
-		MGetBatchSize:    2,
-		MSetBatchSize:    2,
-		MDeleteBatchSize: 2,
+		Storage:         testClientFunc(testName),
+		IDFunc:          idFunc,
+		KeyFunc:         km.NewKey("test_model:{id}"),
+		MGetBatchSize:   2,
+		MSetBatchSize:   2,
+		DeleteBatchSize: 2,
 	})
 }
 
@@ -282,7 +282,7 @@ func (m *memoryStorage) MSet(ctx context.Context, kvPairs []KVPair, expiration t
 	return nil
 }
 
-func (m *memoryStorage) MDelete(ctx context.Context, keys ...string) error {
+func (m *memoryStorage) Delete(ctx context.Context, keys ...string) error {
 	for _, k := range keys {
 		delete(m.data, k)
 	}

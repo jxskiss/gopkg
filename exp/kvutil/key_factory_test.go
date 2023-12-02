@@ -5,7 +5,7 @@ import (
 )
 
 func Test_Key(t *testing.T) {
-	var km KeyManager
+	var km KeyFactory
 	key := km.NewKey("abc:def:%d:%s")
 	want := "abc:def:1234567:x0BtEadepz6L"
 
@@ -15,7 +15,7 @@ func Test_Key(t *testing.T) {
 	}
 }
 
-func Test_Key_Corner(t *testing.T) {
+func Test_Key_CornerCase(t *testing.T) {
 	cases := []struct {
 		key  string
 		args []any
@@ -43,13 +43,13 @@ func Test_Key_Corner(t *testing.T) {
 		},
 	}
 
-	var km KeyManager
+	var km KeyFactory
 	for _, c := range cases {
 		key := km.NewKey(c.key)
 		got := key(c.args...)
 
 		if got != c.want {
-			t.Errorf("failed Test_Key_Corner: key=%v got=%v want=%v", c.key, got, c.want)
+			t.Errorf("failed Test_Key_CornerCase: key=%v got=%v want=%v", c.key, got, c.want)
 		}
 	}
 }
@@ -82,9 +82,9 @@ func Test_Key_CurlyBrace(t *testing.T) {
 		},
 	}
 
-	var km KeyManager
+	var kf KeyFactory
 	for _, c := range cases {
-		key := km.NewKey(c.key)
+		key := kf.NewKey(c.key)
 		got := key(c.args...)
 
 		if got != c.want {
@@ -94,7 +94,7 @@ func Test_Key_CurlyBrace(t *testing.T) {
 }
 
 func Test_Key_NamedArgs(t *testing.T) {
-	var km KeyManager
+	var km KeyFactory
 	key := km.NewKey("abc:{some_id}:{dummy}")
 	want := "abc:1234567:x0BtEadepz6L"
 	got := key(1234567, "x0BtEadepz6L")
@@ -104,7 +104,7 @@ func Test_Key_NamedArgs(t *testing.T) {
 }
 
 func Test_Key_WithArgNames(t *testing.T) {
-	var km KeyManager
+	var km KeyFactory
 	key := km.NewKey("{{some_id_1}_foo_bar_count}:{some_id_2}", "some_id_1", "some_id_2")
 	want := "{111_foo_bar_count}:222"
 	got := key(111, 222)
@@ -114,7 +114,7 @@ func Test_Key_WithArgNames(t *testing.T) {
 }
 
 func Test_Key_UnmatchedArgCount(t *testing.T) {
-	var km KeyManager
+	var km KeyFactory
 
 	key1 := km.NewKey("abc:{some_id}:{arg2}:{dummy1}:{dummy2}")
 	got1 := key1(1234567, "x0BtEadepz6L")
@@ -132,8 +132,8 @@ func Test_Key_UnmatchedArgCount(t *testing.T) {
 	}
 }
 
-func Test_SetKeyPrefix(t *testing.T) {
-	var km KeyManager
+func Test_SetPrefix(t *testing.T) {
+	var km KeyFactory
 	km.SetPrefix("some_prefix:")
 
 	key := km.NewKey("abc:def:%d:%s")
@@ -159,14 +159,12 @@ var benchmarkData = []struct {
 }
 
 var benchmarkSprintfKeys []Key
-var benchmarkBuilderKeys []Key
 
 func init() {
-	km := KeyManager{prefix: "my_some_prefix"}
+	km := KeyFactory{prefix: "my_some_prefix"}
 	for i := 0; i < len(benchmarkData); i++ {
 		x := benchmarkData[i]
-		benchmarkSprintfKeys = append(benchmarkSprintfKeys, km.newSprintfKey(x.format, x.argNames...))
-		benchmarkBuilderKeys = append(benchmarkBuilderKeys, km.newBuilderKey(x.format, x.argNames...))
+		benchmarkSprintfKeys = append(benchmarkSprintfKeys, km.NewKey(x.format, x.argNames...))
 	}
 }
 
@@ -185,26 +183,6 @@ func Benchmark_Key_Sprintf_Parallel(b *testing.B) {
 		for pb.Next() {
 			for j := 0; j < len(benchmarkData); j++ {
 				_ = benchmarkSprintfKeys[j](benchmarkData[j].args...)
-			}
-		}
-	})
-}
-
-func Benchmark_Key_Builder(b *testing.B) {
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < len(benchmarkData); j++ {
-			_ = benchmarkBuilderKeys[j](benchmarkData[j].args...)
-		}
-	}
-}
-
-func Benchmark_Key_Builder_Parallel(b *testing.B) {
-	b.ReportAllocs()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			for j := 0; j < len(benchmarkData); j++ {
-				_ = benchmarkBuilderKeys[j](benchmarkData[j].args...)
 			}
 		}
 	})

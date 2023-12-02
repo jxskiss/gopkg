@@ -16,31 +16,31 @@ var argPattern = regexp.MustCompile(`\{[^{]*\}`)
 // predefined key format.
 type Key func(args ...any) string
 
-// KeyManager provides utilities to work with cache keys.
-type KeyManager struct {
+// KeyFactory builds Key functions.
+type KeyFactory struct {
 	prefix string
 }
 
-// SetPrefix configures the manager using the given prefix to generate
-// cache keys.
-func (km *KeyManager) SetPrefix(prefix string) {
-	km.prefix = prefix
+// SetPrefix configures the Key functions created by the factory
+// to add a prefix to all generated cache keys.
+func (kf *KeyFactory) SetPrefix(prefix string) {
+	kf.prefix = prefix
 }
 
-// NewKey returns a function to generate cache keys.
+// NewKey creates a Key function.
 //
 // If argNames are given (eg. arg1, arg2), it replace the placeholders of
 // `{argN}` in format to "%v" as key arguments, else it uses a regular
 // expression `\{[^{]*\}` to replace all placeholders of `{arg}` in format
 // to "%v" as key arguments.
-func (km *KeyManager) NewKey(format string, argNames ...string) Key {
+func (kf *KeyFactory) NewKey(format string, argNames ...string) Key {
 	if strings.Contains(format, "%") {
-		return km.newSprintfKey(format, argNames...)
+		return kf.newSprintfKey(format, argNames...)
 	}
-	return km.newBuilderKey(format, argNames...)
+	return kf.newBuilderKey(format, argNames...)
 }
 
-func (km *KeyManager) newSprintfKey(format string, argNames ...string) Key {
+func (kf *KeyFactory) newSprintfKey(format string, argNames ...string) Key {
 	var tmpl string
 	if len(argNames) == 0 {
 		tmpl = argPattern.ReplaceAllString(format, "%v")
@@ -53,12 +53,12 @@ func (km *KeyManager) newSprintfKey(format string, argNames ...string) Key {
 		tmpl = strings.NewReplacer(oldnew...).Replace(format)
 	}
 	return func(args ...any) string {
-		return km.prefix + fmt.Sprintf(tmpl, args...)
+		return kf.prefix + fmt.Sprintf(tmpl, args...)
 	}
 }
 
-// newBuilderKey gives better performance than newSprintfKey.
-func (km *KeyManager) newBuilderKey(format string, argNames ...string) Key {
+// newBuilderKey gives slightly better performance than newSprintfKey.
+func (kf *KeyFactory) newBuilderKey(format string, argNames ...string) Key {
 	var tmpl, vars []string
 	if len(argNames) == 0 {
 		tmpl = argPattern.Split(format, -1)
@@ -76,7 +76,7 @@ func (km *KeyManager) newBuilderKey(format string, argNames ...string) Key {
 		vars = exp.FindAllString(format, -1)
 	}
 	return func(args ...any) string {
-		return buildKey(km.prefix, tmpl, vars, args)
+		return buildKey(kf.prefix, tmpl, vars, args)
 	}
 }
 

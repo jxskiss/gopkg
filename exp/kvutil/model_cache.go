@@ -43,7 +43,7 @@ type KVPair struct {
 type Storage interface {
 	MGet(ctx context.Context, keys ...string) ([][]byte, error)
 	MSet(ctx context.Context, kvPairs []KVPair, expiration time.Duration) error
-	MDelete(ctx context.Context, keys ...string) error
+	Delete(ctx context.Context, keys ...string) error
 }
 
 // Loader loads data from underlying persistent storage.
@@ -70,9 +70,9 @@ type CacheConfig[K comparable, V Model] struct {
 	// call to storage. The default is 200.
 	MSetBatchSize int
 
-	// MGetBatchSize optionally specifies the batch size for one MDelete
+	// DeleteBatchSize optionally specifies the batch size for one Delete
 	// call to storage. The default is 200.
-	MDeleteBatchSize int
+	DeleteBatchSize int
 
 	// LRUCache optionally enables LRU cache, which may help to improve
 	// the performance for high concurrency use-case.
@@ -108,8 +108,8 @@ func (p *CacheConfig[_, _]) setDefaults() {
 	if p.MSetBatchSize <= 0 {
 		p.MSetBatchSize = DefaultBatchSize
 	}
-	if p.MDeleteBatchSize <= 0 {
-		p.MDeleteBatchSize = DefaultBatchSize
+	if p.DeleteBatchSize <= 0 {
+		p.DeleteBatchSize = DefaultBatchSize
 	}
 	if p.LRUExpiration <= 0 {
 		p.LRUExpiration = DefaultLRUExpiration
@@ -304,8 +304,7 @@ func (p *Cache[K, V]) mget(ctx context.Context, pks []K, f func(pk K, elem V)) e
 
 	// load from underlying persistent storage if configured
 	var fromLoader map[K]V
-	if p.config.Loader != nil &&
-		cachedPKs.Size() < len(lruMissingPKs) {
+	if p.config.Loader != nil && cachedPKs.Size() < len(lruMissingPKs) {
 		cacheMissingPKs := cachedPKs.FilterNotContains(lruMissingPKs)
 		fromLoader = make(map[K]V, len(cacheMissingPKs))
 		batchPKs := easy.Split(cacheMissingPKs, p.config.LoaderBatchSize)
@@ -365,19 +364,36 @@ func (p *Cache[K, V]) MSetSlice(ctx context.Context, models []V, expiration time
 		return nil
 	}
 
-	var kvPairs = make([]KVPair, 0, len(models))
-	var kvMap = make(map[K]V, len(models))
-	for _, elem := range models {
-		buf, err := elem.MarshalBinary()
+	stor := p.config.Storage(ctx)
+	batchSize := min(p.config.MSetBatchSize, len(models))
+	kvPairs := make([]KVPair, 0, batchSize)
+	for _, batchModels := range easy.Split(models, batchSize) {
+		kvPairs = kvPairs[:0]
+		var kvMap map[K]V
+		if p.config.LRUCache != nil {
+			kvMap = make(map[K]V, len(batchModels))
+		}
+		for _, elem := range batchModels {
+			buf, err := elem.MarshalBinary()
+			if err != nil {
+				return err
+			}
+			pk := p.config.IDFunc(elem)
+			key := p.config.KeyFunc(pk)
+			kvPairs = append(kvPairs, KVPair{key, buf})
+			if p.config.LRUCache != nil {
+				kvMap[pk] = elem
+			}
+		}
+		err := stor.MSet(ctx, kvPairs, expiration)
 		if err != nil {
 			return err
 		}
-		pk := p.config.IDFunc(elem)
-		key := p.config.KeyFunc(pk)
-		kvPairs = append(kvPairs, KVPair{key, buf})
-		kvMap[pk] = elem
+		if p.config.LRUCache != nil {
+			p.config.LRUCache.MSet(kvMap, p.config.LRUExpiration)
+		}
 	}
-	return p.mset(ctx, kvPairs, kvMap, expiration)
+	return nil
 }
 
 // MSetMap writes the given models to Cache.
@@ -386,7 +402,9 @@ func (p *Cache[K, V]) MSetMap(ctx context.Context, models map[K]V, expiration ti
 		return nil
 	}
 
-	var kvPairs = make([]KVPair, 0, len(models))
+	stor := p.config.Storage(ctx)
+	batchSize := min(p.config.MSetBatchSize, len(models))
+	kvPairs := make([]KVPair, 0, batchSize)
 	for pk, elem := range models {
 		buf, err := elem.MarshalBinary()
 		if err != nil {
@@ -394,30 +412,33 @@ func (p *Cache[K, V]) MSetMap(ctx context.Context, models map[K]V, expiration ti
 		}
 		key := p.config.KeyFunc(pk)
 		kvPairs = append(kvPairs, KVPair{key, buf})
-	}
-	return p.mset(ctx, kvPairs, models, expiration)
-}
-
-func (p *Cache[K, V]) mset(ctx context.Context, kvPairs []KVPair, kvMap map[K]V, expiration time.Duration) error {
-	stor := p.config.Storage(ctx)
-	batches := easy.Split(kvPairs, p.config.MSetBatchSize)
-	for _, bat := range batches {
-		err := stor.MSet(ctx, bat, expiration)
-		if err != nil {
-			return err
+		if len(kvPairs) == batchSize {
+			err = stor.MSet(ctx, kvPairs, expiration)
+			if err != nil {
+				return err
+			}
+			kvPairs = kvPairs[:0]
 		}
 	}
 	if p.config.LRUCache != nil {
-		p.config.LRUCache.MSet(kvMap, p.config.LRUExpiration)
+		p.config.LRUCache.MSet(models, p.config.LRUExpiration)
 	}
 	return nil
 }
 
-// Delete deletes a value from Cache.
-func (p *Cache[K, V]) Delete(ctx context.Context, pk K) error {
+// Delete deletes values from Cache.
+func (p *Cache[K, V]) Delete(ctx context.Context, pks ...K) error {
+	if len(pks) == 0 {
+		return nil
+	}
+	if len(pks) > 1 {
+		return p.mDelete(ctx, pks)
+	}
+
+	pk := pks[0]
 	key := p.config.KeyFunc(pk)
 	stor := p.config.Storage(ctx)
-	err := stor.MDelete(ctx, key)
+	err := stor.Delete(ctx, key)
 	if err != nil {
 		return err
 	}
@@ -427,8 +448,8 @@ func (p *Cache[K, V]) Delete(ctx context.Context, pk K) error {
 	return nil
 }
 
-// MDelete deletes multiple values from Cache.
-func (p *Cache[K, V]) MDelete(ctx context.Context, pks []K) error {
+// mDelete deletes multiple values from Cache.
+func (p *Cache[K, V]) mDelete(ctx context.Context, pks []K) error {
 	if len(pks) == 0 {
 		return nil
 	}
@@ -440,9 +461,9 @@ func (p *Cache[K, V]) MDelete(ctx context.Context, pks []K) error {
 	}
 
 	stor := p.config.Storage(ctx)
-	batches := easy.Split(keys, p.config.MDeleteBatchSize)
+	batches := easy.Split(keys, p.config.DeleteBatchSize)
 	for _, bat := range batches {
-		err := stor.MDelete(ctx, bat...)
+		err := stor.Delete(ctx, bat...)
 		if err != nil {
 			return err
 		}
@@ -451,4 +472,11 @@ func (p *Cache[K, V]) MDelete(ctx context.Context, pks []K) error {
 		p.config.LRUCache.MDelete(pks...)
 	}
 	return nil
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
