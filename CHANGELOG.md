@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 TBD.
 
+## [2.11.0] - 2023-12-02
+
+* Feat: [ezhttp] allow merge request data (#57)
+* Feat: refactor [exp/mselect] and promote to be a stable package (#58, #60)
+* Feat: refactor [exp/singleflight] and promote to be a stable package (#59)
+
 ## [2.10.0] - 2023-11-20
 
 * Fix: [perf/bbp] drop cgo arena implementation, which doesn't work on Windows (#54)

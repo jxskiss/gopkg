@@ -59,13 +59,8 @@ reasonable API compatibility and versioning.
 
 1. `exp/kvutil` contains utilities to work with key-value cache.
 
-1. `exp/mselect` can run many channel receiving operations simultaneously,
-   tasks can be added dynamically.
-
-1. `exp/singleflight` contains an async cache which can be used to fetch and update the
+1. `infra/acache` contains an async cache which can be used to fetch and update the
    latest data periodically and supports expiring a key if it's unused for a period.
-   To be easy to use, it also re-exports `Group` and `Result` as alias names from package
-   "golang.org/x/sync/singleflight".
 
 1. `infra/errcode` provides error code registry to manage error codes and messages.
    Standardized error codes greatly helps in large deployment of microservice.
@@ -93,6 +88,9 @@ reasonable API compatibility and versioning.
 1. `perf/lru` is a high performance implementation of the LRU cache, it features pre-allocation,
    item expiration, friendly and type-safe APIs for commonly used key types.
    It also provides a sharded version for heavy lock contention use-case.
+
+1. `perf/mselect` can run many channel receiving operations simultaneously,
+   tasks can be added and deleted dynamically.
 
 1. `perf/rthash` exposes the various hash functions in runtime package.
 
