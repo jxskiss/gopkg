@@ -49,7 +49,7 @@ type Storage interface {
 // Loader loads data from underlying persistent storage.
 type Loader[K comparable, V Model] func(ctx context.Context, pks []K) (map[K]V, error)
 
-// CacheConfig is used to configure a Cache instance.
+// CacheConfig configures a Cache instance.
 type CacheConfig[K comparable, V Model] struct {
 
 	// Storage must return a Storage implementation which will be used
@@ -63,15 +63,15 @@ type CacheConfig[K comparable, V Model] struct {
 	KeyFunc Key
 
 	// MGetBatchSize optionally specifies the batch size for one MGet
-	// call to storage. The default is 200.
+	// calling to storage. The default is 200.
 	MGetBatchSize int
 
 	// MSetBatchSize optionally specifies the batch size for one MSet
-	// call to storage. The default is 200.
+	// calling to storage. The default is 200.
 	MSetBatchSize int
 
 	// DeleteBatchSize optionally specifies the batch size for one Delete
-	// call to storage. The default is 200.
+	// calling to storage. The default is 200.
 	DeleteBatchSize int
 
 	// LRUCache optionally enables LRU cache, which may help to improve
@@ -101,7 +101,7 @@ type CacheConfig[K comparable, V Model] struct {
 	CacheLoaderResultAsync bool
 }
 
-func (p *CacheConfig[_, _]) setDefaults() {
+func (p *CacheConfig[_, _]) checkAndSetDefaults() {
 	if p.MGetBatchSize <= 0 {
 		p.MGetBatchSize = DefaultBatchSize
 	}
@@ -119,7 +119,7 @@ func (p *CacheConfig[_, _]) setDefaults() {
 	}
 }
 
-func (p *CacheConfig[_, V]) buildNewElemFunc() func() V {
+func buildNewElemFunc[V any]() func() V {
 	var x V
 	typ := reflectx.RTypeOf(x)
 	if typ.Kind() == reflect.Ptr {
@@ -130,15 +130,14 @@ func (p *CacheConfig[_, V]) buildNewElemFunc() func() V {
 		}
 	}
 	return func() V {
-		elem := new(V)
-		return *elem
+		return *new(V)
 	}
 }
 
 // NewCache returns a new Cache instance.
 func NewCache[K comparable, V Model](config *CacheConfig[K, V]) *Cache[K, V] {
-	config.setDefaults()
-	newElemFn := config.buildNewElemFunc()
+	config.checkAndSetDefaults()
+	newElemFn := buildNewElemFunc[V]()
 	return &Cache[K, V]{
 		config:      config,
 		newElemFunc: newElemFn,
@@ -146,7 +145,7 @@ func NewCache[K comparable, V Model](config *CacheConfig[K, V]) *Cache[K, V] {
 }
 
 // Cache encapsulates frequently used batching cache operations,
-// such as MGet, MSet and MDelete.
+// such as MGet, MSet and Delete.
 //
 // A Cache must not be copied after initialized.
 type Cache[K comparable, V Model] struct {
@@ -157,7 +156,7 @@ type Cache[K comparable, V Model] struct {
 
 // Get queries Cache for a given pk.
 //
-// If the pk can not be found either in the cache nor from the Loader,
+// If pk cannot be found either in the cache nor from the Loader,
 // it returns an error ErrDataNotFound.
 func (p *Cache[K, V]) Get(ctx context.Context, pk K) (V, error) {
 	if p.config.LRUCache != nil {
@@ -420,13 +419,19 @@ func (p *Cache[K, V]) MSetMap(ctx context.Context, models map[K]V, expiration ti
 			kvPairs = kvPairs[:0]
 		}
 	}
+	if len(kvPairs) > 0 {
+		err := stor.MSet(ctx, kvPairs, expiration)
+		if err != nil {
+			return err
+		}
+	}
 	if p.config.LRUCache != nil {
 		p.config.LRUCache.MSet(models, p.config.LRUExpiration)
 	}
 	return nil
 }
 
-// Delete deletes values from Cache.
+// Delete deletes key values from Cache.
 func (p *Cache[K, V]) Delete(ctx context.Context, pks ...K) error {
 	if len(pks) == 0 {
 		return nil
@@ -448,7 +453,7 @@ func (p *Cache[K, V]) Delete(ctx context.Context, pks ...K) error {
 	return nil
 }
 
-// mDelete deletes multiple values from Cache.
+// mDelete deletes multiple key values from Cache.
 func (p *Cache[K, V]) mDelete(ctx context.Context, pks []K) error {
 	if len(pks) == 0 {
 		return nil

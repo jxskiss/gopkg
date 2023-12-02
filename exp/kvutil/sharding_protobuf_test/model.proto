@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+option go_package = ".;sharding_protobuf_test";
+
+message ShardingData {
+  int32 total_num = 1;
+  int32 shard_num = 2;
+  bytes digest = 3;
+  bytes data = 4;
+}
+
+message TestShardingModel {
+  int64 id = 1;
+  bytes biz_data = 2;
+
+  optional ShardingData shard_data = 255;
+}
