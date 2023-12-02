@@ -1,6 +1,6 @@
-# singleflight
+# acache
 
-Package singleflight provides a duplicate function call suppression mechanism, and some cache related utilities.
+Package acache contains an async cache implementation.
 
 ## Reference
 
