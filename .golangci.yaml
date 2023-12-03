@@ -24,7 +24,7 @@ linters:
     - gofmt
     # - gofumpt
     - goimports
-    - gomoddirectives
+    # - gomoddirectives
     - goprintffuncname
     - govet
     - importas

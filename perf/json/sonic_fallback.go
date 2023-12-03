@@ -26,5 +26,5 @@ func sonicNewDecoder(_ sonic.API) func(r io.Reader) underlyingDecoder {
 	return jsoniterNewDecoder(jsoniterDefault)
 }
 
-func sonicSetEncoderDisableMapOrdering(enc *Encoder) {
+func sonicSetEncoderDisableMapOrdering(_ *Encoder) {
 }

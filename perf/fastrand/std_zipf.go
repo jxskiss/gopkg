@@ -55,8 +55,8 @@ func (z *Zipf) Uint64() uint64 {
 	if z == nil {
 		panic("fastrand: nil Zipf")
 	}
-	k := 0.0
 
+	var k float64
 	for {
 		r := z.r.Float64() // r on [0,1]
 		ur := z.hxm + r*z.hx0minusHxm

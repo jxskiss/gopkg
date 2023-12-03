@@ -64,6 +64,7 @@ func (enc *logfmtEncoder) AddArray(key string, arr zapcore.ArrayMarshaler) error
 }
 
 func (enc *logfmtEncoder) AddObject(key string, obj zapcore.ObjectMarshaler) error {
+	_, _ = key, obj
 	return ErrUnsupportedValueType
 }
 
@@ -142,6 +143,7 @@ func (enc *logfmtEncoder) AppendArray(arr zapcore.ArrayMarshaler) error {
 }
 
 func (enc *logfmtEncoder) AppendObject(obj zapcore.ObjectMarshaler) error {
+	_ = obj
 	return ErrUnsupportedValueType
 }
 

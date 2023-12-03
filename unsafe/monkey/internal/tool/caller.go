@@ -62,9 +62,9 @@ func Caller() CallerInfo {
 func getPackageAndFunction(pc uintptr) (string, string) {
 	parts := strings.Split(runtime.FuncForPC(pc).Name(), ".")
 	pl := len(parts)
-	packageName := ""
 	funcName := parts[pl-1]
 
+	var packageName string
 	if parts[pl-2][0] == '(' {
 		funcName = parts[pl-2] + "." + funcName
 		packageName = strings.Join(parts[0:pl-2], ".")

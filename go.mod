@@ -27,8 +27,11 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
-	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/sys v0.14.0 // indirect
+	go.uber.org/multierr v1.10.0 // indirect
+	golang.org/x/sys v0.5.0 // indirect
 )
 
-retract [v2.3.5, v2.8.4]
+retract (
+	v2.8.4 // Published accidentally.
+	v2.3.5 // Has panic bug in easy.SplitMap.
+)

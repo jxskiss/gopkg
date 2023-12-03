@@ -7,5 +7,5 @@ type randInterface interface {
 
 type globalImpl struct{}
 
-func (_ globalImpl) Uint64() uint64   { return Uint64() }
-func (_ globalImpl) Float64() float64 { return Float64() }
+func (globalImpl) Uint64() uint64   { return Uint64() }
+func (globalImpl) Float64() float64 { return Float64() }
