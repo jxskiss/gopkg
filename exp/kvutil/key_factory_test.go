@@ -105,12 +105,24 @@ func Test_Key_NamedArgs(t *testing.T) {
 
 func Test_Key_WithArgNames(t *testing.T) {
 	var km KeyFactory
-	key := km.NewKey("{{some_id_1}_foo_bar_count}:{some_id_2}", "some_id_1", "some_id_2")
-	want := "{111_foo_bar_count}:222"
-	got := key(111, 222)
-	if got != want {
-		t.Errorf("failed Test_Key_WithArgNames: got= %v, want= %v", got, want)
-	}
+
+	t.Run("sprintfKey", func(t *testing.T) {
+		key := km.NewKey("{{some_id_1}_foo_bar}:{some_id_2}:%v", "some_id_1", "some_id_2")
+		want := "{111_foo_bar}:222:333"
+		got := key(111, 222, 333)
+		if got != want {
+			t.Errorf("failed Test_Key_WithArgNames")
+		}
+	})
+
+	t.Run("builderKey", func(t *testing.T) {
+		key := km.NewKey("{{some_id_1}_foo_bar}:{some_id_2}", "some_id_1", "some_id_2")
+		want := "{111_foo_bar}:222"
+		got := key(111, 222)
+		if got != want {
+			t.Errorf("failed Test_Key_WithArgNames: got= %v, want= %v", got, want)
+		}
+	})
 }
 
 func Test_Key_UnmatchedArgCount(t *testing.T) {
@@ -140,7 +152,7 @@ func Test_SetPrefix(t *testing.T) {
 	want := "some_prefix:abc:def:1234567:x0BtEadepz6L"
 	got := key(1234567, "x0BtEadepz6L")
 	if got != want {
-		t.Errorf("failed Test_Key: got=%v want=%v", got, want)
+		t.Errorf("failed Test_SetPrefix: got=%v want=%v", got, want)
 	}
 }
 

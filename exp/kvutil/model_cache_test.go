@@ -53,8 +53,8 @@ func TestCache(t *testing.T) {
 
 	ctx := context.Background()
 	var modelList []*TestModel
-	var modelIntMap = make(map[int64]*TestModel)
-	var modelStrMap = make(map[string]*TestModel)
+	var modelIntMap map[int64]*TestModel
+	var modelStrMap map[string]*TestModel
 	var err error
 
 	modelList, err = mcInt.MGetSlice(ctx, testIntIds)
@@ -119,7 +119,7 @@ func TestCacheWithLRUCache(t *testing.T) {
 
 	ctx := context.Background()
 	var modelList []*TestModel
-	var modelMap = make(map[int64]*TestModel)
+	var modelMap map[int64]*TestModel
 	var err error
 
 	modelList, err = mc.MGetSlice(ctx, testIntIds)
@@ -127,6 +127,7 @@ func TestCacheWithLRUCache(t *testing.T) {
 	assert.Len(t, modelList, 0)
 
 	err = mc.MSetSlice(ctx, testModelList, 0)
+	assert.Nil(t, err)
 	assert.Len(t, mc.config.Storage(ctx).(*memoryStorage).data, 2)
 
 	got1, exists1, expired1 := mc.config.LRUCache.Get(111)
@@ -169,7 +170,7 @@ func TestCacheWithLoader(t *testing.T) {
 
 	ctx := context.Background()
 	var modelList []*TestModel
-	var modelMap = make(map[int64]*TestModel)
+	var modelMap map[int64]*TestModel
 	var err error
 
 	modelList, err = mc.MGetSlice(ctx, []int64{111, 112, 113})
@@ -231,6 +232,7 @@ func TestCacheSingleKeyValue(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, int64(111), val111.IntId)
 	_, exists = mc.config.LRUCache.GetNotStale(111)
+	assert.True(t, exists)
 
 	val112, err := mc.Get(ctx, 112)
 	assert.Equal(t, ErrDataNotFound, err)
@@ -245,11 +247,11 @@ func TestCacheSingleKeyValue(t *testing.T) {
 }
 
 func makeTestingCache[K comparable, V Model](testName string, idFunc func(V) K) *Cache[K, V] {
-	km := KeyFactory{}
+	kf := KeyFactory{}
 	return NewCache(&CacheConfig[K, V]{
 		Storage:         testClientFunc(testName),
 		IDFunc:          idFunc,
-		KeyFunc:         km.NewKey("test_model:{id}"),
+		KeyFunc:         kf.NewKey("test_model:{id}"),
 		MGetBatchSize:   2,
 		MSetBatchSize:   2,
 		DeleteBatchSize: 2,
@@ -289,21 +291,31 @@ func (m *memoryStorage) Delete(ctx context.Context, keys ...string) error {
 	return nil
 }
 
+func clearMemoryStorage(ctx context.Context, cliFunc func(ctx context.Context) Storage) {
+	stor := cliFunc(ctx).(*memoryStorage)
+	stor.data = make(map[string][]byte)
+}
+
+func getMemoryStorage(ctx context.Context, cliFunc func(ctx context.Context) Storage) *memoryStorage {
+	stor := cliFunc(ctx).(*memoryStorage)
+	return stor
+}
+
 type TestModel struct {
 	IntId int64
 	StrId string
 }
 
-func (t *TestModel) MarshalBinary() ([]byte, error) {
+func (m *TestModel) MarshalBinary() ([]byte, error) {
 	var buf []byte
-	buf = append(buf, []byte(strconv.FormatInt(t.IntId, 10))...)
-	buf = append(buf, []byte(t.StrId)...)
+	buf = append(buf, []byte(strconv.FormatInt(m.IntId, 10))...)
+	buf = append(buf, []byte(m.StrId)...)
 	return buf, nil
 }
 
-func (t *TestModel) UnmarshalBinary(b []byte) error {
-	t.IntId, _ = strconv.ParseInt(string(b[:3]), 10, 64)
-	t.StrId = string(b[3:6])
+func (m *TestModel) UnmarshalBinary(b []byte) error {
+	m.IntId, _ = strconv.ParseInt(string(b[:3]), 10, 64)
+	m.StrId = string(b[3:6])
 	return nil
 }
 
