@@ -9,7 +9,7 @@ var (
 
 		// default 50% jitter
 		Jitter: func(d time.Duration) time.Duration {
-			return AddJitter(d, 0.5)
+			return addJitter(d, 0.5)
 		},
 		// default no-op hook
 		Hook: func(attempts int, err error) {}, // dummy no-op hook
@@ -65,7 +65,7 @@ func NoJitter() Option {
 func J(jitter float64) Option {
 	return func(opt options) options {
 		opt.Jitter = func(d time.Duration) time.Duration {
-			return AddJitter(d, jitter)
+			return addJitter(d, jitter)
 		}
 		return opt
 	}

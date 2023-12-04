@@ -37,9 +37,9 @@ func Int63n(n int64) (x int64) {
 	if n&(n-1) == 0 { // n is power of two, can mask
 		return Int63() & (n - 1)
 	}
-	max := int64((1 << 63) - 1 - (1<<63)%uint64(n))
+	_max := int64((1 << 63) - 1 - (1<<63)%uint64(n))
 	v := Int63()
-	for v > max {
+	for v > _max {
 		v = Int63()
 	}
 	return v % n
