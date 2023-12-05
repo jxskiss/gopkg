@@ -38,6 +38,13 @@ func TestLazyJSON(t *testing.T) {
 	assert.Equal(t, got1, got2)
 }
 
+func TestLasyFunc(t *testing.T) {
+	var x = &testObject{A: 123, B: "abc"}
+	got1 := Pretty2(x)
+	got2 := fmt.Sprint(LazyFunc(x, Pretty2))
+	assert.Equal(t, got1, got2)
+}
+
 var prettyTestWant = strings.TrimSpace(`
 {
     "1": 123,
