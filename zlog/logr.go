@@ -8,8 +8,6 @@ import (
 	"github.com/go-logr/logr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-
-	"github.com/jxskiss/gopkg/v2/unsafe/reflectx"
 )
 
 var _ logr.LogSink = &logrImpl{}
@@ -142,7 +140,8 @@ func (r *logrImpl) handleFields(lv int, args []any, additional ...zap.Field) []z
 		// Process a key-value pair, ensuring that the key is a string.
 		// If the key isn't a string, DPanic and stop checking the later arguments.
 		key, val := args[i], args[i+1]
-		if reflectx.RTypeOfEface(key).Kind() != reflect.String {
+		rvKey := reflect.ValueOf(key)
+		if rvKey.Kind() != reflect.String {
 			if r.c.DPanicOnInvalidLog {
 				r.l.WithOptions(zap.AddCallerSkip(1)).
 					DPanic("non-string key passed to logging, ignoring all later arguments", toZapField("invalidKey", key))
@@ -150,7 +149,7 @@ func (r *logrImpl) handleFields(lv int, args []any, additional ...zap.Field) []z
 			break
 		}
 
-		keyStr := *(*string)(reflectx.EfaceOf(&key).Word)
+		keyStr := rvKey.String()
 		fields = append(fields, toZapField(keyStr, val))
 		i += 2
 	}

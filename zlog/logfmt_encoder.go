@@ -17,8 +17,6 @@ import (
 
 	"go.uber.org/zap/buffer"
 	"go.uber.org/zap/zapcore"
-
-	"github.com/jxskiss/gopkg/v2/unsafe/reflectx"
 )
 
 const (
@@ -557,7 +555,7 @@ func (enc *literalEncoder) AppendObject(zapcore.ObjectMarshaler) error {
 }
 
 func (enc *literalEncoder) AppendReflected(value any) error {
-	typ := reflectx.EfaceOf(&value).RType
+	typ := reflect.TypeOf(value)
 	switch typ.Kind() {
 	case reflect.Bool:
 		enc.AppendBool(value.(bool))
