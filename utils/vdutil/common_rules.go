@@ -1,4 +1,4 @@
-package validat
+package vdutil
 
 import (
 	"context"
