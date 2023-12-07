@@ -2,6 +2,7 @@ package validat
 
 import (
 	"context"
+	"errors"
 
 	"github.com/jxskiss/gopkg/v2/easy/ezmap"
 )
@@ -19,6 +20,8 @@ func (f RuleFunc) Validate(ctx context.Context, result *Result) (any, error) {
 type Result struct {
 	Data       ezmap.Map
 	ErrDetails []any
+
+	IsValidationError bool
 }
 
 type ValidationError struct {
@@ -30,13 +33,16 @@ func (e *ValidationError) Error() string { return e.Name + ": " + e.Err.Error() 
 
 func (e *ValidationError) Unwrap() error { return e.Err }
 
-func Validate(ctx context.Context, rules ...Rule) (*Result, error) {
-	ret := &Result{}
+func Validate(ctx context.Context, rules ...Rule) (result *Result, err error) {
+	result = &Result{}
 	for _, rule := range rules {
-		_, err := rule.Validate(ctx, ret)
+		_, err = rule.Validate(ctx, result)
 		if err != nil {
-			return ret, err
+			break
 		}
 	}
-	return ret, nil
+	if err != nil {
+		result.IsValidationError = errors.Is(err, &ValidationError{})
+	}
+	return result, err
 }
