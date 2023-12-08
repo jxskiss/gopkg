@@ -29,6 +29,7 @@ func TestValidate(t *testing.T) {
 	require.NotNil(t, err)
 	assert.Equal(t, err.Error(), "var2: value 200 > 100")
 	assert.EqualValues(t, 10, got1.Data.GetInt("var1"))
+	assert.True(t, got1.IsValidationError)
 
 	got2, err := Validate(ctx,
 		GreaterThanZero("var1", 10, false),
@@ -37,4 +38,12 @@ func TestValidate(t *testing.T) {
 	)
 	require.Nil(t, err)
 	assert.Equal(t, []int64{123, 456, 789}, got2.Data.GetSlice("var3"))
+	assert.False(t, got2.IsValidationError)
+
+	got3, err := Validate(ctx,
+		RuleFunc(func(ctx context.Context, result *Result) (any, error) {
+			return nil, errors.New("internal error")
+		}))
+	require.NotNil(t, err)
+	require.False(t, got3.IsValidationError)
 }

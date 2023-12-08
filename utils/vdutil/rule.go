@@ -42,7 +42,7 @@ func Validate(ctx context.Context, rules ...Rule) (result *Result, err error) {
 		}
 	}
 	if err != nil {
-		result.IsValidationError = errors.Is(err, &ValidationError{})
+		result.IsValidationError = errors.As(err, new(*ValidationError))
 	}
 	return result, err
 }
