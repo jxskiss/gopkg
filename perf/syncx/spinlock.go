@@ -9,8 +9,8 @@ import (
 type spinLock uintptr
 
 // NewSpinLock creates a new spin-lock.
-// A spin-lock calls runtime.Gosched when it failed acquiring the lock,
-// then try again until it succeeds.
+// A spin-lock calls runtime.Gosched when it failed acquiring the lock
+// by compare-and-swap operation, then try again until it succeeds.
 func NewSpinLock() sync.Locker {
 	return new(spinLock)
 }
@@ -24,7 +24,7 @@ func (p *spinLock) Lock() {
 }
 
 func (p *spinLock) lockSlowPath() {
-	const maxBackoff = 16
+	const maxBackoff = 8
 	backoff := 1
 	for {
 		for i := 0; i < backoff; i++ {
