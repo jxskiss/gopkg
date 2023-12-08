@@ -15,6 +15,13 @@
 
 package gopool
 
+import (
+	"context"
+	"math"
+	"sync"
+	"sync/atomic"
+)
+
 // Pool manages a goroutine pool and tasks for better performance,
 // it reuses goroutines and limits the number of goroutines.
 type Pool = TypedPool[func()]
@@ -25,4 +32,162 @@ func NewPool(config *Config) *Pool {
 	p := &TypedPool[func()]{}
 	p.init(config, runner)
 	return p
+}
+
+// TypedPool is a task-specific pool.
+// A TypedPool is like pool, but it executes a handler to process values
+// of a specific type.
+// Compared to Pool, it helps to reduce unnecessary memory allocation of
+// closures when submitting tasks.
+type TypedPool[T any] struct {
+	internalPool
+}
+
+// NewTypedPool creates a new task-specific pool with given handler and config.
+func NewTypedPool[T any](config *Config, handler func(context.Context, T)) *TypedPool[T] {
+	runner := newTypedTaskRunner(handler)
+	p := &TypedPool[T]{}
+	p.init(config, runner)
+	return p
+}
+
+// Go submits a task to the pool.
+func (p *TypedPool[T]) Go(arg T) {
+	p.submit(context.Background(), arg)
+}
+
+// CtxGo submits a task to the pool, it's preferred over Go.
+func (p *TypedPool[T]) CtxGo(ctx context.Context, arg T) {
+	p.submit(ctx, arg)
+}
+
+type internalPool struct {
+	config *Config
+	runner taskRunner
+
+	// Limit of adhoc workers that can run simultaneously
+	adhocLimit int32
+
+	// Number of running adhoc workers
+	adhocCount int32
+
+	taskCh   chan *task
+	taskList taskList
+}
+
+func (p *internalPool) init(config *Config, runner taskRunner) {
+	config.checkAndSetDefaults()
+	p.config = config
+	p.runner = runner
+	p.SetAdhocWorkerLimit(config.AdhocWorkerLimit)
+	p.startPermanentWorkers()
+}
+
+// Name returns the name of a pool.
+func (p *internalPool) Name() string {
+	return p.config.Name
+}
+
+// SetAdhocWorkerLimit changes the limit of adhoc workers.
+// 0 or negative value means no limit.
+func (p *internalPool) SetAdhocWorkerLimit(limit int) {
+	if limit <= 0 || limit > math.MaxInt32 {
+		limit = math.MaxInt32
+	}
+	atomic.StoreInt32(&p.adhocLimit, int32(limit))
+}
+
+func (p *internalPool) submit(ctx context.Context, arg any) {
+	t := newTask()
+	t.ctx = ctx
+	t.arg = arg
+
+	// Try permanent worker first.
+	select {
+	case p.taskCh <- t:
+		return
+	default:
+	}
+
+	// No permanent worker available or all workers are busy, submit to task list.
+	tCnt := p.taskList.add(t)
+
+	// The following two conditions are met:
+	//   1. the number of tasks is greater than the threshold.
+	//   2. The current number of workers is less than the upper limit p.cap.
+	//
+	// Or there are currently no workers.
+	wCnt := p.AdhocWorkerCount()
+	if wCnt == 0 || (tCnt >= p.config.ScaleThreshold && wCnt < p.AdhocWorkerLimit()) {
+		p.runAdhocWorker()
+	}
+}
+
+// AdhocWorkerLimit returns the current limit of adhoc workers.
+func (p *internalPool) AdhocWorkerLimit() int32 {
+	return atomic.LoadInt32(&p.adhocLimit)
+}
+
+// AdhocWorkerCount returns the number of running adhoc workers.
+func (p *internalPool) AdhocWorkerCount() int32 {
+	return atomic.LoadInt32(&p.adhocCount)
+}
+
+// PermanentWorkerCount returns the number of permanent workers.
+func (p *internalPool) PermanentWorkerCount() int32 {
+	return int32(p.config.PermanentWorkerNum)
+}
+
+func (p *internalPool) incWorkerCount() {
+	atomic.AddInt32(&p.adhocCount, 1)
+}
+
+func (p *internalPool) decWorkerCount() {
+	atomic.AddInt32(&p.adhocCount, -1)
+}
+
+func (p *internalPool) startPermanentWorkers() {
+	if p.config.PermanentWorkerNum <= 0 {
+		return
+	}
+	p.taskCh = make(chan *task)
+	for i := 0; i < p.config.PermanentWorkerNum; i++ {
+		go p.runPermanentWorker()
+	}
+}
+
+func (p *internalPool) runPermanentWorker() {
+	var lock *sync.Mutex
+	for {
+		select {
+		case t := <-p.taskCh:
+			p.runner(p, t)
+
+			// Drain pending tasks.
+			for {
+				t, lock = p.taskList.pop()
+				lock.Unlock()
+				if t == nil {
+					break
+				}
+				p.runner(p, t)
+			}
+		}
+	}
+}
+
+func (p *internalPool) runAdhocWorker() {
+	p.incWorkerCount()
+	go func() {
+		for {
+			t, lock := p.taskList.pop()
+			if t == nil {
+				p.decWorkerCount()
+				lock.Unlock()
+				return
+			}
+			lock.Unlock()
+			p.runner(p, t)
+		}
+	}()
 }

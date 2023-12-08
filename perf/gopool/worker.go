@@ -20,43 +20,63 @@ import (
 	"sync"
 )
 
-type taskRunner func(p *internalPool, t *task)
+var taskPool sync.Pool
 
-func (p *internalPool) runPermanentWorker() {
-	var lock *sync.Mutex
-	for {
-		select {
-		case t := <-p.taskCh:
-			p.runner(p, t)
+type task struct {
+	ctx context.Context
+	arg any
 
-			// Drain pending tasks.
-			for {
-				t, lock = p.taskList.pop()
-				lock.Unlock()
-				if t == nil {
-					break
-				}
-				p.runner(p, t)
-			}
-		}
+	next *task
+}
+
+func newTask() *task {
+	if t := taskPool.Get(); t != nil {
+		return t.(*task)
 	}
+	return &task{}
 }
 
-func (p *internalPool) runAdhocWorker() {
-	p.incWorkerCount()
-	go func() {
-		for {
-			t, lock := p.taskList.pop()
-			if t == nil {
-				p.decWorkerCount()
-				lock.Unlock()
-				return
-			}
-			lock.Unlock()
-			p.runner(p, t)
-		}
-	}()
+func (t *task) Recycle() {
+	*t = task{}
+	taskPool.Put(t)
 }
+
+type taskList struct {
+	mu    sync.Mutex
+	count int32
+	head  *task
+	tail  *task
+}
+
+func (l *taskList) add(t *task) (count int) {
+	l.mu.Lock()
+	if l.head == nil {
+		l.head = t
+		l.tail = t
+	} else {
+		l.tail.next = t
+		l.tail = t
+	}
+	l.count++
+	count = int(l.count)
+	l.mu.Unlock()
+	return
+}
+
+// pop acquired the lock and returns a task from the head of the taskList.
+//
+// Note that the caller takes responsibility to release the lock.
+func (l *taskList) pop() (t *task, lock *sync.Mutex) {
+	l.mu.Lock()
+	if l.head != nil {
+		t = l.head
+		l.head = l.head.next
+		l.count--
+	}
+	return t, &l.mu
+}
+
+type taskRunner func(p *internalPool, t *task)
 
 func funcTaskRunner(p *internalPool, t *task) {
 	defer func() {
