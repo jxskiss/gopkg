@@ -10,24 +10,13 @@ import (
 
 const cacheLineSize = 64
 
-var (
-	shardsLen  int
-	shardsMask int
-)
-
-func init() {
-	shardsLen = runtime.GOMAXPROCS(0)
-	shardsLen = int(internal.NextPowerOfTwo(uint(shardsLen)))
-	shardsMask = 1
-	if shardsLen > 1 {
-		shardsMask = shardsLen - 1
-	}
-}
-
-// RWLock holds a group of sharded RWMutex, it gives better performance
+// RWLock holds a group of sharded RWMutex, it gives great performance
 // in read-heavy workloads by reducing lock contention, but the performance
 // for exclusive Lock is poor.
-type RWLock []rwlockShard
+type RWLock struct {
+	shards []rwlockShard
+	mask   int
+}
 
 type rwlockShard struct {
 	_ [cacheLineSize]byte
@@ -36,21 +25,31 @@ type rwlockShard struct {
 
 // NewRWLock creates a new RWLock.
 func NewRWLock() RWLock {
-	return make(RWLock, shardsLen)
+	shardsLen := runtime.GOMAXPROCS(0)
+	shardsLen = int(internal.NextPowerOfTwo(uint(shardsLen)))
+	mask := 1
+	if shardsLen > 1 {
+		mask = shardsLen - 1
+	}
+	lock := RWLock{
+		shards: make([]rwlockShard, shardsLen),
+		mask:   mask,
+	}
+	return lock
 }
 
 // Lock locks all underlying mutexes, preparing for exclusive access to
 // the resource protected by the lock.
 func (p RWLock) Lock() {
-	for i := range p {
-		p[i].Lock()
+	for i := range p.shards {
+		p.shards[i].Lock()
 	}
 }
 
 // Unlock releases all underlying mutexes.
 func (p RWLock) Unlock() {
-	for i := range p {
-		p[i].Unlock()
+	for i := range p.shards {
+		p.shards[i].Unlock()
 	}
 }
 
@@ -60,7 +59,7 @@ func (p RWLock) Unlock() {
 func (p RWLock) RLock() sync.Locker {
 	pid := linkname.Runtime_procPin()
 	linkname.Runtime_procUnpin()
-	locker := p[pid&shardsMask].RLocker()
+	locker := p.shards[pid&p.mask].RLocker()
 	locker.Lock()
 	return locker
 }
