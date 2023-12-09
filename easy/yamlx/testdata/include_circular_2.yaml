@@ -1,0 +1,5 @@
+key1:
+  subkey1: "@@inc testdata/normal.yaml"
+
+key3:
+  circular3: "@@inc testdata/include_circular_3.yaml"

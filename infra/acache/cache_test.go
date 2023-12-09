@@ -220,7 +220,7 @@ func TestDeleteFunc(t *testing.T) {
 }
 
 func TestClose(t *testing.T) {
-	var sleep = 100 * time.Millisecond
+	var sleep = 200 * time.Millisecond
 	var count int64
 	opt := Options{
 		RefreshInterval: sleep - 10*time.Millisecond,
