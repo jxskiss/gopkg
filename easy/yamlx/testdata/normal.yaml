@@ -1,0 +1,25 @@
+definitions:
+  steps:
+    - step: &build-test
+        name: Build and test
+        script:
+          - mvn package
+        artifacts:
+          - target/**
+    - step: &deploy
+        name: Deploy
+        deployment: test
+        script:
+          - ./deploy.sh target/my-app.jar
+
+pipelines:
+  branches:
+    develop:
+      - step: *build-test
+      - step: *deploy
+    main:
+      - step: *build-test
+      - step:
+          <<: *deploy
+          deployment: production
+          trigger: manual
