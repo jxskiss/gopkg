@@ -78,6 +78,10 @@ func (p *parser) Unmarshal(v any) error {
 	if err != nil {
 		return err
 	}
+
+	// Unescape string values before unmarshalling.
+	p.unescapeStrings()
+
 	return p.doc.Decode(v)
 }
 
@@ -120,14 +124,11 @@ func (p *parser) parse() (err error) {
 		}
 	}
 
-	// The ref directives are allowed to reference data across files,
-	// they should be resolved after the include directives.
+	// The ref directives are allowed to reference data from included
+	// files, they should be resolved after the include directives.
 	if err = p.resolveReferences(); err != nil {
 		return err
 	}
-
-	// Do unescape string values last.
-	p.unescapeStrings()
 
 	return nil
 }
@@ -180,7 +181,10 @@ func (p *parser) resolveEnvAndFunctions() error {
 				if err != nil {
 					return err
 				}
-				newNode := convToNode(fnRet)
+				newNode, err := convToNode(fnRet)
+				if err != nil {
+					return err
+				}
 				*node = *newNode
 				continue
 			}
@@ -204,18 +208,21 @@ func readEnv(node *yaml.Node, envNames []string) {
 	}
 }
 
-func convToNode(value any) *yaml.Node {
+func convToNode(value any) (*yaml.Node, error) {
 	// Use marshal and unmarshal to avoid string escaping issues.
 	var node = &yaml.Node{}
-	buf, _ := yaml.Marshal(value)
-	err := yaml.Unmarshal(buf, node)
+	buf, err := yaml.Marshal(value)
 	if err != nil {
-		panic(fmt.Sprintf("yamlx: cannot parse function result (should be unreachable): %v", err))
+		return nil, fmt.Errorf("cannot marshal function result: %w", err)
+	}
+	err = yaml.Unmarshal(buf, node)
+	if err != nil {
+		return nil, fmt.Errorf("cannot unmarshal function result to node: %w", err)
 	}
 	if node.Kind == yaml.DocumentNode {
 		node = node.Content[0]
 	}
-	return node
+	return node, nil
 }
 
 func (p *parser) resolveVariables() error {
