@@ -6,13 +6,13 @@ import (
 	"encoding/binary"
 	"errors"
 
+	"github.com/jxskiss/gopkg/v2/internal/fastrand"
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
-	"github.com/jxskiss/gopkg/v2/perf/fastrand"
 )
 
 const (
-	idxlen  = 61
-	encbase = 32
+	idxLen  = 61
+	encBase = 32
 	chars62 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 )
 
@@ -20,9 +20,9 @@ var ErrInvalidInput = errors.New("obscure: invalid input")
 
 var binEnc = binary.BigEndian
 
-func getRandomChars(rand *fastrand.PCG64, dst []byte) {
+func getRandomChars(s fastrand.Source, dst []byte) {
 	chars := []byte(chars62)
-	rand.Shuffle(len(chars), func(i, j int) {
+	fastrand.ShuffleWithSource(s, len(chars), func(i, j int) {
 		chars[i], chars[j] = chars[j], chars[i]
 	})
 	copy(dst, chars)
@@ -41,24 +41,20 @@ func fnvHash32(buf []byte) uint32 {
 }
 
 type Obscure struct {
-	idxChars  [idxlen]byte
-	idxdec    [128]int
-	table     [idxlen][encbase]byte
-	encodings [idxlen]*base32.Encoding
-	rand      *fastrand.PCG64
+	idxChars  [idxLen]byte
+	idxDec    [128]int
+	table     [idxLen][encBase]byte
+	encodings [idxLen]*base32.Encoding
 }
 
 func New(key []byte) *Obscure {
 	hash := md5.Sum(key)
-	rand := fastrand.NewPCG64()
 	hi, lo := binEnc.Uint64(hash[:8]), binEnc.Uint64(hash[8:16])
-	rand.Seed(hi, lo)
-	obs := &Obscure{
-		rand: rand,
-	}
+	rand := fastrand.NewPCG(hi, lo)
+	obs := &Obscure{}
 	getRandomChars(rand, obs.idxChars[:])
-	for i := 0; i < idxlen; i++ {
-		obs.idxdec[obs.idxChars[i]] = i
+	for i := 0; i < idxLen; i++ {
+		obs.idxDec[obs.idxChars[i]] = i
 		getRandomChars(rand, obs.table[i][:])
 		obs.encodings[i] = base32.NewEncoding(string(obs.table[i][:])).WithPadding(base32.NoPadding)
 	}
@@ -71,7 +67,7 @@ func (p *Obscure) Index() string {
 
 func (p *Obscure) Table() [61]string {
 	var out [61]string
-	for i := 0; i < idxlen; i++ {
+	for i := 0; i < idxLen; i++ {
 		out[i] = string(p.table[i][:])
 	}
 	return out
@@ -88,11 +84,19 @@ func (p *Obscure) Encode(dst, src []byte) {
 	if len(src) == 0 {
 		return
 	}
-	idx := fnvHash32(src) % idxlen
-	idxchar := p.idxChars[idx]
+	idx := fnvHash32(middle(src)) % idxLen
+	idxChar := p.idxChars[idx]
 	enc := p.encodings[idx]
-	dst[0] = idxchar
+	dst[0] = idxChar
 	enc.Encode(dst[1:], src)
+}
+
+func middle(b []byte) []byte {
+	if len(b) > 200 {
+		x := len(b) / 2
+		return b[x : x+200]
+	}
+	return b
 }
 
 func (p *Obscure) EncodeToBytes(src []byte) []byte {
@@ -127,7 +131,7 @@ func (p *Obscure) Decode(dst, src []byte) (n int, err error) {
 	if idxchar >= 128 {
 		return 0, ErrInvalidInput
 	}
-	idx := p.idxdec[idxchar]
+	idx := p.idxDec[idxchar]
 	if idx == 0 && idxchar != p.idxChars[0] {
 		return 0, ErrInvalidInput
 	}

@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/jxskiss/gopkg/v2/internal/fastrand"
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
-	"github.com/jxskiss/gopkg/v2/perf/fastrand"
 )
 
 const (
@@ -56,7 +56,7 @@ func (p *v2Gen) Gen() string {
 	buf = append(buf, p.ipstr...)
 
 	// random number, fixed length, 5 bytes
-	r := fastrand.Int31n(v2RandN) + 1<<20
+	r := fastrand.N(int32(v2RandN)) + 1<<20
 	buf = strconv.AppendInt(buf, int64(r), 32)
 
 	return unsafeheader.BytesToString(buf)

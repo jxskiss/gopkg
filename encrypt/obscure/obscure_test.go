@@ -16,7 +16,7 @@ func TestObscure_Reproducible(t *testing.T) {
 
 	table1 := obs1.Table()
 	table2 := obs2.Table()
-	for i := 0; i < idxlen; i++ {
+	for i := 0; i < idxLen; i++ {
 		assert.Equal(t, table1[i], table2[i])
 	}
 }

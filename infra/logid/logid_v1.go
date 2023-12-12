@@ -2,14 +2,15 @@ package logid
 
 import (
 	"crypto/md5"
+	"crypto/rand"
 	"fmt"
 	"net"
 	"strconv"
 	"time"
 
+	"github.com/jxskiss/gopkg/v2/internal/fastrand"
 	"github.com/jxskiss/gopkg/v2/internal/machineid"
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
-	"github.com/jxskiss/gopkg/v2/perf/fastrand"
 )
 
 const (
@@ -39,7 +40,10 @@ func getMachineID() [16]byte {
 		sum := md5.Sum([]byte(x))
 		copy(mID[:], sum[:])
 	} else {
-		_, _ = fastrand.Read(mID[:])
+		_, err = rand.Read(mID[:])
+		if err != nil {
+			panic("error calling crypto/rand.Read: " + err.Error())
+		}
 	}
 	b32Enc.Encode(machineID[:], mID[:])
 	return machineID
