@@ -64,41 +64,8 @@ func Pid() int {
 	return pid
 }
 
-//go:linkname Runtime_memhash8 runtime.memhash8
-func Runtime_memhash8(p unsafe.Pointer, h uintptr) uintptr
-
-//go:linkname Runtime_memhash16 runtime.memhash16
-func Runtime_memhash16(p unsafe.Pointer, h uintptr) uintptr
-
-//go:linkname Runtime_stringHash runtime.stringHash
-func Runtime_stringHash(s string, seed uintptr) uintptr
-
-//go:linkname Runtime_bytesHash runtime.bytesHash
-func Runtime_bytesHash(b []byte, seed uintptr) uintptr
-
-//go:linkname Runtime_int32Hash runtime.int32Hash
-func Runtime_int32Hash(i uint32, seed uintptr) uintptr
-
-//go:linkname Runtime_int64Hash runtime.int64Hash
-func Runtime_int64Hash(i uint64, seed uintptr) uintptr
-
-//go:linkname Runtime_f32hash runtime.f32hash
-func Runtime_f32hash(p unsafe.Pointer, h uintptr) uintptr
-
-//go:linkname Runtime_f64hash runtime.f64hash
-func Runtime_f64hash(p unsafe.Pointer, h uintptr) uintptr
-
-//go:linkname Runtime_c64hash runtime.c64hash
-func Runtime_c64hash(p unsafe.Pointer, h uintptr) uintptr
-
-//go:linkname Runtime_c128hash runtime.c128hash
-func Runtime_c128hash(p unsafe.Pointer, h uintptr) uintptr
-
 //go:linkname Runtime_efaceHash runtime.efaceHash
 func Runtime_efaceHash(i any, seed uintptr) uintptr
-
-//go:linkname Runtime_typehash runtime.typehash
-func Runtime_typehash(rtype unsafe.Pointer, p unsafe.Pointer, h uintptr) uintptr
 
 //go:linkname Runtime_activeModules runtime.activeModules
 func Runtime_activeModules() []unsafe.Pointer

@@ -92,8 +92,6 @@ reasonable API compatibility and versioning.
 1. `perf/mselect` can run many channel receiving operations simultaneously,
    tasks can be added and deleted dynamically.
 
-1. `perf/rthash` exposes the various hash functions in runtime package.
-
 1. `perf/syncx` contains some synchronization primitives as an addition to the standard library,
    for better performance or alternative APIs.
 
