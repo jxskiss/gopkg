@@ -13,8 +13,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/jxskiss/gopkg/v2/internal/fastrand"
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
-	"github.com/jxskiss/gopkg/v2/perf/fastrand"
 	"github.com/jxskiss/gopkg/v2/utils/strutil"
 )
 
@@ -170,11 +170,11 @@ func builtinUUID() string {
 }
 
 func builtinRand() (x int64) {
-	return fastrand.Int63()
+	return fastrand.Int64()
 }
 
 func builtinRandN(n int64) (x int64) {
-	return fastrand.Int63n(n)
+	return fastrand.N(n)
 }
 
 func builtinRandStr(n int) string {

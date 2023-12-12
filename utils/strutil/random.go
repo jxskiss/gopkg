@@ -7,14 +7,14 @@ import (
 	"math/bits"
 	"unsafe"
 
-	"github.com/jxskiss/gopkg/v2/perf/fastrand"
+	"github.com/jxskiss/gopkg/v2/internal/fastrand"
 )
 
 func random(table string, length int) []byte {
 	buf := make([]byte, length)
 	tabLen := len(table)
 	for i := range buf {
-		buf[i] = table[fastrand.Intn(tabLen)]
+		buf[i] = table[fastrand.N(tabLen)]
 	}
 	return buf
 }

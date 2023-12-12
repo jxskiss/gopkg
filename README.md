@@ -70,10 +70,6 @@ reasonable API compatibility and versioning.
 
 1. `perf/bbp` provides efficient byte buffer pools with anti-memory-waste protection.
 
-1. `perf/fastrand` exported a set of pseudo-random generator methods wrapped around the fastrand
-   function from the Go runtime. There is a generator per-M (physical thread), thus it doesn't
-   need to do synchronization when generate random sequence, which makes it very scalable.
-
 1. `perf/gopool` is a fork of `github.com/bytedance/gopkg/util/gopool`
    with opinionated changes.
    It's a high-performance goroutine pool which aims to reuse goroutines

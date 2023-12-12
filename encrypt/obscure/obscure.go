@@ -6,8 +6,8 @@ import (
 	"encoding/binary"
 	"errors"
 
+	"github.com/jxskiss/gopkg/v2/internal/fastrand"
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
-	"github.com/jxskiss/gopkg/v2/perf/fastrand"
 )
 
 const (
@@ -20,9 +20,9 @@ var ErrInvalidInput = errors.New("obscure: invalid input")
 
 var binEnc = binary.BigEndian
 
-func getRandomChars(rand *fastrand.PCG64, dst []byte) {
+func getRandomChars(source fastrand.Source, dst []byte) {
 	chars := []byte(chars62)
-	rand.Shuffle(len(chars), func(i, j int) {
+	fastrand.ShuffleWithSource(source, len(chars), func(i, j int) {
 		chars[i], chars[j] = chars[j], chars[i]
 	})
 	copy(dst, chars)
@@ -45,17 +45,13 @@ type Obscure struct {
 	idxdec    [128]int
 	table     [idxlen][encbase]byte
 	encodings [idxlen]*base32.Encoding
-	rand      *fastrand.PCG64
 }
 
 func New(key []byte) *Obscure {
 	hash := md5.Sum(key)
-	rand := fastrand.NewPCG64()
 	hi, lo := binEnc.Uint64(hash[:8]), binEnc.Uint64(hash[8:16])
-	rand.Seed(hi, lo)
-	obs := &Obscure{
-		rand: rand,
-	}
+	rand := fastrand.NewPCG(hi, lo)
+	obs := &Obscure{}
 	getRandomChars(rand, obs.idxChars[:])
 	for i := 0; i < idxlen; i++ {
 		obs.idxdec[obs.idxChars[i]] = i

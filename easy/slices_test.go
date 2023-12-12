@@ -1,12 +1,12 @@
 package easy
 
 import (
+	"math/rand"
 	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/jxskiss/gopkg/v2/perf/fastrand"
 	"github.com/jxskiss/gopkg/v2/unsafe/reflectx"
 	"github.com/jxskiss/gopkg/v2/utils/ptr"
 )
@@ -363,7 +363,7 @@ func initBenchUniqueData() {
 		return
 	}
 	for i := 0; i < 10000; i++ {
-		benchUniqueData = append(benchUniqueData, fastrand.Int63())
+		benchUniqueData = append(benchUniqueData, rand.Int63())
 	}
 	benchUniqueDst = make([]int64, 10000)
 }
