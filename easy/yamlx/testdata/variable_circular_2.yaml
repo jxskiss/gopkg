@@ -14,7 +14,7 @@ definitions:
             - sub3: "@@var test_vars_k2"
     - step: &deploy
         name: Deploy
-        deployment: test # @@var( "deployment" )
+        deployment: test # @@var   deployment
         script:
           - ./deploy.sh target/my-app.jar
 
@@ -25,7 +25,7 @@ pipelines:
       - step: *deploy
     main:
       - step: *build-test
-      - step: # @@var( 'main_step_1')
+      - step: # @@var main_step_1
           <<: *deploy
           deployment: production
           trigger: manual
@@ -33,9 +33,9 @@ pipelines:
 vars:
   k1: "@@var script1"
   k2: # @@var test_vars_k2
-    k3: "@@var('test_var')"
+    k3: "@@var test_var"
   k4:
-    - '@@var( "deployment" )'
+    - '@@var  deployment  '
   k5:
     k6:
-      k7: '@@var(main_step_1)'
+      k7: '@@var main_step_1'

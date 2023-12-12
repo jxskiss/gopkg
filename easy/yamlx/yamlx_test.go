@@ -195,12 +195,12 @@ func TestUnmarshal(t *testing.T) {
 
 	t.Run("function / success", func(t *testing.T) {
 		yamlData := `
-nowUnix: "@@fn:nowUnix"
-nowRFC3339: "@@fn:nowRFC3339"
-nowFormat: '@@fn:nowFormat("2006-01-02")'
-uuid: '@@fn:uuid'
+nowUnix: "@@fn nowUnix"
+nowRFC3339: "@@fn   nowRFC3339"
+nowFormat: '@@fn nowFormat("2006-01-02")'
+uuid: '@@fn uuid'
 key2:
-  randStr: '@@fn:randStr(5)'
+  randStr: '@@fn randStr(5)'
   array:
     - '@@ref nowUnix'
     - '@@ref key2.randStr'
@@ -237,10 +237,10 @@ key2:
 			return s + slice[i], nil
 		}
 		yamlData := `
-k1: "@@fn:fn1"
-k2: "@@fn:fn2()"
-k3: '@@fn:fn3(1, "123")'
-k4: '@@fn:fn3(2, "123")'
+k1: "@@fn fn1"
+k2: "@@fn fn2()"
+k3: '@@fn fn3(1, "123")'
+k4: '@@fn fn3(2, "123")'
 `
 		var out map[string]any
 		err := Unmarshal([]byte(yamlData), &out,
@@ -258,12 +258,12 @@ k4: '@@fn:fn3(2, "123")'
 
 	t.Run("escape", func(t *testing.T) {
 		yamlData := `
-nowUnix: "\\@@fn:nowUnix"
+nowUnix: "\\@@fn nowUnix"
 type: "\\@@type"
 key2:
   - '\@@ref ref_1'
-  - key1: "\\@@inc( abc.yaml )"
-    key2: '\@@var("test_var")'
+  - key1: "\\@@incl abc.yaml "
+    key2: '\@@var   test_var'
     key3: '\\@@var test_var'
     key4: '\\@var test_var'
     key5: "\\@var test_var"
@@ -272,14 +272,14 @@ key2:
 		err := Unmarshal([]byte(yamlData), &out)
 		require.Nil(t, err)
 
-		assert.Equal(t, "@@fn:nowUnix", out["nowUnix"])
+		assert.Equal(t, "@@fn nowUnix", out["nowUnix"])
 		assert.Equal(t, "@@type", out["type"])
 		assert.Equal(t,
 			[]any{
 				"@@ref ref_1",
 				map[string]any{
-					"key1": "@@inc( abc.yaml )",
-					"key2": `@@var("test_var")`,
+					"key1": "@@incl abc.yaml ",
+					"key2": `@@var   test_var`,
 					"key3": `\@@var test_var`,
 					"key4": `\\@var test_var`,
 					"key5": `\@var test_var`,
@@ -316,8 +316,8 @@ func Test_unescapeStrValue(t *testing.T) {
 			want:  "@@var test_var",
 		},
 		{
-			input: `\@@inc(file.yaml)`,
-			want:  "@@inc(file.yaml)",
+			input: `\@@incl file.yaml `,
+			want:  "@@incl file.yaml ",
 		},
 		{
 			input: `\@@@type`,

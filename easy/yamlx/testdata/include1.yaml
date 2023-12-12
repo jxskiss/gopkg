@@ -1,17 +1,17 @@
 key1:
   subkey1: value1
   subkey2: value2
-  subkey3: "@@inc testdata/normal.yaml"
-  subkey4: '@@inc( testdata/normal.yaml )'
+  subkey3: "@@incl testdata/normal.yaml"
+  subkey4: '@@incl testdata/normal.yaml '
 
 key2:
   array_1:
     - value1
     - 12345
-    - '@@inc(testdata/normal.yaml)'
+    - '@@incl testdata/normal.yaml'
 
 key3:
   sub1:
     sub2:
       - sub3_k1: 12345
-        sub3_k2: "@@inc( testdata/normal.yaml   )"
+        sub3_k2: "@@incl testdata/normal.yaml   "

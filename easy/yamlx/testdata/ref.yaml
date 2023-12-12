@@ -2,30 +2,30 @@ obj1:
   foo: "bar"
 array: [ 1, 2, 3 ]
 # Reference to other values, wil be "bar"
-test_ref1: "@@ref(obj1.foo)"
+test_ref1: "@@ref obj1.foo"
 # Another reference, will be 3
-test_ref2: "@@ref('array.2')"
+test_ref2: "@@ref array.2 "
 # Get length of "array", will be 3
-test_ref3: "@@ref( array.# )"
+test_ref3: "@@ref   array.# "
 test_ref4:
   key1:
     key2: "@@ref test_ref1"
-    key3: "@@ref 'test_ref2'"
-    key4: '@@ref ( test_ref5 ) '
+    key3: "@@ref test_ref2"
+    key4: '@@ref  test_ref5  '
 friends:
   - first: Dale
-    last: "@@ref(test_ref4.key1.key2)"
+    last: "@@ref test_ref4.key1.key2"
     age: 44
     nets: [ "ig", "fb", "tw" ]
   - first: Roger
     last: Craig
-    age: '@@ref( "test_ref4.key1.key3" )'
+    age: '@@ref test_ref4.key1.key3 '
     nets: [ "fb", "tw" ]
   - first: Jane
     last: Murphy
     age: 47
     nets: [ "ig", "tw" ]
 # Will be [ "Dale","Roger","Jane" ]
-test_ref5: '@@ref("friends.#.first")'
+test_ref5: '@@ref friends.#.first'
 test_ref6:
-  key1: '@@ref(test_ref4.key1)'
+  key1: '@@ref test_ref4.key1'
