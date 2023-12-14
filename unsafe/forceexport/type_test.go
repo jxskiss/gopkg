@@ -1,8 +1,8 @@
 package forceexport
 
 import (
+	"bytes"
 	"reflect"
-	"strings"
 	"testing"
 	"unsafe"
 
@@ -15,17 +15,34 @@ type TestStruct struct {
 	// pass
 }
 
-func TestScanType(t *testing.T) {
-	got := make([]string, 0)
-	ScanType(func(name string, typ *reflectx.RType) {
-		if strings.HasPrefix(name, "github.com/jxskiss/gopkg") {
-			got = append(got, name)
-		}
+func TestScanTypes(t *testing.T) {
+	pkgPrefix := []byte("github.com/jxskiss/gopkg")
+
+	t.Run("break iteration", func(t *testing.T) {
+		var got []string
+		ScanTypes(func(name []byte, typ *reflectx.RType) bool {
+			if bytes.HasPrefix(name, pkgPrefix) {
+				got = append(got, string(name))
+				return false
+			}
+			return true
+		})
+		assert.Len(t, got, 1)
 	})
-	assert.Contains(t, got, "github.com/jxskiss/gopkg/v2/unsafe/forceexport.iface")
-	assert.Contains(t, got, "github.com/jxskiss/gopkg/v2/unsafe/forceexport.moduledata")
-	assert.Contains(t, got, "github.com/jxskiss/gopkg/v2/unsafe/forceexport.TestStruct")
-	assert.Contains(t, got, "github.com/jxskiss/gopkg/v2/unsafe/reflectx.RType")
+
+	t.Run("iterate all", func(t *testing.T) {
+		var got []string
+		ScanTypes(func(name []byte, typ *reflectx.RType) bool {
+			if bytes.HasPrefix(name, pkgPrefix) {
+				got = append(got, string(name))
+			}
+			return true
+		})
+		assert.Contains(t, got, "github.com/jxskiss/gopkg/v2/unsafe/forceexport.iface")
+		assert.Contains(t, got, "github.com/jxskiss/gopkg/v2/unsafe/forceexport.moduledata")
+		assert.Contains(t, got, "github.com/jxskiss/gopkg/v2/unsafe/forceexport.TestStruct")
+		assert.Contains(t, got, "github.com/jxskiss/gopkg/v2/unsafe/reflectx.RType")
+	})
 }
 
 func TestRuntimeModuledata(t *testing.T) {

@@ -33,9 +33,14 @@ func GetType(name string) *reflectx.RType {
 	panic(fmt.Sprintf("forceexport: cannot find type %s, maybe inactive", name))
 }
 
-// ScanType scans type information which are available from reflect.typelinks.
-// For each type, it calls f with the type's fully-qualified name and type.
-func ScanType(f func(name string, typ *reflectx.RType)) {
+// ScanTypes scans type information which are available from reflect.typelinks.
+// It calls f for each type in the order of the returns of reflect.typelinks
+// until f returns false.
+//
+// Note that name is only valid before f returns, the underlying memory
+// is reused. If retention is necessary, copy it before f returns.
+func ScanTypes(f func(name []byte, typ *reflectx.RType) bool) {
+	var fullName []byte
 	sections, offsets := linkname.Reflect_typelinks()
 	for i, base := range sections {
 		for _, offset := range offsets[i] {
@@ -51,8 +56,12 @@ func ScanType(f func(name string, typ *reflectx.RType)) {
 			if pkgPath == "" {
 				continue
 			}
-			fullName := fmt.Sprintf("%s.%s", pkgPath, typName)
-			f(fullName, typ)
+			fullName = append(fullName[:0], pkgPath...)
+			fullName = append(fullName, '.')
+			fullName = append(fullName, typName...)
+			if !f(fullName, typ) {
+				return
+			}
 		}
 	}
 }
