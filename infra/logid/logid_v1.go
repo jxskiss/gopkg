@@ -4,8 +4,6 @@ import (
 	"crypto/md5"
 	"crypto/rand"
 	"fmt"
-	"net"
-	"strconv"
 	"time"
 
 	"github.com/jxskiss/gopkg/v2/internal/fastrand"
@@ -54,12 +52,12 @@ type v1Gen struct {
 }
 
 func (p *v1Gen) Gen() string {
-	buf := make([]byte, 1, v1Length)
+	buf := make([]byte, v1Length)
 	buf[0] = v1Version
 
 	// milli timestamp, fixed length, 9 bytes
 	t := time.Now().UnixMilli()
-	buf = strconv.AppendInt(buf, t, 32)
+	encodeBase32(buf[1:10], t)
 
 	// random bytes, fixed length, 8 bytes
 	// 5*8 -> 8*5, use buf[10:15] as temporary buffer
@@ -70,16 +68,15 @@ func (p *v1Gen) Gen() string {
 	// machine ID, fixed length, 16 bytes
 	copy(buf[10:26], p.machineID[:])
 
-	buf = buf[:v1Length]
 	return unsafeheader.BytesToString(buf)
 }
 
-func decodeV1(s string) (info *v1Info) {
+func decodeV1Info(s string) (info *v1Info) {
 	info = &v1Info{}
 	if len(s) != v1Length {
 		return
 	}
-	t, err := strconv.ParseInt(s[1:10], 32, 64)
+	t, err := decodeBase32(s[1:10])
 	if err != nil {
 		return
 	}
@@ -94,7 +91,14 @@ func decodeV1(s string) (info *v1Info) {
 	return
 }
 
-var _ infoInterface = &v1Info{}
+var _ V1Info = &v1Info{}
+
+type V1Info interface {
+	Info
+	Time() time.Time
+	MachineID() string
+	Random() string
+}
 
 type v1Info struct {
 	valid     bool
@@ -103,21 +107,15 @@ type v1Info struct {
 	random    string
 }
 
-func (info *v1Info) Valid() bool {
-	return info != nil && info.valid
-}
-
-func (info *v1Info) Version() string { return "1" }
-
-func (info *v1Info) Time() time.Time { return info.time }
-
-func (info *v1Info) IP() net.IP { return nil }
-
-func (info *v1Info) Random() string { return info.random }
+func (info *v1Info) Valid() bool       { return info != nil && info.valid }
+func (info *v1Info) Version() byte     { return v1Version }
+func (info *v1Info) Time() time.Time   { return info.time }
+func (info *v1Info) MachineID() string { return info.machineID }
+func (info *v1Info) Random() string    { return info.random }
 
 func (info *v1Info) String() string {
 	if !info.Valid() {
 		return "1|invalid"
 	}
-	return fmt.Sprintf("1|%s|%s|%s", info.time.Format(strTimeMilli), info.machineID, info.random)
+	return fmt.Sprintf("1|%s|%s|%s", formatTime(info.time), info.machineID, info.random)
 }

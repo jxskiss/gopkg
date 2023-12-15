@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
-	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jxskiss/gopkg/v2/internal/fastrand"
@@ -31,43 +31,43 @@ const (
 //   - 32 bytes IP address, in hex form
 //   - 5 bytes random data
 func NewV2Gen(ip net.IP) Generator {
-	ipstr := IPUnknown
-	if len(ip) > 0 {
-		ipstr = hex.EncodeToString(ip.To16())
+	ipStr := IPUnknown
+	if ip = ip.To16(); len(ip) > 0 {
+		ipStr = strings.ToUpper(hex.EncodeToString(ip))
 	}
 	return &v2Gen{
-		ipstr: ipstr,
+		ipStr: ipStr,
 	}
 }
 
 type v2Gen struct {
-	ipstr string
+	ipStr string
 }
 
 func (p *v2Gen) Gen() string {
-	buf := make([]byte, 1, v2Length)
+	buf := make([]byte, v2Length)
 	buf[0] = v2Version
 
 	// milli timestamp, fixed length, 9 bytes
 	t := time.Now().UnixMilli()
-	buf = strconv.AppendInt(buf, t, 32)
+	encodeBase32(buf[1:10], t)
 
 	// ip address, fixed length, 32 bytes
-	buf = append(buf, p.ipstr...)
+	copy(buf[10:42], p.ipStr)
 
 	// random number, fixed length, 5 bytes
-	r := fastrand.N(int32(v2RandN)) + 1<<20
-	buf = strconv.AppendInt(buf, int64(r), 32)
+	r := fastrand.N(int64(v2RandN)) + 1<<20
+	encodeBase32(buf[42:47], r)
 
 	return unsafeheader.BytesToString(buf)
 }
 
-func decodeV2(s string) (info *v2Info) {
+func decodeV2Info(s string) (info *v2Info) {
 	info = &v2Info{}
 	if len(s) != v2Length {
 		return
 	}
-	t, err := strconv.ParseInt(s[1:10], 32, 64)
+	t, err := decodeBase32(s[1:10])
 	if err != nil {
 		return
 	}
@@ -85,7 +85,14 @@ func decodeV2(s string) (info *v2Info) {
 	return
 }
 
-var _ infoInterface = &v2Info{}
+var _ V2Info = &v2Info{}
+
+type V2Info interface {
+	Info
+	Time() time.Time
+	IP() net.IP
+	Random() string
+}
 
 type v2Info struct {
 	valid  bool
@@ -94,21 +101,15 @@ type v2Info struct {
 	random string
 }
 
-func (info *v2Info) Valid() bool {
-	return info != nil && info.valid
-}
-
-func (info *v2Info) Version() string { return "2" }
-
+func (info *v2Info) Valid() bool     { return info != nil && info.valid }
+func (info *v2Info) Version() byte   { return v2Version }
 func (info *v2Info) Time() time.Time { return info.time }
-
-func (info *v2Info) IP() net.IP { return info.ip }
-
-func (info *v2Info) Random() string { return info.random }
+func (info *v2Info) IP() net.IP      { return info.ip }
+func (info *v2Info) Random() string  { return info.random }
 
 func (info *v2Info) String() string {
 	if !info.Valid() {
 		return "2|invalid"
 	}
-	return fmt.Sprintf("2|%s|%s|%s", info.time.Format(strTimeMilli), info.ip.String(), info.random)
+	return fmt.Sprintf("2|%s|%s|%s", formatTime(info.time), info.ip.String(), info.random)
 }

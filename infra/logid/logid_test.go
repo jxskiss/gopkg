@@ -6,14 +6,36 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/jxskiss/gopkg/v2/internal/fastrand"
 )
 
-func BenchmarkGen(b *testing.B) {
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		_ = Gen()
+func TestDefault(t *testing.T) {
+	id1 := Gen()
+	assert.Len(t, id1, v1Length)
+
+	SetDefault(NewV2Gen(nil))
+	defer SetDefault(NewV1Gen())
+	id2 := Gen()
+	assert.Len(t, id2, v2Length)
+}
+
+func TestTimeMilliBase32(t *testing.T) {
+	maxMilli := int64(1 << 45)
+	minMilli := int64(1 << 40)
+	t.Logf("max time: %v", time.UnixMilli(maxMilli))
+	t.Logf("min time: %v", time.UnixMilli(minMilli))
+
+	for i := 0; i < 1000; i++ {
+		var buf = make([]byte, 9)
+		x := fastrand.N(maxMilli)
+		encodeBase32(buf, x)
+		got, err := decodeBase32(string(buf))
+		assert.Nil(t, err)
+		assert.Equal(t, x, got)
 	}
 }
 
