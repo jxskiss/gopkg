@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/jxskiss/gopkg/v2/internal"
-	"github.com/jxskiss/gopkg/v2/internal/linkname"
+	"github.com/jxskiss/gopkg/v2/internal/rthash"
 )
 
 // NewShardedCache returns a hash-sharded lru cache instance which is suitable
@@ -23,6 +23,7 @@ func NewShardedCache[K comparable, V any](buckets, bucketCapacity int) *ShardedC
 	for i := 0; i < buckets; i++ {
 		mc.cache[i] = NewCache[K, V](bucketCapacity)
 	}
+	mc.hashFunc = rthash.NewHashFunc[K]()
 	return mc
 }
 
@@ -37,6 +38,8 @@ type ShardedCache[K comparable, V any] struct {
 	buckets uintptr
 	mask    uintptr
 	cache   []*Cache[K, V]
+
+	hashFunc rthash.HashFunc[K]
 }
 
 func (c *ShardedCache[K, V]) Len() (n int) {
@@ -47,27 +50,27 @@ func (c *ShardedCache[K, V]) Len() (n int) {
 }
 
 func (c *ShardedCache[K, V]) Has(key K) (exists, expired bool) {
-	h := runtime_efaceHash(key)
+	h := c.hashFunc(key)
 	return c.cache[h&c.mask].Has(key)
 }
 
 func (c *ShardedCache[K, V]) Get(key K) (v V, exists, expired bool) {
-	h := runtime_efaceHash(key)
+	h := c.hashFunc(key)
 	return c.cache[h&c.mask].Get(key)
 }
 
 func (c *ShardedCache[K, V]) GetWithTTL(key K) (v V, exists bool, ttl *time.Duration) {
-	h := runtime_efaceHash(key)
+	h := c.hashFunc(key)
 	return c.cache[h&c.mask].GetWithTTL(key)
 }
 
 func (c *ShardedCache[K, V]) GetQuiet(key K) (v V, exists, expired bool) {
-	h := runtime_efaceHash(key)
+	h := c.hashFunc(key)
 	return c.cache[h&c.mask].GetQuiet(key)
 }
 
 func (c *ShardedCache[K, V]) GetNotStale(key K) (v V, exists bool) {
-	h := runtime_efaceHash(key)
+	h := c.hashFunc(key)
 	return c.cache[h&c.mask].GetNotStale(key)
 }
 
@@ -98,7 +101,7 @@ func (c *ShardedCache[K, V]) mget(notStale bool, keys ...K) map[K]V {
 }
 
 func (c *ShardedCache[K, V]) Set(key K, value V, ttl time.Duration) {
-	h := runtime_efaceHash(key)
+	h := c.hashFunc(key)
 	c.cache[h&c.mask].Set(key, value, ttl)
 }
 
@@ -109,7 +112,7 @@ func (c *ShardedCache[K, V]) MSet(kvmap map[K]V, ttl time.Duration) {
 }
 
 func (c *ShardedCache[K, V]) Delete(key K) {
-	h := runtime_efaceHash(key)
+	h := c.hashFunc(key)
 	c.cache[h&c.mask].Delete(key)
 }
 
@@ -124,20 +127,8 @@ func (c *ShardedCache[K, V]) MDelete(keys ...K) {
 func (c *ShardedCache[K, V]) groupKeys(keys []K) map[uintptr][]K {
 	grpKeys := make(map[uintptr][]K)
 	for _, key := range keys {
-		idx := runtime_efaceHash(key) & c.mask
+		idx := c.hashFunc(key) & c.mask
 		grpKeys[idx] = append(grpKeys[idx], key)
 	}
 	return grpKeys
-}
-
-var hashSeed uintptr
-
-func init() {
-	for hashSeed == 0 {
-		hashSeed = uintptr(linkname.Runtime_fastrand64())
-	}
-}
-
-func runtime_efaceHash(v any) uintptr {
-	return linkname.Runtime_efaceHash(v, hashSeed)
 }

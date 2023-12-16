@@ -13,7 +13,7 @@ func init() {
 	if !ok {
 		panic("reflect.MapIter field iter not found")
 	}
-	hiterType = toRType(hiterField.Type)
+	hiterType = ToRType(hiterField.Type)
 }
 
 var hiterType unsafe.Pointer // *reflect.rtype

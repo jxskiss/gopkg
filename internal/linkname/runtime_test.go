@@ -7,17 +7,23 @@ func compileRuntimeFunctions() {
 	call(Runtime_fastrand)
 	call(Runtime_fastrandn)
 	call(Runtime_fastrand64)
-	call(Runtime_procPin)
-	call(Runtime_procUnpin)
-	call(Pid)
-	call(Runtime_stopTheWorld)
-	call(Runtime_startTheWorld)
+	call(Runtime_fastrand64)
+	call(Runtime_memhash8)
+	call(Runtime_memhash16)
+	call(Runtime_memhash32)
+	call(Runtime_memhash64)
+	call(Runtime_stringHash)
+	call(Runtime_bytesHash)
+	call(Runtime_f32hash)
+	call(Runtime_f64hash)
+	call(Runtime_c64hash)
+	call(Runtime_c128hash)
 	call(Runtime_efaceHash)
+	call(Runtime_interhash)
+	call(Runtime_typehash)
 	call(Runtime_activeModules)
 	call(Runtime_readUnaligned32)
 	call(Runtime_readUnaligned64)
-	call(Runtime_sysAlloc)
-	call(Runtime_sysFree)
 }
 
 func TestRuntime_fastrand(t *testing.T) {
@@ -62,4 +68,14 @@ func TestRuntime_sysAlloc(t *testing.T) {
 		t.Errorf("sysAlloc got incorrect memory length")
 	}
 	Runtime_sysFree(mem)
+}
+
+func TestRuntime_stw(t *testing.T) {
+	Runtime_stopTheWorld()
+	Runtime_startTheWorld()
+}
+
+func TestPid(t *testing.T) {
+	pid := Pid()
+	t.Logf("Pid got %d", pid)
 }

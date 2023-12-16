@@ -22,7 +22,7 @@ type iface struct {
 	data unsafe.Pointer
 }
 
-// toRType converts a [reflect.Type] value to [*reflect.rtype].
-func toRType(t reflect.Type) unsafe.Pointer {
+// ToRType converts a [reflect.Type] value to [*reflect.rtype].
+func ToRType(t reflect.Type) unsafe.Pointer {
 	return (*iface)(unsafe.Pointer(&t)).data
 }
