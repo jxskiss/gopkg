@@ -50,7 +50,7 @@ func parseEnvDirective(str string) (directive, error) {
 	str = strings.TrimPrefix(str, directiveEnv)
 	str = strings.TrimSpace(str)
 
-	var envNames []string //nolint:prealloc
+	var envNames []string
 	for _, x := range strings.Split(str, ",") {
 		if x = strings.TrimSpace(x); x != "" {
 			envNames = append(envNames, x)

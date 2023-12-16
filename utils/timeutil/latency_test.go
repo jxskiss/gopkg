@@ -35,4 +35,9 @@ func TestLatencyRecorder(t *testing.T) {
 	assert.Regexp(t, `\s+op3=\d+`, logStr)
 	assert.Regexp(t, `\s+op4=\d{4}`, logStr)
 	assert.Regexp(t, `\s+total=\d+`, logStr)
+
+	lRec.Reset()
+	latencyMap = lRec.GetLatencyMap()
+	assert.Len(t, latencyMap, 1)
+	assert.Contains(t, latencyMap, "total")
 }

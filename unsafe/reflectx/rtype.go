@@ -5,6 +5,7 @@ import (
 	"unsafe"
 
 	"github.com/jxskiss/gopkg/v2/internal/linkname"
+	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
 
 // ---- reflect.Type ---- //
@@ -134,15 +135,15 @@ func (t *RType) IfaceIndir() bool {
 }
 
 func (t *RType) PackInterface(word unsafe.Pointer) any {
-	return *(*any)(unsafe.Pointer(&eface{
-		_type: t,
-		data:  word,
+	return *(*any)(unsafe.Pointer(&EmptyInterface{
+		RType: t,
+		Word:  word,
 	}))
 }
 
-func (t *RType) ToType() reflect.Type {
+func (t *RType) ToReflectType() reflect.Type {
 	//return linkname.Reflect_toType(unsafe.Pointer(t))
-	return packReflectType(t)
+	return unsafeheader.ToReflectType(unsafe.Pointer(t))
 }
 
 func (t *RType) Pointer() unsafe.Pointer {
@@ -160,7 +161,7 @@ func PtrTo(t *RType) *RType {
 // SliceOf returns the slice type with element type t.
 // For example, if t represents int, SliceOf(t) represents []int.
 func SliceOf(t *RType) *RType {
-	return ToRType(reflect.SliceOf(t.ToType()))
+	return ToRType(reflect.SliceOf(t.ToReflectType()))
 }
 
 // MapOf returns the map type with the given key and element types.
@@ -170,12 +171,12 @@ func SliceOf(t *RType) *RType {
 // If the key type is not a valid map key type (that is, if it does
 // not implement Go's == operator), MapOf panics.
 func MapOf(key, elem *RType) *RType {
-	return ToRType(reflect.MapOf(key.ToType(), elem.ToType()))
+	return ToRType(reflect.MapOf(key.ToReflectType(), elem.ToReflectType()))
 }
 
 // ToRType converts a [reflect.Type] value to *RType.
 func ToRType(t reflect.Type) *RType {
-	return (*RType)((*iface)(unsafe.Pointer(&t)).data)
+	return (*RType)(unsafeheader.ToRType(t))
 }
 
 // RTypeOf returns the underlying rtype pointer of the given any value.
@@ -188,45 +189,11 @@ func RTypeOf(v any) *RType {
 	case reflect.Value:
 		return ToRType(x.Type())
 	default:
-		return unpackEface(&x)._type
+		return RTypeOfEface(v)
 	}
 }
 
 // RTypeOfEface unpacks an empty interface value and returns its rtype.
 func RTypeOfEface(v any) *RType {
-	return unpackEface(&v)._type
-}
-
-// ---- private things ---- //
-
-func unpackEface(ep *any) *eface {
-	return (*eface)(unsafe.Pointer(ep))
-}
-
-// eface is a copy type of runtime.eface.
-type eface struct {
-	_type *RType // *_type
-	data  unsafe.Pointer
-}
-
-func packReflectType(rtyp *RType) reflect.Type {
-	t := reflectTypeTmpl
-	t.data = unsafe.Pointer(rtyp)
-	return *(*reflect.Type)(unsafe.Pointer(&t))
-}
-
-// iface is a copy type of runtime.iface.
-type iface struct {
-	tab  unsafe.Pointer // *runtime.itab
-	data unsafe.Pointer
-}
-
-const kindMask = (1 << 5) - 1
-
-//nolint:all
-var reflectTypeTmpl iface
-
-func init() {
-	sampleTyp := reflect.TypeOf(0)
-	reflectTypeTmpl = *(*iface)(unsafe.Pointer(&sampleTyp))
+	return EfaceOf(&v).RType
 }

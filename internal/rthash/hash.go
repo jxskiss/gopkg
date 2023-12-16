@@ -5,6 +5,7 @@ import (
 	"unsafe"
 
 	"github.com/jxskiss/gopkg/v2/internal/linkname"
+	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
 
 type HashFunc[K comparable] func(key K) uintptr
@@ -72,7 +73,7 @@ func NewHashFunc[K comparable]() HashFunc[K] {
 			return linkname.Runtime_c128hash(unsafe.Pointer(&key), seed)
 		}
 	default:
-		rtype := linkname.ToRType(typ)
+		rtype := unsafeheader.ToRType(typ)
 		return func(key K) uintptr {
 			return linkname.Runtime_typehash(rtype, unsafe.Pointer(&key), seed)
 		}
@@ -105,5 +106,5 @@ func NewBytesHash() func(b []byte) uintptr {
 //go:nosplit
 func noescape(p unsafe.Pointer) unsafe.Pointer {
 	x := uintptr(p)
-	return unsafe.Pointer(x ^ 0)
+	return unsafe.Pointer(x ^ 0) //nolint:staticcheck
 }

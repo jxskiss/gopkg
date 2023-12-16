@@ -249,7 +249,6 @@ func (p *parser) resolveVariables() error {
 			stack.push(node.Content[0])
 		case yaml.SequenceNode:
 			for i, n := range node.Content {
-
 				// 当 array 有 anchor 时，lineComment 会被算给第一个列表元素，
 				// 如果第一个列表元素也有 lineComment，则无法正确区分到底是哪一样的注释，
 				// 因此不支持带有 anchor 的 array 作为变量目标对象。

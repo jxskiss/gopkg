@@ -148,7 +148,7 @@ func uint32n(s Source, n uint32) uint32 {
 	hi, lo1b := bits.Mul32(uint32(x>>32), n)
 	lo1, c := bits.Add32(lo1a, lo1b, 0)
 	hi += c
-	if lo1 == 0 && lo0 < uint32(n) {
+	if lo1 == 0 && lo0 < n {
 		n64 := uint64(n)
 		thresh := uint32(-n64 % n64)
 		for lo1 == 0 && lo0 < thresh {
@@ -174,7 +174,6 @@ func Read(b []byte) (n int, err error) {
 // wyrand: https://github.com/wangyi-fudan/wyhash
 type wyrand uint64
 
-//nolint:unused
 const (
 	wyp0 = 0xa0761d6478bd642f
 	wyp1 = 0xe7037ed1a0b428db

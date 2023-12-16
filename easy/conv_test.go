@@ -15,6 +15,20 @@ func TestConvInts(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
+func TestFormatInts(t *testing.T) {
+	slice1 := []int32{1, 2, 3, -3, -2, -1}
+	want := []string{"1", "2", "3", "-3", "-2", "-1"}
+	got := FormatInts(slice1, 10)
+	assert.Equal(t, want, got)
+}
+
+func TestParseInts(t *testing.T) {
+	slice := []string{"1", "2", "a", "3", "bc", "-3", "-2", "-1", "ef"}
+	want := []int64{1, 2, 3, -3, -2, -1}
+	got := ParseInts[int64](slice, 10)
+	assert.Equal(t, want, got)
+}
+
 func TestToBoolMap(t *testing.T) {
 	slice := []int64{1, 2, 2, 3}
 	want := map[int64]bool{1: true, 2: true, 3: true}

@@ -8,29 +8,26 @@ import (
 
 func TestInt(t *testing.T) {
 	s := NewInt(1, 3, 5)
+	_ = NewIntWithSize(3) // coverage
 	assert.Equal(t, 3, s.Size())
 	assert.True(t, s.Contains(1))
 	assert.False(t, s.Contains(2))
-
-	_ = NewIntWithSize(3)
 }
 
 func TestInt64(t *testing.T) {
 	s := NewInt64(1, 3, 5)
+	_ = NewInt64WithSize(3) // coverage
 	assert.Equal(t, 3, s.Size())
 	assert.True(t, s.Contains(1))
 	assert.False(t, s.Contains(2))
-
-	_ = NewInt64WithSize(3)
 }
 
 func TestInt32(t *testing.T) {
 	s := NewInt32(1, 3, 5)
+	_ = NewInt32WithSize(3) // coverage
 	assert.Equal(t, 3, s.Size())
 	assert.True(t, s.Contains(1))
 	assert.False(t, s.Contains(2))
-
-	_ = NewIntWithSize(3)
 }
 
 func TestString(t *testing.T) {
@@ -46,5 +43,8 @@ func TestString(t *testing.T) {
 	assert.Equal(t, 5, s1.Union(s2).Size())
 	assert.Equal(t, 5, s1.UnionSlice(slice).Size())
 
-	_ = NewStringWithSize(3)
+	s1.Del("a")
+	assert.ElementsMatch(t, []string{"b", "c"}, s1.Slice())
+	assert.ElementsMatch(t, []string{"c"}, s1.FilterInclude(slice))
+	assert.ElementsMatch(t, []string{"d", "e"}, s1.FilterExclude(slice))
 }

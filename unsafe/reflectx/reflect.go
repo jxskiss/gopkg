@@ -3,8 +3,6 @@ package reflectx
 import (
 	"reflect"
 	"unsafe"
-
-	"github.com/jxskiss/gopkg/v2/internal"
 )
 
 // IsNil tells whether v is nil or the underlying data is nil.
@@ -20,13 +18,14 @@ func IsNil(v any) bool {
 }
 
 // IsIntType tells whether kind is an integer.
-func IsIntType(kind reflect.Kind) bool {
+func IsIntType(kind reflect.Kind) (isInt, isSigned bool) {
 	switch kind {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return true
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return true, true
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return true, false
 	}
-	return false
+	return false, false
 }
 
 // ReflectInt returns v's underlying value as int64.
@@ -41,19 +40,4 @@ func ReflectInt(v reflect.Value) int64 {
 
 	// shall not happen, type should be pre-checked
 	panic("bug: not int type")
-}
-
-// CastInt returns an integer v's value as int64.
-// v must be an integer, else it panics.
-func CastInt(v any) int64 {
-	return internal.CastInt(v)
-}
-
-// CastIntPointer returns ptr's value as int64, the underlying value
-// is cast to int64 using unsafe tricks according kind.
-//
-// If ptr is not pointed to an integer or kind does not match ptr,
-// the behavior is undefined, it may panic or return incorrect value.
-func CastIntPointer(kind reflect.Kind, ptr unsafe.Pointer) int64 {
-	return internal.CastIntPointer(kind, ptr)
 }

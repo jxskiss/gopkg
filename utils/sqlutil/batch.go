@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/jxskiss/gopkg/v2/internal"
+	"github.com/jxskiss/gopkg/v2/unsafe/reflectx"
 	"github.com/jxskiss/gopkg/v2/utils/structtag"
 	"github.com/jxskiss/gopkg/v2/utils/strutil"
 )
@@ -341,8 +341,7 @@ func assertSliceOfStructAndLength(where string, rows any) {
 	if indirectType(elemTyp).Kind() != reflect.Struct {
 		panic(where + ": slice element is not struct or pointer to struct")
 	}
-	sh := internal.UnpackSlice(rows)
-	if sh.Len == 0 {
+	if reflectx.SliceLen(rows) == 0 {
 		panic(where + ": slice length is zero")
 	}
 }

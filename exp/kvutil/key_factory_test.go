@@ -130,7 +130,7 @@ func Test_Key_UnmatchedArgCount(t *testing.T) {
 
 	key1 := km.NewKey("abc:{some_id}:{arg2}:{dummy1}:{dummy2}")
 	got1 := key1(1234567, "x0BtEadepz6L")
-	want1 := "abc:1234567:x0BtEadepz6L:{dummy1}:{dummy2}"
+	want1 := "abc:1234567:x0BtEadepz6L:%!v(MISSING):%!v(MISSING)"
 	if got1 != want1 {
 		t.Errorf("failed Test_Key_UnmatchedArgCount: got1=%v, want1=%v", got1, want1)
 	}
@@ -138,7 +138,7 @@ func Test_Key_UnmatchedArgCount(t *testing.T) {
 	key2 := km.NewKey("{{some_id_1}_foo_bar_count}:{arg2}:{dummy1}:{dummy2}",
 		"some_id_1", "arg2")
 	got2 := key2(1234567)
-	want2 := "{1234567_foo_bar_count}:{arg2}:{dummy1}:{dummy2}"
+	want2 := "{1234567_foo_bar_count}:%!v(MISSING):{dummy1}:{dummy2}"
 	if got2 != want2 {
 		t.Errorf("failed Test_Key_UnmatchedArgCount: got2=%v, want2=%v", got2, want2)
 	}

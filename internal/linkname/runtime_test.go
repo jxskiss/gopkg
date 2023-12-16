@@ -1,6 +1,10 @@
 package linkname
 
-import "testing"
+import (
+	"sync"
+	"testing"
+	"time"
+)
 
 func compileRuntimeFunctions() {
 	call(Runtime_memclrNoHeapPointers)
@@ -76,6 +80,15 @@ func TestRuntime_stw(t *testing.T) {
 }
 
 func TestPid(t *testing.T) {
-	pid := Pid()
-	t.Logf("Pid got %d", pid)
+	var wg sync.WaitGroup
+	for i := 0; i < 15; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			time.Sleep(10 * time.Millisecond)
+			pid := Pid()
+			t.Logf("Pid got %d", pid)
+		}()
+	}
+	wg.Wait()
 }

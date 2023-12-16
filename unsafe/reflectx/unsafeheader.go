@@ -44,14 +44,14 @@ func BytesToString(b []byte) string {
 }
 
 // EfaceOf casts the empty interface{} pointer to an EmptyInterface pointer.
-func EfaceOf(ep *any) *EmptyInterface {
-	return (*EmptyInterface)(unsafe.Pointer(ep))
+func EfaceOf(ep *any) EmptyInterface {
+	return *(*EmptyInterface)(unsafe.Pointer(ep))
 }
 
 // UnpackSlice unpacks the given slice interface{} to the underlying
 // EmptyInterface and SliceHeader.
 // It panics if param slice is not a slice.
-func UnpackSlice(slice any) (*EmptyInterface, *SliceHeader) {
+func UnpackSlice(slice any) (EmptyInterface, *SliceHeader) {
 	eface := EfaceOf(&slice)
 	if eface.RType.Kind() != reflect.Slice {
 		panic(invalidType("UnpackSlice", "slice", slice))

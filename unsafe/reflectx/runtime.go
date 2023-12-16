@@ -29,10 +29,7 @@ func MakeSlice(elemTyp reflect.Type, length, capacity int) (slice any, header *S
 		Len:  length,
 		Cap:  capacity,
 	}
-	slice = *(*any)(unsafe.Pointer(&EmptyInterface{
-		RType: SliceOf(elemRType),
-		Word:  unsafe.Pointer(header),
-	}))
+	slice = SliceOf(elemRType).PackInterface(unsafe.Pointer(header))
 	return
 }
 

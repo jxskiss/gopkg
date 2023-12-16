@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/jxskiss/gopkg/v2/internal/linkname"
+	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
 
 type simple struct {
@@ -50,14 +51,14 @@ func TestRType(t *testing.T) {
 func TestRTypeToType(t *testing.T) {
 	typ := RTypeOf(123)
 	t1 := reflect.TypeOf(123)
-	t2 := typ.ToType()
+	t2 := typ.ToReflectType()
 	t3 := linkname.Reflect_toType(unsafe.Pointer(typ))
 
-	if1 := (*iface)(unsafe.Pointer(&t1))
-	if2 := (*iface)(unsafe.Pointer(&t2))
-	if3 := (*iface)(unsafe.Pointer(&t3))
-	assert.True(t, if1.tab == if2.tab && if1.tab == if3.tab)
-	assert.True(t, if1.data == if2.data && if1.data == if3.data)
+	if1 := unsafeheader.ToIface(t1)
+	if2 := unsafeheader.ToIface(t2)
+	if3 := unsafeheader.ToIface(t3)
+	assert.True(t, if1.Tab == if2.Tab && if1.Tab == if3.Tab)
+	assert.True(t, if1.Data == if2.Data && if1.Data == if3.Data)
 }
 
 func TestRTypeOfEface(t *testing.T) {
@@ -73,14 +74,14 @@ func TestToRType(t *testing.T) {
 
 func TestRTypeOf(t *testing.T) {
 	var x int64
-	typ1 := RTypeOf(x).ToType()
+	typ1 := RTypeOf(x).ToReflectType()
 	typ2 := reflect.TypeOf(x)
 	assert.Equal(t, typ1, typ2)
 }
 
 func TestPtrTo(t *testing.T) {
 	var x int64
-	typ1 := PtrTo(RTypeOf(x)).ToType()
+	typ1 := PtrTo(RTypeOf(x)).ToReflectType()
 	typ2 := reflect.PtrTo(reflect.TypeOf(x))
 	assert.Equal(t, typ1, typ2)
 }

@@ -3,6 +3,8 @@ package linkname
 import (
 	"sort"
 	"testing"
+
+	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
 
 func compileReflectFunctions() {
@@ -59,12 +61,12 @@ func TestReflect_mapiterinit(t *testing.T) {
 	}
 
 	var val any = m
-	ef := unpackEface(&val)
-	it := Reflect_mapiterinit(ef.rtype, ef.data)
+	ef := unsafeheader.ToEface(&val)
+	it := Reflect_mapiterinit(ef.RType, ef.Word)
 
 	var keys []string
 	var values []int
-	mlen := Reflect_maplen(ef.data)
+	mlen := Reflect_maplen(ef.Word)
 	for i := 0; i < mlen; i++ {
 		k := Reflect_mapiterkey(it)
 		v := Reflect_mapiterelem(it)

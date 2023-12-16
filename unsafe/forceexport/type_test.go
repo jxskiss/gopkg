@@ -58,10 +58,10 @@ func TestRuntimeModuledata(t *testing.T) {
 }
 
 func TestTypeEquality(t *testing.T) {
-	ifacetype := GetType("github.com/jxskiss/gopkg/v2/unsafe/forceexport.iface").ToType()
+	ifacetype := GetType("github.com/jxskiss/gopkg/v2/unsafe/forceexport.iface").ToReflectType()
 	assert.Equal(t, reflect.TypeOf(iface{}), ifacetype)
 
-	structtype := GetType("github.com/jxskiss/gopkg/v2/unsafe/forceexport.TestStruct").ToType()
+	structtype := GetType("github.com/jxskiss/gopkg/v2/unsafe/forceexport.TestStruct").ToReflectType()
 	assert.Equal(t, reflect.TypeOf(TestStruct{}), structtype)
 }
 

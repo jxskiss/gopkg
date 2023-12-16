@@ -5,6 +5,8 @@ package linkname
 import (
 	"reflect"
 	"unsafe"
+
+	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
 
 func init() {
@@ -13,7 +15,7 @@ func init() {
 	if !ok {
 		panic("reflect.MapIter field iter not found")
 	}
-	hiterType = ToRType(hiterField.Type)
+	hiterType = unsafeheader.ToRType(hiterField.Type)
 }
 
 var hiterType unsafe.Pointer // *reflect.rtype
