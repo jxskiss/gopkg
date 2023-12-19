@@ -22,10 +22,9 @@ func getBreaker(name string, overloadRatio float64) *breaker {
 	}
 	w, ok := breakerMap.Load(key)
 	if !ok {
-		w = &breaker{
+		w, _ = breakerMap.LoadOrStore(key, &breaker{
 			ratio: overloadRatio,
-		}
-		breakerMap.Store(key, w)
+		})
 	}
 	return w.(*breaker)
 }
