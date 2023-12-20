@@ -9,9 +9,6 @@ test_linkname:
 test_forceexport:
 	go test -gcflags="all=-l -N" ./unsafe/forceexport
 
-test_monkey:
-	go test -gcflags="all=-l -N" -count=2 ./unsafe/monkey/...
-
 test_coverage:
 	mkdir -p _output/
 	go test -count=1 -cover -coverprofile=_output/coverprofile.out ./... && go tool cover -html _output/coverprofile.out

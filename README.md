@@ -97,11 +97,6 @@ reasonable API compatibility and versioning.
    expect, this package is unsafe and fragile and shouldn't be used in production, it is
    mainly for testing purpose.
 
-1. `unsafe/monkey` provides a method to do testing using the monkey-patch pattern.<br>
-   **Deprecation warning: This package is not maintained, it will be removed in a future release.
-   Users are recommended to use [bytedance/mockey](https://github.com/bytedance/mockey),
-   which is actively maintained.**
-
 1. `unsafe/reflectx` contains many utilities to work with reflection, providing convenient APIs
    or better performance.
 

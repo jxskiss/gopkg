@@ -52,11 +52,6 @@ jobs:
       - name: Test
         run: go test -race -v ./...
 
-      - name: Test disable inlining
-        env:
-          DISABLE_INLINING: true
-        run: "go test -gcflags=\"all=-l -N\" -v ./unsafe/monkey/..."
-
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -75,5 +70,5 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v3
         with:
-          version: v1.54.0
+          version: v1.55.2
           only-new-issues: true
