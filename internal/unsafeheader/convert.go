@@ -6,8 +6,8 @@ import (
 )
 
 func StringToBytes(s string) []byte {
-	sh := (*String)(unsafe.Pointer(&s))
-	bh := &Slice{
+	sh := (*StringHeader)(unsafe.Pointer(&s))
+	bh := &SliceHeader{
 		Data: sh.Data,
 		Len:  sh.Len,
 		Cap:  sh.Len,

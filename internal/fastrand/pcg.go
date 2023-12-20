@@ -9,29 +9,25 @@ import "math/bits"
 // https://numpy.org/devdocs/reference/random/upgrading-pcg64.html
 // https://github.com/imneme/pcg-cpp/commit/871d0494ee9c9a7b7c43f753e3d8ca47c26f8005
 
-// A PCG is a PCG generator with 128 bits of internal state.
-// A zero PCG is equivalent to NewPCG(0, 0).
-type PCG struct {
+// NewPCG returns a new PCG generator seeded with the given values.
+func NewPCG(seed1, seed2 uint64) *Rand {
+	return &Rand{
+		src: &pcgSource{seed1, seed2},
+	}
+}
+
+// A pcgSource is a PCG generator with 128 bits of internal state.
+// A zero pcgSource is equivalent to pcgSource{0, 0}.
+type pcgSource struct {
 	hi uint64
 	lo uint64
 }
 
-// NewPCG returns a new PCG seeded with the given values.
-func NewPCG(seed1, seed2 uint64) *PCG {
-	return &PCG{seed1, seed2}
-}
-
-// Seed resets the PCG to behave the same way as NewPCG(seed1, seed2).
-func (p *PCG) Seed(seed1, seed2 uint64) {
-	p.hi = seed1
-	p.lo = seed2
-}
-
-func (p *PCG) next() (hi, lo uint64) {
+func (p *pcgSource) next() (hi, lo uint64) {
 	// https://github.com/imneme/pcg-cpp/blob/428802d1a5/include/pcg_random.hpp#L161
 	//
-	// Numpy's PCG multiplies by the 64-bit value cheapMul
-	// instead of the 128-bit value used here and in the official PCG code.
+	// Numpy's pcgSource multiplies by the 64-bit value cheapMul
+	// instead of the 128-bit value used here and in the official pcgSource code.
 	// This does not seem worthwhile, at least for Go: not having any high
 	// bits in the multiplier reduces the effect of low bits on the highest bits,
 	// and it only saves 1 multiply out of 3.
@@ -54,7 +50,7 @@ func (p *PCG) next() (hi, lo uint64) {
 }
 
 // Uint64 return a uniformly-distributed random uint64 value.
-func (p *PCG) Uint64() uint64 {
+func (p *pcgSource) Uint64() uint64 {
 	hi, lo := p.next()
 
 	// XSL-RR would be

@@ -9,23 +9,44 @@ import (
 	"unsafe"
 )
 
-// Slice is the runtime representation of a slice.
+// SliceHeader is the runtime representation of a slice.
 //
 // Unlike reflect.SliceHeader, its Data field is sufficient to guarantee the
 // data it references will not be garbage collected.
-type Slice struct {
+type SliceHeader struct {
 	Data unsafe.Pointer
 	Len  int
 	Cap  int
 }
 
-// String is the runtime representation of a string.
+// SliceData returns a pointer to the underlying array of the argument
+// slice.
+//   - If len(slice) == 0, it returns nil.
+//   - Otherwise, it returns the underlying pointer.
+func SliceData[T any](slice []T) unsafe.Pointer {
+	if len(slice) == 0 {
+		return nil
+	}
+	return (*SliceHeader)(unsafe.Pointer(&slice)).Data
+}
+
+// StringHeader is the runtime representation of a string.
 //
 // Unlike reflect.StringHeader, its Data field is sufficient to guarantee the
 // data it references will not be garbage collected.
-type String struct {
+type StringHeader struct {
 	Data unsafe.Pointer
 	Len  int
+}
+
+// StringData returns a pointer to the underlying bytes of str.
+//   - If str == "", it returns nil.
+//   - Otherwise, it returns the underlying pointer.
+func StringData(str string) unsafe.Pointer {
+	if str == "" {
+		return nil
+	}
+	return (*StringHeader)(unsafe.Pointer(&str)).Data
 }
 
 // Eface is the header for an empty interface{} value.

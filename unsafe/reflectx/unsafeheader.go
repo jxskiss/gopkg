@@ -12,13 +12,13 @@ import (
 //
 // Unlike reflect.StringHeader, its Data field is sufficient to guarantee the
 // data it references will not be garbage collected.
-type StringHeader = unsafeheader.String
+type StringHeader = unsafeheader.StringHeader
 
 // SliceHeader is the runtime representation of a slice.
 //
 // Unlike reflect.SliceHeader, its Data field is sufficient to guarantee the
 // data it references will not be garbage collected.
-type SliceHeader = unsafeheader.Slice
+type SliceHeader = unsafeheader.SliceHeader
 
 // EmptyInterface is the header for an interface{} value.
 // It's a copy type of runtime.eface.

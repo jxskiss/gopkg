@@ -164,7 +164,7 @@ func Reflect_typedmemmove(t unsafe.Pointer, dst, src unsafe.Pointer)
 //
 //go:noescape
 //go:linkname Reflect_typedslicecopy reflect.typedslicecopy
-func Reflect_typedslicecopy(elemRType unsafe.Pointer, dst, src unsafeheader.Slice) int
+func Reflect_typedslicecopy(elemRType unsafe.Pointer, dst, src unsafeheader.SliceHeader) int
 
 //go:noescape
 //go:linkname Reflect_maplen reflect.maplen

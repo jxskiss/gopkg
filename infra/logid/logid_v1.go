@@ -60,10 +60,10 @@ func (p *v1Gen) Gen() string {
 	encodeBase32(buf[1:10], t)
 
 	// random bytes, fixed length, 8 bytes
-	// 5*8 -> 8*5, use buf[10:15] as temporary buffer
-	b := buf[10:15]
-	_, _ = fastrand.Read(b)
-	b32Enc.Encode(buf[26:34], b)
+	// 5*8 -> 8*5, use buf[10:18] as temporary buffer
+	b := buf[10:18]
+	*(*uint64)(unsafeheader.SliceData(b)) = fastrand.Uint64()
+	b32Enc.Encode(buf[26:34], b[:5])
 
 	// machine ID, fixed length, 16 bytes
 	copy(buf[10:26], p.machineID[:])

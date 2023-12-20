@@ -93,7 +93,7 @@ func (p *bufPool) Put(buf []byte) {
 
 func _toBuf(ptr unsafe.Pointer, length int) []byte {
 	size := *(*int)(ptr)
-	return *(*[]byte)(unsafe.Pointer(&unsafeheader.Slice{
+	return *(*[]byte)(unsafe.Pointer(&unsafeheader.SliceHeader{
 		Data: ptr,
 		Len:  length,
 		Cap:  size,
@@ -101,7 +101,7 @@ func _toBuf(ptr unsafe.Pointer, length int) []byte {
 }
 
 func _toPtr(buf []byte) unsafe.Pointer {
-	h := *(*unsafeheader.Slice)(unsafe.Pointer(&buf))
+	h := *(*unsafeheader.SliceHeader)(unsafe.Pointer(&buf))
 	*(*int)(h.Data) = h.Cap
 	return h.Data
 }

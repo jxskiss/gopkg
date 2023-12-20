@@ -20,9 +20,9 @@ var ErrInvalidInput = errors.New("obscure: invalid input")
 
 var binEnc = binary.BigEndian
 
-func getRandomChars(s fastrand.Source, dst []byte) {
+func getRandomChars(r *fastrand.Rand, dst []byte) {
 	chars := []byte(chars62)
-	fastrand.ShuffleWithSource(s, len(chars), func(i, j int) {
+	r.Shuffle(len(chars), func(i, j int) {
 		chars[i], chars[j] = chars[j], chars[i]
 	})
 	copy(dst, chars)

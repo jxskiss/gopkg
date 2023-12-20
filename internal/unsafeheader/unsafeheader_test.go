@@ -2,27 +2,25 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package unsafeheader_test
+package unsafeheader
 
 import (
 	"bytes"
 	"reflect"
 	"testing"
 	"unsafe"
-
-	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
 
 // TestTypeMatchesReflectType ensures that the name and layout of the
 // unsafeheader types matches the corresponding Header types in the reflect
 // package.
 func TestTypeMatchesReflectType(t *testing.T) {
-	t.Run("Slice", func(t *testing.T) {
-		testHeaderMatchesReflect(t, unsafeheader.Slice{}, reflect.SliceHeader{})
+	t.Run("SliceHeader", func(t *testing.T) {
+		testHeaderMatchesReflect(t, SliceHeader{}, reflect.SliceHeader{})
 	})
 
-	t.Run("String", func(t *testing.T) {
-		testHeaderMatchesReflect(t, unsafeheader.String{}, reflect.StringHeader{})
+	t.Run("StringHeader", func(t *testing.T) {
+		testHeaderMatchesReflect(t, StringHeader{}, reflect.StringHeader{})
 	})
 }
 
@@ -69,33 +67,33 @@ func typeCompatible(t, rt reflect.Type) bool {
 // -d=checkptr) if the runtime views the header types as incompatible with the
 // underlying built-in types.
 func TestWriteThroughHeader(t *testing.T) {
-	t.Run("Slice", func(t *testing.T) {
+	t.Run("SliceHeader", func(t *testing.T) {
 		s := []byte("Hello, checkptr!")[:5]
 
 		var alias []byte
-		hdr := (*unsafeheader.Slice)(unsafe.Pointer(&alias))
+		hdr := (*SliceHeader)(unsafe.Pointer(&alias))
 		hdr.Data = unsafe.Pointer(&s[0])
 		hdr.Cap = cap(s)
 		hdr.Len = len(s)
 
 		if !bytes.Equal(alias, s) {
-			t.Errorf("alias of %T(%q) constructed via Slice = %T(%q)", s, s, alias, alias)
+			t.Errorf("alias of %T(%q) constructed via SliceHeader = %T(%q)", s, s, alias, alias)
 		}
 		if cap(alias) != cap(s) {
 			t.Errorf("alias of %T with cap %d has cap %d", s, cap(s), cap(alias))
 		}
 	})
 
-	t.Run("String", func(t *testing.T) {
+	t.Run("StringHeader", func(t *testing.T) {
 		s := "Hello, checkptr!"
 
 		var alias string
-		hdr := (*unsafeheader.String)(unsafe.Pointer(&alias))
-		hdr.Data = (*unsafeheader.String)(unsafe.Pointer(&s)).Data
+		hdr := (*StringHeader)(unsafe.Pointer(&alias))
+		hdr.Data = (*StringHeader)(unsafe.Pointer(&s)).Data
 		hdr.Len = len(s)
 
 		if alias != s {
-			t.Errorf("alias of %q constructed via String = %q", s, alias)
+			t.Errorf("alias of %q constructed via StringHeader = %q", s, alias)
 		}
 	})
 }
