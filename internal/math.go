@@ -3,7 +3,7 @@ package internal
 import (
 	"time"
 
-	"github.com/jxskiss/gopkg/v2/internal/fastrand"
+	"github.com/jxskiss/gopkg/v2/internal/linkname"
 )
 
 // AddJitter adds random jitter to a duration.
@@ -11,7 +11,9 @@ import (
 // It adds or subtracts time from the duration within a given jitter fraction.
 // For example for 10s and jitter 0.1, it returns a duration within [9s, 11s).
 func AddJitter(duration time.Duration, jitter float64) time.Duration {
-	x := jitter * (fastrand.Float64()*2 - 1)
+	// See math/rand/v2.Float64.
+	randf64 := float64(linkname.Runtime_fastrand64()<<11>>11) / (1 << 53)
+	x := jitter * (randf64*2 - 1)
 	return time.Duration(float64(duration) * (1 + x))
 }
 

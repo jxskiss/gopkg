@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jxskiss/gopkg/v2/internal/fastrand"
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
+	"github.com/jxskiss/gopkg/v2/perf/fastrand"
 )
 
 const (

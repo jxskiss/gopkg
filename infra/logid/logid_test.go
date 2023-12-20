@@ -10,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/jxskiss/gopkg/v2/internal/fastrand"
+	"github.com/jxskiss/gopkg/v2/perf/fastrand"
 )
 
 func TestDefault(t *testing.T) {

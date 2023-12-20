@@ -26,6 +26,12 @@ func Uint64() (x uint64) { return globalRand.Uint64() }
 // Int64 returns a non-negative pseudo-random 63-bit integer as an int64.
 func Int64() int64 { return globalRand.Int64() }
 
+// Uint32 returns a pseudo-random 32-bit value as a uint32.
+func Uint32() uint32 { return globalRand.Uint32() }
+
+// Int32 returns a non-negative pseudo-random 31-bit integer as an int32.
+func Int32() int32 { return globalRand.Int32() }
+
 // Float64 returns, as a float64, a pseudo-random number in the half-open interval [0.0,1.0).
 func Float64() float64 { return globalRand.Float64() }
 

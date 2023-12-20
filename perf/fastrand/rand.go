@@ -26,14 +26,16 @@ func New(src Source) *Rand {
 }
 
 // Uint64 returns a pseudo-random 64-bit value as a uint64.
-func (r *Rand) Uint64() uint64 {
-	return r.src.Uint64()
-}
+func (r *Rand) Uint64() uint64 { return r.src.Uint64() }
 
 // Int64 returns a non-negative pseudo-random 63-bit integer as an int64.
-func (r *Rand) Int64() int64 {
-	return int64(r.src.Uint64() &^ (1 << 63))
-}
+func (r *Rand) Int64() int64 { return int64(r.src.Uint64() &^ (1 << 63)) }
+
+// Uint32 returns a pseudo-random 32-bit value as a uint32.
+func (r *Rand) Uint32() uint32 { return uint32(r.src.Uint64() >> 32) }
+
+// Int32 returns a non-negative pseudo-random 31-bit integer as an int32.
+func (r *Rand) Int32() int32 { return int32(r.src.Uint64() >> 33) }
 
 // Float64 returns, as a float64, a pseudo-random number in the half-open interval [0.0,1.0).
 func (r *Rand) Float64() float64 {

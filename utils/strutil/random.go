@@ -7,7 +7,7 @@ import (
 	"math/bits"
 	"unsafe"
 
-	"github.com/jxskiss/gopkg/v2/internal/fastrand"
+	"github.com/jxskiss/gopkg/v2/perf/fastrand"
 )
 
 func random(table string, length int) []byte {
