@@ -8,31 +8,46 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var testV1Gen = NewV1Gen()
-
 func TestV1Gen(t *testing.T) {
-	now := time.Now().UnixMilli()
-	machineID := string(testV1Gen.(*v1Gen).machineID[:])
+	testCases := []struct {
+		name       string
+		useUTC     bool
+		decodeFunc func(string) Info
+	}{
+		{"use Local", false, Decode},
+		{"use UTC", true, Decode},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			testV1Gen := NewV1Gen()
+			if tc.useUTC {
+				testV1Gen.UseUTC()
+			}
 
-	gotLogId := testV1Gen.Gen()
-	assert.Len(t, gotLogId, v1Length)
+			now := time.Now().UnixMilli()
+			machineID := string(testV1Gen.machineID[:])
 
-	info := Decode(gotLogId)
-	assert.True(t, info.Valid())
-	assert.Equal(t, byte(v1Version), info.Version())
-	assert.True(t, math.Abs(float64(info.(V1Info).Time().UnixMilli()-now)) <= 1)
-	assert.Equal(t, machineID, info.(V1Info).MachineID())
-	assert.Contains(t, info.String(), machineID)
+			gotLogId := testV1Gen.Gen()
+			assert.Len(t, gotLogId, v1Length)
 
-	gotLogId2 := testV1Gen.Gen()
-	info2 := Decode(gotLogId2)
-	assert.True(t, info2.Valid())
-	assert.NotEqual(t, info.(V1Info).Random(), info2.(V1Info).Random())
-	assert.Equal(t, info.(*v1Info).machineID, info2.(*v1Info).machineID)
+			info := tc.decodeFunc(gotLogId)
+			assert.True(t, info.Valid())
+			assert.Equal(t, byte(v1Version), info.Version())
+			assert.True(t, math.Abs(float64(info.(V1Info).Time().UnixMilli()-now)) <= 1)
+			assert.Equal(t, machineID, info.(V1Info).MachineID())
+			assert.Contains(t, info.String(), machineID)
 
-	info3 := Decode("1DAOLKWQALEKRALK")
-	assert.False(t, info3.Valid())
-	assert.Equal(t, "0|invalid", info3.String())
+			gotLogId2 := testV1Gen.Gen()
+			info2 := tc.decodeFunc(gotLogId2)
+			assert.True(t, info2.Valid())
+			assert.NotEqual(t, info.(V1Info).Random(), info2.(V1Info).Random())
+			assert.Equal(t, info.(*v1Info).machineID, info2.(*v1Info).machineID)
+
+			info3 := tc.decodeFunc("1DAOLKWQALEKRALK")
+			assert.False(t, info3.Valid())
+			assert.Equal(t, "0|invalid", info3.String())
+		})
+	}
 }
 
 func BenchmarkV1Gen(b *testing.B) {
