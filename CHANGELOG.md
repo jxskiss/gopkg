@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 TBD.
 
+## [2.12.0] - 2023-12-27
+
+* Feat: [exp/kvutil] add big value sharding implementation (#61)
+* Feat: [utils/vdutil] add Result.IsValidationError to distinct validation error
+* Feat: simplify [perf/gopool] code
+* Feat: new package [easy/yamlx] to extend the YAML unmarshaler with extra features (#63)
+
+There are several **breaking changes** in this release, which were not used by anybody AFAIK.
+
+* Breaking change: move `retry.AddJitter` and `retry.Backoff` to package [utils/timeutil]
+* Breaking change: rewrite and move package [perf/rthash] to be an internal package
+* Breaking change: simplify package [perf/fastrand] in favor of math/rand/v2 available in Go 1.22+
+* Breaking change: remove package [perf/syncx]
+* Breaking change: new function `unsafe/forceexport.ScanTypes` to replace
+  `unsafe/forceexport.ScanType` with better performance
+* Breaking change: [infra/logid] change base32 encoding, redesign APIs and log ID formats
+* Breaking change: move `easy.GetOutboundIP` to new package [utils/netutil]
+* Breaking change: remove the deprecated package [unsafe/monkey],
+  users are recommended to use [bytedance/mockey](https://github.com/bytedance/mockey)
+
 ## [2.11.0] - 2023-12-02
 
 * Feat: [ezhttp] allow merge request data (#57)
