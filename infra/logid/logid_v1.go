@@ -45,7 +45,7 @@ func getMachineID() [16]byte {
 //
 // A v1 log ID is consisted of the following parts:
 //
-//   - 17 bytes milli timestamp, in UTC timezone
+//   - 17 bytes milli timestamp
 //   - 16 bytes hash of the machine ID of current host if available,
 //     else 16 bytes random data
 //   - 10 bytes random data, with 1 bit to mark UTC timezone

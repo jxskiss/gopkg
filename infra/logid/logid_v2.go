@@ -37,10 +37,9 @@ func NewV2Gen(ip net.IP) *V2Gen {
 //
 // A v2 log ID is consisted by the following parts:
 //
-//   - 17 bytes milli timestamp, in UTC timezone
-//   - 26 bytes IPv6 address, in base32 form,
-//     or 7 bytes IPv4 address, in base32 form
-//   - 10 bytes random data
+//   - 17 bytes milli timestamp
+//   - 26 bytes IPv6 address, or 7 bytes IPv4 address, in base32 form
+//   - 10 bytes random data, with 1 bit to mark UTC timezone
 //   - 1 byte version flag "2"
 type V2Gen struct {
 	ipStr  string
