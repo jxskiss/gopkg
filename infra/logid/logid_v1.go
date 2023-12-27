@@ -8,25 +8,19 @@ import (
 
 	"github.com/jxskiss/gopkg/v2/internal/machineid"
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
-	"github.com/jxskiss/gopkg/v2/perf/fastrand"
 )
+
+var _ Generator = &V1Gen{}
+var _ V1Info = &v1Info{}
 
 const (
 	v1Version = '1'
-	v1Length  = 34
+	v1Length  = 44
 )
 
 // NewV1Gen creates a new v1 log ID generator.
-//
-// A v1 log ID is consisted of the following parts:
-//
-//   - 1 byte version flag "1"
-//   - 9 bytes milli timestamp, in base32 form
-//   - 16 bytes hash of the machine ID of current host if available,
-//     else 16 bytes random data
-//   - 8 bytes random data
-func NewV1Gen() Generator {
-	return &v1Gen{
+func NewV1Gen() *V1Gen {
+	return &V1Gen{
 		machineID: getMachineID(),
 	}
 }
@@ -47,26 +41,41 @@ func getMachineID() [16]byte {
 	return machineID
 }
 
-type v1Gen struct {
+// V1Gen is a v1 log ID generator.
+//
+// A v1 log ID is consisted of the following parts:
+//
+//   - 17 bytes milli timestamp, in UTC timezone
+//   - 16 bytes hash of the machine ID of current host if available,
+//     else 16 bytes random data
+//   - 10 bytes random data, with 1 bit to mark UTC timezone
+//   - 1 byte version flag "1"
+type V1Gen struct {
 	machineID [16]byte
+	useUTC    bool
 }
 
-func (p *v1Gen) Gen() string {
+// UseUTC sets the generator to format timestamp with location time.UTC.
+// By default, it formats timestamp with location time.Local.
+func (p *V1Gen) UseUTC() *V1Gen {
+	p.useUTC = true
+	return p
+}
+
+// Gen generates a new log ID string.
+func (p *V1Gen) Gen() string {
 	buf := make([]byte, v1Length)
-	buf[0] = v1Version
+	buf[len(buf)-1] = v1Version
 
-	// milli timestamp, fixed length, 9 bytes
-	t := time.Now().UnixMilli()
-	encodeBase32(buf[1:10], t)
+	// milli timestamp, fixed length, 17 bytes
+	appendTime(buf[:0], time.Now(), p.useUTC)
 
-	// random bytes, fixed length, 8 bytes
-	// 5*8 -> 8*5, use buf[10:18] as temporary buffer
-	b := buf[10:18]
-	*(*uint64)(unsafeheader.SliceData(b)) = fastrand.Uint64()
-	b32Enc.Encode(buf[26:34], b[:5])
+	// random bytes, fixed length, 10 bytes
+	randNum := rand50bitsWithUTCMark(p.useUTC)
+	encodeBase32(buf[33:43], randNum)
 
 	// machine ID, fixed length, 16 bytes
-	copy(buf[10:26], p.machineID[:])
+	copy(buf[17:33], p.machineID[:])
 
 	return unsafeheader.BytesToString(buf)
 }
@@ -76,22 +85,21 @@ func decodeV1Info(s string) (info *v1Info) {
 	if len(s) != v1Length {
 		return
 	}
-	t, err := decodeBase32(s[1:10])
+	mID := s[17:33]
+	r := s[33:43]
+	isUTC := checkUTCMark(r)
+	t, err := decodeTime(s[:17], isUTC)
 	if err != nil {
 		return
 	}
-	mID := s[10:26]
-	r := s[26:v1Length]
 	*info = v1Info{
 		valid:     true,
-		time:      time.UnixMilli(t),
+		time:      t,
 		machineID: mID,
 		random:    r,
 	}
 	return
 }
-
-var _ V1Info = &v1Info{}
 
 type V1Info interface {
 	Info

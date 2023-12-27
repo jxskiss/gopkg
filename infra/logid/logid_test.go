@@ -6,7 +6,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -20,22 +19,17 @@ func TestDefault(t *testing.T) {
 	SetDefault(NewV2Gen(nil))
 	defer SetDefault(NewV1Gen())
 	id2 := Gen()
-	assert.Len(t, id2, v2Length)
+	assert.Len(t, id2, v2IPv4Length)
 }
 
-func TestTimeMilliBase32(t *testing.T) {
-	maxMilli := int64(1 << 45)
-	minMilli := int64(1 << 40)
-	t.Logf("max time: %v", time.UnixMilli(maxMilli))
-	t.Logf("min time: %v", time.UnixMilli(minMilli))
-
+func Test_encodeBase32(t *testing.T) {
 	for i := 0; i < 1000; i++ {
-		var buf = make([]byte, 9)
-		x := fastrand.N(maxMilli)
-		encodeBase32(buf, x)
+		var buf = make([]byte, 10)
+		x := fastrand.Uint64()
+		encodeBase32(buf, x&mask50bits)
 		got, err := decodeBase32(string(buf))
 		assert.Nil(t, err)
-		assert.Equal(t, x, got)
+		assert.Equal(t, x&mask50bits, got)
 	}
 }
 
@@ -68,5 +62,5 @@ func TestUniqueness(t *testing.T) {
 			dupCount++
 		}
 	}
-	assert.True(t, dupCount < 3)
+	assert.True(t, dupCount < 2)
 }
