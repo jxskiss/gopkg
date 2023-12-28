@@ -496,11 +496,11 @@ func assignFieldValue(dst reflect.Value, value any) error {
 	case int64:
 		val, err = cast.ToInt64E(value)
 	case []int64:
-		val, err = toInt64SliceE(value)
+		val, err = toIntSlice[int64](value)
 	case int32:
 		val, err = cast.ToInt32E(value)
 	case []int32:
-		val, err = toInt32SliceE(value)
+		val, err = toIntSlice[int32](value)
 	case float64:
 		val, err = cast.ToFloat64E(value)
 	case float32:
@@ -522,11 +522,9 @@ func assignFieldValue(dst reflect.Value, value any) error {
 	case map[string]any:
 		val, err = cast.ToStringMapE(value)
 	case time.Duration:
-		if str, ok := value.(string); ok {
-			val, err = time.ParseDuration(str)
-		} else {
-			err = errors.New("value for time.Duration must be a string")
-		}
+		val, err = cast.ToDurationE(value)
+	case []time.Duration:
+		val, err = cast.ToDurationSliceE(value)
 	default:
 		err = errors.New("unsupported type")
 	}
@@ -548,33 +546,19 @@ func toBooleanE(v any) (bool, error) {
 			return false, nil
 		case "1", "t", "true", "yes", "on":
 			return true, nil
-		default:
-			return false, fmt.Errorf("invalid boolean value: %s", strval)
 		}
 	}
 	return cast.ToBoolE(v)
 }
 
-func toInt64SliceE(v any) ([]int64, error) {
+func toIntSlice[T ~int32 | ~int64](v any) ([]T, error) {
 	intValues, err := cast.ToIntSliceE(v)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]int64, len(intValues))
+	out := make([]T, len(intValues))
 	for i, x := range intValues {
-		out[i] = int64(x)
-	}
-	return out, nil
-}
-
-func toInt32SliceE(v any) ([]int32, error) {
-	intValues, err := cast.ToIntSliceE(v)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]int32, len(intValues))
-	for i, x := range intValues {
-		out[i] = int32(x)
+		out[i] = T(x)
 	}
 	return out, nil
 }

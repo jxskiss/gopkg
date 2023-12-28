@@ -42,14 +42,13 @@ func (t *task) Recycle() {
 }
 
 type taskList struct {
-	mu    sync.Mutex
-	count int32
+	count int
 	head  *task
 	tail  *task
 }
 
-func (l *taskList) add(t *task) (count int) {
-	l.mu.Lock()
+// add adds a task to the tail of the taskList.
+func (l *taskList) add(t *task) {
 	if l.head == nil {
 		l.head = t
 		l.tail = t
@@ -58,22 +57,16 @@ func (l *taskList) add(t *task) (count int) {
 		l.tail = t
 	}
 	l.count++
-	count = int(l.count)
-	l.mu.Unlock()
-	return
 }
 
-// pop acquired the lock and returns a task from the head of the taskList.
-//
-// Note that the caller takes responsibility to release the lock.
-func (l *taskList) pop() (t *task, lock *sync.Mutex) {
-	l.mu.Lock()
+// pop returns a task from the head of the taskList.
+func (l *taskList) pop() (t *task) {
 	if l.head != nil {
 		t = l.head
 		l.head = l.head.next
 		l.count--
 	}
-	return t, &l.mu
+	return t
 }
 
 type taskRunner func(p *internalPool, t *task)

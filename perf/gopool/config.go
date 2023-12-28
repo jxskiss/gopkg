@@ -23,10 +23,6 @@ import (
 	"github.com/jxskiss/gopkg/v2/zlog"
 )
 
-const (
-	defaultScaleThreshold = 1
-)
-
 func defaultPanicHandler(_ context.Context, exc any) {
 	loc := internal.IdentifyPanic(1)
 	zlog.StdLogger.Errorf("gopool: catch panic: %v, location: %v\n%s\n", exc, loc, debug.Stack())
@@ -39,16 +35,13 @@ type Config struct {
 	Name string
 
 	// New goroutine will be created if len(queued tasks) > ScaleThreshold,
-	// it defaults to 1.
+	// it defaults to 0, which means always start a new adhoc worker before
+	// reaching the limit of total adhoc worker number.
 	ScaleThreshold int
-
-	// PanicHandler specifies a handler when panic occurs.
-	// By default, a panic message with stack information is logged.
-	PanicHandler func(context.Context, any)
 
 	// PermanentWorkerNum specifies the number of permanent workers to spawn
 	// when creating a Pool, it defaults to 0 (no permanent worker).
-	// Note that permanent workers' goroutine stack will be reused,
+	// Note that a permanent worker's goroutine stack is reused,
 	// the memory won't be freed in the entire program lifetime.
 	//
 	// Generally you may want to set this to zero for common workloads,
@@ -59,8 +52,12 @@ type Config struct {
 	// 0 or negative value means no limit.
 	//
 	// The limit of adhoc worker number can be changed by calling
-	// Pool.SetAdhocWorkerLimit.
+	// SetAdhocWorkerLimit.
 	AdhocWorkerLimit int
+
+	// PanicHandler specifies a handler when panic occurs.
+	// By default, a panic message with stack information is logged.
+	PanicHandler func(context.Context, any)
 }
 
 // NewConfig creates a default Config.
@@ -71,8 +68,8 @@ func NewConfig() *Config {
 }
 
 func (c *Config) checkAndSetDefaults() {
-	if c.ScaleThreshold <= 0 {
-		c.ScaleThreshold = defaultScaleThreshold
+	if c.ScaleThreshold < 0 {
+		panic("gopool: invalid negative ScaleThreshold")
 	}
 	if c.PanicHandler == nil {
 		c.PanicHandler = defaultPanicHandler

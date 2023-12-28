@@ -65,14 +65,16 @@ type internalPool struct {
 	config *Config
 	runner taskRunner
 
-	// Limit of adhoc workers that can run simultaneously
-	adhocLimit int32
+	// taskCh sends tasks to permanent workers.
+	taskCh chan *task
 
-	// Number of running adhoc workers
-	adhocCount int32
-
-	taskCh   chan *task
-	taskList taskList
+	// mu protects adhocState and taskList.
+	// adhocState:
+	// - higher 32 bits is adhocLimit, max number of adhoc workers that can run simultaneously
+	// - lower 32 bits is adhocCount, the number of currently running adhoc workers
+	mu         sync.Mutex
+	adhocState int64
+	taskList   taskList
 }
 
 func (p *internalPool) init(config *Config, runner taskRunner) {
@@ -94,7 +96,13 @@ func (p *internalPool) SetAdhocWorkerLimit(limit int) {
 	if limit <= 0 || limit > math.MaxInt32 {
 		limit = math.MaxInt32
 	}
-	atomic.StoreInt32(&p.adhocLimit, int32(limit))
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	oldLimit, _ := p.getAdhocState()
+	diff := int32(limit) - oldLimit
+	if diff != 0 {
+		atomic.AddInt64(&p.adhocState, int64(diff)<<32)
+	}
 }
 
 func (p *internalPool) submit(ctx context.Context, arg any) {
@@ -109,41 +117,54 @@ func (p *internalPool) submit(ctx context.Context, arg any) {
 	default:
 	}
 
-	// No permanent worker available or all workers are busy, submit to task list.
-	tCnt := p.taskList.add(t)
-
-	// The following two conditions are met:
-	//   1. the number of tasks is greater than the threshold.
-	//   2. The current number of workers is less than the upper limit p.cap.
+	// No free permanent worker available, check to start a new
+	// adhoc worker or submit to the task list.
 	//
-	// Or there are currently no workers.
-	wCnt := p.AdhocWorkerCount()
-	if wCnt == 0 || (tCnt >= p.config.ScaleThreshold && wCnt < p.AdhocWorkerLimit()) {
-		p.runAdhocWorker()
+	// Start a new adhoc worker if there are currently no adhoc workers,
+	// or the following two conditions are met:
+	//   1. the number of tasks is greater than the threshold.
+	//   2. The current number of adhoc workers is less than the limit.
+	p.mu.Lock()
+	tCnt := p.taskList.count + 1
+	wLimit, wCnt := p.getAdhocState()
+	if wCnt == 0 || (tCnt > p.config.ScaleThreshold && wCnt < wLimit) {
+		p.incAdhocWorkerCount()
+		p.mu.Unlock()
+		go p.adhocWorker(t)
+	} else {
+		p.taskList.add(t)
+		p.mu.Unlock()
 	}
 }
 
 // AdhocWorkerLimit returns the current limit of adhoc workers.
 func (p *internalPool) AdhocWorkerLimit() int32 {
-	return atomic.LoadInt32(&p.adhocLimit)
+	limit, _ := p.getAdhocState()
+	return limit
 }
 
 // AdhocWorkerCount returns the number of running adhoc workers.
 func (p *internalPool) AdhocWorkerCount() int32 {
-	return atomic.LoadInt32(&p.adhocCount)
+	_, count := p.getAdhocState()
+	return count
+}
+
+func (p *internalPool) getAdhocState() (limit, count int32) {
+	x := atomic.LoadInt64(&p.adhocState)
+	return int32(x >> 32), int32((x << 32) >> 32)
+}
+
+func (p *internalPool) incAdhocWorkerCount() {
+	atomic.AddInt64(&p.adhocState, 1)
+}
+
+func (p *internalPool) decAdhocWorkerCount() {
+	atomic.AddInt64(&p.adhocState, -1)
 }
 
 // PermanentWorkerCount returns the number of permanent workers.
 func (p *internalPool) PermanentWorkerCount() int32 {
 	return int32(p.config.PermanentWorkerNum)
-}
-
-func (p *internalPool) incWorkerCount() {
-	atomic.AddInt32(&p.adhocCount, 1)
-}
-
-func (p *internalPool) decWorkerCount() {
-	atomic.AddInt32(&p.adhocCount, -1)
 }
 
 func (p *internalPool) startPermanentWorkers() {
@@ -152,12 +173,11 @@ func (p *internalPool) startPermanentWorkers() {
 	}
 	p.taskCh = make(chan *task)
 	for i := 0; i < p.config.PermanentWorkerNum; i++ {
-		go p.runPermanentWorker()
+		go p.permanentWorker()
 	}
 }
 
-func (p *internalPool) runPermanentWorker() {
-	var lock *sync.Mutex
+func (p *internalPool) permanentWorker() {
 	for {
 		select {
 		case t := <-p.taskCh:
@@ -165,8 +185,9 @@ func (p *internalPool) runPermanentWorker() {
 
 			// Drain pending tasks.
 			for {
-				t, lock = p.taskList.pop()
-				lock.Unlock()
+				p.mu.Lock()
+				t = p.taskList.pop()
+				p.mu.Unlock()
 				if t == nil {
 					break
 				}
@@ -176,18 +197,17 @@ func (p *internalPool) runPermanentWorker() {
 	}
 }
 
-func (p *internalPool) runAdhocWorker() {
-	p.incWorkerCount()
-	go func() {
-		for {
-			t, lock := p.taskList.pop()
-			if t == nil {
-				p.decWorkerCount()
-				lock.Unlock()
-				return
-			}
-			lock.Unlock()
-			p.runner(p, t)
+func (p *internalPool) adhocWorker(t *task) {
+	p.runner(p, t)
+	for {
+		p.mu.Lock()
+		t = p.taskList.pop()
+		if t == nil {
+			p.decAdhocWorkerCount()
+			p.mu.Unlock()
+			return
 		}
-	}()
+		p.mu.Unlock()
+		p.runner(p, t)
+	}
 }

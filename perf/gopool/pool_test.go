@@ -41,7 +41,7 @@ func TestPool(t *testing.T) {
 	cfg := NewConfig()
 	cfg.AdhocWorkerLimit = 100
 	p := NewPool(cfg)
-	testWithPool(t, p)
+	testWithPool(t, p, 100)
 }
 
 func TestPoolWithPermanentWorkers(t *testing.T) {
@@ -49,10 +49,10 @@ func TestPoolWithPermanentWorkers(t *testing.T) {
 		PermanentWorkerNum: 100,
 		AdhocWorkerLimit:   100,
 	})
-	testWithPool(t, p)
+	testWithPool(t, p, 100)
 }
 
-func testWithPool(t *testing.T, p *Pool) {
+func testWithPool(t *testing.T, p *Pool, adhocLimit int32) {
 	var n int32
 	var wg sync.WaitGroup
 	for i := 0; i < 2000; i++ {
@@ -60,6 +60,9 @@ func testWithPool(t *testing.T, p *Pool) {
 		p.Go(func() {
 			defer wg.Done()
 			atomic.AddInt32(&n, 1)
+			if x := p.AdhocWorkerCount(); x > adhocLimit {
+				t.Errorf("adhoc worker count, want <= %d, got %d", adhocLimit, x)
+			}
 		})
 	}
 	wg.Wait()
@@ -220,5 +223,56 @@ func benchmarkWithTypedPool(b *testing.B, p *TypedPool[*sync.WaitGroup]) {
 			p.Go(&wg)
 		}
 		wg.Wait()
+	}
+}
+
+func TestSetAdhocWorkerLimit(t *testing.T) {
+	pool := NewPool(&Config{AdhocWorkerLimit: 100})
+	wg := &sync.WaitGroup{}
+
+	wg.Add(100)
+	for i := 0; i < 100; i++ {
+		go func() {
+			pool.SetAdhocWorkerLimit(80)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	if x := pool.AdhocWorkerLimit(); x != 80 {
+		t.Errorf("adhoc worker limit not match, want 80, got %d", x)
+	}
+	if x := pool.AdhocWorkerCount(); x != 0 {
+		t.Errorf("adhoc worker count not match, want 0, got %d", x)
+	}
+
+	wg.Add(100)
+	for i := 0; i < 100; i++ {
+		go func() {
+			pool.SetAdhocWorkerLimit(100)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	if x := pool.AdhocWorkerLimit(); x != 100 {
+		t.Errorf("adhoc worker limit not match, want 100, got %d", x)
+	}
+	if x := pool.AdhocWorkerCount(); x != 0 {
+		t.Errorf("adhoc worker count not match, want 0, got %d", x)
+	}
+
+	wg.Add(100)
+	for i := 0; i < 100; i++ {
+		limit := 80 + 20*(i%2)
+		go func() {
+			pool.SetAdhocWorkerLimit(limit)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	if x := pool.AdhocWorkerLimit(); x != 100 && x != 80 {
+		t.Errorf("adhoc worker limit not match, got %d", x)
+	}
+	if x := pool.AdhocWorkerCount(); x != 0 {
+		t.Errorf("adhoc worker count not match, want 0, got %d", x)
 	}
 }
