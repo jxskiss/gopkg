@@ -32,6 +32,9 @@ func Uint32() uint32 { return globalRand.Uint32() }
 // Int32 returns a non-negative pseudo-random 31-bit integer as an int32.
 func Int32() int32 { return globalRand.Int32() }
 
+// Int returns a non-negative pseudo-random int from the default Source.
+func Int() int { return globalRand.Int() }
+
 // Float64 returns, as a float64, a pseudo-random number in the half-open interval [0.0,1.0).
 func Float64() float64 { return globalRand.Float64() }
 
@@ -52,14 +55,4 @@ func N[Int constraints.Integer](n Int) Int {
 		panic("invalid argument to N")
 	}
 	return Int(uint64n(globalRand, uint64(n)))
-}
-
-// N_s returns a pseudo-random number in the half-open interval [0,n) from the given Source.
-// The type parameter Int can be any integer type.
-// It panics if n <= 0.
-func N_s[Int constraints.Integer](s Source, n Int) Int { //nolint:all
-	if n <= 0 {
-		panic("invalid argument to N_s")
-	}
-	return Int(uint64n(s, uint64(n)))
 }

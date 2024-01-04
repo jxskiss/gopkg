@@ -37,6 +37,9 @@ func (r *Rand) Uint32() uint32 { return uint32(r.src.Uint64() >> 32) }
 // Int32 returns a non-negative pseudo-random 31-bit integer as an int32.
 func (r *Rand) Int32() int32 { return int32(r.src.Uint64() >> 33) }
 
+// Int returns a non-negative pseudo-random int.
+func (r *Rand) Int() int { return int(uint(r.src.Uint64()) << 1 >> 1) }
+
 // Float64 returns, as a float64, a pseudo-random number in the half-open interval [0.0,1.0).
 func (r *Rand) Float64() float64 {
 	// There are exactly 1<<53 float64s in [0,1). Use Intn(1<<53) / (1<<53).
@@ -72,6 +75,15 @@ func (r *Rand) Shuffle(n int, swap func(i, j int)) {
 		j := int(uint64n(r, uint64(i+1)))
 		swap(i, j)
 	}
+}
+
+// Uint64N returns, as an uint64, a non-negative pseudo-random number in the half-open interval [0,n).
+// It panics if n == 0.
+func (r *Rand) Uint64N(n uint64) uint64 {
+	if n == 0 {
+		panic("invalid argument to Uint64N")
+	}
+	return uint64n(r, n)
 }
 
 const is32bit = ^uint(0)>>32 == 0
