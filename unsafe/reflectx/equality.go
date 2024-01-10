@@ -161,9 +161,7 @@ func (p *typecmp) isStrictEqualField(typ reflect.Type, field1, field2 reflect.St
 
 func (p *typecmp) isEqualThriftField(typ reflect.Type, field1, field2 reflect.StructField) (bool, string) {
 	if field1.Name != field2.Name {
-		tag1 := field1.Tag.Get("thrift")
-		tag2 := field2.Tag.Get("thrift")
-		if !isEqualThriftTag(tag1, tag2) {
+		if !isEqualThriftTag(field1, field2) {
 			return false, fmt.Sprintf("field name and thrift tag both not equal: %s, %s", _f(typ, field1), _f(typ, field2))
 		}
 	}
@@ -187,19 +185,36 @@ func (p *typecmp) isEqualThriftField(typ reflect.Type, field1, field2 reflect.St
 	return false, fmt.Sprintf("field type not euqal: %s", diff)
 }
 
-func isEqualThriftTag(tag1, tag2 string) bool {
-	if tag1 == "" || tag2 == "" {
-		return false
+func isEqualThriftTag(f1, f2 reflect.StructField) bool {
+	// Be compatible with standard thrift tag.
+	tag1 := f1.Tag.Get("thrift")
+	tag2 := f2.Tag.Get("thrift")
+	if tag1 != "" && tag2 != "" {
+		if tag1 == tag2 {
+			return true
+		}
+		parts1 := strings.Split(tag1, ",")
+		parts2 := strings.Split(tag2, ",")
+		if len(parts1) >= 2 && len(parts2) >= 2 &&
+			parts1[0] == parts2[0] && // parts[0] is the field's name
+			parts1[1] == parts2[1] { // parts[1] is the field's id number
+			return true
+		}
 	}
-	if tag1 == tag2 {
-		return true
-	}
-	parts1 := strings.Split(tag1, ",")
-	parts2 := strings.Split(tag2, ",")
-	if len(parts1) >= 2 && len(parts2) >= 2 &&
-		parts1[0] == parts2[0] && // parts[0] is the field's name
-		parts1[1] == parts2[1] { // parts[1] is the field's id number
-		return true
+	// Be compatible with github.com/cloudwego/frugal.
+	tag1 = f1.Tag.Get("frugal")
+	tag2 = f2.Tag.Get("frugal")
+	if tag1 != "" && tag2 != "" {
+		if tag1 == tag2 {
+			return true
+		}
+		parts1 := strings.Split(tag1, ",")
+		parts2 := strings.Split(tag2, ",")
+		if len(parts1) >= 3 && len(parts2) >= 3 &&
+			parts1[0] == parts2[0] && // parts[0] is the field's id number
+			parts1[2] == parts2[2] { // parts[2] is the field's type
+			return true
+		}
 	}
 	return false
 }
