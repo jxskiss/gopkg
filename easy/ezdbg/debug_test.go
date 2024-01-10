@@ -150,6 +150,20 @@ func TestDEBUG_simple(t *testing.T) {
 	assert.Contains(t, string(got2), want2)
 }
 
+func TestDEBUG_pointers(t *testing.T) {
+	configTestLog(true, nil)
+
+	got := copyStdLog(func() {
+		var x = 1234
+		var p1 = &x
+		var p2 = &p1
+		var p3 *int
+		var p4 **int
+		DEBUG(x, p1, p2, p3, p4)
+	})
+	assert.Contains(t, string(got), "[DEBUG] [ezdbg.TestDEBUG_pointers.func1] 1234 1234 1234 null null")
+}
+
 func TestDEBUG_empty(t *testing.T) {
 	configTestLog(true, nil)
 	got := copyStdLog(func() { DEBUG() })

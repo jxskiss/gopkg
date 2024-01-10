@@ -191,7 +191,7 @@ func formatArgs(stringer stringerFunc, args []any) []any {
 		x := v
 		if v != nil {
 			typ := reflect.TypeOf(v)
-			for typ.Kind() == reflect.Ptr && isBasicType(typ.Elem()) {
+			if typ.Kind() == reflect.Ptr && !reflect.ValueOf(v).IsNil() && isBasicType(typ.Elem()) {
 				typ = typ.Elem()
 				v = reflect.ValueOf(v).Elem().Interface()
 			}
