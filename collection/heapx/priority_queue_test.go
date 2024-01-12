@@ -16,6 +16,7 @@ func TestPriorityQueue(t *testing.T) {
 			pq.Push(num, &num)
 		}
 		assert.True(t, pq.Len() == 10)
+
 		for i := range nums {
 			priority, value, ok := pq.Peek()
 			assert.True(t, ok)
@@ -27,6 +28,10 @@ func TestPriorityQueue(t *testing.T) {
 			assert.Equal(t, int64(i), *value)
 			assert.Equal(t, int64(i), priority)
 		}
+
+		assert.Equal(t, 1, len(pq.heap.items.ss))
+		assert.Equal(t, initSize, pq.heap.items.cap)
+		assert.Equal(t, 0, pq.heap.items.len)
 	})
 
 	t.Run("max queue", func(t *testing.T) {
@@ -36,6 +41,7 @@ func TestPriorityQueue(t *testing.T) {
 			pq.Push(num, &num)
 		}
 		assert.True(t, pq.Len() == 10)
+
 		for i := range nums {
 			priority, value, ok := pq.Peek()
 			assert.True(t, ok)
@@ -47,5 +53,9 @@ func TestPriorityQueue(t *testing.T) {
 			assert.Equal(t, int64(9-i), *value)
 			assert.Equal(t, int64(9-i), priority)
 		}
+
+		assert.Equal(t, 1, len(pq.heap.items.ss))
+		assert.Equal(t, initSize, pq.heap.items.cap)
+		assert.Equal(t, 0, pq.heap.items.len)
 	})
 }

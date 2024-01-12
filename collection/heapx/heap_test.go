@@ -33,6 +33,8 @@ func TestHeap(t *testing.T) {
 		assert.False(t, ok)
 		assert.Equal(t, 0, x)
 		assert.Equal(t, 1, len(h1.items.ss))
+		assert.Equal(t, bktSize, h1.items.cap)
+		assert.Equal(t, 0, h1.items.len)
 	})
 
 	t.Run("max heap", func(t *testing.T) {
@@ -52,5 +54,7 @@ func TestHeap(t *testing.T) {
 		assert.False(t, ok)
 		assert.Equal(t, 0, x)
 		assert.Equal(t, 1, len(h2.items.ss))
+		assert.Equal(t, bktSize, h2.items.cap)
+		assert.Equal(t, 0, h2.items.len)
 	})
 }
