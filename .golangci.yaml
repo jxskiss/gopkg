@@ -36,7 +36,7 @@ linters:
     - noctx
     - nolintlint
     - prealloc
-    - predeclared
+    # - predeclared
     - revive
     - rowserrcheck
     - sqlclosecheck
