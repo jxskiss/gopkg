@@ -1,5 +1,18 @@
 package heapx
 
+import "github.com/jxskiss/gopkg/v2/internal/constraints"
+
+type Ordered interface {
+	constraints.Integer | ~string
+}
+
+// PriorityQueue is a heap-based priority queue implementation.
+//
+// It can be either min (ascending) or max (descending) oriented/ordered.
+// The type parameters `P` and `V` specify the type of the underlying
+// priority and value.
+//
+// A PriorityQueue is not safe for concurrent operations.
 type PriorityQueue[P Ordered, V any] struct {
 	heap Heap[pqItem[P, V]]
 }
@@ -9,43 +22,52 @@ type pqItem[P Ordered, V any] struct {
 	value    V
 }
 
-func (x pqItem[P, V]) Compare(other pqItem[P, V]) int {
-	if x.priority < other.priority {
-		return -1
-	}
-	if x.priority > other.priority {
-		return 1
-	}
-	return 0
+// NewMaxPriorityQueue creates a new maximum oriented PriorityQueue.
+func NewMaxPriorityQueue[P Ordered, V any]() *PriorityQueue[P, V] {
+	pq := &PriorityQueue[P, V]{}
+	pq.heap.init(func(lhs, rhs pqItem[P, V]) bool {
+		return rhs.priority < lhs.priority
+	})
+	return pq
 }
 
-func NewPriorityQueue[P Ordered, V any]() *PriorityQueue[P, V] {
-	return &PriorityQueue[P, V]{}
+// NewMinPriorityQueue creates a new minimum oriented PriorityQueue.
+func NewMinPriorityQueue[P Ordered, V any]() *PriorityQueue[P, V] {
+	pq := &PriorityQueue[P, V]{}
+	pq.heap.init(func(lhs, rhs pqItem[P, V]) bool {
+		return lhs.priority < rhs.priority
+	})
+	return pq
 }
 
+// Len returns the size of the PriorityQueue.
 func (pq *PriorityQueue[P, V]) Len() int {
 	return pq.heap.Len()
 }
 
-func (pq *PriorityQueue[P, V]) Push(value V, priority P) {
+// Push adds a value with priority to the PriorityQueue.
+func (pq *PriorityQueue[P, V]) Push(priority P, value V) {
 	pq.heap.Push(pqItem[P, V]{
 		priority: priority,
 		value:    value,
 	})
 }
 
-func (pq *PriorityQueue[P, V]) Pop() (value V, priority P, ok bool) {
-	item, ok := pq.heap.Pop()
+// Peek returns the most priority value in the PriorityQueue,
+// it does not remove the value from the queue.
+func (pq *PriorityQueue[P, V]) Peek() (priority P, value V, ok bool) {
+	item, ok := pq.heap.Peek()
 	if ok {
-		value, priority = item.value, item.priority
+		priority, value = item.priority, item.value
 	}
 	return
 }
 
-func (pq *PriorityQueue[P, V]) Peek() (value V, priority P, ok bool) {
-	item, ok := pq.heap.Peek()
+// Pop removes and returns the most priority value in the PriorityQueue.
+func (pq *PriorityQueue[P, V]) Pop() (priority P, value V, ok bool) {
+	item, ok := pq.heap.Pop()
 	if ok {
-		value, priority = item.value, item.priority
+		priority, value = item.priority, item.value
 	}
 	return
 }

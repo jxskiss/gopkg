@@ -1,65 +1,56 @@
 package heapx
 
 import (
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func testCmpImpl[T Ordered](a, b T) int {
-	if a < b {
-		return -1
-	}
-	if a > b {
-		return 1
-	}
-	return 0
-}
-
-type cmpIntAsc int
-
-func (x cmpIntAsc) Compare(other cmpIntAsc) int {
-	return testCmpImpl(x, other)
-}
-
-type cmpIntDesc int
-
-func (x cmpIntDesc) Compare(other cmpIntDesc) int {
-	return testCmpImpl(other, x)
-}
-
 func TestHeap(t *testing.T) {
-	nums := []int{2, 0, 1, 5, 9, 6, 4, 7, 8, 3}
+	nums := make([]int, 3333)
+	for i := range nums {
+		nums[i] = i
+	}
+	rand.Shuffle(len(nums), func(i, j int) {
+		nums[i], nums[j] = nums[j], nums[i]
+	})
 
 	t.Run("min heap", func(t *testing.T) {
-		h1 := NewHeap[cmpIntAsc]()
+		h1 := NewHeap[int](func(lhs, rhs int) bool {
+			return lhs < rhs
+		})
 		assert.True(t, h1.Len() == 0)
 		for i := range nums {
-			h1.Push(cmpIntAsc(nums[i]))
+			h1.Push(nums[i])
 		}
 		for i := range nums {
 			x, ok := h1.Pop()
 			assert.True(t, ok)
-			assert.Equal(t, i, int(x))
+			assert.Equal(t, i, x)
 		}
 		x, ok := h1.Peek()
 		assert.False(t, ok)
-		assert.Equal(t, 0, int(x))
+		assert.Equal(t, 0, x)
+		assert.Equal(t, 1, len(h1.items.ss))
 	})
 
 	t.Run("max heap", func(t *testing.T) {
-		h2 := NewHeap[cmpIntDesc]()
+		h2 := NewHeap[int](func(lhs, rhs int) bool {
+			return rhs < lhs
+		})
 		assert.True(t, h2.Len() == 0)
 		for i := range nums {
-			h2.Push(cmpIntDesc(nums[i]))
+			h2.Push(nums[i])
 		}
-		for i := 9; i >= 0; i-- {
+		for i := len(nums) - 1; i >= 0; i-- {
 			x, ok := h2.Pop()
 			assert.True(t, ok)
-			assert.Equal(t, i, int(x))
+			assert.Equal(t, i, x)
 		}
 		x, ok := h2.Peek()
 		assert.False(t, ok)
-		assert.Equal(t, 0, int(x))
+		assert.Equal(t, 0, x)
+		assert.Equal(t, 1, len(h2.items.ss))
 	})
 }
