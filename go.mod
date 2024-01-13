@@ -6,15 +6,15 @@ require (
 	github.com/BurntSushi/toml v1.3.2
 	github.com/bytedance/sonic v1.10.2
 	github.com/davecgh/go-spew v1.1.1
-	github.com/go-logr/logr v1.3.0
+	github.com/go-logr/logr v1.4.1
+	github.com/gobwas/glob v0.2.3
 	github.com/json-iterator/go v1.1.12
 	github.com/jxskiss/base62 v1.1.0
 	github.com/spf13/cast v1.6.0
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.4
 	github.com/tidwall/gjson v1.17.0
 	go.uber.org/zap v1.26.0
-	golang.org/x/arch v0.6.0
-	golang.org/x/sync v0.5.0
+	golang.org/x/sync v0.6.0
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
@@ -31,6 +31,7 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
+	golang.org/x/arch v0.7.0 // indirect
 	golang.org/x/sys v0.5.0 // indirect
 )
 

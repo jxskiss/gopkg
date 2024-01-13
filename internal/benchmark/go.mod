@@ -1,10 +1,10 @@
 module github.com/jxskiss/gopkg/v2/internal/benchmark
 
-go 1.18
+go 1.19
 
 require (
 	github.com/jxskiss/gopkg/v2 v2.0.0
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.4
 	github.com/valyala/bytebufferpool v1.0.0
 )
 

@@ -3,6 +3,7 @@ package ezdbg
 import (
 	"context"
 	"reflect"
+	"runtime"
 	"strings"
 	"unicode/utf8"
 
@@ -15,7 +16,7 @@ type stringerFunc func(v any) string
 
 /*
 DEBUG is debug message logger which do nothing if debug level is not enabled (the default).
-It gives best performance for production deployment by eliminating unnecessary
+It has good performance for production deployment by eliminating unnecessary
 parameter evaluation and control flows.
 
 DEBUG accepts very flexible arguments to help development, see the following examples:
@@ -125,6 +126,12 @@ func logdebug(skip int, stringer stringerFunc, args ...any) {
 		return
 	}
 
+	// Check filter rules.
+	caller, fullFileName, simpleFileName, line := getCaller(skip + 1)
+	if _logcfg.filter != nil && !_logcfg.filter.Allow(fullFileName) {
+		return
+	}
+
 	var logger DebugLogger
 	if len(args) > 0 {
 		if arg0, ok := args[0].(func()); ok {
@@ -136,11 +143,6 @@ func logdebug(skip int, stringer stringerFunc, args ...any) {
 	if logger == nil {
 		logger = _logcfg.getLogger(nil)
 	}
-	outputDebugLog(skip+1, logger, stringer, args)
-}
-
-func outputDebugLog(skip int, logger DebugLogger, stringer stringerFunc, args []any) {
-	caller, file, line := easy.Caller(skip + 1)
 	callerPrefix := "[" + caller + "] "
 	if len(args) > 0 {
 		if format, ok := args[0].(string); ok && strings.IndexByte(format, '%') >= 0 {
@@ -150,7 +152,7 @@ func outputDebugLog(skip int, logger DebugLogger, stringer stringerFunc, args []
 		format := callerPrefix + "%v" + strings.Repeat(" %v", len(args)-1)
 		logger.Debugf(format, formatArgs(stringer, args)...)
 	} else {
-		logger.Debugf("========  %s#L%d - %s  ========", file, line, caller)
+		logger.Debugf("========  %s#L%d - %s  ========", simpleFileName, line, caller)
 	}
 }
 
@@ -217,4 +219,27 @@ func isBasicType(typ reflect.Type) bool {
 		return true
 	}
 	return false
+}
+
+func getCaller(skip int) (funcName, fullFileName, simpleFileName string, line int) {
+	pc, fullFileName, line, _ := runtime.Caller(skip + 1)
+	funcName = runtime.FuncForPC(pc).Name()
+	for i := len(funcName) - 1; i >= 0; i-- {
+		if funcName[i] == '/' {
+			funcName = funcName[i+1:]
+			break
+		}
+	}
+	simpleFileName = fullFileName
+	pathSepCnt := 0
+	for i := len(simpleFileName) - 1; i >= 0; i-- {
+		if simpleFileName[i] == '/' {
+			pathSepCnt++
+			if pathSepCnt == 2 {
+				simpleFileName = simpleFileName[i+1:]
+				break
+			}
+		}
+	}
+	return
 }

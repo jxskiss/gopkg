@@ -188,6 +188,39 @@ func TestConfigLog(t *testing.T) {
 		return ctx.Value("TEST_LOGGER").(*bufLogger)
 	}
 	configTestLog(true, getCtxLogger)
+	assert.NotNil(t, _logcfg.LoggerFunc)
+}
+
+func TestFilterRule(t *testing.T) {
+	msg := "test FilterRule"
+
+	testCases := []struct {
+		name     string
+		rule     string
+		contains bool
+	}{
+		{name: "default", rule: "", contains: true},
+		{name: "allow all", rule: "allow=all", contains: true},
+		{name: "allow explicitly 1", rule: "allow=ezdbg/*.go", contains: true},
+		{name: "allow explicitly 2", rule: "allow=easy/**", contains: true},
+		{name: "not allowed explicitly", rule: "allow=confr/*,easy/*.go,easy/ezhttp/**", contains: false},
+		{name: "deny all", rule: "deny=all", contains: false},
+		{name: "deny explicitly", rule: "deny=ezdbg/*", contains: false},
+		{name: "not denied explicitly", rule: "deny=confr/*,easy/ezhttp/**", contains: true},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			configTestLogWithFilterRule(true, nil, tc.rule)
+			got := copyStdLog(func() {
+				DEBUG(msg)
+			})
+			if tc.contains {
+				assert.Contains(t, string(got), msg)
+			} else {
+				assert.NotContains(t, string(got), msg)
+			}
+		})
+	}
 }
 
 // -------- utilities -------- //
@@ -225,9 +258,18 @@ func configTestLog(
 	enableDebug bool,
 	ctxLogger func(context.Context) DebugLogger,
 ) {
+	configTestLogWithFilterRule(enableDebug, ctxLogger, "")
+}
+
+func configTestLogWithFilterRule(
+	enableDebug bool,
+	ctxLogger func(context.Context) DebugLogger,
+	filterRule string,
+) {
 	Config(Cfg{
 		EnableDebug: func(_ context.Context) bool { return enableDebug },
 		LoggerFunc:  ctxLogger,
+		FilterRule:  filterRule,
 	})
 }
 
