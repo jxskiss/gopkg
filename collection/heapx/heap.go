@@ -60,6 +60,8 @@ const (
 	bktMask  = bktSize - 1
 	initSize = 64
 	ptrSize  = unsafe.Sizeof(unsafe.Pointer(nil))
+
+	shrinkThreshold = bktSize / 2
 )
 
 type heapItems[T any] struct {
@@ -90,21 +92,36 @@ func (p *heapItems[T]) Len() int {
 }
 
 func (p *heapItems[T]) Less(i, j int) bool {
+	// Less is a hot function, but it is impossible to make it inline-able.
 	return p.lessFunc(*p.index(i), *p.index(j))
 }
 
 func (p *heapItems[T]) Swap(i, j int) {
-	p1, p2 := p.index(i), p.index(j)
+	/*
+		p1, p2 := p.index(i), p.index(j)
+		*p1, *p2 = *p2, *p1
+		return
+	*/
+
+	// Swap is a hot function, we manually inline p.index here
+	// to make it inline-able.
+
+	p1 := (*T)(unsafe.Pointer(
+		uintptr(*(*unsafe.Pointer)(unsafe.Pointer(uintptr(p.ssPtr) + uintptr(i>>bktShift)*ptrSize))) +
+			uintptr(i&bktMask)*p.elemSz))
+	p2 := (*T)(unsafe.Pointer(
+		uintptr(*(*unsafe.Pointer)(unsafe.Pointer(uintptr(p.ssPtr) + uintptr(j>>bktShift)*ptrSize))) +
+			uintptr(j&bktMask)*p.elemSz))
 	*p1, *p2 = *p2, *p1
 }
 
 func (p *heapItems[T]) Push(x any) {
-	if p.len == 0 {
-		p.s0 = make([]T, initSize)
-		p.addBucket(p.s0)
-		p.cap = initSize
-	} else if p.cap < p.len+1 {
-		if p.cap < bktSize {
+	if p.cap < p.len+1 {
+		if p.len == 0 {
+			p.s0 = make([]T, initSize)
+			p.addBucket(p.s0)
+			p.cap = initSize
+		} else if p.cap < bktSize {
 			newBkt := make([]T, p.cap*2)
 			copy(newBkt, p.s0[:p.len])
 			p.s0 = newBkt
@@ -127,8 +144,8 @@ func (p *heapItems[T]) Pop() any {
 		ret, *ptr = *ptr, zero
 		p.len--
 	}
-	// shrink buckets and free the underlying memory
-	if p.len&bktMask == 0 && p.len > 0 {
+	// Shrink buckets and free the underlying memory.
+	if (p.len+shrinkThreshold)&bktMask == 0 && (p.cap-p.len) > bktSize {
 		p.ss[len(p.ss)-1] = nil
 		p.ss = p.ss[:len(p.ss)-1]
 		p.cap -= bktSize

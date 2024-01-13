@@ -57,4 +57,79 @@ func TestHeap(t *testing.T) {
 		assert.Equal(t, bktSize, h2.items.cap)
 		assert.Equal(t, 0, h2.items.len)
 	})
+
+	t.Run("shrink", func(t *testing.T) {
+		h3 := NewHeap[int](func(lhs, rhs int) bool {
+			return lhs < rhs
+		})
+		assert.Equal(t, 0, h3.Len())
+		assert.Equal(t, 0, h3.items.cap)
+		assert.Equal(t, 0, len(h3.items.ss))
+
+		for i := 0; i < bktSize; i++ {
+			h3.Push(i)
+		}
+		assert.Equal(t, bktSize, h3.Len())
+		assert.Equal(t, bktSize, h3.items.cap)
+		assert.Equal(t, 1, len(h3.items.ss))
+
+		for i := 0; i < bktSize; i++ {
+			h3.Push(i)
+		}
+		assert.Equal(t, 2*bktSize, h3.Len())
+		assert.Equal(t, 2*bktSize, h3.items.cap)
+		assert.Equal(t, 2, len(h3.items.ss))
+
+		for i := 0; i < 10; i++ {
+			h3.Push(i)
+		}
+		assert.Equal(t, 2*bktSize+10, h3.Len())
+		assert.Equal(t, 3*bktSize, h3.items.cap)
+		assert.Equal(t, 3, len(h3.items.ss))
+
+		for i := 0; i < 10; i++ {
+			h3.Pop()
+		}
+		assert.Equal(t, 2*bktSize, h3.Len())
+		assert.Equal(t, 3*bktSize, h3.items.cap)
+		assert.Equal(t, 3, len(h3.items.ss))
+
+		for i := 0; i < shrinkThreshold-1; i++ {
+			h3.Pop()
+		}
+		assert.Equal(t, 2*bktSize-(shrinkThreshold-1), h3.Len())
+		assert.Equal(t, 3*bktSize, h3.items.cap)
+		assert.Equal(t, 3, len(h3.items.ss))
+
+		h3.Pop()
+		assert.Equal(t, 2*bktSize-shrinkThreshold, h3.Len())
+		assert.Equal(t, 2*bktSize, h3.items.cap)
+		assert.Equal(t, 2, len(h3.items.ss))
+
+		for i := 0; i < (bktSize - shrinkThreshold); i++ {
+			h3.Pop()
+		}
+		assert.Equal(t, bktSize, h3.Len())
+		assert.Equal(t, 2*bktSize, h3.items.cap)
+		assert.Equal(t, 2, len(h3.items.ss))
+
+		for i := 0; i < shrinkThreshold-1; i++ {
+			h3.Pop()
+		}
+		assert.Equal(t, bktSize-(shrinkThreshold-1), h3.Len())
+		assert.Equal(t, 2*bktSize, h3.items.cap)
+		assert.Equal(t, 2, len(h3.items.ss))
+
+		h3.Pop()
+		assert.Equal(t, bktSize-shrinkThreshold, h3.Len())
+		assert.Equal(t, bktSize, h3.items.cap)
+		assert.Equal(t, 1, len(h3.items.ss))
+
+		for i := 0; i < bktSize-shrinkThreshold; i++ {
+			h3.Pop()
+		}
+		assert.Equal(t, 0, h3.Len())
+		assert.Equal(t, bktSize, h3.items.cap)
+		assert.Equal(t, 1, len(h3.items.ss))
+	})
 }
