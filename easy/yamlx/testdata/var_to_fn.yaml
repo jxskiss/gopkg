@@ -1,0 +1,12 @@
+user_ids:
+  user1: 12345
+  user2: 23456
+key2: # @@var var_key2
+  sub1: "@@ref user_ids.user1"  # int
+  sub2: "@@ref user_ids.user2|@tostr" # string
+key3: "@@env ENTITY_ID" # @@var env1
+cid: "@@fn uuid" # @@var cid
+date: '@@fn nowFormat("2006-01-02")'
+var1: "@@var var_key2"
+var2: "@@var cid"
+env1: "@@var env1"

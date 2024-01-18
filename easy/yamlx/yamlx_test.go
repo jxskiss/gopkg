@@ -256,6 +256,23 @@ k4: '@@fn fn3(2, "123")'
 		assert.Equal(t, "123z", out["k4"])
 	})
 
+	t.Run("variable to function result", func(t *testing.T) {
+		os.Setenv("ENTITY_ID", "12345")
+		yamlData, err := os.ReadFile("./testdata/var_to_fn.yaml")
+		require.Nil(t, err)
+
+		var out map[string]any
+		err = Unmarshal(yamlData, &out, EnableEnv())
+		require.Nil(t, err)
+		assert.Len(t, out, 8)
+		assert.Len(t, out["key2"], 2)
+		assert.Len(t, out["var1"], 2)
+		assert.NotZero(t, out["cid"])
+		assert.Equal(t, out["cid"], out["var2"])
+		assert.Equal(t, "12345", out["key3"])
+		assert.Equal(t, "12345", out["env1"])
+	})
+
 	t.Run("escape", func(t *testing.T) {
 		yamlData := `
 nowUnix: "\\@@fn nowUnix"

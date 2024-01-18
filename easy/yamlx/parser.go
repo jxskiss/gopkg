@@ -185,6 +185,7 @@ func (p *parser) resolveEnvAndFunctions() error {
 				if err != nil {
 					return err
 				}
+				newNode.LineComment = node.LineComment
 				*node = *newNode
 				continue
 			}
