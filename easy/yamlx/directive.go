@@ -19,6 +19,23 @@ type directive struct {
 	args map[string]any
 }
 
+func (d *directive) getRefPath(nodePfx []string) (path, origPath string, isTostr bool, modifier string) {
+	origPath = d.args["path"].(string)
+	isRelative, level, tail := isRelativeJSONPath(origPath)
+	path = tail
+	if isRelative {
+		prefix := strings.Join(nodePfx[:max(len(nodePfx)-level, 0)], ".")
+		if prefix != "" {
+			path = prefix + "." + tail
+		}
+	}
+	isTostr, modifier = hasTostrModifier(path)
+	if isTostr {
+		path = strings.TrimSuffix(path, modifier)
+	}
+	return path, origPath, isTostr, modifier
+}
+
 func parseDirective(str string) (d directive, ok bool, err error) {
 	if !strings.HasPrefix(str, "@@") {
 		return
@@ -103,6 +120,27 @@ func parseReferDirective(str string) (directive, error) {
 		"path": str,
 	}
 	return directive{name: directiveRefer, args: args}, nil
+}
+
+func isRelativeJSONPath(path string) (ok bool, level int, tail string) {
+	if path[0] == '.' &&
+		strings.HasPrefix(strings.TrimLeft(path, "."), "/") {
+		parts := strings.SplitN(path, "/", 2)
+		if len(parts) == 2 {
+			return true, len(parts[0]), parts[1]
+		}
+	}
+	return false, 0, path
+}
+
+func hasTostrModifier(path string) (ok bool, modifier string) {
+	pos := strings.Index(path, "@tostr")
+	if pos > 1 {
+		if path[pos-1] == '|' || path[pos-1] == '.' {
+			return true, path[pos-1:]
+		}
+	}
+	return false, ""
 }
 
 func parseFunctionDirective(str string) (directive, error) {

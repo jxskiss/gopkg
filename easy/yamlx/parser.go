@@ -18,19 +18,28 @@ import (
 
 const strTag = "!!str"
 
-type nodeStack []*yaml.Node
+type nodeStack[T any] []T
 
-func (p *nodeStack) push(nodes ...*yaml.Node) {
+func (p *nodeStack[T]) push(nodes ...T) {
 	*p = append(*p, nodes...)
 }
 
-func (p *nodeStack) pop() (top *yaml.Node) {
+func (p *nodeStack[T]) pop() (top T) {
 	if len(*p) == 0 {
-		return nil
+		return top
 	}
 	top = (*p)[len(*p)-1]
 	*p = (*p)[:len(*p)-1]
 	return
+}
+
+type pathTuple struct{ path, origPath string }
+
+func (p pathTuple) String() string {
+	if p.path == p.origPath {
+		return p.path
+	}
+	return fmt.Sprintf("%s (%s)", p.origPath, p.path)
 }
 
 type parser struct {
@@ -49,7 +58,7 @@ type parser struct {
 	refMark     string
 	refCounter  int
 	refTable    map[string]int
-	refRevTable map[int]string
+	refRevTable map[int]pathTuple
 	refDag      dag
 
 	// directive var
@@ -139,7 +148,7 @@ func (p *parser) resolveEnvAndFunctions() error {
 	}
 
 	// depth-first traversal
-	stack := make(nodeStack, 0, 64)
+	stack := make(nodeStack[*yaml.Node], 0, 64)
 	stack.push(p.doc)
 	for len(stack) > 0 {
 		node := stack.pop()
@@ -235,7 +244,7 @@ func (p *parser) resolveVariables() error {
 	p.varNodeMap = make(map[*yaml.Node]string)
 
 	// depth-first traversal
-	stack := make(nodeStack, 0, 64)
+	stack := make(nodeStack[*yaml.Node], 0, 64)
 	stack.push(p.doc)
 	for len(stack) > 0 {
 		node := stack.pop()
@@ -342,7 +351,7 @@ func (p *parser) checkAndAddVariable(lineComment string, node *yaml.Node) error 
 	return nil
 }
 
-func (p *parser) detectVarCircle(node *yaml.Node, stack nodeStack) (string, bool) {
+func (p *parser) detectVarCircle(node *yaml.Node, stack nodeStack[*yaml.Node]) (string, bool) {
 	if node == nil || node.IsZero() {
 		return "", false
 	}
@@ -397,7 +406,7 @@ func (p *parser) resolveIncludes() error {
 	}
 
 	// depth-first traversal
-	stack := make(nodeStack, 0, 64)
+	stack := make(nodeStack[*yaml.Node], 0, 64)
 	stack.push(p.doc)
 	for len(stack) > 0 {
 		node := stack.pop()
@@ -508,33 +517,45 @@ func (p *parser) resolveReferences() error {
 		return nil
 	}
 
+	toStrRefs := make(map[int]string) // seq -> modifier
+
 	// depth-first traversal
-	stack := make(nodeStack, 0, 64)
-	stack.push(p.doc)
+	type NodePath struct {
+		N *yaml.Node // node
+		P []string   // path prefix
+	}
+	stack := make(nodeStack[NodePath], 0, 64)
+	stack.push(NodePath{p.doc, nil})
 	for len(stack) > 0 {
 		node := stack.pop()
-		if node == nil || node.IsZero() {
+		if node.N == nil || node.N.IsZero() {
 			continue
 		}
-		switch node.Kind {
+		switch node.N.Kind {
 		case yaml.DocumentNode:
-			if len(node.Content) == 0 || node.Content[0].IsZero() {
+			if len(node.N.Content) == 0 || node.N.Content[0].IsZero() {
 				continue
 			}
-			stack.push(node.Content[0])
+			stack.push(NodePath{node.N.Content[0], nil})
 		case yaml.SequenceNode:
-			stack.push(node.Content...)
+			for i := 0; i < len(node.N.Content); i++ {
+				_n := node.N.Content[i]
+				_p := append(clip(node.P), strconv.Itoa(i))
+				stack.push(NodePath{_n, _p})
+			}
 		case yaml.MappingNode:
-			for i, j := 0, 1; j < len(node.Content); i, j = i+2, j+2 {
-				stack.push(node.Content[j])
+			for i, j := 0, 1; j < len(node.N.Content); i, j = i+2, j+2 {
+				_n := node.N.Content[j]
+				_p := append(clip(node.P), gjson.Escape(node.N.Content[i].Value))
+				stack.push(NodePath{_n, _p})
 			}
 		case yaml.AliasNode:
 			continue
 		case yaml.ScalarNode:
-			if node.Tag != strTag {
+			if node.N.Tag != strTag {
 				continue
 			}
-			directive, ok, err := parseDirective(node.Value)
+			directive, ok, err := parseDirective(node.N.Value)
 			if err != nil {
 				return err
 			}
@@ -542,10 +563,14 @@ func (p *parser) resolveReferences() error {
 				continue
 			}
 
-			jsonPath := directive.args["path"].(string)
-			seq, placeholder := p.getReferID(jsonPath)
-			node.Value = placeholder
+			// Note we need special processing for modifier "@tostr".
+			jsonPath, origPath, isTostr, modifier := directive.getRefPath(node.P)
+			seq, placeholder := p.getReferID(jsonPath, origPath)
+			node.N.Value = placeholder
 			p.refDag.addVertex(seq)
+			if isTostr {
+				toStrRefs[seq] = modifier
+			}
 		}
 	}
 	if p.refMark == "" {
@@ -567,7 +592,7 @@ func (p *parser) resolveReferences() error {
 	resolved := make(map[int]string, len(p.refTable))
 	for seq := 1; seq <= len(p.refTable); seq++ {
 		refPath := p.refRevTable[seq]
-		r := gjson.GetBytes(intermediateBuf, refPath)
+		r := gjson.GetBytes(intermediateBuf, refPath.path)
 		if !r.Exists() {
 			return fmt.Errorf("cannot find referenced data: %v", refPath)
 		}
@@ -605,6 +630,9 @@ func (p *parser) resolveReferences() error {
 
 	order := p.refDag.topoSort()
 	for _, seq := range order {
+		if modifier := toStrRefs[seq]; modifier != "" {
+			resolved[seq] = convToStr(resolved[seq], modifier)
+		}
 		final := resolved[seq]
 		placeholder := `"` + p.referPlaceholder(seq) + `"`
 		p.refDag.visitNeighbors(seq, func(to int) {
@@ -622,25 +650,34 @@ func (p *parser) resolveReferences() error {
 	return yaml.Unmarshal(unsafeheader.StringToBytes(finalBuf), p.doc)
 }
 
-func (p *parser) getReferID(path string) (int, string) {
+func convToStr(value, modifier string) string {
+	tmp := fmt.Sprintf(`{"a":%s}`, value)
+	return gjson.Get(tmp, "a"+modifier).Raw
+}
+
+func (p *parser) getReferID(path, origPath string) (int, string) {
 	if p.refMark == "" {
 		p.refMark = strutil.RandomHex(40)
 		p.refTable = make(map[string]int)
-		p.refRevTable = make(map[int]string)
+		p.refRevTable = make(map[int]pathTuple)
 	}
 	seq := p.refTable[path]
 	if seq == 0 {
 		p.refCounter++
 		seq = p.refCounter
 		p.refTable[path] = seq
-		p.refRevTable[seq] = path
+		p.refRevTable[seq] = pathTuple{path, origPath}
 	}
 	placeholder := p.referPlaceholder(seq)
 	return seq, placeholder
 }
 
 func (p *parser) referPlaceholder(n int) string {
-	return fmt.Sprintf("%s:%d", p.refMark, n)
+	return fmt.Sprintf("%s_%d", p.refMark, n)
+}
+
+func (p *parser) hasPlaceholder(str string) bool {
+	return strings.Index(str, p.refMark) > 0
 }
 
 func (p *parser) getDocValueNode() *yaml.Node {
@@ -664,7 +701,7 @@ func (p *parser) unescapeStrings() {
 	}
 
 	// depth-first traversal
-	stack := make(nodeStack, 0, 64)
+	stack := make(nodeStack[*yaml.Node], 0, 64)
 	stack.push(p.doc)
 	for len(stack) > 0 {
 		node := stack.pop()
@@ -694,4 +731,11 @@ func (p *parser) unescapeStrings() {
 
 func clip[T any](s []T) []T {
 	return s[:len(s):len(s)]
+}
+
+func max(a, b int) int {
+	if a < b {
+		return b
+	}
+	return a
 }

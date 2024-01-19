@@ -143,6 +143,27 @@ func TestUnmarshal(t *testing.T) {
 		assert.Contains(t, err.Error(), "circular reference detected: friends.#.age")
 	})
 
+	t.Run("reference / relative", func(t *testing.T) {
+		yamlData, err := os.ReadFile("./testdata/ref_relative.yaml")
+		require.Nil(t, err)
+
+		var out map[string]any
+		err = Unmarshal(yamlData, &out)
+		require.Nil(t, err)
+		assert.Len(t, out, 2)
+
+		jsonData, err := json.MarshalToString(out)
+		require.Nil(t, err)
+		assert.Equal(t, "Deploy", gjson.Get(jsonData, "definitions.steps.1.step.name1").String())
+		assert.Equal(t, "level2", gjson.Get(jsonData, "definitions.steps.1.step.name2").String())
+		assert.Equal(t, "Build and test", gjson.Get(jsonData, "definitions.steps.1.step.name3").String())
+		assert.Equal(t, "./deploy.sh target/my-app.jar", gjson.Get(jsonData, "definitions.steps.1.step.script.0").String())
+		assert.Equal(t, "./deploy.sh target/my-app.jar", gjson.Get(jsonData, "definitions.steps.1.step.script.1").String())
+		assert.Equal(t, "./deploy.sh target/my-app.jar", gjson.Get(jsonData, "definitions.steps.1.step.script.2").String())
+		assert.Equal(t, "mvn package", gjson.Get(jsonData, "definitions.steps.1.step.script.3").String())
+		assert.Equal(t, `{"deployment":"test","name":"Deploy","name1":"Deploy","name2":"level2","name3":"Build and test","script":["./deploy.sh target/my-app.jar","./deploy.sh target/my-app.jar","./deploy.sh target/my-app.jar","mvn package"]}`, gjson.Get(jsonData, "definitions.steps.1.tostr").Str)
+	})
+
 	t.Run("variable / success", func(t *testing.T) {
 		yamlData, err := os.ReadFile("./testdata/variable.yaml")
 		require.Nil(t, err)

@@ -1,0 +1,33 @@
+definitions:
+  steps:
+    - step: &build-test
+        name: Build and test
+        script:
+          - mvn package
+        artifacts:
+          - target/**
+    - step: &deploy
+        name: Deploy
+        deployment: test
+        script:
+          - ./deploy.sh target/my-app.jar
+          - "@@ref ./0"
+          - "@@ref ../script.0"
+          - "@@ref ..../0.step.script.0"
+        name1: "@@ref ./name"
+        name2: "@@ref ../name"
+        name3: "@@ref .../0.step.name"
+      name: "level2"
+      tostr: "@@ref ./step|@tostr"
+
+pipelines:
+  branches:
+    develop:
+      - step: *build-test
+      - step: *deploy
+    main:
+      - step: *build-test
+      - step:
+          <<: *deploy
+          deployment: production
+          trigger: manual
