@@ -676,10 +676,6 @@ func (p *parser) referPlaceholder(n int) string {
 	return fmt.Sprintf("%s_%d", p.refMark, n)
 }
 
-func (p *parser) hasPlaceholder(str string) bool {
-	return strings.Index(str, p.refMark) > 0
-}
-
 func (p *parser) getDocValueNode() *yaml.Node {
 	if p.doc == nil {
 		return &yaml.Node{}

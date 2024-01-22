@@ -1,7 +1,6 @@
 package easy
 
 import (
-	"context"
 	"fmt"
 	"runtime/debug"
 
@@ -27,7 +26,7 @@ func (p *PanicError) Format(f fmt.State, c rune) {
 	}
 }
 
-// Safe returns an wrapped function with panic recover.
+// Safe returns a wrapper function with panic recover.
 //
 // Note that if panic happens, the wrapped function does not log messages,
 // instead it will be returned as a `*PanicError`, the caller take
@@ -52,7 +51,7 @@ func Safe(f func()) func() error {
 	}
 }
 
-// Safe1 returns an wrapped function with panic recover.
+// Safe1 returns a wrapper function with panic recover.
 //
 // Note that if panic or error happens, the wrapped function does not log
 // messages, instead it will be returned as an error, the caller take
@@ -84,8 +83,8 @@ func Safe1(f func() error) func() error {
 // Note that the returned function should not be wrapped by another
 // function, instead it should be called directly by the `defer` statement,
 // else it won't work as you may expect.
-func Recover(f func(ctx context.Context, panicErr *PanicError)) func(ctx context.Context) {
-	return func(ctx context.Context) {
+func Recover[T any](f func(ctx T, panicErr *PanicError)) func(ctx T) {
+	return func(ctx T) {
 		e := recover()
 		if e == nil {
 			return
