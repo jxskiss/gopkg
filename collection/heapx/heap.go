@@ -1,9 +1,6 @@
 package heapx
 
-import (
-	"container/heap"
-	"unsafe"
-)
+import "unsafe"
 
 // LessFunc is a comparator function to build a Heap.
 type LessFunc[T any] func(lhs, rhs T) bool
@@ -16,42 +13,56 @@ type Heap[T any] struct {
 
 // NewHeap creates a new Heap.
 func NewHeap[T any](cmp LessFunc[T]) *Heap[T] {
-	hp := &Heap[T]{}
-	hp.init(cmp)
-	return hp
+	h := &Heap[T]{}
+	h.init(cmp)
+	return h
 }
 
-func (p *Heap[T]) init(lessFunc LessFunc[T]) {
-	p.items.elemSz = unsafe.Sizeof(*new(T))
-	p.items.lessFunc = lessFunc
+func (h *Heap[T]) init(lessFunc LessFunc[T]) {
+	h.items.elemSz = unsafe.Sizeof(*new(T))
+	h.items.lessFunc = lessFunc
 }
 
 // Len returns the size of the heap.
-func (p *Heap[T]) Len() int {
-	return p.items.Len()
+func (h *Heap[T]) Len() int {
+	return h.items.Len()
 }
 
-// Push adds an item to the heap.
-func (p *Heap[T]) Push(x T) {
-	heap.Push(&p.items, x)
+// Push pushes the element x onto the heap.
+// The complexity is O(log n) where n = h.Len().
+func (h *Heap[T]) Push(x T) {
+	/*
+		heap.Push(&h.items, x)
+	*/
+	h.items.Push(x)
+	h.items.up(h.Len() - 1)
 }
 
-// Peek returns the min item in the heap, according to the comparator
-// function, it does not remove the item from the heap.
-func (p *Heap[T]) Peek() (x T, ok bool) {
-	if p.items.Len() == 0 {
+// Peek returns the minium element (according to the LessFunc) in the heap,
+// it does not remove the item from the heap.
+// The complexity is O(1).
+func (h *Heap[T]) Peek() (x T, ok bool) {
+	if h.items.Len() == 0 {
 		return
 	}
-	return p.items.s0[0], true
+	return h.items.s0[0], true
 }
 
-// Pop removes and returns the min item in the heap,
-// according to the comparator function.
-func (p *Heap[T]) Pop() (x T, ok bool) {
-	if p.items.Len() == 0 {
+// Pop removes and returns the minimum element (according to the LessFunc) from the heap.
+// The complexity is O(log n) where n = h.Len().
+// Pop is equivalent to Remove(h, 0).
+func (h *Heap[T]) Pop() (x T, ok bool) {
+	if h.items.Len() == 0 {
 		return
 	}
-	return heap.Pop(&p.items).(T), true
+
+	/*
+		return heap.Pop(&h.items).(T), true
+	*/
+	n := h.Len() - 1
+	h.items.Swap(0, n)
+	h.items.down(0, n)
+	return h.items.Pop().(T), true
 }
 
 const (
@@ -92,27 +103,13 @@ func (p *heapItems[T]) Len() int {
 }
 
 func (p *heapItems[T]) Less(i, j int) bool {
-	// Less is a hot function, but it is impossible to make it inline-able.
 	return p.lessFunc(*p.index(i), *p.index(j))
 }
 
 func (p *heapItems[T]) Swap(i, j int) {
-	/*
-		p1, p2 := p.index(i), p.index(j)
-		*p1, *p2 = *p2, *p1
-		return
-	*/
-
-	// Swap is a hot function, we manually inline p.index here
-	// to make it inline-able.
-
-	p1 := (*T)(unsafe.Pointer(
-		uintptr(*(*unsafe.Pointer)(unsafe.Pointer(uintptr(p.ssPtr) + uintptr(i>>bktShift)*ptrSize))) +
-			uintptr(i&bktMask)*p.elemSz))
-	p2 := (*T)(unsafe.Pointer(
-		uintptr(*(*unsafe.Pointer)(unsafe.Pointer(uintptr(p.ssPtr) + uintptr(j>>bktShift)*ptrSize))) +
-			uintptr(j&bktMask)*p.elemSz))
+	p1, p2 := p.index(i), p.index(j)
 	*p1, *p2 = *p2, *p1
+	return
 }
 
 func (p *heapItems[T]) Push(x any) {
@@ -151,4 +148,37 @@ func (p *heapItems[T]) Pop() any {
 		p.cap -= bktSize
 	}
 	return ret
+}
+
+func (p *heapItems[T]) up(j int) {
+	for {
+		i := (j - 1) / 2 // parent
+		if i == j || !p.lessFunc(*p.index(j), *p.index(i)) {
+			break
+		}
+		p1, p2 := p.index(i), p.index(j)
+		*p1, *p2 = *p2, *p1 // swap(i, j)
+		j = i
+	}
+}
+
+func (p *heapItems[T]) down(i0, n int) bool {
+	i := i0
+	for {
+		j1 := 2*i + 1
+		if j1 >= n || j1 < 0 { // j1 < 0 after int overflow
+			break
+		}
+		j := j1 // left child
+		if j2 := j1 + 1; j2 < n && p.lessFunc(*p.index(j2), *p.index(j1)) {
+			j = j2 // = 2*i + 2 // right child
+		}
+		if !p.lessFunc(*p.index(j), *p.index(i)) {
+			break
+		}
+		p1, p2 := p.index(i), p.index(j)
+		*p1, *p2 = *p2, *p1 // swap(i, j)
+		i = j
+	}
+	return i > i0
 }
