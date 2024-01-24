@@ -15,7 +15,7 @@ var _ V1Info = &v1Info{}
 
 const (
 	v1Version = '1'
-	v1Length  = 44
+	v1Length  = 36
 )
 
 // NewV1Gen creates a new v1 log ID generator.
@@ -45,21 +45,15 @@ func getMachineID() [16]byte {
 //
 // A v1 log ID is consisted of the following parts:
 //
-//   - 17 bytes milli timestamp
+//   - 9 bytes milli timestamp, in base32 form
 //   - 16 bytes hash of the machine ID of current host if available,
 //     else 16 bytes random data
-//   - 10 bytes random data, with 1 bit to mark UTC timezone
+//   - 10 bytes random data
 //   - 1 byte version flag "1"
+//
+// e.g. "1HMZ5YAD5M0RY2MKE72XWXGSW140NFEAD8J1"
 type V1Gen struct {
 	machineID [16]byte
-	useUTC    bool
-}
-
-// UseUTC sets the generator to format timestamp with location time.UTC.
-// By default, it formats timestamp with location time.Local.
-func (p *V1Gen) UseUTC() *V1Gen {
-	p.useUTC = true
-	return p
 }
 
 // Gen generates a new log ID string.
@@ -67,15 +61,15 @@ func (p *V1Gen) Gen() string {
 	buf := make([]byte, v1Length)
 	buf[len(buf)-1] = v1Version
 
-	// milli timestamp, fixed length, 17 bytes
-	appendTime(buf[:0], time.Now(), p.useUTC)
+	// milli timestamp, fixed length, 9 bytes
+	encodeBase32(buf[0:9], time.Now().UnixMilli())
 
 	// random bytes, fixed length, 10 bytes
-	randNum := rand50bitsWithUTCMark(p.useUTC)
-	encodeBase32(buf[33:43], randNum)
+	randNum := rand50bits()
+	encodeBase32(buf[25:35], randNum)
 
 	// machine ID, fixed length, 16 bytes
-	copy(buf[17:33], p.machineID[:])
+	copy(buf[9:25], p.machineID[:])
 
 	return unsafeheader.BytesToString(buf)
 }
@@ -85,22 +79,22 @@ func decodeV1Info(s string) (info *v1Info) {
 	if len(s) != v1Length {
 		return
 	}
-	mID := s[17:33]
-	r := s[33:43]
-	isUTC := checkUTCMark(r)
-	t, err := decodeTime(s[:17], isUTC)
+	mID := s[9:25]
+	r := s[25:35]
+	tMsec, err := decodeBase32(s[:9])
 	if err != nil {
 		return
 	}
 	*info = v1Info{
 		valid:     true,
-		time:      t,
+		time:      time.UnixMilli(tMsec),
 		machineID: mID,
 		random:    r,
 	}
 	return
 }
 
+// V1Info holds parsed information of a v1 log ID string.
 type V1Info interface {
 	Info
 	Time() time.Time

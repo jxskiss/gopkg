@@ -8,8 +8,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/jxskiss/gopkg/v2/perf/fastrand"
 )
 
 func TestDefault(t *testing.T) {
@@ -25,8 +23,8 @@ func TestDefault(t *testing.T) {
 func Test_encodeBase32(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		var buf = make([]byte, 10)
-		x := fastrand.Uint64()
-		encodeBase32(buf, x&mask50bits)
+		x := rand50bits()
+		encodeBase32(buf, x)
 		got, err := decodeBase32(string(buf))
 		assert.Nil(t, err)
 		assert.Equal(t, x&mask50bits, got)
