@@ -14,6 +14,15 @@ import (
 // channels with very little traffic,
 // they do some simple things when a value is received from a channel,
 // you may use this to avoid running a lot of goroutines.
+//
+// Note that we receive values from many channels by a single "select"
+// operation, task sync-callbacks block the receiving operation
+// on all channels managed by the same bucket, user MUST NOT do
+// expensive operations in task sync-callbacks.
+//
+// Also note, if the sender does not wait on sending, it may drop
+// values when ManySelect is managing tasks or running task callbacks.
+// User must wait on sending or allow values being dropped.
 type ManySelect interface {
 
 	// Add submits a Task to the task executor.

@@ -14,8 +14,12 @@ import (
 // If syncCallback or asyncCallback is not nil, or both not nil,
 // when a value is received from ch, syncCallback is called synchronously,
 // asyncCallback will be run asynchronously in a new goroutine.
-// When ch is closed, non-nil syncCallback and asyncCallback will be called
+// When ch is closed, non-nil callback functions will be called
 // with a zero value of T and ok is false.
+//
+// Note that syncCallback blocks the receiving operation on all
+// channels managed by the same bucket, user MUST NOT do expensive
+// operations in syncCallback.
 func NewTask[T any](
 	ch <-chan T,
 	syncCallback func(v T, ok bool),

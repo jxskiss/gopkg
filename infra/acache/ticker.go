@@ -1,23 +1,6 @@
 package acache
 
-import (
-	"sync"
-	"time"
-
-	"github.com/jxskiss/gopkg/v2/perf/mselect"
-)
-
-// For low frequency ticker, we use the mselect to reduce the number of goroutines.
-const lowFrequencyThreshold = 5 * time.Second
-
-var (
-	mselOnce sync.Once
-	msel     mselect.ManySelect
-)
-
-func initManySelect() {
-	mselOnce.Do(func() { msel = mselect.New() })
-}
+import "time"
 
 type callbackTicker interface {
 	Stop()
@@ -26,20 +9,17 @@ type callbackTicker interface {
 type callbackFunc func(time.Time, bool)
 
 func newCallbackTicker(d time.Duration, callback callbackFunc) callbackTicker {
-	if d < lowFrequencyThreshold {
-		return newStdTicker(d, callback)
-	}
-	return newManySelectTicker(d, callback)
+	return newTicker(d, callback)
 }
 
-type stdTickerImpl struct {
+type tickerImpl struct {
 	ticker   *time.Ticker
 	close    chan struct{}
 	callback callbackFunc
 }
 
-func newStdTicker(d time.Duration, callback callbackFunc) *stdTickerImpl {
-	impl := &stdTickerImpl{
+func newTicker(d time.Duration, callback callbackFunc) *tickerImpl {
+	impl := &tickerImpl{
 		ticker:   time.NewTicker(d),
 		close:    make(chan struct{}),
 		callback: callback,
@@ -48,12 +28,12 @@ func newStdTicker(d time.Duration, callback callbackFunc) *stdTickerImpl {
 	return impl
 }
 
-func (t *stdTickerImpl) Stop() {
+func (t *tickerImpl) Stop() {
 	t.ticker.Stop()
 	close(t.close)
 }
 
-func (t *stdTickerImpl) run() {
+func (t *tickerImpl) run() {
 	for {
 		select {
 		case tick := <-t.ticker.C:
@@ -62,26 +42,4 @@ func (t *stdTickerImpl) run() {
 			return
 		}
 	}
-}
-
-type manySelectTickerImpl struct {
-	ticker *time.Ticker
-	task   *mselect.Task
-}
-
-func newManySelectTicker(d time.Duration, asyncCallback callbackFunc) *manySelectTickerImpl {
-	initManySelect()
-	ticker := time.NewTicker(d)
-	task := mselect.NewTask(ticker.C, nil, asyncCallback)
-	msel.Add(task)
-	impl := &manySelectTickerImpl{
-		ticker: ticker,
-		task:   task,
-	}
-	return impl
-}
-
-func (t *manySelectTickerImpl) Stop() {
-	t.ticker.Stop()
-	msel.Delete(t.task)
 }
