@@ -12,12 +12,12 @@ var _ Generator = &V2Gen{}
 var _ V2Info = &v2Info{}
 
 // IPUnknown represents unknown IP address.
-const IPUnknown = "AAAAAAA"
+const IPUnknown = "0000000"
 
 const (
 	v2Version    = '2'
-	v2IPv4Length = 35
-	v2IPv6Length = 54
+	v2IPv4Length = 27
+	v2IPv6Length = 46
 )
 
 // NewV2Gen creates a new v2 log ID generator.
@@ -37,36 +37,32 @@ func NewV2Gen(ip net.IP) *V2Gen {
 //
 // A v2 log ID is consisted by the following parts:
 //
-//   - 17 bytes milli timestamp
-//   - 26 bytes IPv6 address, or 7 bytes IPv4 address, in base32 form
-//   - 10 bytes random data, with 1 bit to mark UTC timezone
+//   - 9 bytes milli timestamp, in base32 form
+//   - 7 bytes IPv4 address, or 26 bytes IPv6 address, in base32 form
+//   - 10 bytes random data
 //   - 1 byte version flag "2"
+//
+// e.g.
+//   - "1HMZ5YAD6041061072VFVV7C2J2"
+//   - "1HMZ5YAD6ZPYXR0802R01C00000000000JGCBDDWZEJH42"
 type V2Gen struct {
-	ipStr  string
-	useUTC bool
-}
-
-// UseUTC sets the generator to format timestamp with location time.UTC.
-// By default, it formats timestamp with location time.Local.
-func (p *V2Gen) UseUTC() *V2Gen {
-	p.useUTC = true
-	return p
+	ipStr string
 }
 
 // Gen generates a new log ID string.
 func (p *V2Gen) Gen() string {
-	buf := make([]byte, 28+len(p.ipStr))
+	buf := make([]byte, 20+len(p.ipStr))
 	buf[len(buf)-1] = v2Version
 
-	// milli timestamp, fixed length, 17 bytes
-	appendTime(buf[:0], time.Now(), p.useUTC)
+	// milli timestamp, fixed length, 9 bytes
+	encodeBase32(buf[0:9], time.Now().UnixMilli())
 
 	// random bytes, fixed length, 10 bytes
-	randNum := rand50bitsWithUTCMark(p.useUTC)
+	randNum := rand50bits()
 	encodeBase32(buf[len(buf)-11:len(buf)-1], randNum)
 
-	// ip address, fixed length, 32 bytes
-	copy(buf[17:], p.ipStr)
+	// ip address, 7 bytes for IPv4 or 26 bytes for IPv6
+	copy(buf[9:], p.ipStr)
 
 	return unsafeheader.BytesToString(buf)
 }
@@ -77,24 +73,24 @@ func decodeV2Info(s string) (info *v2Info) {
 		return
 	}
 	r := s[len(s)-11 : len(s)-1]
-	isUTC := checkUTCMark(r)
-	t, err := decodeTime(s[:17], isUTC)
+	tMsec, err := decodeBase32(s[:9])
 	if err != nil {
 		return
 	}
-	ip, err := b32Enc.DecodeString(s[17 : len(s)-11])
+	ip, err := b32Enc.DecodeString(s[9 : len(s)-11])
 	if err != nil {
 		return
 	}
 	*info = v2Info{
 		valid:  true,
-		time:   t,
+		time:   time.UnixMilli(tMsec),
 		ip:     ip,
 		random: r,
 	}
 	return
 }
 
+// V2Info holds parsed information of a v2 log ID string.
 type V2Info interface {
 	Info
 	Time() time.Time
