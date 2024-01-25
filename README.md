@@ -90,9 +90,6 @@ reasonable API compatibility and versioning.
    item expiration, friendly and type-safe APIs for commonly used key types.
    It also provides a sharded version for heavy lock contention use-case.
 
-1. `perf/mselect` can run many channel receiving operations simultaneously,
-   tasks can be added and deleted dynamically.
-
 1. `unsafe/forceexport` force exports private types and functions of other packages. As you might
    expect, this package is unsafe and fragile and shouldn't be used in production, it is
    mainly for testing purpose.
