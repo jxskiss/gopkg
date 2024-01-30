@@ -28,7 +28,7 @@ func buildPerLoggerLevelFunc(levelRules []string) (perLoggerLevelFunc, error) {
 		}
 		loggerName, levelName := tmp[0], tmp[1]
 		var level Level
-		if !level.unmarshalText([]byte(levelName)) {
+		if !unmarshalLevel(&level, levelName) {
 			return nil, fmt.Errorf("unrecognized level: %s", levelName)
 		}
 		tree.root.insert(loggerName, level)
@@ -55,7 +55,7 @@ func (c *dynamicLevelCore) With(fields []zapcore.Field) zapcore.Core {
 }
 
 func (c *dynamicLevelCore) Check(entry zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {
-	var entryLevel = fromZapLevel(entry.Level)
+	var entryLevel = entry.Level
 
 	// Dynamic level takes higher priority.
 	if c.dynLevel != nil {
@@ -102,7 +102,7 @@ func (c *dynamicLevelCore) changeLevel(level Level) *dynamicLevelCore {
 	return clone
 }
 
-func tryChangeLevel(level Level) func(zapcore.Core) zapcore.Core {
+func changeLevel(level Level) func(zapcore.Core) zapcore.Core {
 	return func(core zapcore.Core) zapcore.Core {
 		if dyn, ok := core.(*dynamicLevelCore); ok {
 			return dyn.changeLevel(level)

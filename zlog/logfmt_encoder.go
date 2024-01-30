@@ -49,6 +49,9 @@ type logfmtEncoder struct {
 	namespaces []string
 }
 
+// NewLogfmtEncoder creates a [zapcore.Encoder] which encodes log in the
+// "logfmt" format.
+// The returned encoder does not support [zapcore.ObjectMarshaler].
 func NewLogfmtEncoder(cfg zapcore.EncoderConfig) zapcore.Encoder {
 	return &logfmtEncoder{
 		EncoderConfig: &cfg,

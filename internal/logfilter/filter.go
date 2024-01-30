@@ -1,17 +1,17 @@
-package ezdbg
+package logfilter
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/gobwas/glob"
 )
 
-const FilterRuleEnvName = "EZDBG_FILTER_RULE"
-
-type logFilter struct {
+type FileNameFilter struct {
 	rule      string
 	allowRule string
 	denyRule  string
+	errs      []error
 
 	allowAll   bool
 	allowGlobs []glob.Glob
@@ -20,11 +20,11 @@ type logFilter struct {
 	denyGlobs []glob.Glob
 }
 
-func newLogFilter(rule string) *logFilter {
-	lf := &logFilter{rule: rule}
+func NewFileNameFilter(rule string) (*FileNameFilter, []error) {
+	lf := &FileNameFilter{rule: rule}
 	if rule == "" {
 		lf.allowAll = true
-		return lf
+		return lf, nil
 	}
 	directives := strings.Split(rule, ";")
 	for _, r := range directives {
@@ -41,10 +41,10 @@ func newLogFilter(rule string) *logFilter {
 	if len(lf.allowGlobs) == 0 {
 		lf.allowAll = true
 	}
-	return lf
+	return lf, lf.errs
 }
 
-func (f *logFilter) parseAllowRule(rule string) {
+func (f *FileNameFilter) parseAllowRule(rule string) {
 	f.allowRule = rule
 	// Remove the prefix "allow=".
 	globStrs := strings.Split(rule[6:], ",")
@@ -58,14 +58,14 @@ func (f *logFilter) parseAllowRule(rule string) {
 		}
 		g, err := glob.Compile("**"+s, '/')
 		if err != nil {
-			stdLogger{}.Warnf("ezdbg: failed to compile filter pattern %q: %v", s, err)
+			f.errs = append(f.errs, fmt.Errorf("cannot compile filter pattern %q: %w", s, err))
 			continue
 		}
 		f.allowGlobs = append(f.allowGlobs, g)
 	}
 }
 
-func (f *logFilter) parseDenyRule(rule string) {
+func (f *FileNameFilter) parseDenyRule(rule string) {
 	f.denyRule = rule
 	// Remove the prefix "deny=".
 	globStrs := strings.Split(rule[5:], ",")
@@ -80,14 +80,14 @@ func (f *logFilter) parseDenyRule(rule string) {
 		}
 		g, err := glob.Compile("**"+s, '/')
 		if err != nil {
-			stdLogger{}.Warnf("ezdbg: failed to compile filter pattern %q: %v", s, err)
+			f.errs = append(f.errs, fmt.Errorf("cannot compile filter pattern %q: %w", s, err))
 			continue
 		}
 		f.denyGlobs = append(f.denyGlobs, g)
 	}
 }
 
-func (f *logFilter) Allow(fileName string) bool {
+func (f *FileNameFilter) Allow(fileName string) bool {
 	// not allow-all, check allow rules
 	if !f.allowAll {
 		for _, g := range f.allowGlobs {

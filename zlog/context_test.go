@@ -70,8 +70,7 @@ func TestAddFieldsConcurrently(t *testing.T) {
 	assert.Equal(t, "bValue", fields[1].String)
 }
 
-func TestGetLogger(t *testing.T) {
-
+func TestWithCtx(t *testing.T) {
 	ctx := context.Background()
 	helperReplace := func() (*bytes.Buffer, func()) {
 		var buf = &bytes.Buffer{}
@@ -88,7 +87,7 @@ func TestGetLogger(t *testing.T) {
 		defer rf()
 
 		ctx2 := WithLogger(ctx, L().With(zap.String("a", "aValue")))
-		GetLogger(ctx2).Info("test message")
+		WithCtx(ctx2).Info("test message")
 		got := buf.String()
 		assert.Contains(t, got, "test message")
 		assert.Contains(t, got, `"a":"aValue"`)
@@ -99,7 +98,7 @@ func TestGetLogger(t *testing.T) {
 		defer rf()
 
 		ctx2 := WithLogger(ctx, S().With(zap.Int64("a", 12345), "b", "bValue"))
-		GetLogger(ctx2).Info("test message")
+		WithCtx(ctx2).Info("test message")
 		got := buf.String()
 		assert.Contains(t, got, "test message")
 		assert.Contains(t, got, `"a":12345`)
@@ -111,7 +110,7 @@ func TestGetLogger(t *testing.T) {
 		defer rf()
 
 		ctx2 := AddFields(ctx, zap.String("a", "aValue"))
-		GetLogger(ctx2).Info("test message")
+		WithCtx(ctx2).Info("test message")
 		got := buf.String()
 		assert.Contains(t, got, "test message")
 		assert.Contains(t, got, `"a":"aValue"`)
@@ -122,7 +121,8 @@ func TestGetLogger(t *testing.T) {
 		defer rf()
 
 		ctx2 := AddFields(ctx, zap.String("a", "aValue"))
-		GetLogger(ctx2, zap.Int("b", 12345)).Info("test message", zap.Int32("c", 12345))
+		WithCtx(ctx2, zap.Int("b", 12345)).
+			Info("test message", zap.Int32("c", 12345))
 		got := buf.String()
 		assert.Contains(t, got, "test message")
 		assert.Contains(t, got, `"a":"aValue"`)
@@ -134,7 +134,7 @@ func TestGetLogger(t *testing.T) {
 		buf, rf := helperReplace()
 		defer rf()
 
-		GetLogger(ctx).Info("test message")
+		WithCtx(ctx).Info("test message")
 		got := buf.String()
 		assert.Contains(t, got, "test message")
 		assert.NotContains(t, got, `"a":"aValue"`)
@@ -142,7 +142,7 @@ func TestGetLogger(t *testing.T) {
 	})
 }
 
-func TestGetSugaredLogger(t *testing.T) {
+func TestSWithCtx(t *testing.T) {
 	ctx := context.Background()
 	helperReplace := func() (*bytes.Buffer, func()) {
 		var buf = &bytes.Buffer{}
@@ -159,7 +159,7 @@ func TestGetSugaredLogger(t *testing.T) {
 		defer rf()
 
 		ctx2 := WithLogger(ctx, S().With("a", "aValue"))
-		GetSugaredLogger(ctx2).Info("test message")
+		SWithCtx(ctx2).Info("test message")
 		got := buf.String()
 		assert.Contains(t, got, "test message")
 		assert.Contains(t, got, `"a":"aValue"`)
@@ -170,7 +170,7 @@ func TestGetSugaredLogger(t *testing.T) {
 		defer rf()
 
 		ctx2 := WithLogger(ctx, L().With(zap.String("a", "aValue")))
-		GetSugaredLogger(ctx2, zap.Int32("a", 12345), zap.String("b", "bValue")).
+		SWithCtx(ctx2, zap.Int32("a", 12345), zap.String("b", "bValue")).
 			Infof("test message")
 		got := buf.String()
 		assert.Contains(t, got, "test message")

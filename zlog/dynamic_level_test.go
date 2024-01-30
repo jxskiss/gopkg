@@ -37,7 +37,7 @@ func TestDynamicLevelCore(t *testing.T) {
 	assert.Contains(t, got1, "error message 1")
 
 	// change level to debug
-	logger = B(nil).Base(logger).Level(DebugLevel).Build()
+	logger = logger.WithOptions(zap.WrapCore(changeLevel(DebugLevel)))
 	logger.Debug("debug message 2")
 	logger.Info("info message 2")
 	logger.Warn("warn message 2")
@@ -100,23 +100,29 @@ var (
 	}
 )
 
-func BenchmarkZapIoCore(b *testing.B) {
-	logger := newBenchmarkZapIoCoreLogger()
+func BenchmarkZapCore(b *testing.B) {
+	logger := newBenchmarkZapCoreLogger()
 
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
+		logger.Trace(benchmarkMessage, benchmarkFields...)
 		logger.Debug(benchmarkMessage, benchmarkFields...)
+		logger.Info(benchmarkMessage, benchmarkFields...)
+		logger.Warn(benchmarkMessage, benchmarkFields...)
 	}
 }
 
-func BenchmarkDynamicLevelCoreOverhead(b *testing.B) {
+func BenchmarkDynamicLevelCore(b *testing.B) {
 	logger := newBenchmarkDynamicLevelCoreLogger()
 
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
+		logger.Trace(benchmarkMessage, benchmarkFields...)
 		logger.Debug(benchmarkMessage, benchmarkFields...)
+		logger.Info(benchmarkMessage, benchmarkFields...)
+		logger.Warn(benchmarkMessage, benchmarkFields...)
 	}
 }
 
@@ -130,8 +136,8 @@ func (w *discardWriter) Sync() error {
 	return nil
 }
 
-func newBenchmarkZapIoCoreLogger() *zap.Logger {
-	logger, _, err := NewWithOutput(&Config{Development: false, Level: "debug"}, &discardWriter{})
+func newBenchmarkZapCoreLogger() Logger {
+	logger, _, err := NewWithOutput(&Config{Development: false, Level: "info"}, &discardWriter{})
 	if err != nil {
 		panic(err)
 	}
@@ -144,25 +150,22 @@ func newBenchmarkZapIoCoreLogger() *zap.Logger {
 		}
 		return core
 	}))
-	return logger
+	return Logger{Logger: logger}
 }
 
-func newBenchmarkDynamicLevelCoreLogger() *zap.Logger {
-	logger, _, err := NewWithOutput(&Config{Development: false, Level: "warn"}, &discardWriter{})
+func newBenchmarkDynamicLevelCoreLogger() Logger {
+	logger, _, err := NewWithOutput(&Config{Development: false, Level: "info"}, &discardWriter{})
 	if err != nil {
 		panic(err)
 	}
 
 	// Make sure we get a wrapped dynamic level core.
-	logger = B(nil).Base(logger).Level(DebugLevel).Build()
-	if err != nil {
-		panic(err)
-	}
+	logger = logger.WithOptions(zap.WrapCore(changeLevel(DebugLevel)))
 	_ = logger.WithOptions(zap.WrapCore(func(core zapcore.Core) zapcore.Core {
 		if _, ok := core.(*dynamicLevelCore); !ok {
 			panic("core is not wrapped by dynamicLevelCore")
 		}
 		return core
 	}))
-	return logger
+	return Logger{Logger: logger}
 }

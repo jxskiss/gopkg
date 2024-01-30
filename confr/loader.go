@@ -27,6 +27,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"reflect"
@@ -37,8 +38,6 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/spf13/cast"
 	"gopkg.in/yaml.v3"
-
-	"github.com/jxskiss/gopkg/v2/zlog"
 )
 
 const DefaultEnvPrefix = "Confr"
@@ -54,7 +53,7 @@ const (
 // Config provides options to configure the behavior of Loader.
 type Config struct {
 
-	// LogFunc specifies a custom log function to use instead of [log.Printf].
+	// LogFunc specifies a log function to use instead of [log.Printf].
 	LogFunc func(format string, v ...any)
 
 	// Verbose tells the loader to output verbose logging messages.
@@ -156,7 +155,7 @@ func (p *Loader) getLogFunc() func(format string, v ...any) {
 	if p.LogFunc != nil {
 		return p.LogFunc
 	}
-	return zlog.StdLogger.Infof
+	return log.Printf
 }
 
 func (p *Loader) loadFiles(config any, files ...string) error {
@@ -175,7 +174,7 @@ func (p *Loader) processFile(config any, file string) error {
 		return fmt.Errorf("invalid configuration file: %s", file)
 	}
 
-	p.getLogFunc()(fmt.Sprintf("loading configuration from file: %v", file))
+	p.getLogFunc()("loading configuration from file: %v", file)
 	var unmarshalFunc func(data []byte, v any, disallowUnknownFields bool) error
 	extname := path.Ext(file)
 	switch strings.ToLower(extname) {
@@ -241,7 +240,7 @@ func (p *Loader) processDefaults(config any) error {
 		defaultValue := field.Tag.Get(DefaultValueTag)
 		if defaultValue != "" {
 			if p.Verbose {
-				p.getLogFunc()(fmt.Sprintf("processing default value for field %s.%s", configTyp.Name(), field.Name))
+				p.getLogFunc()("processing default value for field %s.%s", configTyp.Name(), field.Name)
 			}
 
 			isBlank := reflect.DeepEqual(fieldVal.Interface(), reflect.Zero(field.Type).Interface())
@@ -298,7 +297,7 @@ func (p *Loader) processFlags(config any) error {
 		flagName := field.Tag.Get(FlagTag)
 		if flagName != "" && flagName != "-" {
 			if p.Verbose {
-				p.getLogFunc()(fmt.Sprintf("processing flag for field %s.%s", configTyp.Name(), field.Name))
+				p.getLogFunc()("processing flag for field %s.%s", configTyp.Name(), field.Name)
 			}
 
 			if flagVal, isSet := lookupFlag(fs, flagName); flagVal != nil {
@@ -363,7 +362,7 @@ func (p *Loader) processEnv(config any, prefix string) error {
 		}
 		if len(envNames) > 0 {
 			if p.Verbose {
-				p.getLogFunc()(fmt.Sprintf("loading env for field %s.%s from %v", configTyp.Name(), field.Name, envNames))
+				p.getLogFunc()("loading env for field %s.%s from %v", configTyp.Name(), field.Name, envNames)
 			}
 
 			for _, envName := range envNames {
@@ -428,7 +427,7 @@ func (p *Loader) processCustom(config any) error {
 		customTag := field.Tag.Get(CustomTag)
 		if customTag != "" && customTag != "-" {
 			if p.Verbose {
-				p.getLogFunc()(fmt.Sprintf("processing custom loader for field %s.%s", configTyp.Name(), field.Name))
+				p.getLogFunc()("processing custom loader for field %s.%s", configTyp.Name(), field.Name)
 			}
 
 			tmp, err := p.CustomLoader(fieldVal.Type(), customTag)

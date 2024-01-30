@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	"github.com/jxskiss/gopkg/v2/internal/logfilter"
 )
+
+const FilterRuleEnvName = "EZDBG_FILTER_RULE"
 
 // Config configures the behavior of functions in this package.
 func Config(cfg Cfg) {
@@ -15,7 +19,11 @@ func Config(cfg Cfg) {
 		cfg.FilterRule = envRule
 	}
 	if cfg.FilterRule != "" {
-		cfg.filter = newLogFilter(cfg.FilterRule)
+		var errs []error
+		cfg.filter, errs = logfilter.NewFileNameFilter(cfg.FilterRule)
+		for _, err := range errs {
+			stdLogger{}.Warnf("ezdbg: %v", err)
+		}
 	}
 	_logcfg = cfg
 }
@@ -69,7 +77,7 @@ type Cfg struct {
 	// this value is ignored.
 	FilterRule string
 
-	filter *logFilter
+	filter *logfilter.FileNameFilter
 }
 
 func (p Cfg) getLogger(ctxp *context.Context) DebugLogger {

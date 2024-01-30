@@ -116,9 +116,7 @@ reasonable API compatibility and versioning.
 
 1. `utils/vdutil` helps to do data validation.
 
-1. `zlog` provides a common logger interface which is implemented by
-   many logging libraries, and some opinionated logging facilities wrapped around
-   [zap].
+1. `zlog` provides opinionated high-level logging facilities based on go.uber.org/zap.
 
 See [GoDoc][godoc] for detailed online docs.
 

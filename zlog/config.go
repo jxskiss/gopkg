@@ -48,16 +48,42 @@ type GlobalConfig struct {
 	// InfoLevel.
 	RedirectStdLog bool `json:"redirectStdLog" yaml:"redirectStdLog"`
 
-	// DisableTrace disables trace level messages.
-	//
-	// Disabling trace level messages makes the trace logging functions no-op,
-	// it gives better performance when you definitely don't need TraceLevel
-	// messages (e.g. in production deployment).
-	DisableTrace bool `json:"disableTrace" yaml:"disableTrace"`
-
 	// MethodNameKey specifies the key to use when adding caller's method
 	// name to logging messages. It defaults to "methodName".
 	MethodNameKey string `json:"methodNameKey" yaml:"methodNameKey"`
+
+	// TraceFilterRule optionally configures filter rule to allow or deny
+	// trace logging in some packages or files.
+	//
+	// It uses glob to match filename, the syntax is "allow=glob1,glob2;deny=glob3,glob4".
+	// For example:
+	//
+	// - "", empty rule means allow all messages
+	// - "allow=all", allow all messages
+	// - "deny=all", deny all messages
+	// - "allow=pkg1/*,pkg2/*.go",
+	//   allow messages from files in `pkg1` and `pkg2`,
+	//   deny messages from all other packages
+	// - "allow=pkg1/sub1/abc.go,pkg1/sub2/def.go",
+	//   allow messages from file `pkg1/sub1/abc.go` and `pkg1/sub2/def.go`,
+	//   deny messages from all other files
+	// - "allow=pkg1/**",
+	//   allow messages from files and sub-packages in `pkg1`,
+	//   deny messages from all other packages
+	// - "deny=pkg1/**.go,pkg2/**.go",
+	//   deny messages from files and sub-packages in `pkg1` and `pkg2`,
+	//   allow messages from all other packages
+	// - "allow=all;deny=pkg/**", same as "deny=pkg/**"
+	//
+	// If both "allow" and "deny" directives are configured, the "allow" directive
+	// takes effect, the "deny" directive is ignored.
+	//
+	// The default value is empty, which means all messages are allowed.
+	//
+	// User can also set the environment variable "ZLOG_TRACE_FILTER_RULE"
+	// to configure it in runtime, when the environment variable is available,
+	// this value is ignored.
+	TraceFilterRule string `json:"traceFilterRule" yaml:"traceFilterRule"`
 
 	// CtxFunc gets additional logging information from ctx, it's optional.
 	//
@@ -89,8 +115,8 @@ type Config struct {
 	// for a child logger, the child logger derives from its parent.
 	PerLoggerFiles map[string]FileLogConfig `json:"perLoggerFiles" yaml:"perLoggerFiles"`
 
-	// FunctionKey enables logging the function name. By default, function
-	// name is not logged.
+	// FunctionKey enables logging the function name.
+	// By default, function name is not logged.
 	FunctionKey string `json:"functionKey" yaml:"functionKey"`
 
 	// Development puts the logger in development mode, which changes the
@@ -119,7 +145,7 @@ type Config struct {
 	// Values configured here are per-second. See zapcore.NewSampler for details.
 	Sampling *zap.SamplingConfig `json:"sampling" yaml:"sampling"`
 
-	// Hooks registers functions which will be called each time the Logger
+	// Hooks registers functions which will be called each time the logger
 	// writes out an Entry. Repeated use of Hooks is additive.
 	//
 	// This offers users an easy way to register simple callbacks (e.g.,
@@ -130,7 +156,7 @@ type Config struct {
 
 	// GlobalConfig configures some global behavior of this package.
 	// It works with SetupGlobals and ReplaceGlobals, it has no effect for
-	// non-global individual loggers.
+	// individual non-global loggers.
 	GlobalConfig `yaml:",inline"`
 }
 
@@ -203,7 +229,7 @@ func (cfg *Config) buildOptions() ([]zap.Option, error) {
 	}
 	if !cfg.DisableStacktrace {
 		var stackLevel Level
-		if !stackLevel.unmarshalText([]byte(cfg.StacktraceLevel)) {
+		if !unmarshalLevel(&stackLevel, cfg.StacktraceLevel) {
 			return nil, fmt.Errorf("unrecognized stacktrace level: %s", cfg.StacktraceLevel)
 		}
 		opts = append(opts, zap.AddStacktrace(stackLevel))
@@ -261,8 +287,8 @@ func newWithMultiFilesOutput(cfg *Config, opts ...zap.Option) (*zap.Logger, *Pro
 		return nil, nil, err
 	}
 
-	aLevel := newAtomicLevel()
-	err = aLevel.UnmarshalText([]byte(cfg.Level))
+	aLevel := zap.NewAtomicLevel()
+	err = unmarshalAtomicLevel(&aLevel, cfg.Level)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -300,8 +326,8 @@ func NewWithOutput(cfg *Config, output zapcore.WriteSyncer, opts ...zap.Option) 
 	// base core logging any level messages
 	core := zapcore.NewCore(encoder, output, Level(-127))
 
-	aLevel := newAtomicLevel()
-	err = aLevel.UnmarshalText([]byte(cfg.Level))
+	aLevel := zap.NewAtomicLevel()
+	err = unmarshalAtomicLevel(&aLevel, cfg.Level)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -323,26 +349,26 @@ func NewWithOutput(cfg *Config, output zapcore.WriteSyncer, opts ...zap.Option) 
 
 type WrapCoreConfig struct {
 	// Level sets the default logging level for the logger.
-	Level Level
+	Level Level `json:"level" yaml:"level"`
 
 	// PerLoggerLevels optionally configures logging level by logger names.
 	// The format is "loggerName.subLogger=level".
 	// If a level is configured for a parent logger, but not configured for
 	// a child logger, the child logger will derive the level from its parent.
-	PerLoggerLevels []string
+	PerLoggerLevels []string `json:"perLoggerLevels" yaml:"perLoggerLevels"`
 
-	// Hooks registers functions which will be called each time the Logger
+	// Hooks registers functions which will be called each time the logger
 	// writes out an Entry. Repeated use of Hooks is additive.
 	//
 	// This offers users an easy way to register simple callbacks (e.g.,
 	// metrics collection) without implementing the full Core interface.
 	//
 	// See zap.Hooks and zapcore.RegisterHooks for details.
-	Hooks []func(zapcore.Entry) error
+	Hooks []func(zapcore.Entry) error `json:"-" yaml:"-"`
 
 	// GlobalConfig configures some global behavior of this package.
 	// It works with SetupGlobals and ReplaceGlobals, it has no effect for
-	// non-global individual loggers.
+	// individual non-global loggers.
 	GlobalConfig `yaml:",inline"`
 }
 
@@ -365,7 +391,7 @@ func NewWithCore(cfg *WrapCoreConfig, core zapcore.Core, opts ...zap.Option) (*z
 		cfg = &WrapCoreConfig{Level: InfoLevel}
 	}
 
-	aLevel := newAtomicLevel()
+	aLevel := zap.NewAtomicLevel()
 	aLevel.SetLevel(cfg.Level)
 
 	return newWithWrapCoreConfig(cfg, core, aLevel, opts...)
@@ -374,7 +400,7 @@ func NewWithCore(cfg *WrapCoreConfig, core zapcore.Core, opts ...zap.Option) (*z
 func newWithWrapCoreConfig(
 	cfg *WrapCoreConfig,
 	core zapcore.Core,
-	aLevel atomicLevel,
+	aLevel zap.AtomicLevel,
 	opts ...zap.Option,
 ) (*zap.Logger, *Properties, error) {
 	if len(cfg.Hooks) > 0 {
@@ -391,7 +417,7 @@ func newWithWrapCoreConfig(
 	opts = append(opts, zap.WrapCore(func(core zapcore.Core) zapcore.Core {
 		return &dynamicLevelCore{
 			Core:      core,
-			baseLevel: aLevel.zl,
+			baseLevel: aLevel,
 			levelFunc: perLoggerLevelFn,
 		}
 	}))

@@ -50,6 +50,7 @@ func TestPerLoggerLevels(t *testing.T) {
 	}
 	logger, _, err := NewWithOutput(&Config{Development: true, Level: "info", PerLoggerLevels: filters}, buf)
 	assert.Nil(t, err)
+	SetLevel(TraceLevel)
 
 	lg1 := logger.Named("zlog")
 	lg1.Debug("zlog debug message 1") // no
