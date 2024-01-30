@@ -14,10 +14,12 @@ import (
 const TraceFilterRuleEnvName = "ZLOG_TRACE_FILTER_RULE"
 
 func (p *Properties) compileTraceFilter() {
-	envRule := os.Getenv(TraceFilterRuleEnvName)
-	if envRule != "" {
-		S().Infof("zlog: using trace filter rule from env: %q", envRule)
-		p.cfg.TraceFilterRule = envRule
+	if p.cfg.TraceFilterRule == "" {
+		envRule := os.Getenv(TraceFilterRuleEnvName)
+		if envRule != "" {
+			S().Infof("zlog: using trace filter rule from env: %q", envRule)
+			p.cfg.TraceFilterRule = envRule
+		}
 	}
 	if p.cfg.TraceFilterRule != "" {
 		var errs []error
