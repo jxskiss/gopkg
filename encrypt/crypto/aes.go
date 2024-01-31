@@ -228,7 +228,7 @@ func CFBDecrypt(ciphertext, key []byte, opts ...Option) ([]byte, error) {
 }
 
 // KeyPadding ensures a key's length is either 32, 24 or 16.
-// It key's length is greater than 32, it returns the first 32 bytes of key.
+// If key's length is greater than 32, it returns the first 32 bytes of key.
 // If key's length is not 32, 24 or 16, it appends additional data to key
 // using sha256.Sum(key) to make it satisfies the minimal requirement.
 func KeyPadding(key []byte) []byte {
@@ -236,10 +236,11 @@ func KeyPadding(key []byte) []byte {
 	if length == 32 || length == 24 || length == 16 {
 		return key
 	}
+	if length > 32 {
+		return key[:32]
+	}
 	hash := sha256.Sum256(key)
 	switch {
-	case length > 32:
-		return key[:32]
 	case length > 24:
 		return append(key[:length:length], hash[:32-length]...)
 	case length > 16:

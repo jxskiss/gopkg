@@ -44,12 +44,11 @@ reasonable API compatibility and versioning.
 
 1. `collection/set` provides generic set data structures.
 
-1. `confr` provides a simple but powerful configuration loader.
+1. `confr` provides a simple yet powerful configuration loader.
 
-1. `easy` contains many handy utilities as a complementary to the standard library,
-   it really makes life easier.
+1. `easy` contains many handy utilities as a complementary to the standard library.
 
-1. `easy/ezdbg` provides easy to use utilities which helps to do quick development.
+1. `easy/ezdbg` provides easy to use utilities which helps to do quick logging in development.
 
 1. `easy/ezhttp` contains some utilities to work with HTTP requests.
 
@@ -62,13 +61,13 @@ reasonable API compatibility and versioning.
 
 1. `encrypt/crypto` contains some encryption utilities.
 
-1. `exp/kvutil` contains utilities to work with key-value cache.
+1. `exp/kvutil` contains experimental utilities to work with key-value cache.
 
 1. `infra/acache` contains an async cache which can be used to fetch and update the
    latest data periodically and supports expiring a key if it's unused for a period.
 
 1. `infra/errcode` provides error code registry to manage error codes and messages.
-   Standardized error codes greatly helps in large deployment of microservice.
+   Standardized error codes greatly helps in large scale microservices.
 
 1. `infra/logid` provides log ID generators to help service observability, such as
    tracing, metrics, etc.
@@ -84,7 +83,7 @@ reasonable API compatibility and versioning.
    By default, it uses [jsoniter] in underlying, which has better performance than `encoding/json`.
    `amd64` users may use `json.Config` to switch to [bytedance/sonic] for best performance
    in the cost of a little less maturity.
-   Check json/README.md for detailed introduction.
+   Check [README.md](./perf/json/README.md) for detailed introduction.
 
 1. `perf/lru` is a high performance implementation of the LRU cache, it features pre-allocation,
    item expiration, friendly and type-safe APIs for commonly used key types.
@@ -112,7 +111,7 @@ reasonable API compatibility and versioning.
 1. `utils/strutil` provides utilities to work with string data as supplement to the standard
    libraries `strings` and `unicode/utf8`.
 
-1. `utils/timeutil` provides utilities to process time related jobs.
+1. `utils/timeutil` provides utilities to process time related things.
 
 1. `utils/vdutil` helps to do data validation.
 
