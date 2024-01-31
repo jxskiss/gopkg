@@ -10,6 +10,7 @@ import (
 
 var reCache lru.Interface[string, *regexp.Regexp]
 
+// EnableRegexpCache sets an LRU cache to cache compiled regular expressions.
 func EnableRegexpCache(cache lru.Interface[string, *regexp.Regexp]) {
 	reCache = cache
 }
@@ -18,6 +19,11 @@ type RegexpOrString interface {
 	*regexp.Regexp | string
 }
 
+// MatchRegexp validates value match the regular expression pattern.
+// pattern can be either a string or a compiled *regexp.Regexp.
+//
+// If pattern is a string and cache is enabled by calling EnableRegexpCache,
+// the compiled regular expression will be cached for reuse.
 func MatchRegexp[T RegexpOrString](name string, pattern T, value string) RuleFunc {
 	re, isRegexp := any(pattern).(*regexp.Regexp)
 	if isRegexp {

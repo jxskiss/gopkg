@@ -56,7 +56,7 @@ func (p *LazyBinary) Scan(src any) error {
 			b = make([]byte, len(tmp))
 			copy(b, tmp)
 		default:
-			return fmt.Errorf("sqlutil: wants string/[]byte but got %T", src)
+			return fmt.Errorf("sqlutil.LazyBinary.Scan: want string/[]byte but got %T", src)
 		}
 		p.raw = b
 		atomic.StorePointer(&p.obj, nil)

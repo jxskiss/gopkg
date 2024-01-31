@@ -15,6 +15,10 @@ type IntegerOrString interface {
 	constraints.Integer | ~string
 }
 
+// GreaterThanZero validates that value is greater than zero.
+// value can be either an integer or a string.
+// If save is true, the result integer value will be saved to
+// Result.Data using name as key.
 func GreaterThanZero[T IntegerOrString](name string, value T, save bool) RuleFunc {
 	return _greaterThanZero(name, value, save)
 }
@@ -63,16 +67,19 @@ func _greaterThanZero(name string, value any, save bool) RuleFunc {
 	}
 }
 
-func LessThanOrEqual[T constraints.Integer](name string, limit, value T) RuleFunc {
+// LessThanOrEqual validates that value <= limit.
+func LessThanOrEqual[T constraints.Ordered](name string, limit, value T) RuleFunc {
 	return func(ctx context.Context, result *Result) (any, error) {
 		var err error
 		if value > limit {
-			err = &ValidationError{Name: name, Err: fmt.Errorf("value %d > %d", value, limit)}
+			err = &ValidationError{Name: name, Err: fmt.Errorf("value %v > %v", value, limit)}
 		}
 		return value, err
 	}
 }
 
+// RangeMode tells InRangeMode how to handle lower and upper bound
+// when validating a value against a range.
 type RangeMode int
 
 const (
@@ -82,35 +89,32 @@ const (
 	GteAndLt                   // min <= x && x < max
 )
 
-func InRange[T constraints.Integer](name string, min, max T, value T) RuleFunc {
-	return func(ctx context.Context, result *Result) (any, error) {
-		var err error
-		if value < min || value > max {
-			err = &ValidationError{Name: name, Err: fmt.Errorf("value %d is not in range [%d, %d]", value, min, max)}
-		}
-		return value, err
-	}
+// InRange validates that value >= min and value <= max.
+func InRange[T constraints.Ordered](name string, min, max T, value T) RuleFunc {
+	return InRangeMode(name, GteAndLte, min, max, value)
 }
 
-func InRangeMode[T constraints.Integer](name string, mode RangeMode, min, max T, value T) RuleFunc {
+// InRangeMode validates that value is in range of min and max,
+// according to RangeMode.
+func InRangeMode[T constraints.Ordered](name string, mode RangeMode, min, max T, value T) RuleFunc {
 	return func(ctx context.Context, result *Result) (any, error) {
 		var err error
 		switch mode {
 		case GtAndLte:
 			if !(value > min && value <= max) {
-				err = &ValidationError{Name: name, Err: fmt.Errorf("value %v is not in range (%d, %d]", value, min, max)}
+				err = &ValidationError{Name: name, Err: fmt.Errorf("value %v is not in range (%v, %v]", value, min, max)}
 			}
 		case GtAndLt:
 			if !(value > min && value < max) {
-				err = &ValidationError{Name: name, Err: fmt.Errorf("value %d is not in range (%d, %d)", value, min, max)}
+				err = &ValidationError{Name: name, Err: fmt.Errorf("value %v is not in range (%v, %v)", value, min, max)}
 			}
 		case GteAndLte:
 			if !(value >= min && value <= max) {
-				err = &ValidationError{Name: name, Err: fmt.Errorf("value %d is not in range [%d, %d]", value, min, max)}
+				err = &ValidationError{Name: name, Err: fmt.Errorf("value %v is not in range [%v, %v]", value, min, max)}
 			}
 		case GteAndLt:
 			if !(value >= min && value < max) {
-				err = &ValidationError{Name: name, Err: fmt.Errorf("value %d is not in range [%d, %d)", value, min, max)}
+				err = &ValidationError{Name: name, Err: fmt.Errorf("value %v is not in range [%v, %v)", value, min, max)}
 			}
 		default:
 			err = fmt.Errorf("%s: unknown range mode %v", name, mode)
@@ -119,6 +123,9 @@ func InRangeMode[T constraints.Integer](name string, mode RangeMode, min, max T,
 	}
 }
 
+// ParseStrsToInt64Slice validates all elements in values are valid integer
+// and convert values to be an []int64 slice, the result slice will be
+// saved to Result.Data using name as key.
 func ParseStrsToInt64Slice(name string, values []string) RuleFunc {
 	return func(ctx context.Context, result *Result) (any, error) {
 		out := make([]int64, 0, len(values))
@@ -136,6 +143,9 @@ func ParseStrsToInt64Slice(name string, values []string) RuleFunc {
 	}
 }
 
+// ParseStrsToInt64Map validates all elements in values are valid integer
+// and convert values to be a map[int64]bool, the result map will be
+// saved to Result.Data using name as key.
 func ParseStrsToInt64Map(name string, values []string) RuleFunc {
 	return func(ctx context.Context, result *Result) (any, error) {
 		out := make(map[int64]bool, len(values))
@@ -153,6 +163,7 @@ func ParseStrsToInt64Map(name string, values []string) RuleFunc {
 	}
 }
 
+// NotNil validates value is not nil (e.g. nil pointer, nil slice, nil map).
 func NotNil(name string, value any) RuleFunc {
 	return func(ctx context.Context, result *Result) (any, error) {
 		var err error

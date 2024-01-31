@@ -8,6 +8,22 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func TestMap(t *testing.T) {
+	t.Run("zero map", func(t *testing.T) {
+		var m Map
+		val1, exists1 := m.Get("abc")
+		assert.False(t, exists1)
+		assert.Nil(t, val1)
+		assert.Nil(t, m.GetOr("abc", nil))
+		assert.Panics(t, func() { _ = m.MustGet("abc") })
+
+		m.Set("abc", "abc")
+		val2, exists2 := m.Get("abc")
+		assert.True(t, exists2)
+		assert.Equal(t, "abc", val2)
+	})
+}
+
 type dummyStruct struct {
 	A string
 }

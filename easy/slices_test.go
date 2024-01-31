@@ -355,6 +355,40 @@ func TestUniqueFunc(t *testing.T) {
 	assert.Equal(t, want2, got2)
 }
 
+func TestSum(t *testing.T) {
+	s1 := []int{1, 2, 3, 4, 5}
+	assert.Equal(t, int64(15), Sum(s1))
+	s2 := []uint8{1, 2, 3, 4, 5}
+	assert.Equal(t, int64(15), Sum(s2))
+}
+
+func TestSumFloat(t *testing.T) {
+	s1 := []int{1, 2, 3, 4, 5}
+	assert.Equal(t, float64(15), SumFloat(s1))
+	s2 := []float32{1, 2, 3, 4, 5}
+	assert.Equal(t, float64(15), SumFloat(s2))
+}
+
+func TestSort(t *testing.T) {
+	s1 := []int{5, 3, 4, 8, 2, 1, 9}
+	want1 := []int{1, 2, 3, 4, 5, 8, 9}
+	assert.Equal(t, want1, Sort(s1))
+
+	s2 := []string{"b", "c", "a"}
+	want2 := []string{"a", "b", "c"}
+	assert.Equal(t, want2, Sort(s2))
+}
+
+func TestSortDesc(t *testing.T) {
+	s1 := []int{5, 3, 4, 8, 2, 1, 9}
+	want1 := []int{9, 8, 5, 4, 3, 2, 1}
+	assert.Equal(t, want1, SortDesc(s1))
+
+	s2 := []string{"b", "c", "a"}
+	want2 := []string{"c", "b", "a"}
+	assert.Equal(t, want2, SortDesc(s2))
+}
+
 var benchUniqueData []int64
 var benchUniqueDst []int64
 

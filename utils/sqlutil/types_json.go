@@ -50,7 +50,7 @@ func (p *JSON) Scan(src any) error {
 	case string:
 		data = unsafeheader.StringToBytes(v)
 	default:
-		return fmt.Errorf("sqlutil: wants []byte/string but got %T", src)
+		return fmt.Errorf("sqlutil.JSON.Scan: want []byte/string but got %T", src)
 	}
 
 	dec := json.NewDecoder(bytes.NewReader(data))
