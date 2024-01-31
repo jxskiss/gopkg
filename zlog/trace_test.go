@@ -196,7 +196,7 @@ func TestTraceFilterRule(t *testing.T) {
 		{name: "default", rule: "", contains: true},
 		{name: "allow all", rule: "allow=all", contains: true},
 		{name: "allow explicitly 1", rule: "allow=zlog/*.go", contains: true},
-		{name: "allow explicitly 2", rule: "allow=jxskiss/gopkg/**", contains: true},
+		{name: "allow explicitly 2", rule: "allow=gopkg/**", contains: true},
 		{name: "not allowed explicitly", rule: "allow=confr/*,easy/*.go,easy/ezhttp/**", contains: false},
 		{name: "deny all", rule: "deny=all", contains: false},
 		{name: "deny explicitly", rule: "deny=zlog/*", contains: false},
