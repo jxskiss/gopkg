@@ -13,11 +13,11 @@ import (
 var _ logr.LogSink = &logrImpl{}
 var _ logr.CallDepthLogSink = &logrImpl{}
 
-// R creates a new logr.Logger.
+// NewLogrLogger creates a new logr.Logger.
 // optionalConfig can be used to customize the behavior of the returned logger,
-// either a *LogrConfig, *Builder, *zap.Logger, *zap.SugaredLogger,
+// either a *LogrConfig, Logger, SugaredLogger, *zap.Logger, *zap.SugaredLogger,
 // or context.Context can be used as optional config.
-func R(optionalConfig ...any) logr.Logger {
+func NewLogrLogger(optionalConfig ...any) logr.Logger {
 	cfg := resolveLogrConfig(optionalConfig)
 	l := cfg.Logger.WithOptions(zap.AddCallerSkip(1))
 	r := &logrImpl{c: cfg, l: l}
@@ -32,14 +32,16 @@ func resolveLogrConfig(optionalConfig []any) *LogrConfig {
 			cfg = &x
 		case *LogrConfig:
 			cfg = x
-		case *Builder:
-			cfg.Logger = x.Build()
-		case context.Context:
-			cfg.Logger = B(x).Build()
+		case Logger:
+			cfg.Logger = x.Logger
+		case SugaredLogger:
+			cfg.Logger = x.SugaredLogger.Desugar()
 		case *zap.Logger:
 			cfg.Logger = x
 		case *zap.SugaredLogger:
 			cfg.Logger = x.Desugar()
+		case context.Context:
+			cfg.Logger = WithCtx(x).Logger
 		}
 	}
 	cfg.setDefaults()
@@ -77,7 +79,7 @@ func (c *LogrConfig) setDefaults() {
 		c.ErrorKey = "error"
 	}
 	if c.Logger == nil {
-		c.Logger = L()
+		c.Logger = L().Logger
 	}
 }
 

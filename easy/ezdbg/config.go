@@ -5,17 +5,27 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	"github.com/jxskiss/gopkg/v2/internal/logfilter"
 )
+
+const FilterRuleEnvName = "EZDBG_FILTER_RULE"
 
 // Config configures the behavior of functions in this package.
 func Config(cfg Cfg) {
-	envRule := os.Getenv(FilterRuleEnvName)
-	if envRule != "" {
-		stdLogger{}.Infof("ezdbg: using filter rule from env: %q", envRule)
-		cfg.FilterRule = envRule
+	if cfg.FilterRule == "" {
+		envRule := os.Getenv(FilterRuleEnvName)
+		if envRule != "" {
+			stdLogger{}.Infof("ezdbg: using filter rule from env: %q", envRule)
+			cfg.FilterRule = envRule
+		}
 	}
 	if cfg.FilterRule != "" {
-		cfg.filter = newLogFilter(cfg.FilterRule)
+		var errs []error
+		cfg.filter, errs = logfilter.NewFileNameFilter(cfg.FilterRule)
+		for _, err := range errs {
+			stdLogger{}.Warnf("ezdbg: %v", err)
+		}
 	}
 	_logcfg = cfg
 }
@@ -65,11 +75,11 @@ type Cfg struct {
 	// The default value is empty, which means all messages are allowed.
 	//
 	// User can also set the environment variable "EZDBG_FILTER_RULE"
-	// to configure it in runtime, when the environment variable is available,
-	// this value is ignored.
+	// to configure it in runtime, if available, the environment variable
+	// is used when this value is empty.
 	FilterRule string
 
-	filter *logFilter
+	filter *logfilter.FileNameFilter
 }
 
 func (p Cfg) getLogger(ctxp *context.Context) DebugLogger {

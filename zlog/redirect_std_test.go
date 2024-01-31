@@ -12,7 +12,7 @@ func TestDetectLevel(t *testing.T) {
 		WantLevel Level
 		WantOk    bool
 	}{
-		{TracePrefix, TraceLevel, true},
+		{"[TRACE] ", TraceLevel, true},
 		{"[Trace]", TraceLevel, true},
 		{"[trace]some message", TraceLevel, true},
 		{"[TRACE] some message", TraceLevel, true},
@@ -20,7 +20,7 @@ func TestDetectLevel(t *testing.T) {
 		{"trace: some message", TraceLevel, true},
 		{"tracesomemessage", 0, false},
 
-		{DebugPrefix, DebugLevel, true},
+		{"[DEBUG] ", DebugLevel, true},
 		{"[Debug] some message", DebugLevel, true},
 		{"[debug]some message", DebugLevel, true},
 		{"[DEBUG]some message", DebugLevel, true},
@@ -28,20 +28,15 @@ func TestDetectLevel(t *testing.T) {
 		{"DEBUG: some message", DebugLevel, true},
 		{"DEBUGsome message", 0, false},
 
-		{InfoPrefix, InfoLevel, true},
+		{"[INFO] ", InfoLevel, true},
 		{"[Info]", InfoLevel, true},
 		{"[info]some message", InfoLevel, true},
 		{"info: some message", InfoLevel, true},
 		{"INFO some message", 0, false},
 		{"some info message", 0, false},
 
-		{NoticePrefix, NoticeLevel, true},
-		{"[Notice] ", NoticeLevel, true},
-		{"[notice]some message", NoticeLevel, true},
-		{"NOTICE: some message", NoticeLevel, true},
-		{"NOTICE some message", 0, false},
-
-		{WarnPrefix, WarnLevel, true},
+		{"[WARN] ", WarnLevel, true},
+		{"[WARNING] ", WarnLevel, true},
 		{"warn: some message", WarnLevel, true},
 		{"[Warn] some message", WarnLevel, true},
 		{"WARN some message", 0, false},
@@ -50,7 +45,7 @@ func TestDetectLevel(t *testing.T) {
 		{"[WARNING] message", WarnLevel, true},
 		{"warning: message", WarnLevel, true},
 
-		{ErrorPrefix, ErrorLevel, true},
+		{"[ERROR] ", ErrorLevel, true},
 		{"[Error]", ErrorLevel, true},
 		{"[error]some message", ErrorLevel, true},
 		{"[ERROR] some message", ErrorLevel, true},
@@ -58,19 +53,14 @@ func TestDetectLevel(t *testing.T) {
 		{"error: some message", ErrorLevel, true},
 		{"errormessage", 0, false},
 
-		{CriticalPrefix, CriticalLevel, true},
-		{"[Critical]", CriticalLevel, true},
-		{"critical some message", 0, false},
-		{"cRiTiCal: some message", CriticalLevel, true},
-
-		{PanicPrefix, CriticalLevel, true},
-		{"[Panic]", CriticalLevel, true},
-		{"panic: some message", CriticalLevel, true},
+		{"[PANIC] ", ErrorLevel, true},
+		{"[Panic]", ErrorLevel, true},
+		{"panic: some message", ErrorLevel, true},
 		{"panic some message", 0, false},
 
-		{FatalPrefix, CriticalLevel, true},
-		{"[Fatal]", CriticalLevel, true},
-		{"Fatal: some message", CriticalLevel, true},
+		{"[FATAL] ", ErrorLevel, true},
+		{"[Fatal]", ErrorLevel, true},
+		{"Fatal: some message", ErrorLevel, true},
 		{"Fatal error occurred", 0, false},
 	}
 

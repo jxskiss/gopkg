@@ -3,7 +3,6 @@ package zlog
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"testing"
@@ -31,41 +30,34 @@ func newTestLogrLogger(lv Level, w io.Writer) *zap.Logger {
 	return logger
 }
 
-func TestR(t *testing.T) {
-	r0 := R()
+func TestNewLogrLogger(t *testing.T) {
+	r0 := NewLogrLogger()
 	assert.NotNil(t, r0.GetSink().(*logrImpl).c)
 	assert.NotNil(t, r0.GetSink().(*logrImpl).l)
 
 	cfg := &LogrConfig{
 		ErrorKey: "err",
 	}
-	r1 := R(cfg)
+	r1 := NewLogrLogger(cfg)
 	assert.Equal(t, cfg, r1.GetSink().(*logrImpl).c)
 	assert.NotNil(t, r1.GetSink().(*logrImpl).l)
-	r11 := R(*cfg)
+	r11 := NewLogrLogger(*cfg)
 	assert.Equal(t, "err", r11.GetSink().(*logrImpl).c.ErrorKey)
 	assert.NotNil(t, r1.GetSink().(*logrImpl).l)
 
 	l := L().With(zap.String("ns", "default"))
 	s := l.Sugar()
-	r2 := R(l)
-	r2.Info("test R(*zap.Logger)")
-	r3 := R(s)
-	r3.Info("test R(*zap.SugaredLogger)")
-
-	b := B().With(zap.Int("podnum", 2))
-	ctx := WithBuilder(context.Background(), b)
-	r4 := R(b)
-	r4.Info("test R(*Builder)")
-	r5 := R(ctx)
-	r5.Info("test R(context.Context)")
+	r2 := NewLogrLogger(l)
+	r2.Info("test NewLogrLogger(*zap.Logger)")
+	r3 := NewLogrLogger(s)
+	r3.Info("test NewLogrLogger(*zap.SugaredLogger)")
 }
 
 func TestLogrLoggerInfo(t *testing.T) {
 	var buffer bytes.Buffer
 	writer := bufio.NewWriter(&buffer)
 	zl := newTestLogrLogger(TraceLevel, writer)
-	testLogger := R(&LogrConfig{
+	testLogger := NewLogrLogger(&LogrConfig{
 		DPanicOnInvalidLog: true,
 		Logger:             zl,
 	})
@@ -118,7 +110,7 @@ func TestLogrLoggerError(t *testing.T) {
 			var buffer bytes.Buffer
 			writer := bufio.NewWriter(&buffer)
 			zl := newTestLogrLogger(InfoLevel, writer)
-			testLogger := R(&LogrConfig{
+			testLogger := NewLogrLogger(&LogrConfig{
 				ErrorKey:        logErrKey,
 				NumericLevelKey: "v",
 				Logger:          zl,
@@ -145,7 +137,7 @@ func TestLogrLoggerEnabled(t *testing.T) {
 			cfg := &LogrConfig{
 				Logger: newTestLogrLogger(Level(-i), nil),
 			}
-			testLogger := R(cfg)
+			testLogger := NewLogrLogger(cfg)
 
 			for j := 0; j <= 128; j++ {
 				shouldBeEnabled := i >= j
@@ -187,7 +179,7 @@ func TestLogrNumericLevel(t *testing.T) {
 					NumericLevelKey: logNumKey,
 					Logger:          newTestLogrLogger(Level(-100), writer),
 				}
-				testLogger := R(cfg)
+				testLogger := NewLogrLogger(cfg)
 
 				testLogger.V(i).Info("test", "ns", "default", "podnum", 2)
 				err := writer.Flush()

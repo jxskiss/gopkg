@@ -3,198 +3,56 @@ package zlog
 import (
 	"fmt"
 	"strconv"
-	"sync/atomic"
+	"strings"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-// A Level is a logging priority. Higher levels are more important.
-type Level int8
+// Level is an alias type of zapcore.Level.
+type Level = zapcore.Level
 
 const (
 	// TraceLevel logs are the most fine-grained information which helps
-	// developer "tracing" the code and trying to find one part of a
-	// function specifically. Use this level when you need full visibility
-	// of what is happening in your application and inside the third-party
-	// libraries that you use.
-	//
-	// You can expect this logging level to be very verbose. You can use it
-	// for example to annotate each step in the algorithm or each individual
-	// query with parameters in your code.
-	TraceLevel Level = iota - 2
+	// developer "tracing" their code.
+	// Users can expect this level to be very verbose, you can use it,
+	// for example, to annotate each step in an algorithm or each individual
+	// calling with parameters in your program.
+	// TraceLevel logs should be disabled in production.
+	TraceLevel Level = -2
 
-	// DebugLevel logs are less granular compared to TraceLevel, but it is
-	// more than you will need in everyday use. DebugLevel should be used
-	// for information that may be needed for diagnosing issues and
-	// troubleshooting or when running application in development or test
-	// environment for the purpose of making sure everything is running
-	// correctly.
-	//
-	// DebugLevel logs are helpful for diagnosing and troubleshooting to
-	// people more than just developers (e.g. IT, system admins, etc.).
-	DebugLevel
-
-	// InfoLevel logs are generally useful information which indicate that
-	// something happened, the application entered a certain state, etc.
-	// For example, a controller of your authorization API may write a
-	// message at InfoLevel with information on which user requested
-	// authorization if the authorization was successful or not.
-	//
-	// The information logged at InfoLevel should be purely informative
-	// that you don't need to care about under normal circumstances, and
-	// not looking into them on a regular basis shouldn't result in missing
-	// any important information.
-	//
-	// This should be the out-of-box level for most applications in
-	// service production deployment or application release configuration.
-	InfoLevel
-
-	// NoticeLevel logs are important information which should be always
-	// available and shall not be turned off, user should be aware of these
-	// events when they look into the system or application.
-	// (Such as service start/stop/restart, reconnecting to database, switching
-	// from a primary server to a backup server, retrying an operation, etc.)
-	//
-	// NoticeLevel is not implemented currently.
-	NoticeLevel
-
-	// WarnLevel logs indicate that something unexpected happened in the
-	// system or application, a problem, or a situation that might
-	// potentially cause application oddities, but the code can continue
-	// to work. For example, unexpected disconnection from server, being
-	// close to quota, suspicious web attach, temporarily heartbeat missing,
-	// or a parsing error that resulted in a certain document not being
-	// correctly processed.
-	//
-	// Warning messages may need human review, but generally that don't need
-	// immediately intervention.
-	WarnLevel
-
-	// ErrorLevel logs indicate that the application hit issues preventing
-	// one or more functionalities from properly functioning, they may be
-	// fatal to an operation, but not fatal to the entire service or
-	// application (e.g. can't open a required file, missing data,
-	// temporarily failure from database or downstream service, etc.),
-	// the application should continue running.
-	//
-	// These messages definitely need investigation and intervention from
-	// user (developer, system administrator, or direct user), continuous
-	// errors may cause serious problems, (e.g. service outage, lost of
-	// income, or customer complaints, etc.).
-	ErrorLevel
-
-	// CriticalLevel logs indicate that the system or application encountered
-	// critical condition preventing it to function properly, the system
-	// or application is in a very unhealthy state.
-	//
-	// Intervention actions must be taken immediately, which means you should
-	// go to get a system administrator or developer out of bed quickly.
-	//
-	// CriticalLevel is not implemented currently.
-	CriticalLevel
-
-	// DPanicLevel logs are particularly important errors.
-	// In development mode the logger panics after writing the message.
-	DPanicLevel
-
-	// PanicLevel logs indicate that the application encountered unrecoverable
-	// errors that it should abort immediately.
-	//
-	// The logger writes the message, then panics the application.
-	PanicLevel
-
-	// FatalLevel logs indicate that the application encountered unrecoverable
-	// errors that it should abort immediately.
-	//
-	// The logger writes the message, then calls os.Exit to abort the application.
-	FatalLevel
+	// DebugLevel logs are typically voluminous, and are usually disabled in
+	// production.
+	DebugLevel = zapcore.DebugLevel
+	// InfoLevel is the default logging priority.
+	InfoLevel = zapcore.InfoLevel
+	// WarnLevel logs are more important than Info, but don't need individual
+	// human review.
+	WarnLevel = zapcore.WarnLevel
+	// ErrorLevel logs are high-priority. If an application is running smoothly,
+	// it shouldn't generate any error-level logs.
+	ErrorLevel = zapcore.ErrorLevel
+	// DPanicLevel logs are particularly important errors. In development the
+	// logger panics after writing the message.
+	DPanicLevel = zapcore.DPanicLevel
+	// PanicLevel logs a message, then panics.
+	PanicLevel = zapcore.PanicLevel
+	// FatalLevel logs a message, then calls os.Exit(1).
+	FatalLevel = zapcore.FatalLevel
 )
 
-const (
-	TracePrefix    = "[TRACE] "
-	DebugPrefix    = "[DEBUG] "
-	InfoPrefix     = "[INFO] "
-	NoticePrefix   = "[NOTICE] "
-	WarnPrefix     = "[WARN] "
-	ErrorPrefix    = "[ERROR] "
-	CriticalPrefix = "[CRITICAL] "
-	PanicPrefix    = "[PANIC] "
-	FatalPrefix    = "[FATAL] "
-)
-
-const levelPrefixMinLen = 5
-
-var mapZapLevels = [...]zapcore.Level{
-	zap.InfoLevel,
-	zap.InfoLevel,
-	zap.WarnLevel,
-	zap.ErrorLevel,
-	zap.ErrorLevel,
-	zap.DPanicLevel,
-	zap.PanicLevel,
-	zap.FatalLevel,
-}
-
-// ToZapLevel converts Level to zapcore.Level, which can be used to pre-check
-// whether a specific level is enabled.
-func (l Level) ToZapLevel() zapcore.Level {
-	if l < 0 {
-		return zapcore.Level(l)
-	}
-	if l > FatalLevel {
-		return zapcore.FatalLevel
-	}
-	return mapZapLevels[l]
-}
-
-func (l Level) String() string {
-	switch l {
-	case TraceLevel:
-		return "trace"
-	case DebugLevel:
-		return "debug"
-	case InfoLevel:
-		return "info"
-	case NoticeLevel:
-		return "notice"
-	case WarnLevel:
-		return "warn"
-	case ErrorLevel:
-		return "error"
-	case CriticalLevel:
-		return "critical"
-	case DPanicLevel:
-		return "dpanic"
-	case PanicLevel:
-		return "panic"
-	case FatalLevel:
-		return "fatal"
-	default:
-		return strconv.FormatInt(int64(l), 10)
-	}
-}
-
-func (l Level) Enabled(lvl zapcore.Level) bool {
-	return lvl >= l.ToZapLevel()
-}
-
-func (l *Level) unmarshalText(text []byte) bool {
-	switch string(text) {
+func unmarshalLevel(l *Level, text string) bool {
+	switch text {
 	case "trace", "TRACE":
 		*l = TraceLevel
 	case "debug", "DEBUG":
 		*l = DebugLevel
-	case "info", "INFO":
+	case "info", "INFO", "": // make the zero value useful
 		*l = InfoLevel
-	case "notice", "NOTICE":
-		*l = NoticeLevel
 	case "warn", "warning", "WARN", "WARNING":
 		*l = WarnLevel
 	case "error", "ERROR":
 		*l = ErrorLevel
-	case "crit", "critical", "CRIT", "CRITICAL":
-		*l = CriticalLevel
 	case "dpanic", "DPANIC":
 		*l = DPanicLevel
 	case "panic", "PANIC":
@@ -202,7 +60,12 @@ func (l *Level) unmarshalText(text []byte) bool {
 	case "fatal", "FATAL":
 		*l = FatalLevel
 	default:
-		i, err := strconv.Atoi(string(text))
+		str := text
+		if (strings.HasPrefix(str, "Level(") || strings.HasPrefix(str, "LEVEL(")) &&
+			strings.HasSuffix(str, ")") {
+			str = str[6 : len(str)-1]
+		}
+		i, err := strconv.Atoi(str)
 		if err != nil {
 			return false
 		}
@@ -211,59 +74,17 @@ func (l *Level) unmarshalText(text []byte) bool {
 	return true
 }
 
-type atomicLevel struct {
-	lvl *atomic.Int32
-	zl  zap.AtomicLevel
-}
-
-func newAtomicLevel() atomicLevel {
-	return atomicLevel{
-		lvl: new(atomic.Int32),
-		zl:  zap.NewAtomicLevel(),
-	}
-}
-
-func (l atomicLevel) Level() Level { return Level(l.lvl.Load()) }
-
-func (l atomicLevel) SetLevel(lvl Level) {
-	l.lvl.Store(int32(lvl))
-	l.zl.SetLevel(lvl.ToZapLevel())
-}
-
-func (l atomicLevel) UnmarshalText(text []byte) error {
-	var _lvl Level
-	if !_lvl.unmarshalText(text) {
+func unmarshalAtomicLevel(l *zap.AtomicLevel, text string) error {
+	var level Level
+	if !unmarshalLevel(&level, text) {
 		return fmt.Errorf("unrecognized level: %s", text)
 	}
-	l.SetLevel(_lvl)
+	l.SetLevel(level)
 	return nil
 }
 
-func fromZapLevel(lvl zapcore.Level) Level {
-	switch lvl {
-	case zapcore.DebugLevel:
-		return DebugLevel
-	case zapcore.InfoLevel:
-		return InfoLevel
-	case zapcore.WarnLevel:
-		return WarnLevel
-	case zapcore.ErrorLevel:
-		return ErrorLevel
-	case zapcore.DPanicLevel:
-		return DPanicLevel
-	case zap.PanicLevel:
-		return PanicLevel
-	case zap.FatalLevel:
-		return FatalLevel
-	}
-	if lvl < zapcore.DebugLevel {
-		return Level(lvl)
-	}
-	return FatalLevel
-}
-
 func encodeZapLevelLowercase(lv zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
-	if Level(lv) == TraceLevel {
+	if lv == TraceLevel {
 		enc.AppendString("trace")
 	} else {
 		enc.AppendString(lv.String())
@@ -271,7 +92,7 @@ func encodeZapLevelLowercase(lv zapcore.Level, enc zapcore.PrimitiveArrayEncoder
 }
 
 func encodeZapLevelCapital(lv zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
-	if Level(lv) == TraceLevel {
+	if lv == TraceLevel {
 		enc.AppendString("TRACE")
 	} else {
 		enc.AppendString(lv.CapitalString())

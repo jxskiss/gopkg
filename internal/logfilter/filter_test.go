@@ -1,12 +1,13 @@
-package ezdbg
+package logfilter
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func Test_logFilter(t *testing.T) {
+func TestFileNameFilter(t *testing.T) {
 	type matchPair struct {
 		fileName string
 		match    bool
@@ -111,7 +112,8 @@ func Test_logFilter(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			filter := newLogFilter(tc.rule)
+			filter, errs := NewFileNameFilter(tc.rule)
+			require.Nil(t, errs)
 			for _, pair := range tc.match {
 				fileName := "/Users/bytedance/go/src/github.com/jxskiss/" + pair.fileName
 				got := filter.Allow(pair.fileName)

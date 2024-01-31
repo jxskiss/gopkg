@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -14,7 +15,6 @@ import (
 
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 	"github.com/jxskiss/gopkg/v2/perf/json"
-	"github.com/jxskiss/gopkg/v2/zlog"
 )
 
 const (
@@ -136,7 +136,7 @@ type Request struct {
 
 	// When DumpRequest or DumpResponse is true, or both are true,
 	// DumpFunc optionally specifies a function to dump the request and response,
-	// by default `zlog.StdLogger.Infof` is used.
+	// by default, [log.Printf] is used.
 	DumpFunc func(format string, args ...any)
 
 	// RaiseForStatus tells Do to report an error if the response
@@ -415,7 +415,7 @@ func Do(req *Request) (header http.Header, respContent []byte, status int, err e
 
 	dumpFunc := req.DumpFunc
 	if dumpFunc == nil {
-		dumpFunc = zlog.StdLogger.Infof
+		dumpFunc = log.Printf
 	}
 
 	httpReq := req.Req
@@ -433,7 +433,7 @@ func Do(req *Request) (header http.Header, respContent []byte, status int, err e
 		if err != nil {
 			return header, respContent, status, err
 		}
-		dumpFunc("dump http request:\n%s", dump)
+		dumpFunc("[DEBUG] ezhttp: dump HTTP request:\n%s", dump)
 	}
 
 	httpClient := req.buildClient()
@@ -451,7 +451,7 @@ func Do(req *Request) (header http.Header, respContent []byte, status int, err e
 		if err != nil {
 			return header, respContent, status, err
 		}
-		dumpFunc("dump http response:\n%s", dump)
+		dumpFunc("[DEBUG] ezhttp: dump HTTP response:\n%s", dump)
 	}
 
 	respContent, err = io.ReadAll(httpResp.Body)
