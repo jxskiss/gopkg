@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func testHelperReplaceGlobalsToStdout(ctxFunc func(ctx context.Context, args CtxArgs) CtxResult) func() {
+func testHelperReplaceGlobalsToStdout(ctxFunc func(ctx context.Context) CtxResult) func() {
 	cfg := &Config{
 		Level:             "trace",
 		Format:            "json",
@@ -16,7 +16,9 @@ func testHelperReplaceGlobalsToStdout(ctxFunc func(ctx context.Context, args Ctx
 		DisableCaller:     true,
 		DisableStacktrace: true,
 		GlobalConfig: GlobalConfig{
-			CtxFunc: ctxFunc,
+			CtxHandler: CtxHandler{
+				WithCtx: ctxFunc,
+			},
 		},
 	}
 	l, p, err := NewWithOutput(cfg, zapcore.AddSync(os.Stdout))
@@ -38,7 +40,7 @@ func ExampleWithFields() {
 
 func ExampleWithCtx() {
 
-	demoCtxFunc := func(ctx context.Context, args CtxArgs) CtxResult {
+	demoCtxFunc := func(ctx context.Context) CtxResult {
 		return CtxResult{
 			Fields: []zap.Field{zap.String("ctx1", "v1"), zap.Int64("ctx2", 123)},
 		}

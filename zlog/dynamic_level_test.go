@@ -56,12 +56,14 @@ func TestDynamicLevelCore_ChangeLevelWithCtx(t *testing.T) {
 		cfg := &Config{
 			Level: "warn",
 			GlobalConfig: GlobalConfig{
-				CtxFunc: func(ctx context.Context, args CtxArgs) (result CtxResult) {
-					if ctx.Value("level") != nil {
-						level := ctx.Value("level").(Level)
-						result.Level = &level
-					}
-					return result
+				CtxHandler: CtxHandler{
+					WithCtx: func(ctx context.Context) (result CtxResult) {
+						if ctx.Value("level") != nil {
+							level := ctx.Value("level").(Level)
+							result.Level = &level
+						}
+						return result
+					},
 				},
 			},
 		}

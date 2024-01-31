@@ -1,7 +1,6 @@
 package zlog
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -85,10 +84,8 @@ type GlobalConfig struct {
 	// is used when this value is empty.
 	TraceFilterRule string `json:"traceFilterRule" yaml:"traceFilterRule"`
 
-	// CtxFunc gets additional logging information from ctx, it's optional.
-	//
-	// See also CtxArgs, CtxResult, WithCtx and Builder.Ctx.
-	CtxFunc CtxFunc `json:"-" yaml:"-"`
+	// CtxHandler customizes a logger's behavior in runtime dynamically.
+	CtxHandler CtxHandler `json:"-" yaml:"-"`
 }
 
 // Config serializes log related config in json/yaml.
@@ -159,23 +156,6 @@ type Config struct {
 	// individual non-global loggers.
 	GlobalConfig `yaml:",inline"`
 }
-
-// CtxArgs holds arguments passed to Config.CtxFunc.
-type CtxArgs struct{}
-
-// CtxResult holds values returned by Config.CtxFunc, which will be used
-// to customize a logger's behavior.
-type CtxResult struct {
-	// Fields will be added to the logger as additional fields.
-	Fields []zap.Field
-
-	// An optional Level can be used to dynamically change the logging level.
-	Level *Level
-}
-
-// CtxFunc gets additional logging data from ctx, it may return extra fields
-// to attach to the logging entry, or change the logging level dynamically.
-type CtxFunc func(ctx context.Context, args CtxArgs) CtxResult
 
 func (cfg *Config) fillDefaults() *Config {
 	if cfg == nil {

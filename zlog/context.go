@@ -14,8 +14,35 @@ const (
 	loggerKey
 )
 
-// AddFields add logging fields to ctx which can be retrieved by GetFields,
-// WithCtx, SWithCtx. Duplicate fields override the old ones in ctx.
+// CtxHandler customizes a logger's behavior in runtime dynamically.
+type CtxHandler struct {
+
+	/*
+		// ChangeLevel returns a non-nil Level if it wants to change
+		// the logger's logging level according to ctx.
+		// It returns nil to keep the logger's logging level as-is.
+		ChangeLevel func(ctx context.Context) *Level
+	*/
+
+	// WithCtx is called by Logger.Ctx, SugaredLogger.Ctx and
+	// global functions WithCtx and SWithCtx to check ctx for additional
+	// logging data.
+	// It returns CtxResult to customize the logger's behavior.
+	WithCtx func(ctx context.Context) CtxResult
+}
+
+// CtxResult holds information get from a context.
+type CtxResult struct {
+	// Non-nil Level changes the logger's logging level.
+	Level *Level
+
+	// Fields will be added to the logger as additional fields.
+	Fields []zap.Field
+}
+
+// AddFields add logging fields to ctx which can be retrieved by
+// GetFields, WithCtx, SWithCtx.
+// Duplicate fields override the old ones in ctx.
 func AddFields(ctx context.Context, fields ...zap.Field) context.Context {
 	if len(fields) == 0 {
 		return ctx
@@ -55,16 +82,17 @@ func (l Logger) Ctx(ctx context.Context, extra ...zap.Field) Logger {
 	if ctx == nil {
 		return l.With(extra...)
 	}
+	var fields []zap.Field
 	logger := l
-	fields := GetFields(ctx)
-	ctxFunc := globals.Props.cfg.CtxFunc
+	ctxFunc := globals.Props.cfg.CtxHandler.WithCtx
 	if ctxFunc != nil {
-		ctxResult := ctxFunc(ctx, CtxArgs{})
-		fields = appendFields(fields, ctxResult.Fields)
+		ctxResult := ctxFunc(ctx)
+		fields = ctxResult.Fields
 		if ctxResult.Level != nil {
 			logger = logger.WithOptions(zap.WrapCore(changeLevel(*ctxResult.Level)))
 		}
 	}
+	fields = appendFields(fields, GetFields(ctx))
 	fields = appendFields(fields, extra)
 	if len(fields) > 0 {
 		logger = logger.With(fields...)
@@ -79,16 +107,17 @@ func (s SugaredLogger) Ctx(ctx context.Context, extra ...zap.Field) SugaredLogge
 	if ctx == nil {
 		return s.WithOptions(zap.Fields(extra...))
 	}
+	var fields []zap.Field
 	logger := s
-	fields := GetFields(ctx)
-	ctxFunc := globals.Props.cfg.CtxFunc
+	ctxFunc := globals.Props.cfg.CtxHandler.WithCtx
 	if ctxFunc != nil {
-		ctxResult := ctxFunc(ctx, CtxArgs{})
-		fields = appendFields(fields, ctxResult.Fields)
+		ctxResult := ctxFunc(ctx)
+		fields = ctxResult.Fields
 		if ctxResult.Level != nil {
 			logger = logger.WithOptions(zap.WrapCore(changeLevel(*ctxResult.Level)))
 		}
 	}
+	fields = appendFields(fields, GetFields(ctx))
 	fields = appendFields(fields, extra)
 	if len(fields) > 0 {
 		logger = logger.WithOptions(zap.Fields(fields...))
