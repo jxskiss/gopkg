@@ -91,6 +91,12 @@ type moduledata struct {
 	p unsafe.Pointer
 }
 
+// functab is a copy type of runtime.functab.
+type functab struct {
+	entryoff uint32 // relative to runtime.text
+	funcoff  uint32
+}
+
 func (p *moduledata) pclntable() []byte {
 	return *(*[]byte)(unsafe.Pointer(uintptr(p.p) + moduledata_pclntableOffset))
 }
@@ -105,9 +111,16 @@ var (
 )
 
 func init() {
-	rtmdtype := GetType("runtime.moduledata")
-	moduledata_pclntableOffset = getOffset(rtmdtype, "pclntable", "forceexport: moduledata.pclntable not found")
-	moduledata_ftabOffset = getOffset(rtmdtype, "ftab", "foceexport: moduledata.ftab not found")
+	rtmdType := GetType("runtime.moduledata")
+	moduledata_pclntableOffset = getOffset(rtmdType, "pclntable", "forceexport: moduledata.pclntable not found")
+	moduledata_ftabOffset = getOffset(rtmdType, "ftab", "foceexport: moduledata.ftab not found")
+
+	functabType := GetType("runtime.functab")
+	if functabType.NumField() != 2 {
+		panic("forceexport: functab fields number not match")
+	}
+	assertStructField(functabType, "entryoff", 0, "forceexport: functab field entryoff not match")
+	assertStructField(functabType, "funcoff", 4, "forceexport: functab field funcoff not match")
 }
 
 func getOffset(t *reflectx.RType, fieldname string, msg string) uintptr {
@@ -116,4 +129,14 @@ func getOffset(t *reflectx.RType, fieldname string, msg string) uintptr {
 		panic(msg)
 	}
 	return f.Offset
+}
+
+func assertStructField(structTyp *reflectx.RType, fieldname string, offset uintptr, msg string) {
+	field, ok := structTyp.FieldByName(fieldname)
+	if !ok {
+		panic(msg)
+	}
+	if field.Name != fieldname || field.Offset != offset {
+		panic(msg)
+	}
 }

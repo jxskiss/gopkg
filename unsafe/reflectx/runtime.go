@@ -36,6 +36,9 @@ func MakeSlice(elemTyp reflect.Type, length, capacity int) (slice any, header *S
 // MapLen returns the length of the given map interface{} value.
 // The provided m must be a map, else it panics.
 func MapLen(m any) int {
+	if reflect.TypeOf(m).Kind() != reflect.Map {
+		panic("reflectx.MapLen: param m must be a map")
+	}
 	return linkname.Reflect_maplen(EfaceOf(&m).Word)
 }
 
