@@ -52,28 +52,44 @@ func TestPid(t *testing.T) {
 	wg.Wait()
 }
 
-/*
-TODO
-
-test
-
-// runtime/stubs.go
-func fastrand() uint32 {
-func fastrand64() uint64 {
-
-// runtime/proc.go
-func procPin() int {
-func procUnpin() {
-
-// runtime/alg.go
-func memhash32(p unsafe.Pointer, h uintptr) uintptr
-func memhash64(p unsafe.Pointer, h uintptr) uintptr
-func stringHash(s string, seed uintptr) uintptr {
-func bytesHash(b []byte, seed uintptr) uintptr {
-func efaceHash(i any, seed uintptr) uintptr {
-func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
-
-// runtime/symtab.go
-func activeModules() []*moduledata {
-
-*/
+var runtimeSourceCode = []SourceCodeTestCase{
+	{
+		MaxVer:   newVer(1, 21, 999),
+		FileName: "runtime/stubs.go",
+		Lines: []string{
+			"func fastrand() uint32",
+			"func fastrand64() uint64",
+		},
+	},
+	{
+		MinVer:   newVer(1, 22, 0),
+		FileName: "runtime/rand.go",
+		Lines: []string{
+			"func rand() uint64",
+		},
+	},
+	{
+		FileName: "runtime/proc.go",
+		Lines: []string{
+			"func procPin() int",
+			"func procUnpin()",
+		},
+	},
+	{
+		FileName: "runtime/alg.go",
+		Lines: []string{
+			"func memhash32(p unsafe.Pointer, h uintptr) uintptr",
+			"func memhash64(p unsafe.Pointer, h uintptr) uintptr",
+			"func stringHash(s string, seed uintptr) uintptr",
+			"func bytesHash(b []byte, seed uintptr) uintptr",
+			"func efaceHash(i any, seed uintptr) uintptr",
+			"func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr",
+		},
+	},
+	{
+		FileName: "runtime/symtab.go",
+		Lines: []string{
+			"func activeModules() []*moduledata",
+		},
+	},
+}

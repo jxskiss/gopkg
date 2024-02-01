@@ -40,24 +40,47 @@ func compileReflectFunctions() {
 	call(Reflect_maplen)
 }
 
-/*
-TODO
-
-test
-
-test refelct.Type methods number
-
-// reflect/type.go
-func (t *rtype) common() *rtype { return t }
-func typelinks() (sections []unsafe.Pointer, offset [][]int32)
-func resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
-func ifaceIndir(t *rtype) bool {
-
-// reflect/value.go
-func unsafe_New(*rtype) unsafe.Pointer
-func unsafe_NewArray(*rtype, int) unsafe.Pointer
-func typedmemmove(t *rtype, dst, src unsafe.Pointer)
-func typedslicecopy(elemType *rtype, dst, src unsafeheader.Slice) int
-func maplen(m unsafe.Pointer) int
-
-*/
+var reflectSourceCode = []SourceCodeTestCase{
+	{
+		MaxVer:   newVer(1, 20, 999),
+		FileName: "reflect/type.go",
+		Lines: []string{
+			"func (t *rtype) common() *rtype { return t }",
+			"func typelinks() (sections []unsafe.Pointer, offset [][]int32)",
+			"func resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer",
+			"func ifaceIndir(t *rtype) bool",
+		},
+	},
+	{
+		MinVer:   newVer(1, 21, 0),
+		FileName: "reflect/type.go",
+		Lines: []string{
+			"func (t *rtype) common() *abi.Type",
+			"func typelinks() (sections []unsafe.Pointer, offset [][]int32)",
+			"func resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer",
+			"func ifaceIndir(t *abi.Type) bool",
+		},
+	},
+	{
+		MaxVer:   newVer(1, 20, 999),
+		FileName: "reflect/value.go",
+		Lines: []string{
+			"func unsafe_New(*rtype) unsafe.Pointer",
+			"func unsafe_NewArray(*rtype, int) unsafe.Pointer",
+			"func typedmemmove(t *rtype, dst, src unsafe.Pointer)",
+			"func typedslicecopy(elemType *rtype, dst, src unsafeheader.Slice) int",
+			"func maplen(m unsafe.Pointer) int",
+		},
+	},
+	{
+		MinVer:   newVer(1, 21, 0),
+		FileName: "reflect/value.go",
+		Lines: []string{
+			"func unsafe_New(*abi.Type) unsafe.Pointer",
+			"func unsafe_NewArray(*abi.Type, int) unsafe.Pointer",
+			"func typedmemmove(t *abi.Type, dst, src unsafe.Pointer)",
+			"func typedslicecopy(t *abi.Type, dst, src unsafeheader.Slice) int",
+			"func maplen(m unsafe.Pointer) int",
+		},
+	},
+}

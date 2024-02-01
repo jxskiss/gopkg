@@ -15,6 +15,26 @@ type simple struct {
 	A string
 }
 
+func TestRTypeMethods(t *testing.T) {
+	reflectTyp := reflect.TypeOf((*reflect.Type)(nil)).Elem()
+	rtyp := reflect.TypeOf((*RType)(nil))
+
+	assert.Equal(t, 31, reflectTyp.NumMethod())
+	assert.Equal(t, 33, rtyp.NumMethod())
+
+	for i := 0; i < reflectTyp.NumMethod(); i++ {
+		meth := reflectTyp.Method(i)
+		if !meth.IsExported() {
+			// private methods:
+			//   - common() *rtype
+			//   - uncommon() *uncommonType
+			continue
+		}
+		_, ok := rtyp.MethodByName(meth.Name)
+		assert.Truef(t, ok, "missing method %v", meth.Name)
+	}
+}
+
 func TestRType(t *testing.T) {
 	var (
 		oneI8    int8  = 1

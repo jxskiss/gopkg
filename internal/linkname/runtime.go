@@ -2,14 +2,6 @@ package linkname
 
 import "unsafe"
 
-//go:linkname Runtime_fastrand runtime.fastrand
-//go:nosplit
-func Runtime_fastrand() uint32
-
-//go:linkname Runtime_fastrand64 runtime.fastrand64
-//go:nosplit
-func Runtime_fastrand64() uint64
-
 // Pid returns the id of current p.
 //
 //go:nosplit
