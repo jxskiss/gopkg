@@ -1,4 +1,4 @@
-module github.com/jxskiss/gopkg/v2/internal/benchmark
+module github.com/jxskiss/gopkg/_benchmark
 
 go 1.19
 
@@ -14,4 +14,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/jxskiss/gopkg/v2 => ../../
+replace github.com/jxskiss/gopkg/v2 => ../
