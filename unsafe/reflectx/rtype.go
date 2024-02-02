@@ -142,7 +142,6 @@ func (t *RType) PackInterface(word unsafe.Pointer) any {
 }
 
 func (t *RType) ToReflectType() reflect.Type {
-	//return linkname.Reflect_toType(unsafe.Pointer(t))
 	return unsafeheader.ToReflectType(unsafe.Pointer(t))
 }
 
@@ -155,7 +154,7 @@ func (t *RType) Pointer() unsafe.Pointer {
 // PtrTo returns the pointer type with element t.
 // For example, if t represents type Foo, PtrTo(t) represents *Foo.
 func PtrTo(t *RType) *RType {
-	return (*RType)(linkname.Reflect_rtype_ptrTo(unsafe.Pointer(t)))
+	return ToRType(reflect.PointerTo(t.ToReflectType()))
 }
 
 // SliceOf returns the slice type with element type t.
@@ -189,11 +188,7 @@ func RTypeOf(v any) *RType {
 	case reflect.Value:
 		return ToRType(x.Type())
 	default:
-		return RTypeOfEface(v)
+		// Unpack the empty interface value and returns its rtype.
+		return EfaceOf(&v).RType
 	}
-}
-
-// RTypeOfEface unpacks an empty interface value and returns its rtype.
-func RTypeOfEface(v any) *RType {
-	return EfaceOf(&v).RType
 }

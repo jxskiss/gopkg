@@ -45,6 +45,36 @@ func TestMapLen(t *testing.T) {
 	m[1] = true
 	m[2] = false
 	assert.Equal(t, 2, MapLen(m))
+
+	type key struct {
+		A string
+		B [100]byte
+		C uint64
+	}
+	type value struct {
+		A string
+		B [100]byte
+		C uint64
+	}
+
+	var dummyBytes [100]byte
+	var m2 map[key]*value
+	assert.Equal(t, 0, MapLen(m2))
+	m2 = make(map[key]*value, 10)
+	assert.Equal(t, 0, MapLen(m2))
+	m2[key{"abc", dummyBytes, 1234567890}] = &value{"abc", dummyBytes, 1234567890}
+	m2[key{"abc", dummyBytes, 1234567890}] = &value{"abc", dummyBytes, 1234567890}
+	m2[key{"def", dummyBytes, 1234567890}] = &value{"def", dummyBytes, 1234567890}
+	assert.Equal(t, 2, MapLen(m2))
+
+	var m3 map[key]value
+	assert.Equal(t, 0, MapLen(m3))
+	m3 = make(map[key]value, 100)
+	assert.Equal(t, 0, MapLen(m3))
+	m3[key{"abc", dummyBytes, 1234567890}] = value{"abc", dummyBytes, 1234567890}
+	m3[key{"abc", dummyBytes, 1234567890}] = value{"abc", dummyBytes, 1234567890}
+	m3[key{"def", dummyBytes, 1234567890}] = value{"def", dummyBytes, 1234567890}
+	assert.Equal(t, 2, MapLen(m3))
 }
 
 func TestTypedMemMove(t *testing.T) {

@@ -1,12 +1,5 @@
 package linkname
 
-import (
-	"sort"
-	"testing"
-
-	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
-)
-
 func compileReflectFunctions() {
 	call(Reflect_typelinks)
 	call(Reflect_resolveTypeOff)
@@ -39,48 +32,55 @@ func compileReflectFunctions() {
 	call(Reflect_rtype_NumIn)
 	call(Reflect_rtype_NumOut)
 	call(Reflect_rtype_Out)
-	call(Reflect_rtype_ptrTo)
 	call(Reflect_ifaceIndir)
-	call(Reflect_toType)
 	call(Reflect_unsafe_New)
 	call(Reflect_unsafe_NewArray)
 	call(Reflect_typedmemmove)
 	call(Reflect_typedslicecopy)
 	call(Reflect_maplen)
-	call(Reflect_mapiterinit)
-	call(Reflect_mapiterkey)
-	call(Reflect_mapiterelem)
-	call(Reflect_mapiternext)
 }
 
-func TestReflect_mapiterinit(t *testing.T) {
-	m := map[string]int{
-		"a": 1,
-		"b": 2,
-		"c": 3,
-	}
-
-	var val any = m
-	ef := unsafeheader.ToEface(&val)
-	it := Reflect_mapiterinit(ef.RType, ef.Word)
-
-	var keys []string
-	var values []int
-	mlen := Reflect_maplen(ef.Word)
-	for i := 0; i < mlen; i++ {
-		k := Reflect_mapiterkey(it)
-		v := Reflect_mapiterelem(it)
-		keys = append(keys, *(*string)(k))
-		values = append(values, *(*int)(v))
-		Reflect_mapiternext(it)
-	}
-
-	sort.Strings(keys)
-	sort.Ints(values)
-	if keys[0] != "a" || keys[1] != "b" || keys[2] != "c" {
-		t.Errorf("got unexpected keys: %v", keys)
-	}
-	if values[0] != 1 || values[1] != 2 || values[2] != 3 {
-		t.Errorf("got unexpected values: %v", values)
-	}
+var reflectSourceCode = []SourceCodeTestCase{
+	{
+		MaxVer:   newVer(1, 20, 999),
+		FileName: "reflect/type.go",
+		Lines: []string{
+			"func (t *rtype) common() *rtype { return t }",
+			"func typelinks() (sections []unsafe.Pointer, offset [][]int32)",
+			"func resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer",
+			"func ifaceIndir(t *rtype) bool",
+		},
+	},
+	{
+		MinVer:   newVer(1, 21, 0),
+		FileName: "reflect/type.go",
+		Lines: []string{
+			"func (t *rtype) common() *abi.Type",
+			"func typelinks() (sections []unsafe.Pointer, offset [][]int32)",
+			"func resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer",
+			"func ifaceIndir(t *abi.Type) bool",
+		},
+	},
+	{
+		MaxVer:   newVer(1, 20, 999),
+		FileName: "reflect/value.go",
+		Lines: []string{
+			"func unsafe_New(*rtype) unsafe.Pointer",
+			"func unsafe_NewArray(*rtype, int) unsafe.Pointer",
+			"func typedmemmove(t *rtype, dst, src unsafe.Pointer)",
+			"func typedslicecopy(elemType *rtype, dst, src unsafeheader.Slice) int",
+			"func maplen(m unsafe.Pointer) int",
+		},
+	},
+	{
+		MinVer:   newVer(1, 21, 0),
+		FileName: "reflect/value.go",
+		Lines: []string{
+			"func unsafe_New(*abi.Type) unsafe.Pointer",
+			"func unsafe_NewArray(*abi.Type, int) unsafe.Pointer",
+			"func typedmemmove(t *abi.Type, dst, src unsafe.Pointer)",
+			"func typedslicecopy(t *abi.Type, dst, src unsafeheader.Slice) int",
+			"func maplen(m unsafe.Pointer) int",
+		},
+	},
 }

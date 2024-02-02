@@ -33,14 +33,6 @@ func NewHashFunc[K comparable]() HashFunc[K] {
 	}
 
 	switch typ.Kind() {
-	case reflect.Int8, reflect.Uint8:
-		return func(key K) uintptr {
-			return linkname.Runtime_memhash8(noescape(unsafe.Pointer(&key)), seed)
-		}
-	case reflect.Int16, reflect.Uint16:
-		return func(key K) uintptr {
-			return linkname.Runtime_memhash16(noescape(unsafe.Pointer(&key)), seed)
-		}
 	case reflect.Int32, reflect.Int64, reflect.Int,
 		reflect.Uint32, reflect.Uint64, reflect.Uint, reflect.Uintptr:
 		size := unsafe.Sizeof(zero)
@@ -55,22 +47,6 @@ func NewHashFunc[K comparable]() HashFunc[K] {
 	case reflect.String:
 		return func(key K) uintptr {
 			return linkname.Runtime_stringHash(*(*string)(unsafe.Pointer(&key)), seed)
-		}
-	case reflect.Float32:
-		return func(key K) uintptr {
-			return linkname.Runtime_f32hash(unsafe.Pointer(&key), seed)
-		}
-	case reflect.Float64:
-		return func(key K) uintptr {
-			return linkname.Runtime_f64hash(unsafe.Pointer(&key), seed)
-		}
-	case reflect.Complex64:
-		return func(key K) uintptr {
-			return linkname.Runtime_c64hash(unsafe.Pointer(&key), seed)
-		}
-	case reflect.Complex128:
-		return func(key K) uintptr {
-			return linkname.Runtime_c128hash(unsafe.Pointer(&key), seed)
 		}
 	default:
 		rtype := unsafeheader.ToRType(typ)

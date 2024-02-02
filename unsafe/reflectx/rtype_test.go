@@ -15,6 +15,26 @@ type simple struct {
 	A string
 }
 
+func TestRTypeMethods(t *testing.T) {
+	reflectTyp := reflect.TypeOf((*reflect.Type)(nil)).Elem()
+	rtyp := reflect.TypeOf((*RType)(nil))
+
+	assert.Equal(t, 31, reflectTyp.NumMethod())
+	assert.Equal(t, 33, rtyp.NumMethod())
+
+	for i := 0; i < reflectTyp.NumMethod(); i++ {
+		meth := reflectTyp.Method(i)
+		if !meth.IsExported() {
+			// private methods:
+			//   - common() *rtype
+			//   - uncommon() *uncommonType
+			continue
+		}
+		_, ok := rtyp.MethodByName(meth.Name)
+		assert.Truef(t, ok, "missing method %v", meth.Name)
+	}
+}
+
 func TestRType(t *testing.T) {
 	var (
 		oneI8    int8  = 1
@@ -48,21 +68,22 @@ func TestRType(t *testing.T) {
 	assert.Equal(t, reflect.String, RTypeOf("").Kind())
 }
 
+func TestPtrTo(t *testing.T) {
+	var x int64
+	typ1 := PtrTo(RTypeOf(x)).ToReflectType()
+	typ2 := reflect.PtrTo(reflect.TypeOf(x))
+	assert.Equal(t, typ1, typ2)
+}
+
 func TestRTypeToType(t *testing.T) {
 	typ := RTypeOf(123)
 	t1 := reflect.TypeOf(123)
 	t2 := typ.ToReflectType()
-	t3 := linkname.Reflect_toType(unsafe.Pointer(typ))
 
 	if1 := unsafeheader.ToIface(t1)
 	if2 := unsafeheader.ToIface(t2)
-	if3 := unsafeheader.ToIface(t3)
-	assert.True(t, if1.Tab == if2.Tab && if1.Tab == if3.Tab)
-	assert.True(t, if1.Data == if2.Data && if1.Data == if3.Data)
-}
-
-func TestRTypeOfEface(t *testing.T) {
-	assert.Equal(t, RTypeOfEface(123), RTypeOf(reflect.TypeOf(123)))
+	assert.True(t, if1.Tab == if2.Tab)
+	assert.True(t, if1.Data == if2.Data)
 }
 
 func TestToRType(t *testing.T) {
@@ -73,17 +94,12 @@ func TestToRType(t *testing.T) {
 }
 
 func TestRTypeOf(t *testing.T) {
-	var x int64
-	typ1 := RTypeOf(x).ToReflectType()
-	typ2 := reflect.TypeOf(x)
-	assert.Equal(t, typ1, typ2)
-}
-
-func TestPtrTo(t *testing.T) {
-	var x int64
-	typ1 := PtrTo(RTypeOf(x)).ToReflectType()
-	typ2 := reflect.PtrTo(reflect.TypeOf(x))
-	assert.Equal(t, typ1, typ2)
+	x := any(123)
+	rtyp := EfaceOf(&x).RType
+	assert.Equal(t, rtyp, RTypeOf(123))
+	assert.Equal(t, rtyp, RTypeOf(reflect.TypeOf(123)))
+	assert.Equal(t, rtyp, RTypeOf(reflect.ValueOf(123)))
+	assert.Equal(t, rtyp, RTypeOf(RTypeOf(123)))
 }
 
 func BenchmarkRTypeSizeAndKind(b *testing.B) {

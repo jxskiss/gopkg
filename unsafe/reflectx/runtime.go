@@ -7,17 +7,13 @@ import (
 	"github.com/jxskiss/gopkg/v2/internal/linkname"
 )
 
-func add(p unsafe.Pointer, offset uintptr) unsafe.Pointer {
-	return unsafe.Pointer(uintptr(p) + offset)
-}
-
 // ArrayAt returns the i-th element of p,
 // an array whose elements are elemSize bytes wide.
 // The array pointed at by p must have at least i+1 elements:
 // it is invalid (but impossible to check here) to pass i >= len,
 // because then the result will point outside the array.
 func ArrayAt(p unsafe.Pointer, i int, elemSize uintptr) unsafe.Pointer {
-	return add(p, uintptr(i)*elemSize)
+	return unsafe.Add(p, uintptr(i)*elemSize)
 }
 
 // MakeSlice makes a new slice of the given reflect.Type and length, capacity.
@@ -36,6 +32,9 @@ func MakeSlice(elemTyp reflect.Type, length, capacity int) (slice any, header *S
 // MapLen returns the length of the given map interface{} value.
 // The provided m must be a map, else it panics.
 func MapLen(m any) int {
+	if reflect.TypeOf(m).Kind() != reflect.Map {
+		panic("reflectx.MapLen: param m must be a map")
+	}
 	return linkname.Reflect_maplen(EfaceOf(&m).Word)
 }
 

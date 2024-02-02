@@ -1,196 +1,70 @@
-//go:build gc && !go1.22
-
 package linkname
 
 import (
-	"reflect"
 	"unsafe"
 
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
 
-// ==== exported methods ====
+func Reflect_typelinks() ([]unsafe.Pointer, [][]int32) {
+	return reflect_typelinks()
+}
 
-//go:linkname Reflect_rtype_Align reflect.(*rtype).Align
-//go:noescape
-func Reflect_rtype_Align(unsafe.Pointer) int
+func Reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
+	return reflect_resolveTypeOff(rtype, off)
+}
 
-//go:linkname Reflect_rtype_FieldAlign reflect.(*rtype).FieldAlign
-//go:noescape
-func Reflect_rtype_FieldAlign(unsafe.Pointer) int
+func Reflect_ifaceIndir(rtype unsafe.Pointer) bool {
+	return reflect_ifaceIndir(rtype)
+}
 
-//go:linkname Reflect_rtype_Method reflect.(*rtype).Method
-//go:noescape
-func Reflect_rtype_Method(unsafe.Pointer, int) reflect.Method
+func Reflect_unsafe_New(rtype unsafe.Pointer) unsafe.Pointer {
+	return reflect_unsafe_New(rtype)
+}
 
-//go:linkname Reflect_rtype_MethodByName reflect.(*rtype).MethodByName
-//go:noescape
-func Reflect_rtype_MethodByName(unsafe.Pointer, string) (reflect.Method, bool)
-
-//go:linkname Reflect_rtype_NumMethod reflect.(*rtype).NumMethod
-//go:noescape
-func Reflect_rtype_NumMethod(unsafe.Pointer) int
-
-//go:linkname Reflect_rtype_Name reflect.(*rtype).Name
-//go:noescape
-func Reflect_rtype_Name(unsafe.Pointer) string
-
-//go:linkname Reflect_rtype_PkgPath reflect.(*rtype).PkgPath
-//go:noescape
-func Reflect_rtype_PkgPath(unsafe.Pointer) string
-
-//go:linkname Reflect_rtype_Size reflect.(*rtype).Size
-//go:noescape
-func Reflect_rtype_Size(unsafe.Pointer) uintptr
-
-//go:linkname Reflect_rtype_String reflect.(*rtype).String
-//go:noescape
-func Reflect_rtype_String(unsafe.Pointer) string
-
-//go:linkname Reflect_rtype_Kind reflect.(*rtype).Kind
-//go:noescape
-func Reflect_rtype_Kind(unsafe.Pointer) reflect.Kind
-
-//go:linkname Reflect_rtype_Implements reflect.(*rtype).Implements
-//go:noescape
-func Reflect_rtype_Implements(unsafe.Pointer, reflect.Type) bool
-
-//go:linkname Reflect_rtype_AssignableTo reflect.(*rtype).AssignableTo
-//go:noescape
-func Reflect_rtype_AssignableTo(unsafe.Pointer, reflect.Type) bool
-
-//go:linkname Reflect_rtype_ConvertibleTo reflect.(*rtype).ConvertibleTo
-//go:noescape
-func Reflect_rtype_ConvertibleTo(unsafe.Pointer, reflect.Type) bool
-
-//go:linkname Reflect_rtype_Comparable reflect.(*rtype).Comparable
-//go:noescape
-func Reflect_rtype_Comparable(unsafe.Pointer) bool
-
-//go:linkname Reflect_rtype_Bits reflect.(*rtype).Bits
-//go:noescape
-func Reflect_rtype_Bits(unsafe.Pointer) int
-
-//go:linkname Reflect_rtype_ChanDir reflect.(*rtype).ChanDir
-//go:noescape
-func Reflect_rtype_ChanDir(unsafe.Pointer) reflect.ChanDir
-
-//go:linkname Reflect_rtype_IsVariadic reflect.(*rtype).IsVariadic
-//go:noescape
-func Reflect_rtype_IsVariadic(unsafe.Pointer) bool
-
-//go:linkname Reflect_rtype_Elem reflect.(*rtype).Elem
-//go:noescape
-func Reflect_rtype_Elem(unsafe.Pointer) reflect.Type
-
-//go:linkname Reflect_rtype_Field reflect.(*rtype).Field
-//go:noescape
-func Reflect_rtype_Field(unsafe.Pointer, int) reflect.StructField
-
-//go:linkname Reflect_rtype_FieldByIndex reflect.(*rtype).FieldByIndex
-//go:noescape
-func Reflect_rtype_FieldByIndex(unsafe.Pointer, []int) reflect.StructField
-
-//go:linkname Reflect_rtype_FieldByName reflect.(*rtype).FieldByName
-//go:noescape
-func Reflect_rtype_FieldByName(unsafe.Pointer, string) (reflect.StructField, bool)
-
-//go:linkname Reflect_rtype_FieldByNameFunc reflect.(*rtype).FieldByNameFunc
-//go:noescape
-func Reflect_rtype_FieldByNameFunc(unsafe.Pointer, func(string) bool) (reflect.StructField, bool)
-
-//go:linkname Reflect_rtype_In reflect.(*rtype).In
-//go:noescape
-func Reflect_rtype_In(unsafe.Pointer, int) reflect.Type
-
-//go:linkname Reflect_rtype_Key reflect.(*rtype).Key
-//go:noescape
-func Reflect_rtype_Key(unsafe.Pointer) reflect.Type
-
-//go:linkname Reflect_rtype_Len reflect.(*rtype).Len
-//go:noescape
-func Reflect_rtype_Len(unsafe.Pointer) int
-
-//go:linkname Reflect_rtype_NumField reflect.(*rtype).NumField
-//go:noescape
-func Reflect_rtype_NumField(unsafe.Pointer) int
-
-//go:linkname Reflect_rtype_NumIn reflect.(*rtype).NumIn
-//go:noescape
-func Reflect_rtype_NumIn(unsafe.Pointer) int
-
-//go:linkname Reflect_rtype_NumOut reflect.(*rtype).NumOut
-//go:noescape
-func Reflect_rtype_NumOut(unsafe.Pointer) int
-
-//go:linkname Reflect_rtype_Out reflect.(*rtype).Out
-//go:noescape
-func Reflect_rtype_Out(unsafe.Pointer, int) reflect.Type
-
-// ==== unexported methods ====
-
-//go:linkname Reflect_typelinks reflect.typelinks
-func Reflect_typelinks() ([]unsafe.Pointer, [][]int32)
-
-//go:linkname Reflect_resolveTypeOff reflect.resolveTypeOff
-func Reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
-
-//go:linkname Reflect_rtype_ptrTo reflect.(*rtype).ptrTo
-//go:noescape
-func Reflect_rtype_ptrTo(unsafe.Pointer) unsafe.Pointer
-
-//go:linkname Reflect_ifaceIndir reflect.ifaceIndir
-//go:noescape
-func Reflect_ifaceIndir(unsafe.Pointer) bool
-
-//go:linkname Reflect_toType reflect.toType
-//go:noescape
-func Reflect_toType(unsafe.Pointer) reflect.Type
-
-//go:linkname Reflect_unsafe_New reflect.unsafe_New
-func Reflect_unsafe_New(unsafe.Pointer) unsafe.Pointer
-
-//go:linkname Reflect_unsafe_NewArray reflect.unsafe_NewArray
-func Reflect_unsafe_NewArray(unsafe.Pointer, int) unsafe.Pointer
+func Reflect_unsafe_NewArray(elemRType unsafe.Pointer, capacity int) unsafe.Pointer {
+	return reflect_unsafe_NewArray(elemRType, capacity)
+}
 
 // Reflect_typedmemmove copies a value of type t to dst from src.
-//
-//go:noescape
-//go:linkname Reflect_typedmemmove reflect.typedmemmove
-func Reflect_typedmemmove(t unsafe.Pointer, dst, src unsafe.Pointer)
+func Reflect_typedmemmove(rtype unsafe.Pointer, dst, src unsafe.Pointer) {
+	reflect_typedmemmove(rtype, dst, src)
+}
 
 // Reflect_typedslicecopy copies a slice of elemType values from src to dst,
 // returning the number of elements copied.
-//
-//go:noescape
-//go:linkname Reflect_typedslicecopy reflect.typedslicecopy
-func Reflect_typedslicecopy(elemRType unsafe.Pointer, dst, src unsafeheader.SliceHeader) int
-
-//go:noescape
-//go:linkname Reflect_maplen reflect.maplen
-func Reflect_maplen(m unsafe.Pointer) int
-
-//go:noescape
-//go:linkname Reflect_mapiterkey reflect.mapiterkey
-func Reflect_mapiterkey(it unsafe.Pointer) (key unsafe.Pointer)
-
-//go:noescape
-//go:linkname Reflect_mapiterelem reflect.mapiterelem
-func Reflect_mapiterelem(it unsafe.Pointer) (elem unsafe.Pointer)
-
-//go:noescape
-//go:linkname Reflect_mapiternext reflect.mapiternext
-func Reflect_mapiternext(it unsafe.Pointer)
-
-//go:noescape
-//go:linkname Reflect_rselect reflect.rselect
-func Reflect_rselect([]RuntimeSelect) (chosen int, recvOK bool)
-
-// A RuntimeSelect is a single case passed to reflect_rselect.
-// This must match reflect.runtimeSelect.
-type RuntimeSelect struct {
-	Dir reflect.SelectDir // SelectSend, SelectRecv or SelectDefault
-	Typ unsafe.Pointer    // *rtype, channel type
-	Ch  unsafe.Pointer    // channel
-	Val unsafe.Pointer    // ptr to data (SendDir) or ptr to receive buffer (RecvDir)
+func Reflect_typedslicecopy(elemRType unsafe.Pointer, dst, src unsafeheader.SliceHeader) int {
+	return reflect_typedslicecopy(elemRType, dst, src)
 }
+
+func Reflect_maplen(m unsafe.Pointer) int {
+	return reflect_maplen(m)
+}
+
+//go:linkname reflect_typelinks reflect.typelinks
+func reflect_typelinks() ([]unsafe.Pointer, [][]int32)
+
+//go:linkname reflect_resolveTypeOff reflect.resolveTypeOff
+func reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
+
+//go:linkname reflect_ifaceIndir reflect.ifaceIndir
+//go:noescape
+func reflect_ifaceIndir(rtype unsafe.Pointer) bool
+
+//go:linkname reflect_unsafe_New reflect.unsafe_New
+func reflect_unsafe_New(unsafe.Pointer) unsafe.Pointer
+
+//go:linkname reflect_unsafe_NewArray reflect.unsafe_NewArray
+func reflect_unsafe_NewArray(unsafe.Pointer, int) unsafe.Pointer
+
+//go:linkname reflect_typedmemmove reflect.typedmemmove
+//go:noescape
+func reflect_typedmemmove(t unsafe.Pointer, dst, src unsafe.Pointer)
+
+//go:linkname reflect_typedslicecopy reflect.typedslicecopy
+//go:noescape
+func reflect_typedslicecopy(elemRType unsafe.Pointer, dst, src unsafeheader.SliceHeader) int
+
+//go:linkname reflect_maplen reflect.maplen
+//go:noescape
+func reflect_maplen(m unsafe.Pointer) int
