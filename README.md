@@ -81,7 +81,8 @@ reasonable API compatibility and versioning.
 
 1. `perf/json` provides a drop-in replacement of `encoding/json` and extended features.
    By default, it uses [jsoniter] in underlying, which has better performance than `encoding/json`.
-   `amd64` users may use `json.Config` to switch to [bytedance/sonic] for best performance
+   The underlying implementation is change-able and change-able on-the-fly.
+   `amd64` users may switch to [bytedance/sonic] implementation for best performance
    in the cost of a little less maturity.
    Check [README.md](./perf/json/README.md) for detailed introduction.
 

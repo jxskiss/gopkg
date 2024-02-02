@@ -10,12 +10,12 @@ import (
 
 type HashFunc[K comparable] func(key K) uintptr
 
-// NewHashFunc returns a new hash function, which exposes the various
-// hash functions in runtime package.
+// NewHashFunc returns a new hash function, which exposes several
+// hash functions in package [runtime].
 //
 // Note that this function generates a random seed, each calling of this
 // function returns DIFFERENT hash function, different hash functions
-// generate different hash result for same input.
+// generate different result for same input.
 //
 // The returned function is safe for concurrent use by multiple goroutines.
 func NewHashFunc[K comparable]() HashFunc[K] {

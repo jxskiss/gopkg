@@ -1,3 +1,4 @@
+// Package json provides a on-the-fly change-able API for JSON serialization.
 package json
 
 import (
@@ -22,21 +23,21 @@ type RawMessage = json.RawMessage
 //
 // See encoding/json.Marshal for detailed document.
 func Marshal(v any) ([]byte, error) {
-	return _J.Marshal(v)
+	return getImpl().Marshal(v)
 }
 
 // MarshalToString returns the JSON encoding of v as string.
 //
 // See encoding/json.Marshal for detailed document.
 func MarshalToString(v any) (string, error) {
-	return _J.MarshalToString(v)
+	return getImpl().MarshalToString(v)
 }
 
 // MarshalIndent is like Marshal but applies Indent to format the output.
 //
 // See encoding/json.MarshalIndent for detailed document.
 func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
-	return _J.MarshalIndent(v, prefix, indent)
+	return getImpl().MarshalIndent(v, prefix, indent)
 }
 
 // Unmarshal parses the JSON-encoded data and stores the result
@@ -44,7 +45,7 @@ func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
 //
 // See encoding/json.Unmarshal for detailed document.
 func Unmarshal(data []byte, v any) error {
-	return _J.Unmarshal(data, v)
+	return getImpl().Unmarshal(data, v)
 }
 
 // UnmarshalFromString parses the JSON-encoded string data and stores
@@ -52,18 +53,18 @@ func Unmarshal(data []byte, v any) error {
 //
 // See encoding/json.Unmarshal for detailed document.
 func UnmarshalFromString(data string, v any) error {
-	return _J.UnmarshalFromString(data, v)
+	return getImpl().UnmarshalFromString(data, v)
 }
 
 // Valid reports whether data is a valid JSON encoding.
 func Valid(data []byte) bool {
-	return _J.Valid(data)
+	return getImpl().Valid(data)
 }
 
 // Compact appends to dst the JSON-encoded src with
 // insignificant space characters elided.
 func Compact(dst *bytes.Buffer, src []byte) error {
-	return _J.Compact(dst, src)
+	return getImpl().Compact(dst, src)
 }
 
 // HTMLEscape appends to dst the JSON-encoded src with <, >, &, U+2028 and U+2029
@@ -73,13 +74,13 @@ func Compact(dst *bytes.Buffer, src []byte) error {
 // escaping within <script> tags, so an alternative JSON encoding must
 // be used.
 func HTMLEscape(dst *bytes.Buffer, src []byte) {
-	_J.HTMLEscape(dst, src)
+	getImpl().HTMLEscape(dst, src)
 }
 
 // Indent appends to dst an indented form of the JSON-encoded src.
 // See encoding/json.Indent for detailed document.
 func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
-	return _J.Indent(dst, src, prefix, indent)
+	return getImpl().Indent(dst, src, prefix, indent)
 }
 
 // MarshalFastest uses the fastest config when this library is configured
@@ -87,7 +88,7 @@ func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
 // The result is not compatible with std [encoding/json] in some ways,
 // especially that map keys are not sorted.
 func MarshalFastest(v any) ([]byte, error) {
-	return _J.MarshalFastest(v)
+	return getImpl().MarshalFastest(v)
 }
 
 // MarshalNoHTMLEscape is like Marshal but does not escape HTML characters.
@@ -95,5 +96,5 @@ func MarshalFastest(v any) ([]byte, error) {
 // empty prefix and indent disables indentation.
 // The output is more friendly to read for log messages.
 func MarshalNoHTMLEscape(v any, prefix, indent string) ([]byte, error) {
-	return _J.MarshalNoHTMLEscape(v, prefix, indent)
+	return getImpl().MarshalNoHTMLEscape(v, prefix, indent)
 }

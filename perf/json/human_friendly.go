@@ -10,6 +10,24 @@ import (
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
 
+// HumanFriendly is a config which generates data that is more friendly
+// for human reading.
+// Also, this config can encode data with `interface{}` as map keys,
+// in contrast, the standard library fails in this case.
+var HumanFriendly = struct {
+	Marshal             func(v any) ([]byte, error)
+	MarshalToString     func(v any) (string, error)
+	MarshalIndent       func(v any, prefix, indent string) ([]byte, error)
+	MarshalIndentString func(v any, prefix, indent string) (string, error)
+	NewEncoder          func(w io.Writer) *Encoder
+}{
+	Marshal:             hFriendlyMarshal,
+	MarshalToString:     hFriendlyMarshalToString,
+	MarshalIndent:       hFriendlyMarshalIndent,
+	MarshalIndentString: hFriendlyMarshalIndentString,
+	NewEncoder:          newHumanFriendlyEncoder,
+}
+
 var jsoniterHumanFriendlyConfig = jsoniter.Config{
 	EscapeHTML:                    false,
 	MarshalFloatWith6Digits:       true,
@@ -45,6 +63,10 @@ func hFriendlyMarshalIndentString(v any, prefix, indent string) (string, error) 
 		return "", err
 	}
 	return unsafeheader.BytesToString(buf), nil
+}
+
+func newHumanFriendlyEncoder(w io.Writer) *Encoder {
+	return &Encoder{&hFriendlyEncoder{w: w}}
 }
 
 type hFriendlyEncoder struct {

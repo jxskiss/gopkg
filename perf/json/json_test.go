@@ -1,14 +1,11 @@
 package json
 
 import (
-	stdjson "encoding/json"
 	"math"
 	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/jxskiss/gopkg/v2/utils/ptr"
 )
 
 type testSSMap map[string]string
@@ -73,11 +70,11 @@ var testStringInterfaceMap = map[string]any{
 	},
 
 	"bool1": true,
-	"bool2": ptr.Bool(false),
+	"bool2": ptr(false),
 	"bool3": (*bool)(nil),
 
 	"integer1": int32(1234),
-	"integer2": ptr.Int32(1234),
+	"integer2": ptr(int32(1234)),
 	"integer3": (*int16)(nil),
 
 	"slice_fast_nil0": [][]int32(nil),
@@ -100,15 +97,15 @@ var testStringInterfaceMap = map[string]any{
 	"slice_fast_typ3": []map[string]any{
 		{"a": "1", "b": 1},
 		{"c": "2", "d": 2},
-		{"e": int64(3), "d": ptr.Uint64(3)},
-		{"f": true, "g": ptr.Bool(false)},
+		{"e": int64(3), "d": ptr(uint64(3))},
+		{"f": true, "g": ptr(false)},
 	},
 	"slice_fast_typ4": []map[string]any{},
 
 	"slice_fast_typ5": []bool{true, false},
-	"slice_fast_typ6": []*bool{ptr.Bool(true), ptr.Bool(false), nil},
+	"slice_fast_typ6": []*bool{ptr(true), ptr(false), nil},
 	"slice_fast_typ7": []int16{7, 8},
-	"slice_fast_typ8": []*int16{ptr.Int16(8), ptr.Int16(9), nil},
+	"slice_fast_typ8": []*int16{ptr(int16(8)), ptr(int16(9)), nil},
 }
 
 func TestStringConversion(t *testing.T) {
@@ -123,18 +120,22 @@ func TestStringConversion(t *testing.T) {
 }
 
 func TestCompatibility(t *testing.T) {
-	stdOutput, err := stdjson.Marshal(testStringInterfaceMap)
+	stdOutput, err := StdImpl.Marshal(testStringInterfaceMap)
 	assert.Nil(t, err)
 
-	sonicOutput, err := sonicDefault.Marshal(testStringInterfaceMap)
+	sonicOutput, err := DefaultJSONIteratorImpl.Marshal(testStringInterfaceMap)
 	assert.Nil(t, err)
 	assert.Equal(t, stdOutput, sonicOutput)
 
 	var got1 map[string]any
 	var got2 map[string]any
-	err = stdjson.Unmarshal(stdOutput, &got1)
+	err = StdImpl.Unmarshal(stdOutput, &got1)
 	assert.Nil(t, err)
 	err = Unmarshal(sonicOutput, &got2)
 	assert.Nil(t, err)
 	assert.Equal(t, got1, got2)
+}
+
+func ptr[T any](v T) *T {
+	return &v
 }

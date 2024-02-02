@@ -75,7 +75,7 @@ type Cfg struct {
 	// The default value is empty, which means all messages are allowed.
 	//
 	// User can also set the environment variable "EZDBG_FILTER_RULE"
-	// to configure it in runtime, if available, the environment variable
+	// to configure it at runtime, if available, the environment variable
 	// is used when this value is empty.
 	FilterRule string
 

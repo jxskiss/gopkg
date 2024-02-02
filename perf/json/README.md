@@ -1,37 +1,37 @@
 # json
 
+Package json provides a on-the-fly change-able API for JSON serialization.
+
 ## Compatibility
 
-This package provides a wrapper implementation of `encoding/json`.
-
 By default, it uses [jsoniter] `ConfigCompatibleWithStandardLibrary` in underlying,
-but the behavior can be configured, e.g.
-using the standard library or using a custom jsoniter config,
-or switch to a [bytedance/sonic] config.
-Note that we may change to use bytedance/sonic as default in the future,
-when it's fully ready for production deployment.
+but the underlying implementation can be changed on-the-fly, e.g.
+use the standard library or use a custom jsoniter config,
+or switch to a [bytedance/sonic] implementation.
+You may see [_examples/perf/json/bytedance_sonic]()
+for an example to use bytedance/sonic as the underlying implementation.
 
 When encoding data using `interface{}` as map keys (e.g. `map[any]any`),
 both the standard library and sonic will fail, user should use jsoniter.
 
 [bytedance/sonic]: https://github.com/bytedance/sonic
+
 [jsoniter]: https://github.com/json-iterator/go
 
 ## Performance
 
 By default, this package uses `jsoniter.ConfigCompatibleWithStandardLibrary` API.
-It gives much better performance than `encoding/json` and good compatibility with it.
+It gives better performance than `encoding/json` and good compatibility with it.
 
-User may use the method `Config` to customize the behavior of this library.
+User may use `ChangeImpl` to switch to a different underlying implementation.
 
-For best performance, user may use `MarshalFastest` when this library is
-configured to use jsoniter or sonic. The result is not compatible with
-std `encoding/json` in some ways, especially that map keys are not sorted.
+For best performance, user may use `MarshalFastest` when the underlying
+implementation is jsoniter or sonic. The result is not compatible with std
+`encoding/json` in some ways, especially that map keys are not sorted.
 
 ### Benchmark
 
-See https://github.com/json-iterator/go#benchmark,
-and https://github.com/bytedance/sonic#benchmarks.
+See https://github.com/json-iterator/go#benchmark.
 
 ## Utilities
 
@@ -53,6 +53,7 @@ Handy shortcuts to load and dump JSON data from/to a file:
 
 1. `Load(path string, v any) error`
 2. `Dump(path string, v any, prefix, indent string) error`
+3. `Fdump(w io.Writer, v any, prefix, indent string) error`
 
 Generates human-friendly result (with lower performance):
 
@@ -71,13 +72,7 @@ Generates human-friendly result (with lower performance):
 2. https://github.com/bytedance/sonic <br>
    Sonic is a blazingly fast JSON serializing & deserializing library, accelerated by JIT and SIMD.
    It is not a 100% drop-in replacement of `encoding/json`, but it performs best for various
-   benchmarking cases, you may use it in super hot code path (but you probably want to firstly
-   review your design, using JSON in hot path is considered bad practice).
+   benchmarking cases.
 
 3. https://github.com/goccy/go-json <br>
    Fast JSON encoder/decoder announced to be fully compatible with encoding/json for Go.
-
-4. https://github.com/jxskiss/extjson <br>
-   `extjson` extends the JSON syntax, it allows extended features such as
-   trailing comma in object and array, adding comment, including another JSON file,
-   referencing to other values.
