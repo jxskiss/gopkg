@@ -7,8 +7,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/davecgh/go-spew/spew"
-
 	"github.com/jxskiss/gopkg/v2/easy"
 )
 
@@ -82,36 +80,6 @@ func PRETTY(args ...any) {
 // which end with "Skip".
 func PRETTYSkip(skip int, args ...any) {
 	stringer := easy.Pretty
-	logdebug(skip+1, stringer, args...)
-}
-
-// SPEW is similar to DEBUG, but it calls spew.Sprintf to format non-basic-type data.
-func SPEW(args ...any) {
-	stringer := func(v any) string { return spew.Sprintf("%#v", v) }
-	logdebug(1, stringer, args...)
-}
-
-// SPEWSkip is similar to SPEW, but it has an extra skip param to skip stacktrace
-// to get correct caller information.
-// When you wrap functions in this package, you always want to use the functions
-// which end with "Skip".
-func SPEWSkip(skip int, args ...any) {
-	stringer := func(v any) string { return spew.Sprintf("%#v", v) }
-	logdebug(skip+1, stringer, args...)
-}
-
-// DUMP is similar to DEBUG, but it calls spew.Sdump to format non-basic-type data.
-func DUMP(args ...any) {
-	stringer := func(v any) string { return spew.Sdump(v) }
-	logdebug(1, stringer, args...)
-}
-
-// DUMPSkip is similar to DUMP, but it has an extra skip param to skip stacktrace
-// to get correct caller information.
-// When you wrap functions in this package, you always want to use the functions
-// which end with "Skip".
-func DUMPSkip(skip int, args ...any) {
-	stringer := func(v any) string { return spew.Sdump(v) }
 	logdebug(skip+1, stringer, args...)
 }
 
