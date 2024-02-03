@@ -40,18 +40,3 @@ func Test_Option_Base32(t *testing.T) {
 		assert.Equal(t, plaintext, decrypted)
 	}
 }
-
-func Test_Option_Base62(t *testing.T) {
-	for _, testkey := range testKeyList {
-		ciphertext, err := GCMEncrypt(plaintext, testkey, Base62(nil))
-		assert.Nil(t, err)
-
-		t.Log(string(ciphertext))
-		base62Pattern := regexp.MustCompile(`^[A-Za-z0-9]+$`)
-		assert.Regexp(t, base62Pattern, string(ciphertext))
-
-		decrypted, err := GCMDecrypt(ciphertext, testkey, Base62(nil))
-		assert.Nil(t, err)
-		assert.Equal(t, plaintext, decrypted)
-	}
-}

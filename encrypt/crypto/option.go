@@ -3,8 +3,6 @@ package crypto
 import (
 	"encoding/base32"
 	"encoding/base64"
-
-	"github.com/jxskiss/base62"
 )
 
 type options struct {
@@ -129,25 +127,6 @@ func Base32(enc *base32.Encoding) Option {
 				return nil, err
 			}
 			return dst[:n], nil
-		}
-	}
-}
-
-// Base62 specifies the encoder and decoder to use the provided base62
-// encoding, it returns an Option.
-//
-// If enc is nil, it uses base62.StdEncoding.
-func Base62(enc *base62.Encoding) Option {
-	if enc == nil {
-		enc = base62.StdEncoding
-	}
-	return func(opt *options) {
-		opt.encoder = func(src []byte) ([]byte, error) {
-			dst := enc.Encode(src)
-			return dst, nil
-		}
-		opt.decoder = func(src []byte) ([]byte, error) {
-			return enc.Decode(src)
 		}
 	}
 }

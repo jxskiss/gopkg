@@ -1,4 +1,4 @@
-package zlog
+package lumberjack_writer
 
 import (
 	"os"
@@ -6,9 +6,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/jxskiss/gopkg/v2/zlog"
 )
 
-func TestMultiFilesCore(t *testing.T) {
+func TestNewLumberjackWriter(t *testing.T) {
 	getTempFilename := func() string {
 		tmpFilenamePattern := "zlog-test-multi-files-core-*.log"
 		f1, err := os.CreateTemp("", tmpFilenamePattern)
@@ -29,24 +31,24 @@ func TestMultiFilesCore(t *testing.T) {
 	f3 := getTempFilename()
 	defer removeFiles(f1, f2, f3)
 
-	cfg := &Config{
-		File: FileConfig{
+	cfg := &zlog.Config{
+		File: zlog.FileConfig{
 			Filename:   f1,
 			MaxSize:    100,
 			MaxDays:    3,
 			MaxBackups: 0,
 			Compress:   false,
 		},
-		PerLoggerFiles: map[string]FileConfig{
+		PerLoggerFiles: map[string]zlog.FileConfig{
 			"access": {Filename: f2},
 			"pkg2":   {Filename: f3},
 		},
+		FileWriterFactory: NewLumberjackWriter,
 	}
+	zlog.SetupGlobals(cfg)
+	defer zlog.CloseWriters()
 
-	logger, props, err := New(cfg)
-	require.Nil(t, err)
-	defer props.CloseWriters()
-
+	logger := zlog.L()
 	logger.Info("from default logger")
 
 	lg1 := logger.Named("access")

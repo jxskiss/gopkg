@@ -2,65 +2,81 @@ package zlog
 
 import "go.uber.org/zap/zapcore"
 
-func newMultiFilesCore(cfg *Config, enc zapcore.Encoder, enab zapcore.LevelEnabler) (*multiFilesCore, error) {
-	defaultOut, err := buildFileLogger(cfg.File)
-	if err != nil {
-		return nil, err
-	}
-	core := &multiFilesCore{
+func newMultiFilesCore(cfg *Config, enc zapcore.Encoder, enab zapcore.LevelEnabler) (
+	core *multiFilesCore, closers []func(), err error) {
+	core = &multiFilesCore{
 		LevelEnabler: enab,
 		enc:          enc,
-		deftOut:      defaultOut,
 	}
-	err = core.buildPerLoggerOutFunc(cfg)
+	closers, err = core.initFileWriters(cfg)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return core, nil
+	return
 }
 
 type multiFilesCore struct {
 	zapcore.LevelEnabler
-	enc     zapcore.Encoder
-	deftOut zapcore.WriteSyncer
-	outFunc func(string) (zapcore.WriteSyncer, bool)
-	outList []zapcore.WriteSyncer
+	enc        zapcore.Encoder
+	defaultOut zapcore.WriteSyncer
+	outFunc    func(string) (zapcore.WriteSyncer, bool)
+	outList    []zapcore.WriteSyncer
 }
 
-func (c *multiFilesCore) buildPerLoggerOutFunc(cfg *Config) error {
+func (c *multiFilesCore) initFileWriters(cfg *Config) (closers []func(), err error) {
+	// Close the opened files in case of error occurs.
+	defer func() {
+		if err != nil {
+			runClosers(closers)
+			closers = nil
+		}
+	}()
+
+	var closer func()
+	c.defaultOut, closer, err = cfg.FileWriterFactory(&cfg.File)
+	if err != nil {
+		return closers, err
+	}
+	closers = append(closers, closer)
 	if len(cfg.PerLoggerFiles) == 0 {
-		return nil
+		return closers, nil
 	}
 
 	tree := &radixTree[zapcore.WriteSyncer]{}
 	seenOut := make(map[string]zapcore.WriteSyncer)
+	var outList []zapcore.WriteSyncer
 	for loggerName, fc := range cfg.PerLoggerFiles {
+		if fc.Filename == "" {
+			continue
+		}
 		if fc.Filename == cfg.File.Filename {
 			continue
 		}
-		var err error
 		var out zapcore.WriteSyncer
 		if out = seenOut[fc.Filename]; out == nil {
-			fc := mergeFileLogConfig(fc, cfg.File)
-			out, err = buildFileLogger(fc)
+			fc := mergeFileConfig(fc, cfg.File)
+			out, closer, err = cfg.FileWriterFactory(&fc)
 			if err != nil {
-				return err
+				return closers, err
 			}
 			seenOut[fc.Filename] = out
-			c.outList = append(c.outList, out)
+			outList = append(outList, out)
+			closers = append(closers, closer)
 		}
 		tree.root.insert(loggerName, out)
 	}
 	c.outFunc = tree.search
-	return nil
+	c.outList = outList
+	return closers, nil
 }
 
 func (c *multiFilesCore) clone() *multiFilesCore {
 	return &multiFilesCore{
 		LevelEnabler: c.LevelEnabler,
 		enc:          c.enc.Clone(),
-		deftOut:      c.deftOut,
+		defaultOut:   c.defaultOut,
 		outFunc:      c.outFunc,
+		outList:      c.outList,
 	}
 }
 
@@ -82,7 +98,7 @@ func (c *multiFilesCore) Write(ent zapcore.Entry, fields []zapcore.Field) error 
 	if err != nil {
 		return err
 	}
-	out := c.deftOut
+	out := c.defaultOut
 	if c.outFunc != nil {
 		tmp, found := c.outFunc(ent.LoggerName)
 		if found {
@@ -104,7 +120,7 @@ func (c *multiFilesCore) Write(ent zapcore.Entry, fields []zapcore.Field) error 
 }
 
 func (c *multiFilesCore) Sync() error {
-	err := c.deftOut.Sync()
+	err := c.defaultOut.Sync()
 	if err != nil {
 		return err
 	}

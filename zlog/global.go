@@ -23,11 +23,17 @@ func init() {
 	ReplaceGlobals(mustNewGlobalLogger(&Config{}))
 }
 
-// Properties records some information about the global config.
+// Properties holds some information about the global config and logger.
 type Properties struct {
 	cfg         GlobalConfig
 	level       zap.AtomicLevel
 	traceFilter *logfilter.FileNameFilter
+	closers     []func()
+}
+
+// CloseWriters close all writers associated with this Properties object.
+func (p *Properties) CloseWriters() {
+	runClosers(p.closers)
 }
 
 func (p *Properties) setupGlobals() func() {
@@ -101,6 +107,11 @@ func mustNewGlobalLogger(cfg *Config, opts ...zap.Option) (*zap.Logger, *Propert
 		panic("zlog: invalid config to initialize logger: " + err.Error())
 	}
 	return logger, props
+}
+
+// CloseWriters close all writers opened by the global logger.
+func CloseWriters() {
+	globals.Props.CloseWriters()
 }
 
 // GetLevel gets the global logging level.

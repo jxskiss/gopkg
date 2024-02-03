@@ -1,20 +1,17 @@
 package zlog
 
 import (
-	"errors"
 	"fmt"
-	"os"
 	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 const defaultMethodNameKey = "methodName"
 
-// FileLogConfig serializes file log related config in json/yaml.
-type FileLogConfig struct {
+// FileConfig serializes file log related config in json/yaml.
+type FileConfig struct {
 	// Filename is the file to write logs to, leave empty to disable file log.
 	Filename string `json:"filename" yaml:"filename"`
 
@@ -24,21 +21,31 @@ type FileLogConfig struct {
 
 	// MaxDays is the maximum days to retain old log files based on the
 	// timestamp encoded in their filenames.
+	// Note that a day is defined as 24 hours and may not exactly correspond
+	// to calendar days due to daylight savings, leap seconds, etc.
 	// The default is not to remove old log files.
 	MaxDays int `json:"maxDays" yaml:"maxDays"`
 
 	// MaxBackups is the maximum number of old log files to retain.
+	// The default is to retain all old log files (though MaxAge may still
+	// cause them to get deleted.)
 	MaxBackups int `json:"maxBackups" yaml:"maxBackups"`
 
-	// LocalTime determines if the time used for formatting the timestamps in
-	// backup files is the computer's local time.
-	// The default is to use UTC time.
-	LocalTime bool `json:"localTime" yaml:"localTime"`
-
-	// Compress determines if the rotated log files should be compressed
-	// using gzip. The default is not to perform compression.
+	// Compress determines if the rotated log files should be compressed.
+	// The default is not to perform compression.
 	Compress bool `json:"compress" yaml:"compress"`
 }
+
+// FileWriterFactory opens a file to write log, FileConfig specifies
+// filename and optional settings to rotate the log files.
+// The returned WriteSyncer should be safe for concurrent use,
+// you may use zap.Lock to wrap a WriteSyncer to be concurrent safe.
+// It also returns any error encountered and a function to close
+// the opened file.
+//
+// User may check github.com/jxskiss/gopkg/_examples/zlog/lumberjack_writer
+// for an example to use "lumberjack.v2" as a rolling logger.
+type FileWriterFactory func(fc *FileConfig) (zapcore.WriteSyncer, func(), error)
 
 // GlobalConfig configures some global behavior of this package.
 type GlobalConfig struct {
@@ -104,13 +111,18 @@ type Config struct {
 	Format string `json:"format" yaml:"format"`
 
 	// File specifies file log config.
-	File FileLogConfig `json:"file" yaml:"file"`
+	File FileConfig `json:"file" yaml:"file"`
 
 	// PerLoggerFiles optionally set different file destination for different
 	// loggers specified by logger name.
 	// If a destination is configured for a parent logger, but not configured
 	// for a child logger, the child logger derives from its parent.
-	PerLoggerFiles map[string]FileLogConfig `json:"perLoggerFiles" yaml:"perLoggerFiles"`
+	PerLoggerFiles map[string]FileConfig `json:"perLoggerFiles" yaml:"perLoggerFiles"`
+
+	// FileWriterFactory optionally specifies a custom factory function,
+	// when File is configured, to open a file to write log.
+	// By default, [zap.Open] is used, which does not support file rotation.
+	FileWriterFactory FileWriterFactory `json:"-" yaml:"-"`
 
 	// FunctionKey enables logging the function name.
 	// By default, function name is not logged.
@@ -157,9 +169,14 @@ type Config struct {
 	GlobalConfig `yaml:",inline"`
 }
 
-func (cfg *Config) fillDefaults() *Config {
+func (cfg *Config) checkAndFillDefaults() *Config {
 	if cfg == nil {
 		cfg = &Config{}
+	}
+	if cfg.FileWriterFactory == nil {
+		cfg.FileWriterFactory = func(fc *FileConfig) (zapcore.WriteSyncer, func(), error) {
+			return zap.Open(fc.Filename)
+		}
 	}
 	if cfg.Development {
 		setIfZero(&cfg.Level, "trace")
@@ -235,34 +252,35 @@ func (cfg *Config) buildOptions() ([]zap.Option, error) {
 // to change the global logger and customize some global behavior of this
 // package.
 func New(cfg *Config, opts ...zap.Option) (*zap.Logger, *Properties, error) {
-	cfg = cfg.fillDefaults()
+	cfg = cfg.checkAndFillDefaults()
 	var err error
 	var output zapcore.WriteSyncer
+	var closer func()
 	if len(cfg.File.Filename) > 0 {
 		if len(cfg.PerLoggerFiles) > 0 {
 			return newWithMultiFilesOutput(cfg, opts...)
 		}
-		output, err = buildFileLogger(cfg.File)
+		output, closer, err = cfg.FileWriterFactory(&cfg.File)
 		if err != nil {
 			return nil, nil, err
 		}
 	} else {
-		output, _, err = zap.Open("stderr")
+		output, closer, err = zap.Open("stderr")
 		if err != nil {
 			return nil, nil, err
 		}
 	}
-	return NewWithOutput(cfg, output, opts...)
+	l, p, err := NewWithOutput(cfg, output, opts...)
+	if err != nil {
+		closer()
+		return nil, nil, err
+	}
+	p.closers = append(p.closers, closer)
+	return l, p, nil
 }
 
 func newWithMultiFilesOutput(cfg *Config, opts ...zap.Option) (*zap.Logger, *Properties, error) {
 	enc, err := cfg.buildEncoder()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// base multi-files core at trace level
-	core, err := newMultiFilesCore(cfg, enc, TraceLevel)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -279,13 +297,25 @@ func newWithMultiFilesOutput(cfg *Config, opts ...zap.Option) (*zap.Logger, *Pro
 	}
 	opts = append(cfgOpts, opts...)
 
+	// base multi-files core at trace level
+	core, closers, err := newMultiFilesCore(cfg, enc, TraceLevel)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	wcc := &WrapCoreConfig{
 		Level:           0, // not used here
 		PerLoggerLevels: cfg.PerLoggerLevels,
 		Hooks:           cfg.Hooks,
 		GlobalConfig:    cfg.GlobalConfig,
 	}
-	return newWithWrapCoreConfig(wcc, core, aLevel, opts...)
+	l, p, err := newWithWrapCoreConfig(wcc, core, aLevel, opts...)
+	if err != nil {
+		runClosers(closers)
+		return nil, nil, err
+	}
+	p.closers = closers
+	return l, p, nil
 }
 
 // NewWithOutput initializes a zap logger with given write syncer as output
@@ -297,7 +327,7 @@ func newWithMultiFilesOutput(cfg *Config, opts ...zap.Option) (*zap.Logger, *Pro
 // to change the global logger and customize some global behavior of this
 // package.
 func NewWithOutput(cfg *Config, output zapcore.WriteSyncer, opts ...zap.Option) (*zap.Logger, *Properties, error) {
-	cfg = cfg.fillDefaults()
+	cfg = cfg.checkAndFillDefaults()
 	encoder, err := cfg.buildEncoder()
 	if err != nil {
 		return nil, nil, err
@@ -410,30 +440,11 @@ func newWithWrapCoreConfig(
 	return lg, prop, nil
 }
 
-func buildFileLogger(fc FileLogConfig) (zapcore.WriteSyncer, error) {
-	if st, err := os.Stat(fc.Filename); err == nil {
-		if st.IsDir() {
-			return nil, errors.New("cannot use directory as log filename")
-		}
-	}
-	out := &lumberjack.Logger{
-		Filename:   fc.Filename,
-		MaxSize:    fc.MaxSize,
-		MaxAge:     fc.MaxDays,
-		MaxBackups: fc.MaxBackups,
-		LocalTime:  fc.LocalTime,
-		Compress:   fc.Compress,
-	}
-	ws := zapcore.AddSync(out)
-	return ws, nil
-}
-
-func mergeFileLogConfig(fc FileLogConfig, deft FileLogConfig) FileLogConfig {
-	setIfZero(&fc.MaxSize, deft.MaxSize)
-	setIfZero(&fc.MaxDays, deft.MaxDays)
-	setIfZero(&fc.MaxBackups, deft.MaxBackups)
-	setIfZero(&fc.LocalTime, deft.LocalTime)
-	setIfZero(&fc.Compress, deft.Compress)
+func mergeFileConfig(fc, defaultConfig FileConfig) FileConfig {
+	setIfZero(&fc.MaxSize, defaultConfig.MaxSize)
+	setIfZero(&fc.MaxDays, defaultConfig.MaxDays)
+	setIfZero(&fc.MaxBackups, defaultConfig.MaxBackups)
+	setIfZero(&fc.Compress, defaultConfig.Compress)
 	return fc
 }
 
@@ -441,5 +452,11 @@ func setIfZero[T comparable](dst *T, value T) {
 	var zero T
 	if *dst == zero {
 		*dst = value
+	}
+}
+
+func runClosers(closers []func()) {
+	for _, closeFunc := range closers {
+		closeFunc()
 	}
 }
