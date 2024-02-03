@@ -8,7 +8,29 @@ import (
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
 
-func stdMarshalToString(v any) (string, error) {
+// StdImpl uses package "encoding/json" in the standard library
+// as the underlying implementation.
+var StdImpl Implementation = stdImpl{}
+
+type stdImpl struct{}
+
+func (stdImpl) Marshal(v any) ([]byte, error) {
+	return json.Marshal(v)
+}
+
+func (stdImpl) MarshalIndent(v any, prefix, indent string) ([]byte, error) {
+	return json.MarshalIndent(v, prefix, indent)
+}
+
+func (stdImpl) Unmarshal(data []byte, v any) error {
+	return json.Unmarshal(data, v)
+}
+
+func (stdImpl) Valid(data []byte) bool {
+	return json.Valid(data)
+}
+
+func (stdImpl) MarshalToString(v any) (string, error) {
 	buf, err := json.Marshal(v)
 	if err != nil {
 		return "", err
@@ -16,12 +38,28 @@ func stdMarshalToString(v any) (string, error) {
 	return unsafeheader.BytesToString(buf), nil
 }
 
-func stdUnmarshalFromString(data string, v any) error {
+func (stdImpl) UnmarshalFromString(data string, v any) error {
 	buf := unsafeheader.StringToBytes(data)
 	return json.Unmarshal(buf, v)
 }
 
-func stdMarshalNoHTMLEscape(v any, prefix, indent string) ([]byte, error) {
+func (stdImpl) Compact(dst *bytes.Buffer, src []byte) error {
+	return json.Compact(dst, src)
+}
+
+func (stdImpl) HTMLEscape(dst *bytes.Buffer, src []byte) {
+	json.HTMLEscape(dst, src)
+}
+
+func (stdImpl) Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
+	return json.Indent(dst, src, prefix, indent)
+}
+
+func (stdImpl) MarshalFastest(v any) ([]byte, error) {
+	return json.Marshal(v)
+}
+
+func (stdImpl) MarshalNoHTMLEscape(v any, prefix, indent string) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
@@ -40,10 +78,10 @@ func stdMarshalNoHTMLEscape(v any, prefix, indent string) ([]byte, error) {
 	return out, nil
 }
 
-func stdNewEncoder(w io.Writer) underlyingEncoder {
+func (stdImpl) NewEncoder(w io.Writer) UnderlyingEncoder {
 	return json.NewEncoder(w)
 }
 
-func stdNewDecoder(r io.Reader) underlyingDecoder {
+func (stdImpl) NewDecoder(r io.Reader) UnderlyingDecoder {
 	return json.NewDecoder(r)
 }

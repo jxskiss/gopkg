@@ -12,3 +12,9 @@ test_forceexport:
 test_coverage:
 	mkdir -p _output/
 	go test -count=1 -cover -coverprofile=_output/coverprofile.out ./... && go tool cover -html _output/coverprofile.out
+
+test_examples:
+	cd _examples && go test ./...
+
+test_snippets:
+	cd _snippets && go test ./...

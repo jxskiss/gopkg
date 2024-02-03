@@ -14,7 +14,7 @@ const (
 	loggerKey
 )
 
-// CtxHandler customizes a logger's behavior in runtime dynamically.
+// CtxHandler customizes a logger's behavior at runtime dynamically.
 type CtxHandler struct {
 
 	/*

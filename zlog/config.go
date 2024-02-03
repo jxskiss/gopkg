@@ -80,11 +80,11 @@ type GlobalConfig struct {
 	// The default value is empty, which means all messages are allowed.
 	//
 	// User can also set the environment variable "ZLOG_TRACE_FILTER_RULE"
-	// to configure it in runtime, if available, the environment variable
+	// to configure it at runtime, if available, the environment variable
 	// is used when this value is empty.
 	TraceFilterRule string `json:"traceFilterRule" yaml:"traceFilterRule"`
 
-	// CtxHandler customizes a logger's behavior in runtime dynamically.
+	// CtxHandler customizes a logger's behavior at runtime dynamically.
 	CtxHandler CtxHandler `json:"-" yaml:"-"`
 }
 
