@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 TBD.
 
+## [2.13.0] - 2024-02-03
+
+* Feat: [perf/gopool] minor improvements
+* Feat: [unsafe/reflectx] make IsIdenticalThriftType be compatible with `frugal` tag
+* Feat: new package [collection/listx] providing generic List, Queue, Stack data structures (#68)
+* Feat: [easy/ezdbg] support filter rule (#69)
+* Feat: [easy/yamlx] support variable to function result
+* Feat: [easy/yamlx] support relative reference
+* Fix: fix [easy/ezdbg] print nil pointers
+* Fix: fix [infra/acache] ticker may not be fired bug
+
+There are several **breaking changes** in this release, which may break some programs.
+
+* Breaking change: improvements to package [collection/heapx] (#67)
+* Breaking change: [infra/logid] re-design (#70)
+* Breaking change: move the rarely used package [perf/mselect] to standalone repo
+* Breaking change: simplify package [zlog] (#71)
+* Breaking change: change `zlog.CtxFunc` to be `zlog.CtxHandler`
+* Breaking change: remove Go-version-specific unsafe usage for better maintainability (#72)
+* Breaking change: refactor [perf/json] to be impl-change-able on-the-fly (#73)
+* Breaking change: move some rarely used features to be examples to reduce dependencies
+
 ## [2.12.0] - 2023-12-27
 
 * Feat: [exp/kvutil] add big value sharding implementation (#61)
