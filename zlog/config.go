@@ -243,11 +243,13 @@ func (cfg *Config) buildOptions() ([]zap.Option, error) {
 
 // New initializes a zap logger.
 //
-// If Config.File is configured, the log messages will be written to the
-// specified file with rotation, else they will be written to stderr.
+// If Config.File is configured, logs will be written to the specified file,
+// and Config.PerLoggerFiles can be used to write logs to different files
+// specified by logger name.
+// By default, logs are written to stderr.
 //
 // The returned zap.Logger supports dynamic level, see Config.PerLoggerLevels
-// and GlobalConfig.CtxFunc for details about dynamic level.
+// and GlobalConfig.CtxHandler for details about dynamic level.
 // The returned zap.Logger and Properties may be passed to ReplaceGlobals
 // to change the global logger and customize some global behavior of this
 // package.
@@ -285,10 +287,9 @@ func newWithMultiFilesOutput(cfg *Config, opts ...zap.Option) (*zap.Logger, *Pro
 		return nil, nil, err
 	}
 
-	aLevel := zap.NewAtomicLevel()
-	err = unmarshalAtomicLevel(&aLevel, cfg.Level)
-	if err != nil {
-		return nil, nil, err
+	var level Level
+	if !unmarshalLevel(&level, cfg.Level) {
+		return nil, nil, fmt.Errorf("unrecognized level: %s", cfg.Level)
 	}
 
 	cfgOpts, err := cfg.buildOptions()
@@ -304,12 +305,12 @@ func newWithMultiFilesOutput(cfg *Config, opts ...zap.Option) (*zap.Logger, *Pro
 	}
 
 	wcc := &WrapCoreConfig{
-		Level:           0, // not used here
+		Level:           level,
 		PerLoggerLevels: cfg.PerLoggerLevels,
 		Hooks:           cfg.Hooks,
 		GlobalConfig:    cfg.GlobalConfig,
 	}
-	l, p, err := newWithWrapCoreConfig(wcc, core, aLevel, opts...)
+	l, p, err := newWithWrapCoreConfig(wcc, core, opts...)
 	if err != nil {
 		runClosers(closers)
 		return nil, nil, err
@@ -318,11 +319,10 @@ func newWithMultiFilesOutput(cfg *Config, opts ...zap.Option) (*zap.Logger, *Pro
 	return l, p, nil
 }
 
-// NewWithOutput initializes a zap logger with given write syncer as output
-// destination.
+// NewWithOutput initializes a zap logger with given write syncer as output.
 //
 // The returned zap.Logger supports dynamic level, see Config.PerLoggerLevels
-// and GlobalConfig.CtxFunc for details about dynamic level.
+// and GlobalConfig.CtxHandler for details about dynamic level.
 // The returned zap.Logger and Properties may be passed to ReplaceGlobals
 // to change the global logger and customize some global behavior of this
 // package.
@@ -336,10 +336,9 @@ func NewWithOutput(cfg *Config, output zapcore.WriteSyncer, opts ...zap.Option) 
 	// base core logging any level messages
 	core := zapcore.NewCore(encoder, output, Level(-127))
 
-	aLevel := zap.NewAtomicLevel()
-	err = unmarshalAtomicLevel(&aLevel, cfg.Level)
-	if err != nil {
-		return nil, nil, err
+	var level Level
+	if !unmarshalLevel(&level, cfg.Level) {
+		return nil, nil, fmt.Errorf("unrecognized level: %s", cfg.Level)
 	}
 
 	cfgOpts, err := cfg.buildOptions()
@@ -349,12 +348,12 @@ func NewWithOutput(cfg *Config, output zapcore.WriteSyncer, opts ...zap.Option) 
 	opts = append(cfgOpts, opts...)
 
 	wcc := &WrapCoreConfig{
-		Level:           0, // not used here
+		Level:           level,
 		PerLoggerLevels: cfg.PerLoggerLevels,
 		Hooks:           cfg.Hooks,
 		GlobalConfig:    cfg.GlobalConfig,
 	}
-	return newWithWrapCoreConfig(wcc, core, aLevel, opts...)
+	return newWithWrapCoreConfig(wcc, core, opts...)
 }
 
 type WrapCoreConfig struct {
@@ -388,7 +387,7 @@ type WrapCoreConfig struct {
 // integrate with Sentry or Graylog, or output to multiple sinks).
 //
 // The returned zap.Logger supports dynamic level, see
-// WrapCoreConfig.PerLoggerLevels and GlobalConfig.CtxFunc for details
+// WrapCoreConfig.PerLoggerLevels and GlobalConfig.CtxHandler for details
 // about dynamic level. Note that if you want to use the dynamic level
 // feature, the provided core must be configured to log low level messages
 // (e.g. debug).
@@ -400,17 +399,12 @@ func NewWithCore(cfg *WrapCoreConfig, core zapcore.Core, opts ...zap.Option) (*z
 	if cfg == nil {
 		cfg = &WrapCoreConfig{Level: InfoLevel}
 	}
-
-	aLevel := zap.NewAtomicLevel()
-	aLevel.SetLevel(cfg.Level)
-
-	return newWithWrapCoreConfig(cfg, core, aLevel, opts...)
+	return newWithWrapCoreConfig(cfg, core, opts...)
 }
 
 func newWithWrapCoreConfig(
 	cfg *WrapCoreConfig,
 	core zapcore.Core,
-	aLevel zap.AtomicLevel,
 	opts ...zap.Option,
 ) (*zap.Logger, *Properties, error) {
 	if len(cfg.Hooks) > 0 {
@@ -424,6 +418,7 @@ func newWithWrapCoreConfig(
 	}
 
 	// wrap the base core with dynamic level
+	aLevel := zap.NewAtomicLevelAt(cfg.Level)
 	opts = append(opts, zap.WrapCore(func(core zapcore.Core) zapcore.Core {
 		return &dynamicLevelCore{
 			Core:      core,

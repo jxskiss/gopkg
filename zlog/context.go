@@ -75,8 +75,8 @@ func getLoggerFromCtx(ctx context.Context) any {
 	return ctx.Value(loggerKey)
 }
 
-// Ctx creates a child logger, it calls GlobalConfig.CtxFunc to get CtxResult
-// from ctx, it adds CtxResult.Fields to the child logger and changes
+// Ctx creates a child logger, it calls CtxHandler.WithCtx to get CtxResult
+// from ctx, adds CtxResult.Fields to the child logger and changes
 // the logger's level to CtxResult.Level, if it is not nil.
 func (l Logger) Ctx(ctx context.Context, extra ...zap.Field) Logger {
 	if ctx == nil {
@@ -100,8 +100,8 @@ func (l Logger) Ctx(ctx context.Context, extra ...zap.Field) Logger {
 	return logger
 }
 
-// Ctx creates a child logger, it calls GlobalConfig.CtxFunc to get CtxResult
-// from ctx, it adds CtxResult.Fields to the child logger and changes
+// Ctx creates a child logger, it calls CtxHandler.WithCtx to get CtxResult
+// from ctx, adds CtxResult.Fields to the child logger and changes
 // the logger's level to CtxResult.Level, if it is not nil.
 func (s SugaredLogger) Ctx(ctx context.Context, extra ...zap.Field) SugaredLogger {
 	if ctx == nil {
@@ -133,8 +133,7 @@ func (s SugaredLogger) Ctx(ctx context.Context, extra ...zap.Field) SugaredLogge
 // else it calls Logger.Ctx to build the child logger with contextual fields
 // and optional dynamic level from ctx.
 //
-// Also see WithLogger, GlobalConfig.CtxFunc, CtxArgs and CtxResult
-// for more details.
+// Also see WithLogger, CtxHandler and CtxResult for more details.
 func WithCtx(ctx context.Context, extra ...zap.Field) Logger {
 	if ctx == nil {
 		return WithFields(extra...)
@@ -166,8 +165,7 @@ func WithCtx(ctx context.Context, extra ...zap.Field) Logger {
 // else it calls SugaredLogger.Ctx to build the child logger with
 // contextual fields and optional dynamic level from ctx.
 //
-// Also see WithLogger, GlobalConfig.CtxFunc, CtxArgs and CtxResult
-// for more details.
+// Also see WithLogger, CtxHandler and CtxResult for more details.
 func SWithCtx(ctx context.Context, extra ...zap.Field) SugaredLogger {
 	if ctx == nil {
 		return S().WithOptions(zap.Fields(extra...))

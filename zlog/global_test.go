@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
-func Test_Cover_globalLoggingFunctions(t *testing.T) {
+func TestGlobalLoggingFunctions(t *testing.T) {
 	buf := &zaptest.Buffer{}
 	l, p, err := NewWithOutput(&Config{Level: "trace"}, buf)
 	require.Nil(t, err)
@@ -34,6 +34,6 @@ func Test_Cover_globalLoggingFunctions(t *testing.T) {
 	assert.Len(t, outputLines, 11)
 	for _, line := range outputLines {
 		assert.Contains(t, line, msg)
-		assert.Contains(t, line, "zlog/cover_test.go:")
+		assert.Contains(t, line, "zlog/global_test.go:")
 	}
 }

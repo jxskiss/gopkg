@@ -1,11 +1,9 @@
 package zlog
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
-	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -72,15 +70,6 @@ func unmarshalLevel(l *Level, text string) bool {
 		*l = Level(i)
 	}
 	return true
-}
-
-func unmarshalAtomicLevel(l *zap.AtomicLevel, text string) error {
-	var level Level
-	if !unmarshalLevel(&level, text) {
-		return fmt.Errorf("unrecognized level: %s", text)
-	}
-	l.SetLevel(level)
-	return nil
 }
 
 func encodeZapLevelLowercase(lv zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {

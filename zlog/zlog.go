@@ -28,15 +28,15 @@
 //     The format is "loggerName.subLogger=level".
 //     If a level is configured for a parent logger, bug not configured for a child logger,
 //     the child logger derives from its parent.
-//  2. [GlobalConfig].CtxFunc, if configured, can optionally change level according to
+//  2. [GlobalConfig].CtxHandler, if configured, can optionally change level according to
 //     contextual information, by returning a non-nil [CtxResult].Level value.
 //
 // # Context Integration
 //
 // This package integrates with [context.Context], user may add contextual fields
-// to a Context (see [AddFields], [GlobalConfig].CtxFunc), or add a pre-built logger
+// to a Context (see [AddFields], [CtxHandler]), or add a pre-built logger
 // to a Context (see [WithLogger]), or set a Context to use dynamic level
-// (see [GlobalConfig].CtxFunc), either smaller or greater than the base logger.
+// (see [CtxHandler]), either smaller or greater than the base logger.
 // Functions [Logger.Ctx], [SugaredLogger.Ctx] and [WithCtx], [SWithCtx]
 // create child loggers with contextual information retrieved from a Context.
 //
