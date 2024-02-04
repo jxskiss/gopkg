@@ -1,6 +1,9 @@
 package zlog
 
-import "go.uber.org/zap/zapcore"
+import (
+	"go.uber.org/multierr"
+	"go.uber.org/zap/zapcore"
+)
 
 func newMultiFilesCore(cfg *Config, enc zapcore.Encoder, enab zapcore.LevelEnabler) (
 	core *multiFilesCore, closers []func(), err error) {
@@ -120,15 +123,12 @@ func (c *multiFilesCore) Write(ent zapcore.Entry, fields []zapcore.Field) error 
 }
 
 func (c *multiFilesCore) Sync() error {
-	err := c.defaultOut.Sync()
-	if err != nil {
-		return err
-	}
+	retErr := c.defaultOut.Sync()
 	for _, out := range c.outList {
-		err = out.Sync()
+		err := out.Sync()
 		if err != nil {
-			return err
+			retErr = multierr.Append(retErr, err)
 		}
 	}
-	return nil
+	return retErr
 }
