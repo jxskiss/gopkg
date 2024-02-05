@@ -2,13 +2,19 @@ package zlog
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"github.com/jxskiss/gopkg/v2/zlog/internal/terminal"
 )
 
-const defaultMethodNameKey = "methodName"
+const (
+	defaultMethodNameKey = "methodName"
+	consoleTimeLayout    = "2006/01/02 15:04:05.000000"
+)
 
 // FileConfig serializes file log related config in json/yaml.
 type FileConfig struct {
@@ -143,8 +149,7 @@ type Config struct {
 	DisableStacktrace bool `json:"disableStacktrace" yaml:"disableStacktrace"`
 
 	// StacktraceLevel sets the level that stacktrace will be captured.
-	// By default, stacktraces are captured for WarnLevel and above logs in
-	// development and ErrorLevel and above in production.
+	// By default, stacktraces are captured for ErrorLevel and above.
 	StacktraceLevel string `json:"stacktraceLeve" yaml:"stacktraceLevel"`
 
 	// Sampling sets a sampling strategy for the logger. Sampling caps the
@@ -181,21 +186,20 @@ func (cfg *Config) checkAndFillDefaults() *Config {
 	if cfg.Development {
 		setIfZero(&cfg.Level, "trace")
 		setIfZero(&cfg.Format, "console")
-		setIfZero(&cfg.StacktraceLevel, "warn")
 	} else {
 		setIfZero(&cfg.Level, "info")
 		setIfZero(&cfg.Format, "json")
-		setIfZero(&cfg.StacktraceLevel, "error")
 	}
+	setIfZero(&cfg.StacktraceLevel, "error")
 	return cfg
 }
 
-func (cfg *Config) buildEncoder() (zapcore.Encoder, error) {
+func (cfg *Config) buildEncoder(isStderr bool) (zapcore.Encoder, error) {
 	encConfig := zap.NewProductionEncoderConfig()
-	encConfig.EncodeLevel = encodeZapLevelLowercase
+	encConfig.EncodeLevel = encodeLevelLowercase
 	if cfg.Development {
 		encConfig = zap.NewDevelopmentEncoderConfig()
-		encConfig.EncodeLevel = encodeZapLevelCapital
+		encConfig.EncodeLevel = encodeLevelCapital
 	}
 	encConfig.FunctionKey = cfg.FunctionKey
 	if cfg.DisableTimestamp {
@@ -205,9 +209,12 @@ func (cfg *Config) buildEncoder() (zapcore.Encoder, error) {
 	case "json":
 		return zapcore.NewJSONEncoder(encConfig), nil
 	case "console":
-		// Force capital level and ISO8601 time format for console encoder.
-		encConfig.EncodeLevel = encodeZapLevelCapital
-		encConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		encConfig.EncodeLevel = encodeLevelCapital
+		encConfig.EncodeTime = zapcore.TimeEncoderOfLayout(consoleTimeLayout)
+		encConfig.ConsoleSeparator = " "
+		if isStderr && terminal.CheckIsTerminal(os.Stderr) {
+			encConfig.EncodeLevel = encodeLevelColorCapital
+		}
 		return zapcore.NewConsoleEncoder(encConfig), nil
 	case "logfmt":
 		return NewLogfmtEncoder(encConfig), nil
@@ -271,6 +278,7 @@ func New(cfg *Config, opts ...zap.Option) (*zap.Logger, *Properties, error) {
 		if err != nil {
 			return nil, nil, err
 		}
+		output = &wrapStderr{output}
 	}
 	l, p, err := NewWithOutput(cfg, output, opts...)
 	if err != nil {
@@ -282,7 +290,7 @@ func New(cfg *Config, opts ...zap.Option) (*zap.Logger, *Properties, error) {
 }
 
 func newWithMultiFilesOutput(cfg *Config, opts ...zap.Option) (*zap.Logger, *Properties, error) {
-	enc, err := cfg.buildEncoder()
+	enc, err := cfg.buildEncoder(false)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -328,7 +336,13 @@ func newWithMultiFilesOutput(cfg *Config, opts ...zap.Option) (*zap.Logger, *Pro
 // package.
 func NewWithOutput(cfg *Config, output zapcore.WriteSyncer, opts ...zap.Option) (*zap.Logger, *Properties, error) {
 	cfg = cfg.checkAndFillDefaults()
-	encoder, err := cfg.buildEncoder()
+
+	isStderr := false
+	if wrapper, ok := output.(*wrapStderr); ok {
+		isStderr = true
+		output = wrapper.WriteSyncer
+	}
+	encoder, err := cfg.buildEncoder(isStderr)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -454,4 +468,8 @@ func runClosers(closers []func()) {
 	for _, closeFunc := range closers {
 		closeFunc()
 	}
+}
+
+type wrapStderr struct {
+	zapcore.WriteSyncer
 }

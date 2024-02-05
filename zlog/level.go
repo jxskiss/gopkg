@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"go.uber.org/zap/zapcore"
+
+	"github.com/jxskiss/gopkg/v2/zlog/internal/terminal"
 )
 
 // Level is an alias type of zapcore.Level.
@@ -72,7 +74,7 @@ func unmarshalLevel(l *Level, text string) bool {
 	return true
 }
 
-func encodeZapLevelLowercase(lv zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
+func encodeLevelLowercase(lv zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
 	if lv == TraceLevel {
 		enc.AppendString("trace")
 	} else {
@@ -80,10 +82,28 @@ func encodeZapLevelLowercase(lv zapcore.Level, enc zapcore.PrimitiveArrayEncoder
 	}
 }
 
-func encodeZapLevelCapital(lv zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
+func encodeLevelCapital(lv zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
 	if lv == TraceLevel {
 		enc.AppendString("TRACE")
 	} else {
 		enc.AppendString(lv.CapitalString())
+	}
+}
+
+var colorCapitalLevels = [...]string{
+	0: terminal.Gray.Format("TRACE"),
+	1: terminal.Magenta.Format("DEBUG"),
+	2: terminal.Cyan.Format("INFO"),
+	3: terminal.Yellow.Format("WARN"),
+	4: terminal.Red.Format("ERROR"),
+}
+
+func encodeLevelColorCapital(lv zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
+	if lv >= TraceLevel && lv <= ErrorLevel {
+		enc.AppendString(colorCapitalLevels[lv+2])
+	} else if lv < TraceLevel {
+		enc.AppendString(terminal.Gray.Format(lv.CapitalString()))
+	} else { // lv > ErrorLevel
+		enc.AppendString(terminal.Red.Format(lv.CapitalString()))
 	}
 }
