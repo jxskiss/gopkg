@@ -1,6 +1,7 @@
 package zlog
 
 import (
+	"fmt"
 	"sync/atomic"
 
 	"go.uber.org/zap"
@@ -174,16 +175,49 @@ func Fatalf(format string, args ...any)  { _s().Fatalf(format, args...) }
 //
 // It has same signature with log.Print, which helps to migrate from the
 // standard library to this package.
-func Print(args ...any) { _s().Info(args...) }
+func Print(args ...any) {
+	if len(args) > 0 {
+		s, _ := args[0].(string)
+		if lvl, ok := detectLevel(s); ok {
+			if GetLevel().Enabled(lvl) {
+				msg := formatMessage("", args)
+				_l().Log(lvl, msg)
+			}
+			return
+		}
+	}
+	_s().Info(args...)
+}
 
 // Printf logs a message at InfoLevel if it's enabled.
 //
 // It has same signature with log.Printf, which helps to migrate from the
 // standard library to this package.
-func Printf(format string, args ...any) { _s().Infof(format, args...) }
+func Printf(format string, args ...any) {
+	if lvl, ok := detectLevel(format); ok {
+		if GetLevel().Enabled(lvl) {
+			msg := formatMessage(format, args)
+			_l().Log(lvl, msg)
+		}
+		return
+	}
+	_s().Infof(format, args...)
+}
 
 // Println logs a message at InfoLevel if it's enabled.
 //
 // It has same signature with log.Println, which helps to migrate from the
 // standard library to this package.
-func Println(args ...any) { _s().Infoln(args...) }
+func Println(args ...any) {
+	if len(args) > 0 {
+		s, _ := args[0].(string)
+		if lvl, ok := detectLevel(s); ok {
+			if GetLevel().Enabled(lvl) {
+				msg := fmt.Sprintln(args...)
+				_l().Log(lvl, msg[:len(msg)-1])
+			}
+			return
+		}
+	}
+	_s().Infoln(args...)
+}
