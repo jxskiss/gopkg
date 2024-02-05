@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package gopool is a high-performance goroutine pool which aims to reuse goroutines
+// and limit the number of goroutines.
 package gopool
 
 import (
@@ -26,16 +28,13 @@ var defaultPool *Pool
 var poolMap sync.Map
 
 func init() {
-	config := &Config{
-		Name:             "gopool.defaultPool",
-		AdhocWorkerLimit: 10000,
-	}
+	config := &Config{Name: "gopool.defaultPool"}
 	defaultPool = NewPool(config)
 }
 
 // Default returns the global default pool.
 // The default pool does not enable permanent workers,
-// the adhoc worker limit is configured to 10000.
+// it also does not limit the adhoc worker count.
 // The package-level methods Go and CtxGo submit tasks to the default pool.
 //
 // Note that it's not recommended to change the worker limit
@@ -66,7 +65,7 @@ func CtxGo(ctx context.Context, f func()) {
 func Register(p *Pool) error {
 	_, loaded := poolMap.LoadOrStore(p.Name(), p)
 	if loaded {
-		return fmt.Errorf("gopool: %s already registered", p.Name())
+		return fmt.Errorf("pool %s already registered", p.Name())
 	}
 	return nil
 }

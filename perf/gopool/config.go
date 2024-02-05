@@ -34,8 +34,8 @@ type Config struct {
 	// Name optionally specifies the name of a pool instance.
 	Name string
 
-	// New goroutine will be created if len(queued tasks) > ScaleThreshold,
-	// it defaults to 0, which means always start a new adhoc worker before
+	// New goroutine will be created if len(queuedTasks) >= ScaleThreshold,
+	// it defaults to 1, which means always start a new adhoc worker before
 	// reaching the limit of total adhoc worker number.
 	ScaleThreshold int
 
@@ -62,15 +62,14 @@ type Config struct {
 
 // NewConfig creates a default Config.
 func NewConfig() *Config {
-	c := &Config{}
+	c := &Config{
+		ScaleThreshold: 1,
+	}
 	c.checkAndSetDefaults()
 	return c
 }
 
 func (c *Config) checkAndSetDefaults() {
-	if c.ScaleThreshold < 0 {
-		panic("gopool: invalid negative ScaleThreshold")
-	}
 	if c.PanicHandler == nil {
 		c.PanicHandler = defaultPanicHandler
 	}

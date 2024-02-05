@@ -127,7 +127,7 @@ func (p *internalPool) submit(ctx context.Context, arg any) {
 	p.mu.Lock()
 	tCnt := p.taskList.count + 1
 	wLimit, wCnt := p.getAdhocState()
-	if wCnt == 0 || (tCnt > p.config.ScaleThreshold && wCnt < wLimit) {
+	if wCnt == 0 || (tCnt >= p.config.ScaleThreshold && wCnt < wLimit) {
 		p.incAdhocWorkerCount()
 		p.mu.Unlock()
 		go p.adhocWorker(t)

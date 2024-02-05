@@ -31,7 +31,6 @@ func (p *Properties) compileTraceFilter() {
 }
 
 // Trace logs a message at TraceLevel if it's enabled.
-// It also adds a prefix "[TRACE] " to the message.
 //
 // If trace messages are disabled globally, calling this function is
 // a no-op.
@@ -47,7 +46,6 @@ func (l Logger) slowPathTrace(msg string, fields []zap.Field) {
 }
 
 // Tracef uses fmt.Sprintf to log a message at TraceLevel if it's enabled.
-// It also adds a prefix "[TRACE] " to the message.
 //
 // If trace messages are disabled globally, calling this function is
 // a no-op.
@@ -64,7 +62,6 @@ func (l Logger) slowPathTracef(format string, args []any) {
 }
 
 // Tracef uses fmt.Sprintf to log a message at TraceLevel if it's enabled.
-// It also adds a prefix "[TRACE] " to the message.
 //
 // If trace messages are disabled globally, calling this function is
 // a no-op.
@@ -95,7 +92,6 @@ func checkAndWriteTraceMessage(l *zap.Logger, msg string, fields ...zap.Field) {
 }
 
 // TRACE logs a message at TraceLevel if it's enabled.
-// It also adds a prefix "[TRACE] " to the message.
 //
 // TRACE accepts flexible arguments to help development, it trys to get a
 // logger from the first argument, if the first argument is a *zap.Logger or

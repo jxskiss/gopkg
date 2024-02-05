@@ -2,7 +2,8 @@
 
 ## Introduction
 
-`gopool` is a high-performance goroutine pool which aims to reuse goroutines and limit the number of goroutines.
+Package gopool is a high-performance goroutine pool which aims to reuse goroutines
+and limit the number of goroutines.
 
 It is an alternative to the `go` keyword.
 
