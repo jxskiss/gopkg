@@ -9,6 +9,9 @@ import (
 	"unsafe"
 
 	"golang.org/x/sync/singleflight"
+
+	"github.com/jxskiss/gopkg/v2/collection/heapx"
+	"github.com/jxskiss/gopkg/v2/internal/functicker"
 )
 
 // ErrFetchTimeout indicates a timeout error when refresh a cached value
@@ -18,19 +21,17 @@ var ErrFetchTimeout = errors.New("fetch timeout")
 // Options configures the behavior of Cache.
 type Options struct {
 
-	// FetchFunc is a function which retrieves data from upstream system for
-	// the given key. The returned value or error will be cached till next
-	// refresh execution.
-	// FetchFunc must not be nil, else it panics.
+	// Fetcher fetches data from upstream system for a given key.
+	// Result value or error will be cached till next refresh execution.
 	//
-	// The provided function must return consistently typed values,
-	// else it panics when storing a value of different type into the
-	// underlying sync/atomic.Value.
+	// The provided Fetcher implementation must return consistently
+	// typed values, else it panics when storing a value of different
+	// type into the underlying sync/atomic.Value.
 	//
 	// The returned value from this function should not be changed after
 	// retrieved from the Cache, else data race happens since there may be
 	// many goroutines access the same value concurrently.
-	FetchFunc func(key string) (any, error)
+	Fetcher Fetcher
 
 	// FetchTimeout is used to timeout the fetch request if given,
 	// default is zero (no timeout).
@@ -64,11 +65,11 @@ type Options struct {
 	ExpireInterval time.Duration
 
 	// ErrorCallback is an optional callback which will be called when
-	// an error is returned by the FetchFunc during refresh.
-	ErrorCallback func(key string, err error)
+	// an error is returned by Fetcher during refresh.
+	ErrorCallback func(err error, keys []string)
 
 	// ChangeCallback is an optional callback which will be called when
-	// new value is returned by the FetchFunc during refresh.
+	// new value is returned by Fetcher during refresh.
 	ChangeCallback func(key string, oldData, newData any)
 
 	// DeleteCallback is an optional callback which will be called when
@@ -77,8 +78,8 @@ type Options struct {
 }
 
 func (p *Options) validate() {
-	if p.FetchFunc == nil {
-		panic("acache: Options.FetchFunc must not be nil")
+	if p.Fetcher == nil {
+		panic("acache: Options.Fetcher must not be nil")
 	}
 }
 
@@ -90,37 +91,40 @@ func (p *Options) validate() {
 // make a new Cache instance. A Cache value shall not be copied after
 // initialized.
 type Cache struct {
-	opt   Options
-	group singleflight.Group
-	data  sync.Map
+	opt     Options
+	sfGroup singleflight.Group
+	data    sync.Map
 
-	refreshTicker callbackTicker
-	expireTicker  callbackTicker
+	mu           sync.Mutex
+	refreshQueue *heapx.PriorityQueue[int64, string]
 
-	needRefresh  int32
-	doingRefresh int32
+	ticker       *functicker.Ticker
+	preExpireAt  atomic.Int64
 	doingExpire  int32
+	doingRefresh int32
 	closed       int32
 }
 
 // NewCache returns a new Cache instance using the given options.
 func NewCache(opt Options) *Cache {
+	tickInterval := time.Second
+	return newCacheWithTickInterval(opt, tickInterval)
+}
+
+func newCacheWithTickInterval(opt Options, tickInterval time.Duration) *Cache {
 	opt.validate()
 	c := &Cache{
-		opt: opt,
+		opt:          opt,
+		refreshQueue: heapx.NewMinPriorityQueue[int64, string](),
 	}
-	if opt.RefreshInterval > 0 {
-		c.refreshTicker = newCallbackTicker(opt.RefreshInterval, c.doRefresh)
+	if opt.ExpireInterval > 0 || opt.RefreshInterval > 0 {
+		c.ticker = functicker.New(tickInterval, c.runBackgroundTasks)
 	}
-	if opt.ExpireInterval > 0 {
-		c.expireTicker = newCallbackTicker(opt.ExpireInterval, c.doExpire)
-	}
-
 	return c
 }
 
 // Close closes the Cache.
-// It signals the refreshing and expiring goroutines to shut down.
+// It signals the background goroutines to shut down.
 //
 // It should be called when the Cache is no longer needed,
 // or may lead resource leaks.
@@ -128,13 +132,9 @@ func (c *Cache) Close() {
 	if !atomic.CompareAndSwapInt32(&c.closed, 0, 1) {
 		return
 	}
-	if c.refreshTicker != nil {
-		c.refreshTicker.Stop()
-		c.refreshTicker = nil
-	}
-	if c.expireTicker != nil {
-		c.expireTicker.Stop()
-		c.expireTicker = nil
+	if c.ticker != nil {
+		c.ticker.Stop()
+		c.ticker = nil
 	}
 }
 
@@ -148,26 +148,34 @@ func (c *Cache) SetDefault(key string, value any) (exists bool) {
 	if value == nil {
 		panic("acache: value must not be nil")
 	}
-	ent := allocEntry(value, errDefaultVal)
-	_, loaded := c.data.LoadOrStore(key, ent)
+	nowNano := time.Now().UnixNano()
+	ent := allocEntry(value, errDefaultVal, nowNano)
+	actual, loaded := c.data.LoadOrStore(key, ent)
+	if loaded {
+		actual.(*entry).MarkActive()
+	} else {
+		c.addToRefreshQueue(nowNano, key)
+	}
 	return loaded
 }
 
 // Update sets a value for key into the cache.
 // If key is not cached in the cache, it adds the given key value to the cache.
-// The param val should not be nil, else it panics.
+// The param value should not be nil, else it panics.
 func (c *Cache) Update(key string, value any) {
 	if value == nil {
 		panic("acache: value must not be nil")
 	}
+	nowNano := time.Now().UnixNano()
 	val, ok := c.data.Load(key)
 	if ok {
 		ent := val.(*entry)
-		ent.Store(value, nil)
+		ent.Store(value, nil, nowNano)
 	} else {
-		ent := allocEntry(value, nil)
+		ent := allocEntry(value, nil, nowNano)
 		c.data.Store(key, ent)
 	}
+	c.addToRefreshQueue(nowNano, key)
 }
 
 // Contains tells whether the cache contains the specified key.
@@ -179,21 +187,21 @@ func (c *Cache) Contains(key string) bool {
 }
 
 // Get tries to fetch a value corresponding to the given key from the cache.
-// If it's not cached, a calling to function Options.FetchFunc
-// will be fired and the result will be cached.
+// If it's not cached, a calling to Fetcher.Fetch will be fired
+// and the result will be cached.
 //
 // If error occurs during the first fetching, the error will be cached until
 // the subsequent fetching requests triggered by refreshing succeed.
 // The cached error will be returned, it does not trigger a calling to
-// Options.FetchFunc.
+// Options.Fetcher again.
 //
 // If a default value is set by SetDefault, the default value will be used,
-// it does not trigger a calling to Options.FetchFunc.
+// it does not trigger a calling to Options.Fetcher.
 func (c *Cache) Get(key string) (any, error) {
 	val, ok := c.data.Load(key)
 	if ok {
 		ent := val.(*entry)
-		ent.Touch()
+		ent.MarkActive()
 		value, err := ent.Load()
 		if err == errDefaultVal {
 			err = nil
@@ -206,16 +214,17 @@ func (c *Cache) Get(key string) (any, error) {
 }
 
 // GetOrDefault tries to fetch a value corresponding to the given key from
-// the cache. If it's not cached, a calling to function Options.FetchFunc
+// the cache. If it's not cached, a calling to Options.Fetcher
 // will be fired and the result will be cached.
 //
 // If error occurs during the first fetching, defaultVal will be set into
-// the cache and returned.
+// the cache and returned, the default value will also be used for
+// further calling of Get and GetOrDefault.
 func (c *Cache) GetOrDefault(key string, defaultVal any) any {
 	val, ok := c.data.Load(key)
 	if ok {
 		ent := val.(*entry)
-		ent.Touch()
+		ent.MarkActive()
 		value, err := ent.Load()
 		if err != nil {
 			value = defaultVal
@@ -223,7 +232,7 @@ func (c *Cache) GetOrDefault(key string, defaultVal any) any {
 		return value
 	}
 
-	// Fetch result from upstream or use the default
+	// Fetch result from upstream or use the default value
 	val, _ = c.doFetch(key, defaultVal)
 	return val
 }
@@ -236,13 +245,15 @@ func (c *Cache) doFetch(key string, defaultVal any) (any, error) {
 }
 
 func (c *Cache) fetchNoTimeout(key string, defaultVal any) (any, error) {
-	val, err, _ := c.group.Do(key, func() (any, error) {
-		val, err := c.opt.FetchFunc(key)
+	val, err, _ := c.sfGroup.Do(key, func() (any, error) {
+		val, err := c.opt.Fetcher.Fetch(key)
 		if err != nil && defaultVal != nil {
 			val, err = defaultVal, errDefaultVal
 		}
-		ent := allocEntry(val, err)
+		nowNano := time.Now().UnixNano()
+		ent := allocEntry(val, err, nowNano)
 		c.data.Store(key, ent)
+		c.addToRefreshQueue(nowNano, key)
 		return val, err
 	})
 	return val, err
@@ -250,13 +261,15 @@ func (c *Cache) fetchNoTimeout(key string, defaultVal any) (any, error) {
 
 func (c *Cache) fetchWithTimeout(key string, defaultVal any) (any, error) {
 	timeout := time.NewTimer(c.opt.FetchTimeout)
-	ch := c.group.DoChan(key, func() (any, error) {
-		val, err := c.opt.FetchFunc(key)
+	ch := c.sfGroup.DoChan(key, func() (any, error) {
+		val, err := c.opt.Fetcher.Fetch(key)
 		if err != nil && defaultVal != nil {
 			val, err = defaultVal, errDefaultVal
 		}
-		ent := allocEntry(val, err)
+		nowNano := time.Now().UnixNano()
+		ent := allocEntry(val, err, nowNano)
 		c.data.Store(key, ent)
+		c.addToRefreshQueue(nowNano, key)
 		return val, err
 	})
 	select {
@@ -301,76 +314,58 @@ func (c *Cache) DeleteFunc(match func(key string) bool) {
 	})
 }
 
-func (c *Cache) doRefresh(_ time.Time, ok bool) {
-	if !ok {
+func (c *Cache) addToRefreshQueue(updateAtNano int64, key string) {
+	c.mu.Lock()
+	c.refreshQueue.Push(updateAtNano, key)
+	c.mu.Unlock()
+}
+
+func (c *Cache) runBackgroundTasks() {
+	if atomic.LoadInt32(&c.closed) > 0 {
 		return
 	}
-
-	// The refreshing procedure may run longer than c.RefreshInterval,
-	// we don't allow more than one refreshing jobs run simultaneously,
-	// but allow only one job to run, in that case, we start another
-	// refreshing immediately after the previous complete.
-	atomic.StoreInt32(&c.needRefresh, 1)
-
-	if atomic.CompareAndSwapInt32(&c.doingRefresh, 0, 1) {
-		defer atomic.StoreInt32(&c.doingRefresh, 0)
-
-		for atomic.CompareAndSwapInt32(&c.needRefresh, 1, 0) {
-			if atomic.LoadInt32(&c.closed) > 0 {
-				return
-			}
-
-			hasErrorCallback := c.opt.ErrorCallback != nil
-			hasChangeCallback := c.opt.ErrorCallback != nil
-			c.data.Range(func(key, val any) bool {
-				keystr := key.(string)
-				ent := val.(*entry)
-
-				newVal, err := c.opt.FetchFunc(keystr)
-				if err != nil {
-					if hasErrorCallback {
-						c.opt.ErrorCallback(keystr, err)
-					}
-					_, oldErr := ent.Load()
-					if oldErr != nil {
-						ent.SetError(err)
-					}
-					return true
-				}
-
-				// Save the new value from upstream.
-				if hasChangeCallback {
-					oldVal, _ := ent.Load()
-					c.opt.ChangeCallback(keystr, oldVal, newVal)
-				}
-				ent.Store(newVal, nil)
-				return true
-			})
+	if c.opt.ExpireInterval > 0 {
+		c.doExpire(false)
+	}
+	if c.opt.RefreshInterval > 0 {
+		if atomic.CompareAndSwapInt32(&c.doingRefresh, 0, 1) {
+			c.doRefresh()
+			atomic.StoreInt32(&c.doingRefresh, 0)
 		}
 	}
 }
 
-func (c *Cache) doExpire(_ time.Time, ok bool) {
-	if !ok || atomic.LoadInt32(&c.closed) > 0 {
-		return
+func (c *Cache) doExpire(force bool) {
+	nowUnix := time.Now().Unix()
+	preExpireAt := c.preExpireAt.Load()
+
+	// "force" helps to do unittest.
+	if !force {
+		if preExpireAt == 0 {
+			c.preExpireAt.Store(nowUnix)
+			return
+		}
+		if time.Duration(nowUnix-preExpireAt)*time.Second < c.opt.ExpireInterval {
+			return
+		}
 	}
 
+	hasDeleteCallback := c.opt.DeleteCallback != nil
 	if atomic.CompareAndSwapInt32(&c.doingExpire, 0, 1) {
 		defer atomic.StoreInt32(&c.doingExpire, 0)
-
-		hasDeleteCallback := c.opt.DeleteCallback != nil
+		c.preExpireAt.Store(nowUnix)
 		c.data.Range(func(key, val any) bool {
 			keystr := key.(string)
 			ent := val.(*entry)
 
-			// If entry.expire is "active", we will mark it as "inactive" here.
+			// If entry.expire is "active", we mark it as "inactive" here.
 			// Then during the next execution, "inactive" entries will be deleted.
 			isActive := atomic.CompareAndSwapInt32(&ent.expire, active, inactive)
 			if !isActive {
 				if hasDeleteCallback {
 					value, _ := ent.Load()
 					if value != nil {
-						c.opt.DeleteCallback(keystr, value)
+						c.opt.DeleteCallback(keystr, val)
 					}
 				}
 				c.data.Delete(key)
@@ -380,16 +375,169 @@ func (c *Cache) doExpire(_ time.Time, ok bool) {
 	}
 }
 
-func allocEntry(val any, err error) *entry {
+func (c *Cache) needRefresh(nowNano, updateAtNano int64) bool {
+	return time.Duration(nowNano-updateAtNano) >= c.opt.RefreshInterval
+}
+
+func (c *Cache) checkEntryNeedRefresh(nowNano, updateAtNano int64, key string) (ent *entry, refresh bool) {
+	val, _ := c.data.Load(key)
+	if val == nil {
+		// The data has already been deleted.
+		return nil, false
+	}
+	ent = val.(*entry)
+	if ent.GetUpdateAt() != updateAtNano {
+		// The data has already been changed.
+		return ent, false
+	}
+	if !c.needRefresh(nowNano, updateAtNano) {
+		return ent, false
+	}
+	return ent, true
+}
+
+func (c *Cache) doRefresh() {
+	if _, ok := c.opt.Fetcher.(BatchFetcher); ok {
+		c.doBatchRefresh()
+		return
+	}
+
+	hasErrorCallback := c.opt.ErrorCallback != nil
+	hasChangeCallback := c.opt.ChangeCallback != nil
+	for {
+		nowNano := time.Now().UnixNano()
+		needRefresh := false
+
+		c.mu.Lock()
+		updateAt, key, ok := c.refreshQueue.Peek()
+		if ok && c.needRefresh(nowNano, updateAt) {
+			c.refreshQueue.Pop()
+			needRefresh = true
+		}
+		c.mu.Unlock()
+		if !needRefresh {
+			break
+		}
+
+		var ent *entry
+		ent, needRefresh = c.checkEntryNeedRefresh(nowNano, updateAt, key)
+		if !needRefresh {
+			continue
+		}
+		newVal, err := c.opt.Fetcher.Fetch(key)
+		if err != nil {
+			if hasErrorCallback {
+				c.opt.ErrorCallback(err, []string{key})
+			}
+			_, oldErr := ent.Load()
+			if oldErr != nil {
+				ent.SetError(err)
+			}
+		} else {
+			// Save the new value from upstream.
+			if hasChangeCallback {
+				oldVal, _ := ent.Load()
+				c.opt.ChangeCallback(key, oldVal, newVal)
+			}
+			ent.Store(newVal, nil, nowNano)
+		}
+		c.addToRefreshQueue(nowNano, key)
+	}
+}
+
+type refreshQueueItem struct {
+	key   string
+	tNano int64
+}
+
+func (c *Cache) doBatchRefresh() {
+	fetcher := c.opt.Fetcher.(BatchFetcher)
+	batchSize := fetcher.BatchSize()
+	expiredItems := make([]refreshQueueItem, 0, batchSize)
+	keys := make([]string, 0, batchSize)
+	for {
+		nowNano := time.Now().UnixNano()
+		expiredItems = expiredItems[:0]
+		keys = keys[:0]
+
+		c.mu.Lock()
+		for len(expiredItems) < batchSize {
+			updateAt, key, ok := c.refreshQueue.Peek()
+			if !ok || !c.needRefresh(nowNano, updateAt) {
+				break
+			}
+			c.refreshQueue.Pop()
+			expiredItems = append(expiredItems, refreshQueueItem{key, updateAt})
+		}
+		c.mu.Unlock()
+
+		for _, item := range expiredItems {
+			_, needRefresh := c.checkEntryNeedRefresh(nowNano, item.tNano, item.key)
+			if !needRefresh {
+				continue
+			}
+			keys = append(keys, item.key)
+		}
+		if len(keys) > 0 {
+			c.batchRefreshKeys(keys)
+		}
+
+		// No more expired data to refresh.
+		if len(expiredItems) < batchSize {
+			break
+		}
+	}
+}
+
+func (c *Cache) batchRefreshKeys(keys []string) {
+	nowNano := time.Now().UnixNano()
+	fetcher := c.opt.Fetcher.(BatchFetcher)
+	newValMap, err := fetcher.BatchFetch(keys)
+	if err != nil {
+		hasErrorCallback := c.opt.ErrorCallback != nil
+		if hasErrorCallback {
+			c.opt.ErrorCallback(err, keys)
+		}
+		for _, key := range keys {
+			val, _ := c.data.Load(key)
+			if val == nil {
+				continue
+			}
+			ent := val.(*entry)
+			_, oldErr := ent.Load()
+			if oldErr != nil {
+				ent.SetError(err)
+			}
+		}
+		return
+	}
+	hasChangeCallback := c.opt.ChangeCallback != nil
+	for key, newVal := range newValMap {
+		entVal, _ := c.data.Load(key)
+		if entVal == nil {
+			continue
+		}
+		ent := entVal.(*entry)
+		if hasChangeCallback {
+			oldVal, _ := ent.Load()
+			c.opt.ChangeCallback(key, oldVal, newVal)
+		}
+		ent.Store(newVal, nil, nowNano)
+		c.addToRefreshQueue(nowNano, key)
+	}
+}
+
+func allocEntry(val any, err error, updateAtNano int64) *entry {
 	ent := &entry{}
-	ent.Store(val, err)
+	ent.Store(val, err, updateAtNano)
 	return ent
 }
 
 type entry struct {
-	val    atomic.Value
-	errp   unsafe.Pointer // *error
-	expire int32
+	val      atomic.Value
+	errp     unsafe.Pointer // *error
+	updateAt int64
+	expire   int32
 }
 
 func (e *entry) Load() (any, error) {
@@ -401,27 +549,32 @@ func (e *entry) Load() (any, error) {
 	return val, *(*error)(errp)
 }
 
-func (e *entry) Store(val any, err error) {
+func (e *entry) Store(val any, err error, updateAtNano int64) {
 	if err != nil {
 		atomic.StorePointer(&e.errp, unsafe.Pointer(&err))
-		e.SetValue(val)
+		if val != nil {
+			e.val.Store(val)
+		}
 	} else if val != nil {
 		e.val.Store(val)
 		atomic.StorePointer(&e.errp, nil)
 	}
-}
-
-func (e *entry) SetValue(val any) {
-	if val != nil {
-		e.val.Store(val)
-	}
+	e.SetUpdateAt(updateAtNano)
 }
 
 func (e *entry) SetError(err error) {
 	atomic.StorePointer(&e.errp, unsafe.Pointer(&err))
 }
 
-func (e *entry) Touch() {
+func (e *entry) GetUpdateAt() int64 {
+	return atomic.LoadInt64(&e.updateAt)
+}
+
+func (e *entry) SetUpdateAt(updateAtNano int64) {
+	atomic.StoreInt64(&e.updateAt, updateAtNano)
+}
+
+func (e *entry) MarkActive() {
 	atomic.StoreInt32(&e.expire, active)
 }
 

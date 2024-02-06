@@ -20,11 +20,12 @@ func TestGet(t *testing.T) {
 	}
 	opt := Options{
 		RefreshInterval: 50 * time.Millisecond,
-		FetchFunc: func(key string) (any, error) {
+		Fetcher: FuncFetcher(func(key string) (any, error) {
 			return val(), nil
-		},
+		}),
 	}
-	c := NewCache(opt)
+	c := newCacheWithTickInterval(opt, 10*time.Millisecond)
+	defer c.Close()
 	assert.False(t, c.Contains(key))
 
 	got, err := c.Get(key)
@@ -40,7 +41,7 @@ func TestGet(t *testing.T) {
 	assert.NotEqual(t, val(), got)
 	assert.True(t, c.Contains(key))
 
-	time.Sleep(opt.RefreshInterval)
+	time.Sleep(opt.RefreshInterval + time.Second)
 	got, err = c.Get(key)
 	assert.Nil(t, err)
 	assert.Equal(t, val(), got)
@@ -51,15 +52,16 @@ func TestGetError(t *testing.T) {
 	var first = true
 	opt := Options{
 		RefreshInterval: 50 * time.Millisecond,
-		FetchFunc: func(key string) (any, error) {
+		Fetcher: FuncFetcher(func(key string) (any, error) {
 			if first {
 				first = false
 				return nil, errors.New("error")
 			}
 			return val, nil
-		},
+		}),
 	}
-	c := NewCache(opt)
+	c := newCacheWithTickInterval(opt, 10*time.Millisecond)
+	defer c.Close()
 
 	got, err := c.Get(key)
 	assert.NotNil(t, err)
@@ -79,11 +81,12 @@ func TestGetOrDefault(t *testing.T) {
 	var key, val, defaultVal = "key", "val", "default"
 	opt := Options{
 		RefreshInterval: 50 * time.Millisecond,
-		FetchFunc: func(key string) (any, error) {
+		Fetcher: FuncFetcher(func(key string) (any, error) {
 			return val, nil
-		},
+		}),
 	}
-	c := NewCache(opt)
+	c := newCacheWithTickInterval(opt, 10*time.Millisecond)
+	defer c.Close()
 
 	got := c.GetOrDefault(key, defaultVal)
 	assert.Equal(t, val, got)
@@ -103,15 +106,16 @@ func TestGetOrDefaultError(t *testing.T) {
 	var first = true
 	opt := Options{
 		RefreshInterval: 50 * time.Millisecond,
-		FetchFunc: func(key string) (any, error) {
+		Fetcher: FuncFetcher(func(key string) (any, error) {
 			if first {
 				first = false
 				return nil, errors.New("error")
 			}
 			return val, nil
-		},
+		}),
 	}
-	c := NewCache(opt)
+	c := newCacheWithTickInterval(opt, 10*time.Millisecond)
+	defer c.Close()
 
 	// First loading, error happens, should get defaultVal1.
 	got := c.GetOrDefault(key, defaultVal1)
@@ -133,11 +137,12 @@ func TestGetOrDefaultError(t *testing.T) {
 func TestSetDefault(t *testing.T) {
 	opt := Options{
 		RefreshInterval: 50 * time.Millisecond,
-		FetchFunc: func(key string) (any, error) {
+		Fetcher: FuncFetcher(func(key string) (any, error) {
 			return nil, errors.New("error")
-		},
+		}),
 	}
-	c := NewCache(opt)
+	c := newCacheWithTickInterval(opt, 10*time.Millisecond)
+	defer c.Close()
 
 	got := c.GetOrDefault("key1", "default1")
 	assert.Equal(t, "default1", got)
@@ -159,14 +164,15 @@ func TestSetDefault(t *testing.T) {
 
 func TestUpdate(t *testing.T) {
 	opt := Options{
-		FetchFunc: func(key string) (any, error) {
+		Fetcher: FuncFetcher(func(key string) (any, error) {
 			if key == "testError" {
 				return nil, errors.New("test error")
 			}
 			return "val", nil
-		},
+		}),
 	}
-	c := NewCache(opt)
+	c := newCacheWithTickInterval(opt, 10*time.Millisecond)
+	defer c.Close()
 
 	got1, err1 := c.Get("key1")
 	assert.Nil(t, err1)
@@ -203,11 +209,12 @@ func TestUpdate(t *testing.T) {
 func TestDeleteFunc(t *testing.T) {
 	opt := Options{
 		RefreshInterval: 50 * time.Millisecond,
-		FetchFunc: func(key string) (any, error) {
+		Fetcher: FuncFetcher(func(key string) (any, error) {
 			return nil, errors.New("error")
-		},
+		}),
 	}
-	c := NewCache(opt)
+	c := newCacheWithTickInterval(opt, 10*time.Millisecond)
+	defer c.Close()
 
 	c.SetDefault("key", "val")
 	got := c.GetOrDefault("key", "default")
@@ -224,12 +231,13 @@ func TestClose(t *testing.T) {
 	var count int64
 	opt := Options{
 		RefreshInterval: sleep - 10*time.Millisecond,
-		FetchFunc: func(key string) (any, error) {
+		Fetcher: FuncFetcher(func(key string) (any, error) {
 			x := atomic.AddInt64(&count, 1)
 			return int(x), nil
-		},
+		}),
 	}
-	c := NewCache(opt)
+	c := newCacheWithTickInterval(opt, 10*time.Millisecond)
+	defer c.Close()
 
 	got := c.GetOrDefault("key", 10)
 	assert.Equal(t, 1, got)
@@ -255,12 +263,13 @@ func TestExpire(t *testing.T) {
 	opt := Options{
 		ExpireInterval:  3 * time.Minute,
 		RefreshInterval: time.Minute,
-		FetchFunc: func(key string) (any, error) {
+		Fetcher: FuncFetcher(func(key string) (any, error) {
 			trigger = true
 			return "", nil
-		},
+		}),
 	}
 	c := NewCache(opt)
+	defer c.Close()
 
 	// GetOrDefault cannot trigger fetch after SetDefault
 	c.SetDefault("default", "")
@@ -272,17 +281,17 @@ func TestExpire(t *testing.T) {
 	assert.True(t, trigger)
 
 	// first expire will mark entries as inactive
-	c.doExpire(time.Now(), true)
+	c.doExpire(true)
 
 	trigger = false
 	c.Get("alive")
 	assert.False(t, trigger)
 
 	// second expire, both default & expire will be removed
-	c.doExpire(time.Now(), true)
+	c.doExpire(true)
 
 	// make sure refresh does not affect expire
-	c.doRefresh(time.Now(), true)
+	c.doRefresh()
 
 	trigger = false
 	c.Get("alive")
