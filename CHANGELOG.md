@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 TBD.
 
+## [2.14.0] - 2024-02-07
+
+* Feat: support Go1.22 (#76)
+* Feat: [zlog] support color for console output (#74)
+* Fix: [zlog] multiFilesCore.Sync should sync all writers
+* Change: [perf/gopool] change defaultPool to not limit adhoc worker count
+* Change: refactor package [infra/acache] (#75)
+* Chore: add more tests
+
 ## [2.13.0] - 2024-02-03
 
 * Feat: [perf/gopool] minor improvements
