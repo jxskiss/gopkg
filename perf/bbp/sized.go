@@ -57,7 +57,7 @@ func Grow(buf []byte, n int, reuseBuf bool) []byte {
 	if cap(buf) >= len(buf)+n {
 		return buf
 	}
-	return growWithOptions(buf, len(buf)+n, reuseBuf)
+	return grow(buf, len(buf)+n, reuseBuf)
 }
 
 // -------- sized pools -------- //
@@ -121,11 +121,7 @@ func put(buf []byte) {
 	}
 }
 
-func grow(buf []byte, capacity int) []byte {
-	return growWithOptions(buf, capacity, true)
-}
-
-func growWithOptions(buf []byte, capacity int, reuseBuf bool) []byte {
+func grow(buf []byte, capacity int, reuseBuf bool) []byte {
 	var newBuf []byte
 	if capacity > maxBufSize {
 		newBuf = make([]byte, len(buf), capacity)

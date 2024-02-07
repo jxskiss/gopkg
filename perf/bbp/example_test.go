@@ -1,56 +1,61 @@
 package bbp
 
-import (
-	"fmt"
-	"testing"
-)
+import "fmt"
 
-func TestExampleGet(t *testing.T) {
-	buf := NewBuffer(50)
-	buf.WriteString("first line\n")
-	buf.Write([]byte("second line\n"))
+func ExampleGet() {
+	buf := Get(0, 50)
+	defer Put(buf)
 
-	fmt.Printf("buffer.B = %q\n", buf.Bytes())
+	buf = append(buf, "first line\n"...)
+	buf = append(buf, "second line\n"...)
 
-	// It is safe to release byte buffer now, since it is
-	// no longer used.
-	PutBuffer(buf)
+	fmt.Println(string(buf))
+
+	// Output:
+	// first line
+	// second line
 }
 
-func TestExampleGrow(t *testing.T) {
+func ExampleGrow() {
 	buf := []byte("first line\n")
 	buf = Grow(buf, 50, true)
 	buf = append(buf, "second line\n"...)
 
-	fmt.Printf("buffer.B = %q\n", buf)
-
-	// It is safe to release byte buffer now, since it is
-	// no longer used.
+	fmt.Println(string(buf))
 	Put(buf)
+
+	// Output:
+	// first line
+	// second line
 }
 
-func TestExamplePool(t *testing.T) {
+func ExamplePool() {
 	var pool Pool
 	buf := pool.GetBuffer()
+	defer PutBuffer(buf)
+
 	buf.WriteString("first line\n")
 	buf.Write([]byte("second line\n"))
 
-	fmt.Printf("buffer.B = %q\n", buf.Bytes())
+	fmt.Println(buf.String())
 
-	// It is safe to release byte buffer now, since it is
-	// no longer used.
-	PutBuffer(buf)
+	// Output:
+	// first line
+	// second line
 }
 
-func TestExampleBuffer(t *testing.T) {
+func ExampleBuffer() {
 	var buf Buffer
+	defer PutBuffer(&buf)
+
 	buf.WriteString("first line\n")
 	buf.Write([]byte("second line\n"))
 	buf.buf = append(buf.buf, "third line\n"...)
 
-	fmt.Printf("buffer.B = %q\n", buf.buf)
+	fmt.Println(buf.String())
 
-	// It is safe to release byte buffer now, since it is
-	// no longer used.
-	PutBuffer(&buf)
+	// Output:
+	// first line
+	// second line
+	// third line
 }

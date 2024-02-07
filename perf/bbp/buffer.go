@@ -51,7 +51,7 @@ func (b *Buffer) Grow(n int) {
 		panic("bbp.Buffer.Grow: negative size to grow")
 	}
 	if newCap := len(b.buf) + n; newCap > cap(b.buf) {
-		b.buf = grow(b.buf, newCap)
+		b.buf = grow(b.buf, newCap, true)
 	}
 }
 
@@ -68,7 +68,7 @@ func (b *Buffer) ReadFrom(r io.Reader) (int64, error) {
 	nStart := len(p)
 	nMax := cap(p)
 	n := nStart
-	if nMax == 0 {
+	if nMax == 0 || nMax == minBufSize {
 		nMax = MinRead
 		p = get(nMax, nMax)
 	} else {
@@ -77,7 +77,7 @@ func (b *Buffer) ReadFrom(r io.Reader) (int64, error) {
 	for {
 		if n == nMax {
 			nMax *= 2
-			p = grow(p, nMax)
+			p = grow(p, nMax, true)
 			p = p[:nMax]
 		}
 		nn, err := r.Read(p[n:])
@@ -135,7 +135,7 @@ func (b *Buffer) WriteStrings(s []string) (int, error) {
 	}
 	want := lenb + lens
 	if want > cap(b.buf) {
-		b.buf = grow(b.buf, want)
+		b.buf = grow(b.buf, want, true)
 	}
 	b.buf = b.buf[:want]
 	for _, x := range s {
