@@ -83,10 +83,10 @@ func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
 	return getImpl().Indent(dst, src, prefix, indent)
 }
 
-// MarshalFastest uses the fastest config when this library is configured
-// to use jsoniter or sonic.
-// The result is not compatible with std [encoding/json] in some ways,
-// especially that map keys are not sorted.
+// MarshalFastest uses the fastest config if the underlying implementation
+// supports it, e.g. jsoniter and sonic.
+// The result may be incompatible with std [encoding/json] in some ways,
+// especially that map keys may be not sorted.
 func MarshalFastest(v any) ([]byte, error) {
 	return getImpl().MarshalFastest(v)
 }
