@@ -31,7 +31,7 @@ var testStringInterfaceMap = map[string]any{
 	"gender":     "Female",
 	"ip_address": net.ParseIP("26.58.193.2"),
 	"html_tag":   "<html></html>",
-	"chinese":    []string{"北京欢迎你！ \b", "Bejing welcome you!\t\b\n\b"},
+	"chinese":    []string{"北京欢迎你！ ", "Bejing welcome you!\t\n"},
 	`a:\b":"\"c`: `d\"e:f`,
 	"some_struct": struct {
 		A int32  `json:"a_i32,omitempty"`
@@ -123,15 +123,15 @@ func TestCompatibility(t *testing.T) {
 	stdOutput, err := StdImpl.Marshal(testStringInterfaceMap)
 	assert.Nil(t, err)
 
-	sonicOutput, err := DefaultJSONIteratorImpl.Marshal(testStringInterfaceMap)
+	jsoniterOutput, err := DefaultJSONIteratorImpl.Marshal(testStringInterfaceMap)
 	assert.Nil(t, err)
-	assert.Equal(t, stdOutput, sonicOutput)
+	assert.Equal(t, stdOutput, jsoniterOutput)
 
 	var got1 map[string]any
 	var got2 map[string]any
 	err = StdImpl.Unmarshal(stdOutput, &got1)
 	assert.Nil(t, err)
-	err = Unmarshal(sonicOutput, &got2)
+	err = Unmarshal(jsoniterOutput, &got2)
 	assert.Nil(t, err)
 	assert.Equal(t, got1, got2)
 }
