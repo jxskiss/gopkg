@@ -7,7 +7,7 @@ type Ticker struct {
 }
 
 func New(d time.Duration, f func()) *Ticker {
-	timer := time.AfterFunc(time.Minute, f)
+	timer := time.AfterFunc(time.Hour, f)
 	timer.Stop()
 	ticker := (*time.Ticker)(timer)
 	ticker.Reset(d)
