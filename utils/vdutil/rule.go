@@ -50,7 +50,14 @@ func (e *ValidationError) Unwrap() error { return e.Err }
 // returned from the rules. If a rule returns an error, it returns
 // and the remaining rules are not executed.
 func Validate(ctx context.Context, rules ...Rule) (result *Result, err error) {
-	result = &Result{}
+	for _, r := range rules {
+		if rr, ok := r.(*useResult); ok {
+			result = (*Result)(rr)
+		}
+	}
+	if result == nil {
+		result = &Result{}
+	}
 	for _, rule := range rules {
 		_, err = rule.Validate(ctx, result)
 		if err != nil {
@@ -61,4 +68,15 @@ func Validate(ctx context.Context, rules ...Rule) (result *Result, err error) {
 		result.IsValidationError = errors.As(err, new(*ValidationError))
 	}
 	return result, err
+}
+
+// UseResult tells validating rules to use the given result.
+func UseResult(result *Result) Rule {
+	return (*useResult)(result)
+}
+
+type useResult Result
+
+func (*useResult) Validate(_ context.Context, _ *Result) (any, error) {
+	return nil, nil
 }

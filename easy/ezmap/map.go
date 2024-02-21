@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/spf13/cast"
 	"gopkg.in/yaml.v3"
 )
 
@@ -220,6 +221,8 @@ func (p Map) GetStrings(key string) []string {
 		switch val := val.(type) {
 		case []string:
 			return val
+		default:
+			return cast.ToStringSlice(val)
 		}
 	}
 	return nil
@@ -266,6 +269,16 @@ func (p Map) Iterate(fn func(k string, v any) int) {
 		if fn(k, v) != 0 {
 			return
 		}
+	}
+}
+
+// Merge merges key values from another map.
+func (p *Map) Merge(other map[string]any) {
+	if *p == nil {
+		*p = make(Map)
+	}
+	for k, v := range other {
+		(*p)[k] = v
 	}
 }
 

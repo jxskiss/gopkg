@@ -47,6 +47,51 @@ func TestGreaterThanZero(t *testing.T) {
 	assert.Contains(t, err.Error(), "testVar: value xyz is not integer")
 }
 
+func TestAllElementsGreaterThanZero(t *testing.T) {
+	t.Run("not integer", func(t *testing.T) {
+		slice := []string{"1", "xyz", "2"}
+		got, err := Validate(context.Background(),
+			AllElementsGreaterThanZero("testVar", slice, true))
+		require.NotNil(t, err)
+		require.NotNil(t, got)
+		assert.Contains(t, err.Error(), "slice has non-integer element")
+	})
+
+	t.Run("valid", func(t *testing.T) {
+		slice := []int{1, 2, 3}
+		got, err := Validate(context.Background(),
+			AllElementsGreaterThanZero("testVar", slice, true))
+		require.Nil(t, err)
+		assert.Equal(t, []int{1, 2, 3}, got.Data.MustGet("testVar"))
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		slice := []uint8{1, 2, 3, 0}
+		got, err := Validate(context.Background(),
+			AllElementsGreaterThanZero("testVar", slice, true))
+		require.NotNil(t, err)
+		require.NotNil(t, got)
+		assert.Contains(t, err.Error(), "slice element 0 <= 0")
+	})
+}
+
+func TestAllElementsNotZero(t *testing.T) {
+	t.Run("valid", func(t *testing.T) {
+		slice := []int32{1, 2}
+		_, err := Validate(context.Background(),
+			AllElementsNotZero("testVar", slice))
+		require.Nil(t, err)
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		slice := []string{"abc", ""}
+		_, err := Validate(context.Background(),
+			AllElementsNotZero("testVar", slice))
+		require.NotNil(t, err)
+		assert.Contains(t, err.Error(), "slice has zero element")
+	})
+}
+
 func TestLessThanOrEqual(t *testing.T) {
 	var vdErr *ValidationError
 

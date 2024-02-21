@@ -23,6 +23,76 @@ func GreaterThanZero[T IntegerOrString](name string, value T, save bool) RuleFun
 	return _greaterThanZero(name, value, save)
 }
 
+// AllElementsGreaterThanZero validates that all elements in slice
+// are greater than zero.
+// If save is true, the result integer slice will be saved to
+// Result.Data using name as key.
+func AllElementsGreaterThanZero[T IntegerOrString](name string, slice []T, save bool) RuleFunc {
+	var zero T
+	typ := reflect.TypeOf(zero)
+	switch typ.Kind() {
+	case reflect.String:
+		return func(ctx context.Context, result *Result) (any, error) {
+			out := make([]int64, 0, len(slice))
+			for _, elem := range slice {
+				i64Val, err := strconv.ParseInt(reflect.ValueOf(elem).String(), 10, 64)
+				if err != nil {
+					return nil, &ValidationError{Name: name, Err: fmt.Errorf("slice has non-integer element")}
+				}
+				if i64Val <= 0 {
+					return nil, &ValidationError{Name: name, Err: fmt.Errorf("slice element %v <= 0", elem)}
+				}
+			}
+			if save && name != "" {
+				result.Data.Set(name, out)
+			}
+			return out, nil
+		}
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return func(ctx context.Context, result *Result) (any, error) {
+			for _, elem := range slice {
+				i64Val := reflect.ValueOf(elem).Int()
+				if i64Val <= 0 {
+					return nil, &ValidationError{Name: name, Err: fmt.Errorf("slice element %v <= 0", elem)}
+				}
+			}
+			if save && name != "" {
+				result.Data.Set(name, slice)
+			}
+			return slice, nil
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return func(ctx context.Context, result *Result) (any, error) {
+			for _, elem := range slice {
+				u64Val := reflect.ValueOf(elem).Uint()
+				if u64Val <= 0 {
+					return nil, &ValidationError{Name: name, Err: fmt.Errorf("slice element %v <= 0", elem)}
+				}
+			}
+			if save && name != "" {
+				result.Data.Set(name, slice)
+			}
+			return slice, nil
+		}
+	default:
+		panic("bug: unreachable code")
+	}
+}
+
+// AllElementsNotZero validates that all elements in slice
+// are not equal to the zero value of type T.
+func AllElementsNotZero[T comparable](name string, slice []T) RuleFunc {
+	return func(ctx context.Context, result *Result) (any, error) {
+		var zero T
+		for _, elem := range slice {
+			if elem == zero {
+				return nil, &ValidationError{Name: name, Err: fmt.Errorf("slice has zero element")}
+			}
+		}
+		return nil, nil
+	}
+}
+
 func _greaterThanZero(name string, value any, save bool) RuleFunc {
 	rv := reflect.ValueOf(value)
 	switch rv.Kind() {
@@ -126,11 +196,11 @@ func InRangeMode[T constraints.Ordered](name string, mode RangeMode, min, max T,
 // ParseStrsToInt64Slice validates all elements in values are valid integer
 // and convert values to be an []int64 slice, the result slice will be
 // saved to Result.Data using name as key.
-func ParseStrsToInt64Slice(name string, values []string) RuleFunc {
+func ParseStrsToInt64Slice[T ~string](name string, values []T) RuleFunc {
 	return func(ctx context.Context, result *Result) (any, error) {
 		out := make([]int64, 0, len(values))
 		for _, v := range values {
-			intVal, err := strconv.ParseInt(v, 10, 64)
+			intVal, err := strconv.ParseInt(string(v), 10, 64)
 			if err != nil {
 				return nil, &ValidationError{Name: name, Err: fmt.Errorf("value %v is not integer", v)}
 			}
@@ -146,11 +216,11 @@ func ParseStrsToInt64Slice(name string, values []string) RuleFunc {
 // ParseStrsToInt64Map validates all elements in values are valid integer
 // and convert values to be a map[int64]bool, the result map will be
 // saved to Result.Data using name as key.
-func ParseStrsToInt64Map(name string, values []string) RuleFunc {
+func ParseStrsToInt64Map[T ~string](name string, values []T) RuleFunc {
 	return func(ctx context.Context, result *Result) (any, error) {
 		out := make(map[int64]bool, len(values))
 		for _, v := range values {
-			intVal, err := strconv.ParseInt(v, 10, 64)
+			intVal, err := strconv.ParseInt(string(v), 10, 64)
 			if err != nil {
 				return nil, &ValidationError{Name: name, Err: fmt.Errorf("value %v is not integer", v)}
 			}
