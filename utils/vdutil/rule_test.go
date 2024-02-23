@@ -47,3 +47,18 @@ func TestValidate(t *testing.T) {
 	require.NotNil(t, err)
 	require.False(t, got3.IsValidationError)
 }
+
+func TestUseResult(t *testing.T) {
+	ctx := context.Background()
+	got1, err := Validate(ctx, GreaterThanZero("var1", "10", true))
+	require.Nil(t, err)
+	require.NotNil(t, got1)
+
+	got2, err := Validate(ctx, UseResult(got1),
+		GreaterThanZero("var2", "20", true))
+	require.Nil(t, err)
+	require.NotNil(t, got2)
+	assert.Equal(t, got1, got2)
+	assert.Equal(t, int64(10), got2.Data.GetInt("var1"))
+	assert.Equal(t, int64(20), got2.Data.GetInt("var2"))
+}

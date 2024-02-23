@@ -22,6 +22,14 @@ func TestMap(t *testing.T) {
 		assert.True(t, exists2)
 		assert.Equal(t, "abc", val2)
 	})
+
+	t.Run("Merge", func(t *testing.T) {
+		m1 := Map{"abc": 123}
+		var m2 Map
+		m2.Merge(m1)
+		require.NotNil(t, m2)
+		assert.Equal(t, 123, m2.GetOr("abc", 0))
+	})
 }
 
 type dummyStruct struct {
