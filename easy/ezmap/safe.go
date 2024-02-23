@@ -87,8 +87,28 @@ func (p *SafeMap) GetBool(key string) bool {
 	return getWithRLock(&p.mu, p.map_.GetBool, key)
 }
 
-func (p *SafeMap) GetInt(key string) int64 {
+func (p *SafeMap) GetInt(key string) int {
 	return getWithRLock(&p.mu, p.map_.GetInt, key)
+}
+
+func (p *SafeMap) GetInt32(key string) int32 {
+	return getWithRLock(&p.mu, p.map_.GetInt32, key)
+}
+
+func (p *SafeMap) GetInt64(key string) int64 {
+	return getWithRLock(&p.mu, p.map_.GetInt64, key)
+}
+
+func (p *SafeMap) GetUint(key string) uint {
+	return getWithRLock(&p.mu, p.map_.GetUint, key)
+}
+
+func (p *SafeMap) GetUint32(key string) uint32 {
+	return getWithRLock(&p.mu, p.map_.GetUint32, key)
+}
+
+func (p *SafeMap) GetUint64(key string) uint64 {
+	return getWithRLock(&p.mu, p.map_.GetUint64, key)
 }
 
 func (p *SafeMap) GetFloat(key string) float64 {

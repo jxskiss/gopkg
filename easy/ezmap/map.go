@@ -86,12 +86,9 @@ func (p Map) MustGet(key string) any {
 
 // GetString returns the value associated with the key as a string.
 func (p Map) GetString(key string) string {
-	v := p[key]
-	if val, ok := v.(string); ok {
-		return val
-	}
-	if val, ok := v.([]byte); ok {
-		return string(val)
+	val, ok := p[key]
+	if ok {
+		return cast.ToString(val)
 	}
 	return ""
 }
@@ -114,27 +111,56 @@ func (p Map) GetBool(key string) bool {
 	return val
 }
 
-// GetInt returns the value associated with the key as an int64.
-func (p Map) GetInt(key string) int64 {
+// GetInt returns the value associated with the key as an int.
+func (p Map) GetInt(key string) int {
 	val, ok := p[key]
 	if ok {
-		switch v := val.(type) {
-		case int64:
-			return v
-		case json.Number:
-			num, _ := v.Int64()
-			return num
-		case string:
-			num, _ := strconv.ParseInt(v, 10, 64)
-			return num
-		}
-		typ := reflect.TypeOf(val)
-		switch typ.Kind() {
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			return reflect.ValueOf(val).Int()
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-			return int64(reflect.ValueOf(val).Uint())
-		}
+		return cast.ToInt(val)
+	}
+	return 0
+}
+
+// GetInt32 returns the value associated with the key as an int32.
+func (p Map) GetInt32(key string) int32 {
+	val, ok := p[key]
+	if ok {
+		return cast.ToInt32(val)
+	}
+	return 0
+}
+
+// GetInt64 returns the value associated with the key as an int64.
+func (p Map) GetInt64(key string) int64 {
+	val, ok := p[key]
+	if ok {
+		return cast.ToInt64(val)
+	}
+	return 0
+}
+
+// GetUint returns the value associated with the key as an uint.
+func (p Map) GetUint(key string) uint {
+	val, ok := p[key]
+	if ok {
+		return cast.ToUint(val)
+	}
+	return 0
+}
+
+// GetUint32 returns the value associated with the key as an uint32.
+func (p Map) GetUint32(key string) uint32 {
+	val, ok := p[key]
+	if ok {
+		return cast.ToUint32(val)
+	}
+	return 0
+}
+
+// GetUint64 returns the value associated with the key as an uint64.
+func (p Map) GetUint64(key string) uint64 {
+	val, ok := p[key]
+	if ok {
+		return cast.ToUint64(val)
 	}
 	return 0
 }

@@ -15,5 +15,9 @@ func TestSafeMap(t *testing.T) {
 	}()
 
 	assert.Equal(t, "value1", sm.MustGet("var1"))
+	assert.Equal(t, "value1", sm.GetString("var1"))
 	assert.Equal(t, 1234, sm.MustGet("var2"))
+	assert.Equal(t, 1234, sm.GetInt("var2"))
+	assert.Equal(t, int32(1234), sm.GetInt32("var2"))
+	assert.Equal(t, int64(1234), sm.GetInt64("var2"))
 }
