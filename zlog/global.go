@@ -135,19 +135,9 @@ func S() SugaredLogger { return SugaredLogger{SugaredLogger: globals.Default.S} 
 
 // Sync flushes any buffered log entries.
 func Sync() error {
-	if err := L().Sync(); err != nil {
-		return err
-	}
-	if err := S().Sync(); err != nil {
-		return err
-	}
-	if err := _l().Sync(); err != nil {
-		return err
-	}
-	if err := _s().Sync(); err != nil {
-		return err
-	}
-	return nil
+	// Since all global loggers share a same underlying core,
+	// calling L().Sync() is enough to flush all pending log messages.
+	return L().Sync()
 }
 
 // -------- global logging functions -------- //

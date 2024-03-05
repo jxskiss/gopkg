@@ -117,7 +117,8 @@ func (c *multiFilesCore) Write(ent zapcore.Entry, fields []zapcore.Field) error 
 		// Since we may be crashing the program, sync the output.
 		// Ignore Sync errors, pending a clean solution to issue
 		// https://github.com/uber-go/zap/issues/370.
-		out.Sync()
+		_ = c.Sync()
+		_ = Sync()
 	}
 	return nil
 }
