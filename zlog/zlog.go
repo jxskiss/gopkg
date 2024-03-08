@@ -52,14 +52,21 @@
 // NewLogfmtEncoder creates a [zapcore.Encoder] which encodes log in the "logfmt" format.
 // The returned encoder does not support [zapcore.ObjectMarshaler].
 //
-// # Logr Adapter
+// # "logr" Adapter
 //
-// This package also provides an adapter implementation to build a [logr.Logger].
+// This package provides an adapter implementation of [logr.LogSink]
+// to send logs from a [logr.Logger] to an underlying [zap.Logger].
 //
-// NewLogrLogger accepts an optional config, which can be a [*LogrConfig],
-// [Logger], [SugaredLogger], [*zap.Logger], [*zap.SugaredLogger],
-// or [context.Context], and creates a new logr.Logger using the [*zap.Logger],
-// default or constructed by the optional config, as the underlying LogSink.
+// NewLogrLogger accepts optional options and creates a new logr.Logger
+// using a [zap.Logger] as the underlying LogSink.
+//
+// # "slog" Adapter
+//
+// This package provides an adapter implementation of [slog.Handler]
+// to send logs from a [slog.Logger] to an underlying [zap.Logger].
+//
+// NewSlogLogger accepts optional options and creates a new slog.Logger
+// using a [zap.Logger] as the underlying Handler.
 //
 // # Example
 //
@@ -83,6 +90,12 @@
 //		zlog.L().Ctx(ctx) /* ... */
 //		zlog.S().Ctx(ctx) /* ... */
 //		zlog.WithCtx(ctx) /* ... */
+//
+//		// logr
+//		logger := zlog.NewLogrLogger( /* ... */ )
+//
+//		// slog
+//		logger := zlog.NewSlogLogger( /* ... */ )
 //
 //		// ......
 //	}

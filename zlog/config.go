@@ -174,7 +174,7 @@ type Config struct {
 	GlobalConfig `yaml:",inline"`
 }
 
-func (cfg *Config) checkAndFillDefaults() *Config {
+func checkAndFillDefaults(cfg *Config) *Config {
 	if cfg == nil {
 		cfg = &Config{}
 	}
@@ -261,7 +261,7 @@ func (cfg *Config) buildOptions() ([]zap.Option, error) {
 // to change the global logger and customize some global behavior of this
 // package.
 func New(cfg *Config, opts ...zap.Option) (*zap.Logger, *Properties, error) {
-	cfg = cfg.checkAndFillDefaults()
+	cfg = checkAndFillDefaults(cfg)
 	var err error
 	var output zapcore.WriteSyncer
 	var closer func()
@@ -323,6 +323,7 @@ func newWithMultiFilesOutput(cfg *Config, opts ...zap.Option) (*zap.Logger, *Pro
 		runClosers(closers)
 		return nil, nil, err
 	}
+	p.disableCaller = cfg.DisableCaller
 	p.closers = closers
 	return l, p, nil
 }
@@ -335,8 +336,7 @@ func newWithMultiFilesOutput(cfg *Config, opts ...zap.Option) (*zap.Logger, *Pro
 // to change the global logger and customize some global behavior of this
 // package.
 func NewWithOutput(cfg *Config, output zapcore.WriteSyncer, opts ...zap.Option) (*zap.Logger, *Properties, error) {
-	cfg = cfg.checkAndFillDefaults()
-
+	cfg = checkAndFillDefaults(cfg)
 	isStderr := false
 	if wrapper, ok := output.(*wrapStderr); ok {
 		isStderr = true
@@ -367,7 +367,11 @@ func NewWithOutput(cfg *Config, output zapcore.WriteSyncer, opts ...zap.Option) 
 		Hooks:           cfg.Hooks,
 		GlobalConfig:    cfg.GlobalConfig,
 	}
-	return newWithWrapCoreConfig(wcc, core, opts...)
+	l, p, err := newWithWrapCoreConfig(wcc, core, opts...)
+	if err == nil {
+		p.disableCaller = cfg.DisableCaller
+	}
+	return l, p, err
 }
 
 type WrapCoreConfig struct {

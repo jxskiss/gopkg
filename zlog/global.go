@@ -26,10 +26,11 @@ func init() {
 
 // Properties holds some information about the global config and logger.
 type Properties struct {
-	cfg         GlobalConfig
-	level       zap.AtomicLevel
-	traceFilter *logfilter.FileNameFilter
-	closers     []func()
+	cfg           GlobalConfig
+	disableCaller bool
+	level         zap.AtomicLevel
+	traceFilter   *logfilter.FileNameFilter
+	closers       []func()
 }
 
 // CloseWriters close all writers associated with this Properties object.
@@ -43,7 +44,7 @@ func (p *Properties) setupGlobals() func() {
 	}
 	var resetStdLog = func() {}
 	if p.cfg.RedirectStdLog {
-		resetStdLog = RedirectStdLog(L().Logger.Named("stdlog"))
+		resetStdLog = redirectStdLog(L().Logger, p.disableCaller)
 	}
 	p.compileTraceFilter()
 	globals.Level.Store(int32(p.level.Level()))
