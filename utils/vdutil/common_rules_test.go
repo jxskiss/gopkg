@@ -25,12 +25,12 @@ func TestGreaterThanZero(t *testing.T) {
 	got1, err := Validate(context.Background(),
 		GreaterThanZero("testVar", int64(100), true))
 	require.Nil(t, err)
-	assert.Equal(t, int64(100), got1.Data.GetInt("testVar"))
+	assert.Equal(t, 100, got1.Data.GetInt("testVar"))
 
 	got2, err := Validate(context.Background(),
 		GreaterThanZero("testVar", "100", true))
 	require.Nil(t, err)
-	assert.Equal(t, int64(100), got2.Data.GetInt("testVar"))
+	assert.Equal(t, int32(100), got2.Data.GetInt32("testVar"))
 
 	got3, err := Validate(context.Background(),
 		GreaterThanZero("testVar", "0", true))

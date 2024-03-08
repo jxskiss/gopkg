@@ -59,6 +59,6 @@ func TestUseResult(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, got2)
 	assert.Equal(t, got1, got2)
-	assert.Equal(t, int64(10), got2.Data.GetInt("var1"))
-	assert.Equal(t, int64(20), got2.Data.GetInt("var2"))
+	assert.Equal(t, 10, got2.Data.GetInt("var1"))
+	assert.Equal(t, int64(20), got2.Data.GetInt64("var2"))
 }
