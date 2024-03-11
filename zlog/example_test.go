@@ -28,10 +28,10 @@ func testHelperReplaceGlobalsToStdout(ctxFunc func(ctx context.Context) CtxResul
 	return ReplaceGlobals(l, p)
 }
 
-func ExampleWithFields() {
+func ExampleWith() {
 	defer testHelperReplaceGlobalsToStdout(nil)()
 
-	WithFields(zap.String("k1", "v1"), zap.Int64("k2", 54321)).
+	With(zap.String("k1", "v1"), zap.Int64("k2", 54321)).
 		Info("example with")
 
 	// Output:

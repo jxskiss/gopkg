@@ -37,7 +37,7 @@
 // to a Context (see [AddFields], [CtxHandler]), or add a pre-built logger
 // to a Context (see [WithLogger]), or set a Context to use dynamic level
 // (see [CtxHandler]), either smaller or greater than the base logger.
-// Functions [Logger.Ctx], [SugaredLogger.Ctx] and [WithCtx], [SWithCtx]
+// Functions [Logger.Ctx], [SugaredLogger.Ctx] and [WithCtx]
 // create child loggers with contextual information retrieved from a Context.
 //
 // # Multi-files Support
@@ -75,15 +75,14 @@
 //		// Use the loggers ...
 //		zlog.L() /* ... */
 //		zlog.S() /* ... */
-//		zlog.WithFields( ... ) /* ... */
-//		zlog.SWithFields( ... ) /* ... */
+//		zlog.With( ... ) /* ... */
+//		zlog.SugaredWith( ... ) /* ... */
 //
 //		// Use with context integration.
 //		ctx = zlog.AddFields(ctx, ... ) // or ctx = zlog.WithLogger( ... )
 //		zlog.L().Ctx(ctx) /* ... */
 //		zlog.S().Ctx(ctx) /* ... */
 //		zlog.WithCtx(ctx) /* ... */
-//		zlog.SWithCtx(ctx) /* ... */
 //
 //		// ......
 //	}
@@ -251,19 +250,19 @@ func getCaller(skip int) (funcName, fullFileName, simpleFileName string, line in
 	return
 }
 
-// WithFields creates a child logger and adds structured context to it.
+// With creates a child logger and adds structured context to it.
 // Fields added to the child don't affect the parent, and vice versa.
-func WithFields(fields ...zap.Field) Logger {
+func With(fields ...zap.Field) Logger {
 	return L().With(fields...)
 }
 
-// SWithFields creates a child logger and adds a variadic number of fields
+// SugaredWith creates a child logger and adds a variadic number of fields
 // to the logging context.
 // Fields added to the child don't affect the parent, and vice versa.
 //
 // It accepts a mix of strongly-typed Field objects and loosely-typed
 // key-value pairs. When processing pairs, the first element of the pair
 // is used as the field key and the second as the field value.
-func SWithFields(args ...any) SugaredLogger {
+func SugaredWith(args ...any) SugaredLogger {
 	return S().With(args...)
 }

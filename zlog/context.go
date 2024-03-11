@@ -24,9 +24,8 @@ type CtxHandler struct {
 		ChangeLevel func(ctx context.Context) *Level
 	*/
 
-	// WithCtx is called by Logger.Ctx, SugaredLogger.Ctx and
-	// global functions WithCtx and SWithCtx to check ctx for additional
-	// logging data.
+	// WithCtx is called by Logger.Ctx, SugaredLogger.Ctx and the global
+	// function WithCtx to check ctx for context-aware information.
 	// It returns CtxResult to customize the logger's behavior.
 	WithCtx func(ctx context.Context) CtxResult
 }
@@ -41,7 +40,7 @@ type CtxResult struct {
 }
 
 // AddFields add logging fields to ctx which can be retrieved by
-// GetFields, WithCtx, SWithCtx.
+// GetFields, WithCtx.
 // Duplicate fields override the old ones in ctx.
 func AddFields(ctx context.Context, fields ...zap.Field) context.Context {
 	if len(fields) == 0 {
@@ -64,7 +63,7 @@ func GetFields(ctx context.Context) []zap.Field {
 }
 
 // WithLogger returns a new context.Context with logger attached,
-// which can be retrieved by WithCtx, SWithCtx.
+// which can be retrieved by WithCtx.
 func WithLogger[T Logger | SugaredLogger | *zap.Logger | *zap.SugaredLogger](
 	ctx context.Context, logger T) context.Context {
 	ctx = context.WithValue(ctx, loggerKey, logger)
@@ -104,25 +103,11 @@ func (l Logger) Ctx(ctx context.Context, extra ...zap.Field) Logger {
 // from ctx, adds CtxResult.Fields to the child logger and changes
 // the logger's level to CtxResult.Level, if it is not nil.
 func (s SugaredLogger) Ctx(ctx context.Context, extra ...zap.Field) SugaredLogger {
-	if ctx == nil {
-		return s.WithOptions(zap.Fields(extra...))
-	}
-	var fields []zap.Field
-	logger := s
 	ctxFunc := globals.Props.cfg.CtxHandler.WithCtx
-	if ctxFunc != nil {
-		ctxResult := ctxFunc(ctx)
-		fields = ctxResult.Fields
-		if ctxResult.Level != nil {
-			logger = logger.WithOptions(zap.WrapCore(changeLevel(*ctxResult.Level)))
-		}
+	if (ctx == nil || ctxFunc == nil) && len(extra) == 0 {
+		return s
 	}
-	fields = appendFields(fields, GetFields(ctx))
-	fields = appendFields(fields, extra)
-	if len(fields) > 0 {
-		logger = logger.WithOptions(zap.Fields(fields...))
-	}
-	return logger
+	return s.Desugar().Ctx(ctx, extra...).Sugar()
 }
 
 // WithCtx creates a child logger and customizes its behavior using context
@@ -136,7 +121,7 @@ func (s SugaredLogger) Ctx(ctx context.Context, extra ...zap.Field) SugaredLogge
 // Also see WithLogger, CtxHandler and CtxResult for more details.
 func WithCtx(ctx context.Context, extra ...zap.Field) Logger {
 	if ctx == nil {
-		return WithFields(extra...)
+		return With(extra...)
 	}
 	if lg := getLoggerFromCtx(ctx); lg != nil {
 		var logger Logger
@@ -155,41 +140,6 @@ func WithCtx(ctx context.Context, extra ...zap.Field) Logger {
 		}
 	}
 	return L().Ctx(ctx, extra...)
-}
-
-// SWithCtx creates a child logger and customizes its behavior using context
-// data (e.g. adding fields, dynamically changing level, etc.)
-//
-// If ctx is created by WithLogger, it carries a logger instance,
-// this function uses that logger as a base to create the child logger,
-// else it calls SugaredLogger.Ctx to build the child logger with
-// contextual fields and optional dynamic level from ctx.
-//
-// Also see WithLogger, CtxHandler and CtxResult for more details.
-func SWithCtx(ctx context.Context, extra ...zap.Field) SugaredLogger {
-	if ctx == nil {
-		return S().WithOptions(zap.Fields(extra...))
-	}
-	if lg := getLoggerFromCtx(ctx); lg != nil {
-		var logger SugaredLogger
-		switch x := lg.(type) {
-		case Logger:
-			logger = x.Sugar()
-		case SugaredLogger:
-			logger = x
-		case *zap.Logger:
-			logger = SugaredLogger{SugaredLogger: x.Sugar()}
-		case *zap.SugaredLogger:
-			logger = SugaredLogger{SugaredLogger: x}
-		}
-		if logger.SugaredLogger != nil {
-			if len(extra) > 0 {
-				logger = logger.WithOptions(zap.Fields(extra...))
-			}
-			return logger
-		}
-	}
-	return S().Ctx(ctx, extra...)
 }
 
 //nolint:predeclared
