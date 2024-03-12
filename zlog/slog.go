@@ -86,7 +86,7 @@ type SlogOptions struct {
 	// in groups are not.
 	// The first argument is a list of currently open groups that added by
 	// [slog.Logger.WithGroup].
-	ReplaceAttr func(groups []string, a slog.Attr) ReplaceResult
+	ReplaceAttr func(groups []string, a slog.Attr) (rr ReplaceResult)
 }
 
 // ReplaceResult is a result returned by SlogOptions.ReplaceAttr.
@@ -119,7 +119,7 @@ func (h *slogImpl) Enabled(ctx context.Context, level slog.Level) bool {
 		return h.l.Core().Enabled(zLevel)
 	}
 	if ctxLevel := ctxFunc(ctx); ctxLevel != nil {
-		return ctxLevel.Enabled(*ctxLevel)
+		return ctxLevel.Enabled(zLevel)
 	}
 	return h.l.Core().Enabled(zLevel)
 }
