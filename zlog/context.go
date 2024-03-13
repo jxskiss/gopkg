@@ -17,12 +17,10 @@ const (
 // CtxHandler customizes a logger's behavior at runtime dynamically.
 type CtxHandler struct {
 
-	/*
-		// ChangeLevel returns a non-nil Level if it wants to change
-		// the logger's logging level according to ctx.
-		// It returns nil to keep the logger's logging level as-is.
-		ChangeLevel func(ctx context.Context) *Level
-	*/
+	// ChangeLevel returns a non-nil Level if it wants to change
+	// the logger's logging level according to ctx.
+	// It returns nil to keep the logger's logging level as-is.
+	ChangeLevel func(ctx context.Context) *Level
 
 	// WithCtx is called by Logger.Ctx, SugaredLogger.Ctx and the global
 	// function WithCtx to check ctx for context-aware information.

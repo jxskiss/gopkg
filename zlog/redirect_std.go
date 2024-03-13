@@ -9,7 +9,9 @@ import (
 	"go.uber.org/zap"
 )
 
-// RedirectStdLog redirects output from the standard library's package-global
+var replaceSlogDefault func(l *zap.Logger, disableCaller bool) func()
+
+// redirectStdLog redirects output from the standard library's package-global
 // logger to the supplied logger, it detects level from the logging messages,
 // or use InfoLevel as default.
 // Since zap already handles caller annotations, timestamps, etc.,
@@ -17,24 +19,33 @@ import (
 //
 // It returns a function to restore the original prefix and flags and reset the
 // standard library's output to os.Stderr.
-func RedirectStdLog(l *zap.Logger) func() {
-	flags := log.Flags()
-	prefix := log.Prefix()
+func redirectStdLog(l *zap.Logger, disableCaller bool) func() {
+	resetPkgSlog := func() {}
+	if replaceSlogDefault != nil {
+		resetPkgSlog = replaceSlogDefault(l, disableCaller)
+	}
+	resetPkgLog := replaceLogDefault(l)
+	return func() {
+		resetPkgSlog()
+		resetPkgLog()
+	}
+}
+
+func replaceLogDefault(l *zap.Logger) func() {
+	oldFlag := log.Flags()
+	oldPrefix := log.Prefix()
 	log.SetFlags(0)
 	log.SetPrefix("")
-	logger := l.WithOptions(zap.AddCallerSkip(3))
-	log.SetOutput(&stdLogWriter{logger, InfoLevel})
+	log.SetOutput((*stdLogWriter)(
+		l.Named("stdlog").WithOptions(zap.AddCallerSkip(3))))
 	return func() {
-		log.SetFlags(flags)
-		log.SetPrefix(prefix)
+		log.SetFlags(oldFlag)
+		log.SetPrefix(oldPrefix)
 		log.SetOutput(os.Stderr)
 	}
 }
 
-type stdLogWriter struct {
-	l     *zap.Logger
-	level Level
-}
+type stdLogWriter zap.Logger
 
 func (l *stdLogWriter) Write(p []byte) (int, error) {
 	n := len(p)
@@ -42,9 +53,9 @@ func (l *stdLogWriter) Write(p []byte) (int, error) {
 	str := string(p)
 	level, ok := detectLevel(str)
 	if !ok {
-		level = l.level
+		level = InfoLevel
 	}
-	l.l.Log(level, str)
+	(*zap.Logger)(l).Log(level, str)
 	return n, nil
 }
 

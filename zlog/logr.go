@@ -1,7 +1,6 @@
 package zlog
 
 import (
-	"context"
 	"fmt"
 	"reflect"
 
@@ -10,54 +9,47 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-var _ logr.LogSink = &logrImpl{}
-var _ logr.CallDepthLogSink = &logrImpl{}
+var _ logr.LogSink = (*logrImpl)(nil)
+var _ logr.CallDepthLogSink = (*logrImpl)(nil)
 
 // NewLogrLogger creates a new logr.Logger.
-// optionalConfig can be used to customize the behavior of the returned logger,
-// either a *LogrConfig, Logger, SugaredLogger, *zap.Logger, *zap.SugaredLogger,
-// or context.Context can be used as optional config.
-func NewLogrLogger(optionalConfig ...any) logr.Logger {
-	cfg := resolveLogrConfig(optionalConfig)
-	l := cfg.Logger.WithOptions(zap.AddCallerSkip(1))
-	r := &logrImpl{c: cfg, l: l}
-	return logr.New(r)
+func NewLogrLogger(options ...func(*LogrOptions)) logr.Logger {
+	opts := newLogrOptions(options)
+	l := opts.Logger.WithOptions(zap.AddCallerSkip(1))
+	sink := &logrImpl{opts: opts, l: l}
+	return logr.New(sink)
 }
 
-func resolveLogrConfig(optionalConfig []any) *LogrConfig {
-	cfg := &LogrConfig{DPanicOnInvalidLog: true}
-	if len(optionalConfig) > 0 {
-		switch x := optionalConfig[0].(type) {
-		case LogrConfig:
-			cfg = &x
-		case *LogrConfig:
-			cfg = x
-		case Logger:
-			cfg.Logger = x.Logger
-		case SugaredLogger:
-			cfg.Logger = x.SugaredLogger.Desugar()
-		case *zap.Logger:
-			cfg.Logger = x
-		case *zap.SugaredLogger:
-			cfg.Logger = x.Desugar()
-		case context.Context:
-			cfg.Logger = WithCtx(x).Logger
-		}
+func newLogrOptions(options []func(*LogrOptions)) *LogrOptions {
+	opts := &LogrOptions{
+		DPanicOnInvalidLog: true,
 	}
-	cfg.setDefaults()
-	return cfg
+	for _, f := range options {
+		f(opts)
+	}
+	// Set defaults.
+	if opts.ErrorKey == "" {
+		opts.ErrorKey = "error"
+	}
+	if opts.Logger == nil {
+		opts.Logger = L().Logger
+	}
+	return opts
 }
 
-// LogrConfig customizes the behavior of logr logger created by R.
-type LogrConfig struct {
+// LogrOptions customizes the behavior of logr logger created by NewLogrLogger.
+type LogrOptions struct {
+	// Logger optionally configures a zap.Logger to use instead of
+	// the default logger.
+	Logger *zap.Logger
 
 	// ErrorKey replaces the default "error" field name used for the error
 	// in Logger.Error calls.
-	ErrorKey string `json:"errorKey" yaml:"errorKey"`
+	ErrorKey string
 
 	// NumericLevelKey controls whether the numeric logr level is
 	// added to each Info log message and the field key to use.
-	NumericLevelKey string `json:"numericLevelKey" yaml:"numericLevelKey"`
+	NumericLevelKey string
 
 	// DPanicOnInvalidLog controls whether extra log messages are emitted
 	// for invalid log calls with zap's DPanic method.
@@ -67,25 +59,12 @@ type LogrConfig struct {
 	// The log messages explain why a call was invalid (for example,
 	// non-string key, mismatched key-values pairs, etc.).
 	// This is enabled by default.
-	DPanicOnInvalidLog bool `json:"dpanicOnInvalidLog" yaml:"dpanicOnInvalidLog"`
-
-	// Logger optionally configures a zap.Logger to use instead of
-	// the default logger.
-	Logger *zap.Logger `json:"-" yaml:"-"`
-}
-
-func (c *LogrConfig) setDefaults() {
-	if c.ErrorKey == "" {
-		c.ErrorKey = "error"
-	}
-	if c.Logger == nil {
-		c.Logger = L().Logger
-	}
+	DPanicOnInvalidLog bool
 }
 
 type logrImpl struct {
-	c *LogrConfig
-	l *zap.Logger
+	opts *LogrOptions
+	l    *zap.Logger
 }
 
 func (r *logrImpl) Init(ri logr.RuntimeInfo) {
@@ -99,14 +78,14 @@ const (
 
 // handleFields is a slightly modified version of zap.SugaredLogger.sweetenFields.
 func (r *logrImpl) handleFields(lv int, args []any, additional ...zap.Field) []zap.Field {
-	injectNumLevel := r.c.NumericLevelKey != "" && lv != noLevel
+	injectNumLevel := r.opts.NumericLevelKey != "" && lv != noLevel
 
 	if len(args) == 0 {
 		// fast-return if we have no sugared fields and no "v" field
 		if !injectNumLevel {
 			return additional
 		}
-		return append(additional, zap.Int(r.c.NumericLevelKey, lv))
+		return append(additional, zap.Int(r.opts.NumericLevelKey, lv))
 	}
 
 	// Unlike Zap, we can be pretty sure users aren't passing structured.
@@ -118,7 +97,7 @@ func (r *logrImpl) handleFields(lv int, args []any, additional ...zap.Field) []z
 	}
 	fields := make([]zap.Field, 0, numFields)
 	if injectNumLevel {
-		fields = append(fields, zap.Int(r.c.NumericLevelKey, lv))
+		fields = append(fields, zap.Int(r.opts.NumericLevelKey, lv))
 	}
 	for i := 0; i < len(args); {
 		// Check just in case for strongly-typed Zap fields,
@@ -132,7 +111,7 @@ func (r *logrImpl) handleFields(lv int, args []any, additional ...zap.Field) []z
 
 		// Make sure this isn't a mismatched key.
 		if i == len(args)-1 {
-			if r.c.DPanicOnInvalidLog {
+			if r.opts.DPanicOnInvalidLog {
 				r.l.WithOptions(zap.AddCallerSkip(1)).
 					DPanic("odd number of arguments passed as key-value pairs for logging", toZapField("ignoredKey", args[i]))
 			}
@@ -144,7 +123,7 @@ func (r *logrImpl) handleFields(lv int, args []any, additional ...zap.Field) []z
 		key, val := args[i], args[i+1]
 		rvKey := reflect.ValueOf(key)
 		if rvKey.Kind() != reflect.String {
-			if r.c.DPanicOnInvalidLog {
+			if r.opts.DPanicOnInvalidLog {
 				r.l.WithOptions(zap.AddCallerSkip(1)).
 					DPanic("non-string key passed to logging, ignoring all later arguments", toZapField("invalidKey", key))
 			}
@@ -199,7 +178,7 @@ func (r *logrImpl) Info(lv int, msg string, keyAndVals ...any) {
 
 func (r *logrImpl) Error(err error, msg string, keyAndVals ...any) {
 	if ce := r.l.Check(zap.ErrorLevel, msg); ce != nil {
-		ce.Write(r.handleFields(noLevel, keyAndVals, zap.NamedError(r.c.ErrorKey, err))...)
+		ce.Write(r.handleFields(noLevel, keyAndVals, zap.NamedError(r.opts.ErrorKey, err))...)
 	}
 }
 

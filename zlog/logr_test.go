@@ -32,34 +32,33 @@ func newTestLogrLogger(lv Level, w io.Writer) *zap.Logger {
 
 func TestNewLogrLogger(t *testing.T) {
 	r0 := NewLogrLogger()
-	assert.NotNil(t, r0.GetSink().(*logrImpl).c)
+	assert.NotNil(t, r0.GetSink().(*logrImpl).opts)
 	assert.NotNil(t, r0.GetSink().(*logrImpl).l)
 
-	cfg := &LogrConfig{
-		ErrorKey: "err",
-	}
-	r1 := NewLogrLogger(cfg)
-	assert.Equal(t, cfg, r1.GetSink().(*logrImpl).c)
+	r1 := NewLogrLogger(func(opts *LogrOptions) {
+		opts.ErrorKey = "err"
+	})
+	assert.Equal(t, "err", r1.GetSink().(*logrImpl).opts.ErrorKey)
 	assert.NotNil(t, r1.GetSink().(*logrImpl).l)
-	r11 := NewLogrLogger(*cfg)
-	assert.Equal(t, "err", r11.GetSink().(*logrImpl).c.ErrorKey)
+	r11 := NewLogrLogger(func(opts *LogrOptions) {
+		opts.ErrorKey = "err"
+	})
+	assert.Equal(t, "err", r11.GetSink().(*logrImpl).opts.ErrorKey)
 	assert.NotNil(t, r1.GetSink().(*logrImpl).l)
 
 	l := L().With(zap.String("ns", "default"))
-	s := l.Sugar()
-	r2 := NewLogrLogger(l)
-	r2.Info("test NewLogrLogger(*zap.Logger)")
-	r3 := NewLogrLogger(s)
-	r3.Info("test NewLogrLogger(*zap.SugaredLogger)")
+	r2 := NewLogrLogger(func(opts *LogrOptions) {
+		opts.Logger = l.Logger
+	})
+	r2.Info("test NewLogrLogger with logger")
 }
 
 func TestLogrLoggerInfo(t *testing.T) {
 	var buffer bytes.Buffer
 	writer := bufio.NewWriter(&buffer)
 	zl := newTestLogrLogger(TraceLevel, writer)
-	testLogger := NewLogrLogger(&LogrConfig{
-		DPanicOnInvalidLog: true,
-		Logger:             zl,
+	testLogger := NewLogrLogger(func(opts *LogrOptions) {
+		opts.Logger = zl
 	})
 
 	testLogger.Info("test info", "ns", "default", "podnum", 2)
@@ -110,10 +109,10 @@ func TestLogrLoggerError(t *testing.T) {
 			var buffer bytes.Buffer
 			writer := bufio.NewWriter(&buffer)
 			zl := newTestLogrLogger(InfoLevel, writer)
-			testLogger := NewLogrLogger(&LogrConfig{
-				ErrorKey:        logErrKey,
-				NumericLevelKey: "v",
-				Logger:          zl,
+			testLogger := NewLogrLogger(func(opts *LogrOptions) {
+				opts.ErrorKey = logErrKey
+				opts.NumericLevelKey = "v"
+				opts.Logger = zl
 			})
 
 			// Errors always get logged, regardless of log levels.
@@ -134,10 +133,9 @@ func TestLogrLoggerError(t *testing.T) {
 func TestLogrLoggerEnabled(t *testing.T) {
 	for i := 0; i < 11; i++ {
 		t.Run(fmt.Sprintf("logger level %d", i), func(t *testing.T) {
-			cfg := &LogrConfig{
-				Logger: newTestLogrLogger(Level(-i), nil),
-			}
-			testLogger := NewLogrLogger(cfg)
+			testLogger := NewLogrLogger(func(opts *LogrOptions) {
+				opts.Logger = newTestLogrLogger(Level(-i), nil)
+			})
 
 			for j := 0; j <= 128; j++ {
 				shouldBeEnabled := i >= j
@@ -175,11 +173,10 @@ func TestLogrNumericLevel(t *testing.T) {
 			for i := 0; i < 4; i++ {
 				var buffer bytes.Buffer
 				writer := bufio.NewWriter(&buffer)
-				cfg := &LogrConfig{
-					NumericLevelKey: logNumKey,
-					Logger:          newTestLogrLogger(Level(-100), writer),
-				}
-				testLogger := NewLogrLogger(cfg)
+				testLogger := NewLogrLogger(func(opts *LogrOptions) {
+					opts.NumericLevelKey = logNumKey
+					opts.Logger = newTestLogrLogger(Level(-100), writer)
+				})
 
 				testLogger.V(i).Info("test", "ns", "default", "podnum", 2)
 				err := writer.Flush()
