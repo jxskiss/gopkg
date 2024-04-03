@@ -128,6 +128,9 @@ type Request struct {
 	// if both available, only `CheckRedirect` takes effect.
 	CheckRedirect func(req *http.Request, via []*http.Request) error
 
+	// DiscardResponseBody makes the http response body being discarded.
+	DiscardResponseBody bool
+
 	// DumpRequest makes the http request being logged before sent.
 	DumpRequest bool
 
@@ -454,9 +457,16 @@ func Do(req *Request) (header http.Header, respContent []byte, status int, err e
 		dumpFunc("[DEBUG] ezhttp: dump HTTP response:\n%s", dump)
 	}
 
-	respContent, err = io.ReadAll(httpResp.Body)
-	if err != nil {
-		return header, respContent, status, err
+	if req.DiscardResponseBody {
+		_, err = io.Copy(io.Discard, httpResp.Body)
+		if err != nil {
+			return header, respContent, status, err
+		}
+	} else {
+		respContent, err = io.ReadAll(httpResp.Body)
+		if err != nil {
+			return header, respContent, status, err
+		}
 	}
 	if req.RaiseForStatus {
 		if httpResp.StatusCode >= 400 {

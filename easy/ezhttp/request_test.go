@@ -12,6 +12,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func testHttpHandler(w http.ResponseWriter, r *http.Request) {
+	dump, err := httputil.DumpRequest(r, true)
+	if err != nil {
+		panic(err)
+	}
+	w.Write(dump)
+}
+
 func TestDo(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(testHttpHandler))
 	defer s.Close()
@@ -34,12 +42,21 @@ func TestDo(t *testing.T) {
 	assert.Contains(t, string(respText), data)
 }
 
-func testHttpHandler(w http.ResponseWriter, r *http.Request) {
-	dump, err := httputil.DumpRequest(r, true)
-	if err != nil {
-		panic(err)
-	}
-	w.Write(dump)
+func TestDiscardResponseBody(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(testHttpHandler))
+	defer s.Close()
+	data := "test DiscardResponseBody"
+
+	_, respText, status, err := Do(&Request{
+		Method:              http.MethodGet,
+		URL:                 s.URL,
+		Body:                data,
+		DiscardResponseBody: true,
+	})
+
+	require.Nil(t, err)
+	assert.Equal(t, 200, status)
+	assert.Equal(t, "", string(respText))
 }
 
 func TestMergeRequest(t *testing.T) {
