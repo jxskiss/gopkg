@@ -9,11 +9,11 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/spf13/cast v1.6.0
 	github.com/stretchr/testify v1.8.4
-	github.com/tidwall/gjson v1.17.0
-	go.uber.org/multierr v1.10.0
-	go.uber.org/zap v1.26.0
+	github.com/tidwall/gjson v1.17.1
+	go.uber.org/multierr v1.11.0
+	go.uber.org/zap v1.27.0
 	golang.org/x/sync v0.6.0
-	golang.org/x/sys v0.16.0
+	golang.org/x/sys v0.18.0
 	google.golang.org/protobuf v1.33.0
 	gopkg.in/yaml.v3 v3.0.1
 )
