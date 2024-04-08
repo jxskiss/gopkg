@@ -7,7 +7,7 @@ import (
 )
 
 // IdentifyPanic reports the panic location when a panic happens.
-func IdentifyPanic(extraSkip int) string {
+func IdentifyPanic(skip int) (location string, frames []runtime.Frame) {
 	var name, file string
 	var line int
 	var pc [16]uintptr
@@ -24,21 +24,30 @@ func IdentifyPanic(extraSkip int) string {
 	// returned PCs, since these cannot account for inlining or return
 	// program counter adjustment.
 
-	n := runtime.Callers(3+extraSkip, pc[:])
-	frames := runtime.CallersFrames(pc[:n])
-	for {
-		f, more := frames.Next()
-		name, file, line = f.Function, f.File, f.Line
-		if !more || !strings.HasPrefix(name, "runtime.") {
-			break
+	n := runtime.Callers(3+skip, pc[:])
+	if n > 0 {
+		callerFrames := runtime.CallersFrames(pc[:n])
+		foundLoc := false
+		frames = make([]runtime.Frame, 0, n)
+		for {
+			f, more := callerFrames.Next()
+			frames = append(frames, f)
+			if !foundLoc {
+				name, file, line = f.Function, f.File, f.Line
+				foundLoc = !strings.HasPrefix(name, "runtime.")
+			}
+			if !more {
+				break
+			}
 		}
 	}
 	switch {
 	case name != "":
-		return fmt.Sprintf("%v:%v", name, line)
+		location = fmt.Sprintf("%v:%v", name, line)
 	case file != "":
-		return fmt.Sprintf("%v:%v", file, line)
+		location = fmt.Sprintf("%v:%v", file, line)
+	default:
+		location = fmt.Sprintf("pc:%x", pc)
 	}
-
-	return fmt.Sprintf("pc:%x", pc)
+	return location, frames
 }
