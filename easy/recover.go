@@ -1,11 +1,9 @@
 package easy
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log"
-	"runtime"
 
 	"github.com/jxskiss/gopkg/v2/internal"
 )
@@ -21,7 +19,7 @@ type PanicError struct {
 
 func newPanicError(skip int, e any) *PanicError {
 	panicLoc, frames := internal.IdentifyPanic(skip + 1)
-	stack := formatFrames(frames)
+	stack := internal.FormatFrames(frames)
 	return &PanicError{
 		Exception:  e,
 		Location:   panicLoc,
@@ -172,22 +170,4 @@ func PanicOnError(args ...any) {
 			panic(err)
 		}
 	}
-}
-
-func formatFrames(frames []runtime.Frame) []byte {
-	var buf bytes.Buffer
-	for _, f := range frames {
-		file, line, funcName := f.File, f.Line, f.Function
-		if file == "" {
-			file = "unknown"
-		}
-		if funcName == "" {
-			funcName = "unknown"
-		}
-		if buf.Len() > 0 {
-			buf.WriteByte('\n')
-		}
-		fmt.Fprintf(&buf, "%s:%d  (%s)", file, line, funcName)
-	}
-	return buf.Bytes()
 }

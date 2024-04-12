@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bytes"
 	"fmt"
 	"runtime"
 	"strings"
@@ -50,4 +51,22 @@ func IdentifyPanic(skip int) (location string, frames []runtime.Frame) {
 		location = fmt.Sprintf("pc:%x", pc)
 	}
 	return location, frames
+}
+
+func FormatFrames(frames []runtime.Frame) []byte {
+	var buf bytes.Buffer
+	for _, f := range frames {
+		file, line, funcName := f.File, f.Line, f.Function
+		if file == "" {
+			file = "unknown"
+		}
+		if funcName == "" {
+			funcName = "unknown"
+		}
+		if buf.Len() > 0 {
+			buf.WriteByte('\n')
+		}
+		fmt.Fprintf(&buf, "%s:%d  (%s)", file, line, funcName)
+	}
+	return buf.Bytes()
 }

@@ -18,14 +18,13 @@ package gopool
 import (
 	"context"
 	"log"
-	"runtime/debug"
 
 	"github.com/jxskiss/gopkg/v2/internal"
 )
 
 func defaultPanicHandler(_ context.Context, exc any) {
-	loc := internal.IdentifyPanic(1)
-	log.Printf("[ERROR] gopool: catch panic: %v\nlocation: %v\n%s\n", exc, loc, debug.Stack())
+	location, frames := internal.IdentifyPanic(1)
+	log.Printf("[ERROR] gopool: catch panic: %v\nlocation: %v\n%s\n", exc, location, internal.FormatFrames(frames))
 }
 
 // Config is used to config a Pool instance.
