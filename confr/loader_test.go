@@ -358,6 +358,25 @@ var testCustomLoaderData = map[string]any{
 	},
 }
 
+func TestUnmarshalFunc(t *testing.T) {
+	type testStruct struct {
+		A, B string
+	}
+	loader := New(&Config{
+		UnmarshalFunc: func(data []byte, v any, disallowUnknownFields bool) error {
+			x := v.(*testStruct)
+			x.A = "aaa"
+			x.B = "bbb"
+			return nil
+		},
+	})
+	var dst testStruct
+	err := loader.Load(&dst, "./testdata/config.test.yml")
+	assert.Nil(t, err)
+	assert.Equal(t, "aaa", dst.A)
+	assert.Equal(t, "bbb", dst.B)
+}
+
 func Test_getEnvName(t *testing.T) {
 	testcases := [][]string{
 		{"ManualOverride1", "Manual_Override1"},

@@ -78,6 +78,10 @@ type Config struct {
 	// the field's type and the tag value will be passed to the custom loader.
 	CustomLoader func(typ reflect.Type, tag string) (any, error)
 
+	// UnmarshalFunc optionally specifies an unmarshal function
+	// to use instead of the default function.
+	UnmarshalFunc func(data []byte, v any, disallowUnknownFields bool) error
+
 	// FlagSet optionally specifies a flag set to lookup flag value
 	// for fields which have a `flag` tag. The tag value should be the
 	// flag name to lookup for.
@@ -175,17 +179,19 @@ func (p *Loader) processFile(config any, file string) error {
 	}
 
 	p.getLogFunc()("loading configuration from file: %v", file)
-	var unmarshalFunc func(data []byte, v any, disallowUnknownFields bool) error
-	extname := path.Ext(file)
-	switch strings.ToLower(extname) {
-	case ".json":
-		unmarshalFunc = unmarshalJSON
-	case ".yaml", ".yml":
-		unmarshalFunc = unmarshalYAML
-	case ".toml":
-		unmarshalFunc = unmarshalTOML
-	default:
-		return fmt.Errorf("unsupported file type: %v", extname)
+	var unmarshalFunc = p.Config.UnmarshalFunc
+	if unmarshalFunc == nil {
+		extname := path.Ext(file)
+		switch strings.ToLower(extname) {
+		case ".json":
+			unmarshalFunc = unmarshalJSON
+		case ".yaml", ".yml":
+			unmarshalFunc = unmarshalYAML
+		case ".toml":
+			unmarshalFunc = unmarshalTOML
+		default:
+			return fmt.Errorf("unsupported file type: %v", extname)
+		}
 	}
 	data, err := os.ReadFile(file)
 	if err != nil {
