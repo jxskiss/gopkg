@@ -70,6 +70,38 @@ func MarshalCSV[T ~map[string]any](records []T) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// UnmarshalCVS parses CSV-encoded data to map[string]any records.
+// It uses the std encoding/csv.Reader with its default settings for csv encoding.
+// The first record parsed from the first row is treated as CSV header,
+// and used as the result map keys.
+func UnmarshalCVS(data []byte) ([]Map, error) {
+	csvReader := csv.NewReader(bytes.NewReader(data))
+	records, err := csvReader.ReadAll()
+	if err != nil {
+		return nil, fmt.Errorf("csv.Reader.ReadAll: %w", err)
+	}
+	if len(records) <= 1 {
+		return nil, nil
+	}
+	header, records := records[0], records[1:]
+	for i, x := range header {
+		for j := i + 1; j < len(header); j++ {
+			if x == header[j] {
+				return nil, fmt.Errorf("duplicate header: %s", x)
+			}
+		}
+	}
+	out := make([]Map, 0, len(records))
+	for _, record := range records {
+		m := make(Map, len(header))
+		for i, x := range record {
+			m[header[i]] = x
+		}
+		out = append(out, m)
+	}
+	return out, nil
+}
+
 func isSimpleType(kind reflect.Kind) bool {
 	switch kind {
 	case reflect.Bool,
