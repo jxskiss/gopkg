@@ -155,6 +155,8 @@ func TestParseJSONRecordsWithMapping(t *testing.T) {
 	assert.Len(t, got, 2)
 	assert.Equal(t, "README.md", got[0]["DisplayName"])
 	assert.Equal(t, "LICENSE", got[1]["DisplayName"])
+	assert.Equal(t, true, got[0]["Loaded"])
+	assert.Equal(t, true, got[1]["Loaded"])
 	assert.Equal(t, 4, len(got[0]["HeaderInfo"].(map[string]any)["toc"].([]any)))
 	assert.Equal(t, 1, len(got[1]["HeaderInfo"].(map[string]any)))
 	assert.Equal(t, []any{float64(1)}, got[0]["HeaderInfoLevels"])
@@ -204,6 +206,45 @@ func TestParseJSONRecords(t *testing.T) {
 		got[0].HeaderInfoTOC_2[1],
 	)
 
+	assert.Equal(t, []int{2}, got[0].HeaderInfoLevels_1)
+	assert.Equal(t, []any{float64(2)}, got[0].HeaderInfoLevels_2)
+}
+
+func TestJSONMapperOptions(t *testing.T) {
+	type HeaderInfo struct {
+		Level int    `mapping:"__HeaderInfo_Level"`
+		Text  string `mapping:"text"`
+	}
+	type File struct {
+		DisplayName        string `mapping:"displayName"`
+		RepoName           string `mapping:"repoName"`
+		Loaded             bool   `mapping:"loaded"`
+		HeaderInfo_1       map[string]*HeaderInfo
+		HeaderInfo_2       map[string]map[string]any `mapping:"__File_HeaderInfo_2"`
+		HeaderInfoLevels_1 []int
+		HeaderInfoLevels_2 []any `mapping:"__File_HeaderInfoLevels_2"`
+	}
+
+	j := gjson.Parse(parseJSONRecordsTestData).Get("files")
+
+	var got []*File
+	err := ParseJSONRecords(&got, j.Array(),
+		WithDynamicJSONMapping(map[string]string{
+			"__HeaderInfo_Level":        "level",
+			"HeaderInfo_1":              `{"toc":headerInfo.toc.0}`,
+			"__File_HeaderInfo_2":       `{"toc":headerInfo.toc.1}`,
+			"HeaderInfoLevels_1":        `headerInfo.toc.#(text="Code layout")#.level`,
+			"__File_HeaderInfoLevels_2": fmt.Sprintf("headerInfo.toc.#(anchor=%q)#.level", "code-layout"),
+		}))
+	assert.Nil(t, err)
+	assert.Len(t, got, 2)
+
+	assert.Equal(t, 1, len(got[0].HeaderInfo_1))
+	assert.Equal(t, HeaderInfo{1, "gopkg"}, *got[0].HeaderInfo_1["toc"])
+	assert.Equal(t, 1, len(got[0].HeaderInfo_2))
+	assert.Equal(t,
+		map[string]any{"level": float64(2), "text": "Status", "anchor": "status", "htmlText": "Status"},
+		got[0].HeaderInfo_2["toc"])
 	assert.Equal(t, []int{2}, got[0].HeaderInfoLevels_1)
 	assert.Equal(t, []any{float64(2)}, got[0].HeaderInfoLevels_2)
 }
