@@ -307,19 +307,3 @@ func (p *Map) Merge(other map[string]any) {
 		(*p)[k] = v
 	}
 }
-
-// GetTyped returns the value associated with key as type T, if exists.
-func GetTyped[T any](m map[string]any, key string) T {
-	val, _ := m[key].(T)
-	return val
-}
-
-// GetTypedOr returns typed value for the given key if it exists in the map,
-// else it returns the default value.
-func GetTypedOr[T any](m map[string]any, key string, defaultVal T) T {
-	val, exists := m[key]
-	if exists {
-		return val.(T)
-	}
-	return defaultVal
-}
