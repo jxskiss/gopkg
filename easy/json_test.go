@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/tidwall/gjson"
 )
 
 func TestJSONMarshalMapInterfaceInterface(t *testing.T) {
@@ -78,4 +79,131 @@ func TestPretty(t *testing.T) {
 	got5 := Pretty2(map[string]any{"1": 123, "b": "<html>"})
 	want5 := "{\n  \"1\": 123,\n  \"b\": \"<html>\"\n}"
 	assert.Equal(t, want5, got5)
+}
+
+var parseJSONRecordsTestData = `
+{
+    "files": [
+        {
+            "displayName": "README.md",
+            "repoName": "gopkg",
+            "refName": "master",
+            "path": "README.md",
+            "preferredFileType": "readme",
+            "tabName": "README",
+            "loaded": true,
+            "timedOut": false,
+            "errorMessage": null,
+            "headerInfo": {
+                "toc": [
+                    {
+                        "level": 1,
+                        "text": "gopkg",
+                        "anchor": "gopkg",
+                        "htmlText": "gopkg"
+                    },
+                    {
+                        "level": 2,
+                        "text": "Status",
+                        "anchor": "status",
+                        "htmlText": "Status"
+                    },
+                    {
+                        "level": 2,
+                        "text": "Code layout",
+                        "anchor": "code-layout",
+                        "htmlText": "Code layout"
+                    },
+                    {
+                        "level": 2,
+                        "text": "Packages",
+                        "anchor": "packages",
+                        "htmlText": "Packages"
+                    }
+                ],
+            }
+        },
+        {
+            "displayName": "LICENSE",
+            "repoName": "gopkg",
+            "refName": "master",
+            "path": "LICENSE",
+            "preferredFileType": "license",
+            "tabName": "License",
+            "loaded": true,
+            "timedOut": false,
+            "errorMessage": null,
+            "headerInfo": {
+                "toc": [],
+            }
+        }
+    ],
+    "processingTime": 31.543533999999998
+}`
+
+func TestParseJSONRecordsWithMapping(t *testing.T) {
+	mapping := JSONPathMapping{
+		{"DisplayName", "displayName"},
+		{"RepoName", "repoName"},
+		{"Loaded", "loaded", "bool"},
+		{"HeaderInfo", "headerInfo", "map"},
+		{"HeaderInfoLevels", `headerInfo.toc.#(anchor="gopkg")#.level`, "array"},
+	}
+
+	j := gjson.Parse(parseJSONRecordsTestData).Get("files")
+	got := ParseJSONRecordsWithMapping(j.Array(), mapping)
+	assert.Len(t, got, 2)
+	assert.Equal(t, "README.md", got[0]["DisplayName"])
+	assert.Equal(t, "LICENSE", got[1]["DisplayName"])
+	assert.Equal(t, 4, len(got[0]["HeaderInfo"].(map[string]any)["toc"].([]any)))
+	assert.Equal(t, 1, len(got[1]["HeaderInfo"].(map[string]any)))
+	assert.Equal(t, []any{float64(1)}, got[0]["HeaderInfoLevels"])
+	assert.Equal(t, 0, len(got[1]["HeaderInfoLevels"].([]any)))
+}
+
+func TestParseJSONRecords(t *testing.T) {
+	type HeaderInfo struct {
+		Level int    `mapping:"level"`
+		Text  string `mapping:"text"`
+	}
+	type File struct {
+		DisplayName        string                    `mapping:"displayName"`
+		RepoName           string                    `mapping:"repoName"`
+		Loaded             bool                      `mapping:"loaded"`
+		HeaderInfo_1       map[string]*HeaderInfo    `mapping:"{\"toc\":headerInfo.toc.0}"`
+		HeaderInfo_2       map[string]map[string]any `mapping:"{\"toc\":headerInfo.toc.1}"`
+		HeaderInfoTOC_1    []*HeaderInfo             `mapping:"headerInfo.toc"`
+		HeaderInfoTOC_2    []map[string]any          `mapping:"headerInfo.toc"`
+		HeaderInfoLevels_1 []int                     `mapping:"headerInfo.toc.#(text=\"Code layout\")#.level"`
+		HeaderInfoLevels_2 []any                     `mapping:"headerInfo.toc.#(anchor=\"code-layout\")#.level"`
+	}
+
+	j := gjson.Parse(parseJSONRecordsTestData).Get("files")
+
+	var got []*File
+	err := ParseJSONRecords(&got, j.Array())
+	assert.Nil(t, err)
+	assert.Len(t, got, 2)
+
+	assert.Equal(t, "README.md", got[0].DisplayName)
+	assert.Equal(t, "LICENSE", got[1].DisplayName)
+	assert.Equal(t, true, got[0].Loaded)
+
+	assert.Equal(t, 1, len(got[0].HeaderInfo_1))
+	assert.Equal(t, HeaderInfo{1, "gopkg"}, *got[0].HeaderInfo_1["toc"])
+	assert.Equal(t, 1, len(got[0].HeaderInfo_2))
+	assert.Equal(t,
+		map[string]any{"level": float64(2), "text": "Status", "anchor": "status", "htmlText": "Status"},
+		got[0].HeaderInfo_2["toc"])
+
+	assert.Equal(t, 4, len(got[0].HeaderInfoTOC_1))
+	assert.Equal(t, HeaderInfo{1, "gopkg"}, *got[0].HeaderInfoTOC_1[0])
+	assert.Equal(t, 4, len(got[0].HeaderInfoTOC_2))
+	assert.Equal(t,
+		map[string]any{"level": float64(2), "text": "Status", "anchor": "status", "htmlText": "Status"},
+		got[0].HeaderInfoTOC_2[1],
+	)
+
+	assert.Equal(t, []int{2}, got[0].HeaderInfoLevels_1)
+	assert.Equal(t, []any{float64(2)}, got[0].HeaderInfoLevels_2)
 }

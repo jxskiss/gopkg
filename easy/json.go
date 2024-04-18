@@ -2,9 +2,16 @@ package easy
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"reflect"
+	"strings"
 	"unicode/utf8"
 
+	"github.com/mitchellh/mapstructure"
+	"github.com/tidwall/gjson"
+
+	"github.com/jxskiss/gopkg/v2/easy/ezmap"
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 	"github.com/jxskiss/gopkg/v2/perf/json"
 )
@@ -82,4 +89,295 @@ func prettyIndent(v any, indent string) string {
 	}
 	buf = bytes.TrimSpace(buf)
 	return unsafeheader.BytesToString(buf)
+}
+
+type JSONPathMapping [][3]string
+
+// ParseJSONRecordsWithMapping parses gjson.Result array to slice of
+// map[string]any according to json path mapping.
+func ParseJSONRecordsWithMapping(arr []gjson.Result, mapping JSONPathMapping) []ezmap.Map {
+	out := make([]ezmap.Map, 0, len(arr))
+	mapper := &jsonMapper{}
+	for _, row := range arr {
+		result := mapper.parseRecord(row, mapping)
+		out = append(out, result)
+	}
+	return out
+}
+
+// ParseJSONRecords parses gjson.Result array to slice of *T
+// according to json path mapping defined by struct tag "mapping".
+//
+// Note:
+//
+//  1. The type parameter T must be a struct
+//  2. It does not support recursive types
+//  3. It has very limited support for complex types of struct fields,
+//     e.g. []any, []*Struct, []map[string]any,
+//     map[string]*Struct, map[string]map[string]any
+func ParseJSONRecords[T any](dst *[]*T, records []gjson.Result) error {
+	var sample T
+	if reflect.TypeOf(sample).Kind() != reflect.Struct {
+		return errors.New("ParseJSONRecords: type T must be a struct")
+	}
+	mapper := &jsonMapper{}
+	mapping, err := mapper.parseStructMapping(sample, nil)
+	if err != nil {
+		return err
+	}
+	out := make([]map[string]any, 0, len(records))
+	for _, row := range records {
+		result := mapper.parseRecord(row, mapping)
+		out = append(out, result)
+	}
+	return mapstructure.Decode(out, &dst)
+}
+
+type jsonConvFunc func(j gjson.Result, path string) any
+
+type jsonMapper struct {
+	convFuncs map[[3]string]jsonConvFunc
+}
+
+func (p *jsonMapper) parseRecord(j gjson.Result, mapping JSONPathMapping) map[string]any {
+	result := make(map[string]any)
+	for _, x := range mapping {
+		key, path := x[0], x[1]
+		convFunc := p.getConvFunc(x)
+		value := convFunc(j, path)
+		result[key] = value
+	}
+	return result
+}
+
+func (p *jsonMapper) getConvFunc(m [3]string) jsonConvFunc {
+	if f := p.convFuncs[m]; f != nil {
+		return f
+	}
+	path, typ := m[1], m[2]
+	f := p.newConvFunc(path, typ)
+	if p.convFuncs == nil {
+		p.convFuncs = make(map[[3]string]jsonConvFunc)
+	}
+	p.convFuncs[m] = f
+	return f
+}
+
+func (p *jsonMapper) newConvFunc(path, typ string) func(j gjson.Result, path string) any {
+	path = strings.TrimSpace(path)
+	switch typ {
+	case "", "str": // default "str"
+		return func(j gjson.Result, path string) any {
+			return j.Get(path).String()
+		}
+	case "bool":
+		return func(j gjson.Result, path string) any {
+			return j.Get(path).Bool()
+		}
+	case "int":
+		return func(j gjson.Result, path string) any {
+			return j.Get(path).Int()
+		}
+	case "uint":
+		return func(j gjson.Result, path string) any {
+			return j.Get(path).Uint()
+		}
+	case "float":
+		return func(j gjson.Result, path string) any {
+			return j.Get(path).Float()
+		}
+	case "time":
+		return func(j gjson.Result, path string) any {
+			return j.Get(path).Time()
+		}
+	case "map":
+		var subMapping JSONPathMapping
+		path, subMapping = p.parseSubMapping(path)
+		if len(subMapping) > 0 {
+			return func(j gjson.Result, _ string) any {
+				out := make(map[string]any)
+				for k, v := range j.Get(path).Map() {
+					out[k] = p.parseRecord(v, subMapping)
+				}
+				return out
+			}
+		}
+		return func(j gjson.Result, path string) any {
+			return j.Get(path).Value()
+		}
+	case "array":
+		var subMapping JSONPathMapping
+		path, subMapping = p.parseSubMapping(path)
+		if len(subMapping) > 0 {
+			return func(j gjson.Result, _ string) any {
+				out := make([]any, 0)
+				for _, x := range j.Get(path).Array() {
+					out = append(out, p.parseRecord(x, subMapping))
+				}
+				return out
+			}
+		}
+		return func(j gjson.Result, path string) any {
+			return j.Get(path).Value()
+		}
+	}
+	// fallback any
+	return func(j gjson.Result, path string) any {
+		return j.Get(path).Value()
+	}
+}
+
+func (p *jsonMapper) parseSubMapping(str string) (path string, subMapping JSONPathMapping) {
+	str = strings.TrimSpace(str)
+	nlIdx := strings.IndexByte(str, '\n')
+	if nlIdx <= 0 {
+		return "", nil
+	}
+	var mapping JSONPathMapping
+	path = str[:nlIdx]
+	err := json.Unmarshal([]byte(str[nlIdx+1:]), &mapping)
+	if err != nil {
+		panic(err)
+	}
+	return path, mapping
+}
+
+func (p *jsonMapper) parseStructMapping(sample any, seenTypes []reflect.Type) (JSONPathMapping, error) {
+	var mapping JSONPathMapping
+	structTyp := reflect.TypeOf(sample)
+	for i := range seenTypes {
+		if seenTypes[i] == structTyp {
+			return nil, fmt.Errorf("recursive type not supported: %T", sample)
+		}
+	}
+	seenTypes = append(seenTypes, structTyp)
+
+	numField := structTyp.NumField()
+	for i := 0; i < numField; i++ {
+		field := structTyp.Field(i)
+		jsonPath := field.Tag.Get("mapping")
+		if jsonPath == "-" || !field.IsExported() {
+			continue
+		}
+		if jsonPath == "" {
+			jsonPath = field.Name
+		}
+		kind := p.getKind(field.Type)
+		var mappingType string
+		switch kind {
+		case reflect.String:
+			mappingType = "str"
+		case reflect.Bool:
+			mappingType = "bool"
+		case reflect.Int:
+			mappingType = "int"
+		case reflect.Uint:
+			mappingType = "uint"
+		case reflect.Float32:
+			mappingType = "float"
+		case reflect.Struct:
+			if field.Type.String() == "time.Time" {
+				mappingType = "time"
+			} else {
+				mappingType = "map"
+				subMapping, err := p.parseStructMapping(reflect.New(field.Type).Elem().Interface(), seenTypes)
+				if err != nil {
+					return nil, err
+				}
+				tmp, err := json.Marshal(subMapping)
+				if err != nil {
+					panic(err)
+				}
+				jsonPath += "\n" + string(tmp)
+			}
+		case reflect.Array, reflect.Slice:
+			elemTyp := field.Type.Elem()
+			isSupported, isStruct := p.isSupportedElemType(elemTyp)
+			if !isSupported {
+				return nil, fmt.Errorf("unsupported array/slice element type: %v", elemTyp)
+			}
+			mappingType = "array"
+			if isStruct {
+				if elemTyp.Kind() == reflect.Pointer {
+					elemTyp = elemTyp.Elem()
+				}
+				subMapping, err := p.parseStructMapping(reflect.New(elemTyp).Elem().Interface(), seenTypes)
+				if err != nil {
+					return nil, err
+				}
+				tmp, err := json.Marshal(subMapping)
+				if err != nil {
+					panic(err)
+				}
+				jsonPath += "\n" + string(tmp)
+			}
+		case reflect.Map:
+			elemTyp := field.Type.Elem()
+			isSupported, isStruct := p.isSupportedElemType(elemTyp)
+			if !isSupported {
+				return nil, fmt.Errorf("unsupported map element type: %v", elemTyp)
+			}
+			mappingType = "map"
+			if isStruct {
+				if elemTyp.Kind() == reflect.Pointer {
+					elemTyp = elemTyp.Elem()
+				}
+				subMapping, err := p.parseStructMapping(reflect.New(elemTyp).Elem().Interface(), seenTypes)
+				if err != nil {
+					return nil, err
+				}
+				tmp, err := json.Marshal(subMapping)
+				if err != nil {
+					panic(err)
+				}
+				jsonPath += "\n" + string(tmp)
+			}
+		default:
+			return nil, fmt.Errorf("unsupported field type: %v", field.Type)
+		}
+		mapping = append(mapping, [3]string{field.Name, jsonPath, mappingType})
+	}
+	return mapping, nil
+}
+
+var (
+	anyTyp    = reflect.TypeOf((*any)(nil)).Elem()
+	anyMapTyp = reflect.TypeOf((*map[string]any)(nil)).Elem()
+)
+
+func (p *jsonMapper) isSupportedElemType(typ reflect.Type) (isSupported, isStruct bool) {
+	if typ.Kind() == reflect.Pointer {
+		typ = typ.Elem()
+	}
+	kind := p.getKind(typ)
+	if typ == anyTyp || typ == anyMapTyp ||
+		kind == reflect.Bool ||
+		kind == reflect.Int ||
+		kind == reflect.Uint ||
+		kind == reflect.Float32 ||
+		kind == reflect.String ||
+		kind == reflect.Struct {
+		isSupported = true
+	}
+	if kind == reflect.Struct {
+		isStruct = true
+	}
+	return
+}
+
+func (p *jsonMapper) getKind(typ reflect.Type) reflect.Kind {
+	if typ.Kind() == reflect.Pointer {
+		typ = typ.Elem()
+	}
+	kind := typ.Kind()
+	switch {
+	case kind >= reflect.Int && kind <= reflect.Int64:
+		return reflect.Int
+	case kind >= reflect.Uint && kind <= reflect.Uint64:
+		return reflect.Uint
+	case kind == reflect.Float32 || kind == reflect.Float64:
+		return reflect.Float32
+	default:
+		return kind
+	}
 }
