@@ -325,6 +325,26 @@ key2:
 			},
 			out["key2"])
 	})
+
+	t.Run("json", func(t *testing.T) {
+		jsonData := `{
+"aa": "@@incl testdata/include1.yaml",
+"bb": [
+	{"incl_json": "@@incl testdata/include2.json"},
+	"@@incl testdata/include2.json"
+]
+}`
+		var out map[string]any
+		err := Unmarshal([]byte(jsonData), &out, EnableInclude())
+		require.Nil(t, err)
+
+		assert.Len(t, out["aa"], 3)
+		assert.Len(t, out["bb"], 2)
+		assert.IsType(t, map[string]any{}, out["bb"].([]any)[0])
+		assert.IsType(t, []any{}, out["bb"].([]any)[1])
+		assert.Len(t, out["bb"].([]any)[0].(map[string]any)["incl_json"].([]any), 3)
+		assert.Equal(t, out["bb"].([]any)[0].(map[string]any)["incl_json"], out["bb"].([]any)[1])
+	})
 }
 
 func TestLoad(t *testing.T) {

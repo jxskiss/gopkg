@@ -1,0 +1,20 @@
+[
+  {
+    "level": 2,
+    "text": "Status",
+    "anchor": "status",
+    "htmlText": "Status"
+  },
+  {
+    "level": 2,
+    "text": "Code layout",
+    "anchor": "code-layout",
+    "htmlText": "Code layout"
+  },
+  {
+    "level": 2,
+    "text": "Packages",
+    "anchor": "packages",
+    "htmlText": "Packages"
+  }
+]
