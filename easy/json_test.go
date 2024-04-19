@@ -210,7 +210,7 @@ func TestParseJSONRecords(t *testing.T) {
 	assert.Equal(t, []any{float64(2)}, got[0].HeaderInfoLevels_2)
 }
 
-func TestJSONMapperOptions(t *testing.T) {
+func TestTestParseJSONRecords_Options(t *testing.T) {
 	type HeaderInfo struct {
 		Level int    `mapping:"__HeaderInfo_Level"`
 		Text  string `mapping:"text"`
@@ -247,4 +247,79 @@ func TestJSONMapperOptions(t *testing.T) {
 		got[0].HeaderInfo_2["toc"])
 	assert.Equal(t, []int{2}, got[0].HeaderInfoLevels_1)
 	assert.Equal(t, []any{float64(2)}, got[0].HeaderInfoLevels_2)
+}
+
+func TestParseJSONRecords_Recursive(t *testing.T) {
+	type Person struct {
+		A          string
+		Parent     *Person
+		Children1  []*Person `mapping:"Children_1"`
+		Children_2 map[string]*Person
+	}
+	testData := `[
+	{
+		"A": "test",
+		"Parent": {
+			"A": "parent"
+		},
+		"Children_1": [
+			{
+				"A": "child_1",
+				"Parent": {"A": "test_child_1"}
+			},
+			{
+				"A": "child_2",
+				"Parent": {"A": "test_child_2"},
+				"Children_1": [
+					{"A": "child_2_1"},
+					{"A": "child_2_2"}
+				]
+			}
+		],
+		"Children_2": {
+			"child_1": {
+				"A": "child_1",
+				"Parent": {"A": "test_child_1"}
+			},
+			"child_2": {
+				"A": "child_2",
+				"Parent": {"A": "test_child_2"},
+				"Children_2": {
+					"child_2_1": {"A": "child_2_1"},
+					"child_2_2": {"A": "child_2_2"}
+				}
+			}
+		}
+	}
+]`
+	var got []*Person
+	err := ParseJSONRecords(&got, gjson.Parse(testData).Array())
+	assert.Nil(t, err)
+	assert.Len(t, got, 1)
+
+	assert.Equal(t, "test", got[0].A)
+	assert.Equal(t, "parent", got[0].Parent.A)
+	assert.Equal(t, ([]*Person)(nil), got[0].Parent.Children1)
+	assert.Equal(t, (map[string]*Person)(nil), got[0].Parent.Children_2)
+
+	assert.Equal(t, "child_1", got[0].Children1[0].A)
+	assert.Equal(t, "test_child_1", got[0].Children1[0].Parent.A)
+	assert.Equal(t, ([]*Person)(nil), got[0].Children1[0].Children1)
+	assert.Equal(t, (map[string]*Person)(nil), got[0].Children1[0].Children_2)
+
+	assert.Equal(t, 2, len(got[0].Children1))
+	assert.Equal(t, "child_2", got[0].Children1[1].A)
+	assert.Equal(t, "test_child_2", got[0].Children1[1].Parent.A)
+	assert.Equal(t, 2, len(got[0].Children1[1].Children1))
+	assert.Equal(t, (map[string]*Person)(nil), got[0].Children1[0].Children_2)
+
+	assert.Equal(t, 2, len(got[0].Children_2))
+	assert.Equal(t, "child_1", got[0].Children_2["child_1"].A)
+	assert.Equal(t, "test_child_1", got[0].Children_2["child_1"].Parent.A)
+	assert.Equal(t, ([]*Person)(nil), got[0].Children_2["child_1"].Children1)
+	assert.Equal(t, (map[string]*Person)(nil), got[0].Children_2["child_1"].Children_2)
+	assert.Equal(t, "child_2", got[0].Children_2["child_2"].A)
+	assert.Equal(t, "test_child_2", got[0].Children_2["child_2"].Parent.A)
+	assert.Equal(t, "child_2_1", got[0].Children_2["child_2"].Children_2["child_2_1"].A)
+	assert.Equal(t, "child_2_2", got[0].Children_2["child_2"].Children_2["child_2_2"].A)
 }

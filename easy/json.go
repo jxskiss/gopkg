@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"unicode/utf8"
+	"unsafe"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/tidwall/gjson"
@@ -98,8 +100,9 @@ type JSONPathMapping [][3]string
 func ParseJSONRecordsWithMapping(arr []gjson.Result, mapping JSONPathMapping) []ezmap.Map {
 	out := make([]ezmap.Map, 0, len(arr))
 	mapper := &jsonMapper{}
+	convFuncs := mapper.getConvFuncs(mapping)
 	for _, row := range arr {
-		result := mapper.parseRecord(row, mapping)
+		result := mapper.parseRecord(row, mapping, convFuncs)
 		out = append(out, result)
 	}
 	return out
@@ -111,10 +114,9 @@ func ParseJSONRecordsWithMapping(arr []gjson.Result, mapping JSONPathMapping) []
 // Note:
 //
 //  1. The type parameter T must be a struct
-//  2. It does not support recursive types
-//  3. It has very limited support for complex types of struct fields,
+//  2. It has very limited support for complex types of struct fields,
 //     e.g. []any, []*Struct, []map[string]any,
-//     map[string]*Struct, map[string]map[string]any
+//     map[string]any, map[string]*Struct, map[string]map[string]any
 func ParseJSONRecords[T any](dst *[]*T, records []gjson.Result, opts ...JSONMapperOpt) error {
 	var sample T
 	if reflect.TypeOf(sample).Kind() != reflect.Struct {
@@ -127,9 +129,10 @@ func ParseJSONRecords[T any](dst *[]*T, records []gjson.Result, opts ...JSONMapp
 	if err != nil {
 		return err
 	}
+	convFuncs := mapper.getConvFuncs(mapping)
 	out := make([]map[string]any, 0, len(records))
 	for _, row := range records {
-		result := mapper.parseRecord(row, mapping)
+		result := mapper.parseRecord(row, mapping, convFuncs)
 		out = append(out, result)
 	}
 	return mapstructure.Decode(out, &dst)
@@ -138,38 +141,45 @@ func ParseJSONRecords[T any](dst *[]*T, records []gjson.Result, opts ...JSONMapp
 type jsonConvFunc func(j gjson.Result, path string) any
 
 type jsonMapper struct {
-	opts      jsonMapperOptions
-	convFuncs map[[3]string]jsonConvFunc
+	opts          jsonMapperOptions
+	convFuncs     map[[3]string]jsonConvFunc
+	structMapping map[string]JSONPathMapping
 }
 
-func (p *jsonMapper) parseRecord(j gjson.Result, mapping JSONPathMapping) map[string]any {
+func (p *jsonMapper) parseRecord(j gjson.Result, mapping JSONPathMapping, convFuncs []jsonConvFunc) map[string]any {
+	if !j.Exists() {
+		return nil
+	}
 	result := make(map[string]any)
-	for _, x := range mapping {
+	for i, x := range mapping {
 		key, path := x[0], x[1]
-		convFunc := p.getConvFunc(x)
-		value := convFunc(j, path)
+		value := convFuncs[i](j, path)
 		result[key] = value
 	}
 	return result
 }
 
-func (p *jsonMapper) getConvFunc(m [3]string) jsonConvFunc {
-	if f := p.convFuncs[m]; f != nil {
-		return f
+func (p *jsonMapper) getConvFuncs(mapping JSONPathMapping) []jsonConvFunc {
+	funcs := make([]jsonConvFunc, len(mapping))
+	for i, x := range mapping {
+		f, exists := p.convFuncs[x]
+		if !exists {
+			path, typ := x[1], x[2]
+			f = p.newConvFunc(path, typ)
+			if p.convFuncs == nil {
+				p.convFuncs = make(map[[3]string]jsonConvFunc)
+			}
+			p.convFuncs[x] = f
+		}
+		funcs[i] = f
 	}
-	path, typ := m[1], m[2]
-	f := p.newConvFunc(path, typ)
-	if p.convFuncs == nil {
-		p.convFuncs = make(map[[3]string]jsonConvFunc)
-	}
-	p.convFuncs[m] = f
-	return f
+	return funcs
 }
 
-func (p *jsonMapper) newConvFunc(path, typ string) func(j gjson.Result, path string) any {
+func (p *jsonMapper) newConvFunc(path, typ string) jsonConvFunc {
 	path = strings.TrimSpace(path)
 	switch typ {
-	case "", "str": // default "str"
+	case "", "str", "string": // default "str"
 		return func(j gjson.Result, path string) any {
 			return j.Get(path).String()
 		}
@@ -177,15 +187,15 @@ func (p *jsonMapper) newConvFunc(path, typ string) func(j gjson.Result, path str
 		return func(j gjson.Result, path string) any {
 			return j.Get(path).Bool()
 		}
-	case "int":
+	case "int", "int8", "int16", "int32", "int64":
 		return func(j gjson.Result, path string) any {
 			return j.Get(path).Int()
 		}
-	case "uint":
+	case "uint", "uint8", "uint16", "uint32", "uint64":
 		return func(j gjson.Result, path string) any {
 			return j.Get(path).Uint()
 		}
-	case "float":
+	case "float", "float32", "float64":
 		return func(j gjson.Result, path string) any {
 			return j.Get(path).Float()
 		}
@@ -193,40 +203,75 @@ func (p *jsonMapper) newConvFunc(path, typ string) func(j gjson.Result, path str
 		return func(j gjson.Result, path string) any {
 			return j.Get(path).Time()
 		}
+	case "struct":
+		var (
+			subMapping   JSONPathMapping
+			subConvFuncs []jsonConvFunc
+		)
+		path, subMapping = p.parseSubMapping(path)
+		if len(subMapping) > 0 {
+			return func(j gjson.Result, _ string) any {
+				if !j.Exists() {
+					return nil
+				}
+				if subConvFuncs == nil {
+					subConvFuncs = p.getConvFuncs(subMapping)
+				}
+				return p.parseRecord(j.Get(path), subMapping, subConvFuncs)
+			}
+		}
 	case "map":
-		var subMapping JSONPathMapping
+		var (
+			subMapping   JSONPathMapping
+			subConvFuncs []jsonConvFunc
+		)
 		path, subMapping = p.parseSubMapping(path)
 		if len(subMapping) > 0 {
 			return func(j gjson.Result, _ string) any {
+				j = j.Get(path)
+				if !j.Exists() {
+					return nil
+				}
+				if subConvFuncs == nil {
+					subConvFuncs = p.getConvFuncs(subMapping)
+				}
 				out := make(map[string]any)
-				for k, v := range j.Get(path).Map() {
-					out[k] = p.parseRecord(v, subMapping)
+				for k, v := range j.Map() {
+					out[k] = p.parseRecord(v, subMapping, subConvFuncs)
 				}
 				return out
 			}
 		}
-		return func(j gjson.Result, path string) any {
-			return j.Get(path).Value()
-		}
-	case "array":
-		var subMapping JSONPathMapping
+	case "arr", "array":
+		var (
+			subMapping   JSONPathMapping
+			subConvFuncs []jsonConvFunc
+		)
 		path, subMapping = p.parseSubMapping(path)
 		if len(subMapping) > 0 {
 			return func(j gjson.Result, _ string) any {
+				j = j.Get(path)
+				if !j.Exists() {
+					return nil
+				}
+				if subConvFuncs == nil {
+					subConvFuncs = p.getConvFuncs(subMapping)
+				}
 				out := make([]any, 0)
-				for _, x := range j.Get(path).Array() {
-					out = append(out, p.parseRecord(x, subMapping))
+				for _, x := range j.Array() {
+					out = append(out, p.parseRecord(x, subMapping, subConvFuncs))
 				}
 				return out
 			}
-		}
-		return func(j gjson.Result, path string) any {
-			return j.Get(path).Value()
 		}
 	}
 	// fallback any
 	return func(j gjson.Result, path string) any {
-		return j.Get(path).Value()
+		j = j.Get(path)
+		if !j.Exists() {
+			return nil
+		}
+		return j.Value()
 	}
 }
 
@@ -238,22 +283,40 @@ func (p *jsonMapper) parseSubMapping(str string) (path string, subMapping JSONPa
 	}
 	var mapping JSONPathMapping
 	path = str[:nlIdx]
-	err := json.Unmarshal([]byte(str[nlIdx+1:]), &mapping)
-	if err != nil {
-		panic(err)
+	subPath := str[nlIdx+1:]
+	if p.isStructMappingKey(subPath) {
+		mapping = p.structMapping[subPath]
+	} else {
+		err := json.Unmarshal([]byte(subPath), &mapping)
+		if err != nil {
+			panic(err)
+		}
 	}
 	return path, mapping
 }
 
-func (p *jsonMapper) parseStructMapping(sample any, seenTypes []reflect.Type) (JSONPathMapping, error) {
-	var mapping JSONPathMapping
+func (p *jsonMapper) isStructMappingKey(s string) bool {
+	return strings.HasPrefix(s, "\t\tSTRUCT\t")
+}
+
+func (p *jsonMapper) getStructMappingKey(typ reflect.Type) string {
+	// type iface { tab  *itab, data unsafe.Pointer }
+	typeptr := (*(*[2]uintptr)(unsafe.Pointer(&typ)))[1]
+	return "\t\tSTRUCT\t" + strconv.FormatUint(uint64(typeptr), 32)
+}
+
+func (p *jsonMapper) parseStructMapping(sample any, seenTypes []reflect.Type) (mapping JSONPathMapping, err error) {
 	structTyp := reflect.TypeOf(sample)
-	for i := range seenTypes {
-		if seenTypes[i] == structTyp {
-			return nil, fmt.Errorf("recursive type not supported: %T", sample)
-		}
-	}
 	seenTypes = append(seenTypes, structTyp)
+	defer func() {
+		if err == nil {
+			key := p.getStructMappingKey(structTyp)
+			if p.structMapping == nil {
+				p.structMapping = make(map[string]JSONPathMapping)
+			}
+			p.structMapping[key] = mapping
+		}
+	}()
 
 	numField := structTyp.NumField()
 	for i := 0; i < numField; i++ {
@@ -268,7 +331,11 @@ func (p *jsonMapper) parseStructMapping(sample any, seenTypes []reflect.Type) (J
 		if dynPath := p.opts.DynamicMapping[jsonPath]; dynPath != "" {
 			jsonPath = dynPath
 		}
-		kind := p.getKind(field.Type)
+		_fieldTyp := field.Type
+		if _fieldTyp.Kind() == reflect.Pointer {
+			_fieldTyp = _fieldTyp.Elem()
+		}
+		kind := p.getKind(_fieldTyp)
 		var mappingType string
 		switch kind {
 		case reflect.String:
@@ -282,61 +349,71 @@ func (p *jsonMapper) parseStructMapping(sample any, seenTypes []reflect.Type) (J
 		case reflect.Float32:
 			mappingType = "float"
 		case reflect.Struct:
-			if field.Type.String() == "time.Time" {
+			if _fieldTyp.String() == "time.Time" {
 				mappingType = "time"
 			} else {
-				mappingType = "map"
-				subMapping, err := p.parseStructMapping(reflect.New(field.Type).Elem().Interface(), seenTypes)
-				if err != nil {
-					return nil, err
+				mappingType = "struct"
+				subStructKey := p.getStructMappingKey(_fieldTyp)
+				if _, ok := p.structMapping[subStructKey]; !ok &&
+					!isSeenType(seenTypes, _fieldTyp) {
+					_, err := p.parseStructMapping(reflect.New(_fieldTyp).Elem().Interface(), seenTypes)
+					if err != nil {
+						return nil, err
+					}
 				}
-				tmp, err := json.Marshal(subMapping)
-				if err != nil {
-					panic(err)
-				}
-				jsonPath += "\n" + string(tmp)
+				jsonPath += "\n" + subStructKey
 			}
 		case reflect.Array, reflect.Slice:
 			elemTyp := field.Type.Elem()
+			if elemTyp.Kind() == reflect.Pointer {
+				elemTyp = elemTyp.Elem()
+			}
 			isSupported, isStruct := p.isSupportedElemType(elemTyp)
 			if !isSupported {
-				return nil, fmt.Errorf("unsupported array/slice element type: %v", elemTyp)
+				return nil, fmt.Errorf("unsupported array/slice element type: %v", field.Type)
 			}
 			mappingType = "array"
 			if isStruct {
 				if elemTyp.Kind() == reflect.Pointer {
 					elemTyp = elemTyp.Elem()
 				}
-				subMapping, err := p.parseStructMapping(reflect.New(elemTyp).Elem().Interface(), seenTypes)
-				if err != nil {
-					return nil, err
+				subStructKey := p.getStructMappingKey(elemTyp)
+				if _, ok := p.structMapping[subStructKey]; !ok &&
+					!isSeenType(seenTypes, elemTyp) {
+					_, err := p.parseStructMapping(reflect.New(elemTyp).Elem().Interface(), seenTypes)
+					if err != nil {
+						return nil, err
+					}
 				}
-				tmp, err := json.Marshal(subMapping)
-				if err != nil {
-					panic(err)
-				}
-				jsonPath += "\n" + string(tmp)
+				jsonPath += "\n" + subStructKey
 			}
 		case reflect.Map:
+			keyType := field.Type.Key()
+			if keyType.Kind() != reflect.String {
+				return nil, fmt.Errorf("unsupported map key type: %v", field.Type)
+			}
 			elemTyp := field.Type.Elem()
+			if elemTyp.Kind() == reflect.Pointer {
+				elemTyp = elemTyp.Elem()
+			}
 			isSupported, isStruct := p.isSupportedElemType(elemTyp)
 			if !isSupported {
-				return nil, fmt.Errorf("unsupported map element type: %v", elemTyp)
+				return nil, fmt.Errorf("unsupported map element type: %v", field.Type)
 			}
 			mappingType = "map"
 			if isStruct {
 				if elemTyp.Kind() == reflect.Pointer {
 					elemTyp = elemTyp.Elem()
 				}
-				subMapping, err := p.parseStructMapping(reflect.New(elemTyp).Elem().Interface(), seenTypes)
-				if err != nil {
-					return nil, err
+				subStructKey := p.getStructMappingKey(elemTyp)
+				if _, ok := p.structMapping[subStructKey]; !ok &&
+					!isSeenType(seenTypes, elemTyp) {
+					_, err := p.parseStructMapping(reflect.New(elemTyp).Elem().Interface(), seenTypes)
+					if err != nil {
+						return nil, err
+					}
 				}
-				tmp, err := json.Marshal(subMapping)
-				if err != nil {
-					panic(err)
-				}
-				jsonPath += "\n" + string(tmp)
+				jsonPath += "\n" + subStructKey
 			}
 		default:
 			return nil, fmt.Errorf("unsupported field type: %v", field.Type)
@@ -344,6 +421,15 @@ func (p *jsonMapper) parseStructMapping(sample any, seenTypes []reflect.Type) (J
 		mapping = append(mapping, [3]string{field.Name, jsonPath, mappingType})
 	}
 	return mapping, nil
+}
+
+func isSeenType(stack []reflect.Type, typ reflect.Type) bool {
+	for i := range stack {
+		if stack[i] == typ {
+			return true
+		}
+	}
+	return false
 }
 
 var (
@@ -372,9 +458,6 @@ func (p *jsonMapper) isSupportedElemType(typ reflect.Type) (isSupported, isStruc
 }
 
 func (p *jsonMapper) getKind(typ reflect.Type) reflect.Kind {
-	if typ.Kind() == reflect.Pointer {
-		typ = typ.Elem()
-	}
 	kind := typ.Kind()
 	switch {
 	case kind >= reflect.Int && kind <= reflect.Int64:
