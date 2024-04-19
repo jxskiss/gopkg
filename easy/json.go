@@ -115,12 +115,14 @@ func ParseJSONRecordsWithMapping(arr []gjson.Result, mapping JSONPathMapping) []
 //  3. It has very limited support for complex types of struct fields,
 //     e.g. []any, []*Struct, []map[string]any,
 //     map[string]*Struct, map[string]map[string]any
-func ParseJSONRecords[T any](dst *[]*T, records []gjson.Result) error {
+func ParseJSONRecords[T any](dst *[]*T, records []gjson.Result, opts ...JSONMapperOpt) error {
 	var sample T
 	if reflect.TypeOf(sample).Kind() != reflect.Struct {
 		return errors.New("ParseJSONRecords: type T must be a struct")
 	}
-	mapper := &jsonMapper{}
+	mapper := &jsonMapper{
+		opts: *(new(jsonMapperOptions).Apply(opts...)),
+	}
 	mapping, err := mapper.parseStructMapping(sample, nil)
 	if err != nil {
 		return err
@@ -136,6 +138,7 @@ func ParseJSONRecords[T any](dst *[]*T, records []gjson.Result) error {
 type jsonConvFunc func(j gjson.Result, path string) any
 
 type jsonMapper struct {
+	opts      jsonMapperOptions
 	convFuncs map[[3]string]jsonConvFunc
 }
 
@@ -262,6 +265,9 @@ func (p *jsonMapper) parseStructMapping(sample any, seenTypes []reflect.Type) (J
 		if jsonPath == "" {
 			jsonPath = field.Name
 		}
+		if dynPath := p.opts.DynamicMapping[jsonPath]; dynPath != "" {
+			jsonPath = dynPath
+		}
 		kind := p.getKind(field.Type)
 		var mappingType string
 		switch kind {
@@ -379,5 +385,32 @@ func (p *jsonMapper) getKind(typ reflect.Type) reflect.Kind {
 		return reflect.Float32
 	default:
 		return kind
+	}
+}
+
+// JSONMapperOpt customizes the behavior of parsing JSON records.
+type JSONMapperOpt struct {
+	apply func(options *jsonMapperOptions)
+}
+
+type jsonMapperOptions struct {
+	DynamicMapping map[string]string
+}
+
+func (p *jsonMapperOptions) Apply(opts ...JSONMapperOpt) *jsonMapperOptions {
+	for _, opt := range opts {
+		opt.apply(p)
+	}
+	return p
+}
+
+// WithDynamicJSONMapping specifies dynamic JSON path mapping to use,
+// if a key specified by struct tag "mapping" is found in mapping,
+// the JSON path expression is replaced by the value from mapping.
+func WithDynamicJSONMapping(mapping map[string]string) JSONMapperOpt {
+	return JSONMapperOpt{
+		apply: func(options *jsonMapperOptions) {
+			options.DynamicMapping = mapping
+		},
 	}
 }
