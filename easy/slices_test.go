@@ -186,80 +186,78 @@ func TestRepeat(t *testing.T) {
 	assert.Equal(t, []int{1, 2, 3, 1, 2, 3, 1, 2, 3}, got)
 }
 
-var reverseSliceTests = []map[string]any{
-	{
-		"func":  ReverseInt64s,
-		"slice": []int64{1, 2, 3},
-		"want":  []int64{3, 2, 1},
-	},
-	{
-		"func":  ReverseInt32s,
-		"slice": []int32{1, 2, 3, 4},
-		"want":  []int32{4, 3, 2, 1},
-	},
-	{
-		"func":  ReverseStrings,
-		"slice": []string{"1", "2", "3"},
-		"want":  []string{"3", "2", "1"},
-	},
-	{
-		"func":  Reverse[[]int8, int8],
-		"slice": []int8{1, 2, 3, 4},
-		"want":  []int8{4, 3, 2, 1},
-	},
-	{
-		"func":  Reverse[[]simple, simple],
-		"slice": []simple{{"a"}, {"b"}, {"c"}, {"d"}},
-		"want":  []simple{{"d"}, {"c"}, {"b"}, {"a"}},
-	},
-	{
-		"func":  Reverse[[]int, int],
-		"slice": []int(nil),
-		"want":  []int(nil),
-	},
-}
-
 func TestReverseSlice(t *testing.T) {
+	var reverseSliceTests = []map[string]any{
+		{
+			"func":  ReverseInt64s,
+			"slice": []int64{1, 2, 3},
+			"want":  []int64{3, 2, 1},
+		},
+		{
+			"func":  ReverseInt32s,
+			"slice": []int32{1, 2, 3, 4},
+			"want":  []int32{4, 3, 2, 1},
+		},
+		{
+			"func":  ReverseStrings,
+			"slice": []string{"1", "2", "3"},
+			"want":  []string{"3", "2", "1"},
+		},
+		{
+			"func":  Reverse[[]int8, int8],
+			"slice": []int8{1, 2, 3, 4},
+			"want":  []int8{4, 3, 2, 1},
+		},
+		{
+			"func":  Reverse[[]simple, simple],
+			"slice": []simple{{"a"}, {"b"}, {"c"}, {"d"}},
+			"want":  []simple{{"d"}, {"c"}, {"b"}, {"a"}},
+		},
+		{
+			"func":  Reverse[[]int, int],
+			"slice": []int(nil),
+			"want":  []int(nil),
+		},
+	}
 	for _, test := range reverseSliceTests {
 		got := callFunction(test["func"], test["slice"], false)
 		assert.Equal(t, test["want"], got)
 	}
 }
 
-var reverseSliceInplaceTests = []map[string]any{
-	{
-		"func":  ReverseInt64s,
-		"slice": []int64{1, 2, 3},
-		"want":  []int64{3, 2, 1},
-	},
-	{
-		"func":  ReverseInt32s,
-		"slice": []int32{1, 2, 3},
-		"want":  []int32{3, 2, 1},
-	},
-	{
-		"func":  ReverseStrings,
-		"slice": []string{"1", "2", "3"},
-		"want":  []string{"3", "2", "1"},
-	},
-	{
-		"func":  Reverse[[]int8, int8],
-		"slice": []int8{1, 2, 3, 4},
-		"want":  []int8{4, 3, 2, 1},
-	},
-	{
-		"func":  Reverse[[]simple, simple],
-		"slice": []simple{{"a"}, {"b"}, {"c"}, {"d"}},
-		"want":  []simple{{"d"}, {"c"}, {"b"}, {"a"}},
-	},
-	{
-		"func":  Reverse[[]int, int],
-		"slice": []int(nil),
-		"want":  []int(nil),
-	},
-}
-
 func TestReverseSliceInplace(t *testing.T) {
+	var reverseSliceInplaceTests = []map[string]any{
+		{
+			"func":  ReverseInt64s,
+			"slice": []int64{1, 2, 3},
+			"want":  []int64{3, 2, 1},
+		},
+		{
+			"func":  ReverseInt32s,
+			"slice": []int32{1, 2, 3},
+			"want":  []int32{3, 2, 1},
+		},
+		{
+			"func":  ReverseStrings,
+			"slice": []string{"1", "2", "3"},
+			"want":  []string{"3", "2", "1"},
+		},
+		{
+			"func":  Reverse[[]int8, int8],
+			"slice": []int8{1, 2, 3, 4},
+			"want":  []int8{4, 3, 2, 1},
+		},
+		{
+			"func":  Reverse[[]simple, simple],
+			"slice": []simple{{"a"}, {"b"}, {"c"}, {"d"}},
+			"want":  []simple{{"d"}, {"c"}, {"b"}, {"a"}},
+		},
+		{
+			"func":  Reverse[[]int, int],
+			"slice": []int(nil),
+			"want":  []int(nil),
+		},
+	}
 	for _, test := range reverseSliceInplaceTests {
 		got := callFunction(test["func"], test["slice"], true)
 		assert.Equal(t, test["want"], got)
