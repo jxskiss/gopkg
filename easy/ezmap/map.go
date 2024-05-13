@@ -50,6 +50,11 @@ func (p *Map) UnmarshalYAML(value *yaml.Node) error {
 	return value.Decode(x)
 }
 
+// Size returns the number of elements in the map.
+func (p Map) Size() int {
+	return len(p)
+}
+
 // Set is used to store a new key/value pair exclusively in the map.
 // It also lazily initializes the map if it was not used previously.
 func (p *Map) Set(key string, value any) {

@@ -49,6 +49,13 @@ func (p *SafeMap) UnmarshalYAML(value *yaml.Node) error {
 	return p.map_.UnmarshalYAML(value)
 }
 
+// Size returns the number of elements in the map.
+func (p *SafeMap) Size() int {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return len(p.map_)
+}
+
 func (p *SafeMap) Set(key string, value any) {
 	p.mu.Lock()
 	p.map_.Set(key, value)
