@@ -112,8 +112,11 @@ func (p Map) GetBytes(key string) []byte {
 
 // GetBool returns the value associated with the key as a boolean value.
 func (p Map) GetBool(key string) bool {
-	val, _ := p[key].(bool)
-	return val
+	val, ok := p[key]
+	if ok {
+		return cast.ToBool(val)
+	}
+	return false
 }
 
 // GetInt returns the value associated with the key as an int.
