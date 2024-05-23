@@ -136,8 +136,9 @@ func BreakerWithOverloadRatio(name string, overloadRatio float64) Option {
 	if overloadRatio <= 0 {
 		overloadRatio = 0.1
 	}
+	br := getBreaker(name, overloadRatio)
 	return func(opt options) options {
-		opt.Breaker = getBreaker(name, overloadRatio)
+		opt.Breaker = br
 		return opt
 	}
 }
