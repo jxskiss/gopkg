@@ -47,10 +47,6 @@ func reflect_typelinks() ([]unsafe.Pointer, [][]int32)
 //go:linkname reflect_resolveTypeOff reflect.resolveTypeOff
 func reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
 
-//go:linkname reflect_ifaceIndir reflect.ifaceIndir
-//go:noescape
-func reflect_ifaceIndir(rtype unsafe.Pointer) bool
-
 //go:linkname reflect_unsafe_New reflect.unsafe_New
 func reflect_unsafe_New(unsafe.Pointer) unsafe.Pointer
 

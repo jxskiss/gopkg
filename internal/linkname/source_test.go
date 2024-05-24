@@ -71,8 +71,9 @@ func TestSourceCode(t *testing.T) {
 		"go1.20",
 		"go1.20.13",
 		"go1.21.0",
-		"go1.21.6",
+		"go1.21.10",
 		"go1.22.0",
+		"go1.22.3",
 		"master",
 	}
 

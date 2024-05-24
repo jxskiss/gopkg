@@ -42,6 +42,7 @@ func compileReflectFunctions() {
 
 var reflectSourceCode = []SourceCodeTestCase{
 	{
+		MinVer:   newVer(1, 19, 0),
 		MaxVer:   newVer(1, 20, 999),
 		FileName: "reflect/type.go",
 		Lines: []string{
@@ -58,7 +59,21 @@ var reflectSourceCode = []SourceCodeTestCase{
 			"func (t *rtype) common() *abi.Type",
 			"func typelinks() (sections []unsafe.Pointer, offset [][]int32)",
 			"func resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer",
+		},
+	},
+	{
+		MinVer:   newVer(1, 21, 0),
+		MaxVer:   newVer(1, 22, 999),
+		FileName: "reflect/type.go",
+		Lines: []string{
 			"func ifaceIndir(t *abi.Type) bool",
+		},
+	},
+	{
+		MinVer:   newVer(1, 23, 0),
+		FileName: "internal/abi/type.go",
+		Lines: []string{
+			"func (t *Type) IfaceIndir() bool",
 		},
 	},
 	{
