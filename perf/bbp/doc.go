@@ -7,7 +7,7 @@
 //
 // The methods within this package and all `Pool` instances share the same
 // underlying sized byte slice pools. The byte buffers provided by this
-// package has a minimum limit of 64B and a maximum limit of 32MB,
+// package has a minimum limit of 64B and a maximum limit of 4MB,
 // byte slice with size not in the range will be allocated directly
 // from Go runtime, and won't be recycled for reuse.
 package bbp

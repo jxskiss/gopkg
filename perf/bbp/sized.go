@@ -11,7 +11,7 @@ import (
 
 const (
 	minShift = 6  // at least 64B
-	maxShift = 25 // max 32MB
+	maxShift = 22 // max 4MB
 
 	// Min and max buffer size provided in this package.
 	minBufSize = 1 << minShift

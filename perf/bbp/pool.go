@@ -26,7 +26,7 @@ const (
 //
 // All Pool instances share the same underlying sized byte slice pools.
 // The byte buffers provided by Pool has a minimum limit of 64B and a
-// maximum limit of 32MB, byte slice with size not in the range will be
+// maximum limit of 4MB, byte slice with size not in the range will be
 // allocated directly from the operating system, and won't be recycled
 // for reuse.
 //
@@ -120,9 +120,7 @@ func (p *Recorder) Size() int {
 }
 
 // Record records a used buffer size n.
-//
-// The max recordable size is 32MB, if n is larger than 32MB, it records
-// 32MB.
+// The max recordable size is 4MB, if n is larger than 4MB, it records 4MB.
 func (p *Recorder) Record(n int) {
 	idx := maxPoolIdx
 	if n < maxBufSize {
