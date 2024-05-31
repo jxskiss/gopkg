@@ -5,6 +5,7 @@ import (
 	"sync"
 	"unsafe"
 
+	"github.com/jxskiss/gopkg/v2/internal/linkname"
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
 
@@ -82,7 +83,7 @@ func (p *bufPool) Get(length int) []byte {
 	if ptr := p.pool.Get(); ptr != nil {
 		return _toBuf(ptr.(unsafe.Pointer), length)
 	}
-	return make([]byte, length, p.size)
+	return makeBytes(length, p.size)
 }
 
 func (p *bufPool) Put(buf []byte) {
@@ -176,4 +177,16 @@ func bsr(n int) int {
 //nolint:unused
 func isPowerOfTwo(n int) bool {
 	return n&(n-1) == 0
+}
+
+func makeBytes(len, cap int) (b []byte) {
+	if len < 0 || len > cap {
+		panic("bbp.makeBytes: len out of range")
+	}
+	ptr := linkname.Runtime_mallocgc(uintptr(cap), nil, false)
+	sh := (*unsafeheader.SliceHeader)(unsafe.Pointer(&b))
+	sh.Data = ptr
+	sh.Len = len
+	sh.Cap = cap
+	return
 }

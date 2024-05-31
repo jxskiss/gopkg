@@ -7,15 +7,15 @@ import (
 )
 
 const (
-	_4K  = 4096
-	_10M = 10 << 20
+	_4K = 4096
+	_1M = 1 << 20
 )
 
 func TestGet(t *testing.T) {
 	buf := Get(_4K, _4K)
 	t.Log(cap(buf))
 
-	buf = Get(_10M, _10M)
+	buf = Get(_1M, _1M)
 	t.Log(cap(buf))
 }
 
@@ -39,6 +39,25 @@ func Test_indexPut(t *testing.T) {
 	assert.Equal(t, 8, indexPut(256))
 }
 
+func BenchmarkAlloc_128(b *testing.B) {
+	var buf []byte
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		buf = make([]byte, 0, 128)
+	}
+	_ = buf
+}
+
+func BenchmarkPool_128(b *testing.B) {
+	var buf []byte
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		buf = Get(128, 128)
+		Put(buf)
+	}
+	_ = buf
+}
+
 func BenchmarkAlloc_4K(b *testing.B) {
 	var buf []byte
 	b.ReportAllocs()
@@ -58,23 +77,50 @@ func BenchmarkPool_4K(b *testing.B) {
 	_ = buf
 }
 
-func BenchmarkAlloc_10M(b *testing.B) {
+func BenchmarkAlloc_1M(b *testing.B) {
 	var buf []byte
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		buf = make([]byte, 0, _10M)
+		buf = make([]byte, 0, _1M)
 	}
 	_ = buf
 }
 
-func BenchmarkPool_10M(b *testing.B) {
+func BenchmarkPool_1M(b *testing.B) {
 	var buf []byte
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		buf = Get(_10M, _10M)
+		buf = Get(_1M, _1M)
 		Put(buf)
 	}
 	_ = buf
+}
+
+func BenchmarkAlloc_128_Parallel(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		var buf []byte
+		for pb.Next() {
+			for i := 0; i < 100; i++ {
+				buf = make([]byte, 0, 128)
+			}
+			_ = buf
+		}
+	})
+}
+
+func BenchmarkPool_128_Parallel(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		var buf []byte
+		for pb.Next() {
+			for i := 0; i < 100; i++ {
+				buf = Get(128, 128)
+				Put(buf)
+			}
+			_ = buf
+		}
+	})
 }
 
 func BenchmarkAlloc_4K_Parallel(b *testing.B) {
@@ -104,26 +150,26 @@ func BenchmarkPool_4K_Parallel(b *testing.B) {
 	})
 }
 
-func BenchmarkAlloc_10M_Parallel(b *testing.B) {
+func BenchmarkAlloc_1M_Parallel(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		var buf []byte
 		for pb.Next() {
 			for i := 0; i < 100; i++ {
-				buf = make([]byte, 0, _10M)
+				buf = make([]byte, 0, _1M)
 			}
 		}
 		_ = buf
 	})
 }
 
-func BenchmarkPool_10M_Parallel(b *testing.B) {
+func BenchmarkPool_1M_Parallel(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		var buf []byte
 		for pb.Next() {
 			for i := 0; i < 100; i++ {
-				buf = Get(_10M, _10M)
+				buf = Get(_1M, _1M)
 				Put(buf)
 			}
 		}

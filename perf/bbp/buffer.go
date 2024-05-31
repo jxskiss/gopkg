@@ -165,7 +165,7 @@ func (b *Buffer) Reset() {
 // byte slice.
 func (b *Buffer) Clone() *Buffer {
 	cp := &Buffer{
-		buf: make([]byte, len(b.buf), cap(b.buf)),
+		buf: makeBytes(len(b.buf), cap(b.buf)),
 	}
 	copy(cp.buf, b.buf)
 	return cp
@@ -184,7 +184,7 @@ func (b *Buffer) Bytes() []byte {
 
 // Copy returns a copy of the underlying byte slice.
 func (b *Buffer) Copy() []byte {
-	buf := make([]byte, len(b.buf))
+	buf := makeBytes(len(b.buf), len(b.buf))
 	copy(buf, b.buf)
 	return buf
 }

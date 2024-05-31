@@ -43,3 +43,8 @@ func Runtime_typehash(rtype unsafe.Pointer, p unsafe.Pointer, h uintptr) uintptr
 
 //go:linkname Runtime_activeModules runtime.activeModules
 func Runtime_activeModules() []unsafe.Pointer
+
+// -------- runtime malloc without memclr cost --------
+
+//go:linkname Runtime_mallocgc runtime.mallocgc
+func Runtime_mallocgc(size uintptr, typ unsafe.Pointer, needzero bool) unsafe.Pointer

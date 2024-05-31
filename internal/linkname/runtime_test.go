@@ -92,4 +92,10 @@ var runtimeSourceCode = []SourceCodeTestCase{
 			"func activeModules() []*moduledata",
 		},
 	},
+	{
+		FileName: "runtime/malloc.go",
+		Lines: []string{
+			"func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer",
+		},
+	},
 }
