@@ -106,15 +106,23 @@ func (p *internalPool) SetAdhocWorkerLimit(limit int) {
 }
 
 func (p *internalPool) submit(ctx context.Context, arg any) {
-	t := newTask()
+	// Inline newTask()
+	var t *task
+	if tt := taskPool.Get(); tt != nil {
+		t = tt.(*task)
+	} else {
+		t = &task{}
+	}
 	t.ctx = ctx
 	t.arg = arg
 
 	// Try permanent worker first.
-	select {
-	case p.taskCh <- t:
-		return
-	default:
+	if p.taskCh != nil {
+		select {
+		case p.taskCh <- t:
+			return
+		default:
+		}
 	}
 
 	// No free permanent worker available, check to start a new

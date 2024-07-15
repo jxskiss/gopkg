@@ -61,14 +61,15 @@ type Config struct {
 
 // NewConfig creates a default Config.
 func NewConfig() *Config {
-	c := &Config{
-		ScaleThreshold: 1,
-	}
+	c := &Config{}
 	c.checkAndSetDefaults()
 	return c
 }
 
 func (c *Config) checkAndSetDefaults() {
+	if c.ScaleThreshold <= 0 {
+		c.ScaleThreshold = 1
+	}
 	if c.PanicHandler == nil {
 		c.PanicHandler = defaultPanicHandler
 	}

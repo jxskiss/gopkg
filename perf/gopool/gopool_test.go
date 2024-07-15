@@ -16,7 +16,9 @@
 package gopool
 
 import (
+	"bytes"
 	"context"
+	"log"
 	"sync"
 	"testing"
 	"time"
@@ -52,6 +54,30 @@ func TestDefaultPool(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	if n := Default().AdhocWorkerCount(); n != 0 {
 		t.Errorf("defualtPool adhoc worker count, want 0, got %d", n)
+	}
+}
+
+func TestDefaultPanicHandler(t *testing.T) {
+	f1 := func() {
+		log.Println("f1")
+	}
+	f2 := func() {
+		f1()
+		panic("panic f2")
+	}
+
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+
+	Go(f2)
+	time.Sleep(100 * time.Millisecond)
+
+	logStr := buf.String()
+	if !bytes.Contains([]byte(logStr), []byte("[ERROR] gopool: catch panic: panic f2")) {
+		t.Errorf("log output does not contain panic message")
+	}
+	if !bytes.Contains([]byte(logStr), []byte("perf/gopool.TestDefaultPanicHandler.func2:")) {
+		t.Errorf("log output does not contain panic location")
 	}
 }
 
