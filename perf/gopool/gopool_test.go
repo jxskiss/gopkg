@@ -22,6 +22,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/jxskiss/gopkg/v2/internal"
 )
 
 func TestDefaultPool(t *testing.T) {
@@ -66,7 +68,7 @@ func TestDefaultPanicHandler(t *testing.T) {
 		panic("panic f2")
 	}
 
-	var buf bytes.Buffer
+	var buf internal.LockedBuffer
 	log.SetOutput(&buf)
 
 	Go(f2)
