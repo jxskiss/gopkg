@@ -68,14 +68,14 @@ func TestSetSlogDefault(t *testing.T) {
 
 func TestNewSlogLogger(t *testing.T) {
 	r0 := NewSlogLogger()
-	assert.NotNil(t, r0.Handler().(*slogImpl).opts)
-	assert.NotNil(t, r0.Handler().(*slogImpl).l)
+	assert.NotNil(t, r0.Handler().(*slogHandlerImpl).opts)
+	assert.NotNil(t, r0.Handler().(*slogHandlerImpl).l)
 
 	l := L().Named("slogTest").With(zap.String("ns", "default"))
 	r1 := NewSlogLogger(func(options *SlogOptions) {
 		options.Logger = l.Logger
 	})
-	assert.Equal(t, "slogTest", r1.Handler().(*slogImpl).name)
+	assert.Equal(t, "slogTest", r1.Handler().(*slogHandlerImpl).name)
 	r1.Info("test NewSlogLogger with logger")
 }
 
