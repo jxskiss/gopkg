@@ -242,7 +242,9 @@ func getCaller(skip int) (funcName, fullFileName, simpleFileName string, line in
 	if !ok {
 		return
 	}
-	funcName = runtime.FuncForPC(pc).Name()
+	fs := runtime.CallersFrames([]uintptr{pc})
+	frame, _ := fs.Next()
+	funcName = frame.Func.Name()
 	for i := len(funcName) - 1; i >= 0; i-- {
 		if funcName[i] == '/' {
 			funcName = funcName[i+1:]

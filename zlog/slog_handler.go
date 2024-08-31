@@ -148,12 +148,11 @@ func (h *slogHandlerImpl) Handle(ctx context.Context, record slog.Record) error 
 
 	// Add caller information.
 	if record.PC > 0 && !h.opts.DisableCaller {
-		var stack [1]uintptr
-		stack[0] = record.PC
-		frame, _ := runtime.CallersFrames(stack[:]).Next()
+		fs := runtime.CallersFrames([]uintptr{record.PC})
+		frame, _ := fs.Next()
 		ce.Caller = zapcore.EntryCaller{
 			Defined:  true,
-			PC:       frame.PC,
+			PC:       record.PC, // NOTE: don's use frame.PC here, it's different with record.PC
 			File:     frame.File,
 			Line:     frame.Line,
 			Function: frame.Function,
