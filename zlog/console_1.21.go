@@ -3,6 +3,7 @@
 package zlog
 
 import (
+	"io"
 	"log/slog"
 	"os"
 	"time"
@@ -45,9 +46,13 @@ func newCoreForConsole(cfg *Config, enc zapcore.Encoder, ws zapcore.WriteSyncer)
 		},
 		DisableColor: false,
 	}
+	writer := io.Writer(ws)
+	if _, ok := ws.(*wrapStderr); ok {
+		writer = os.Stderr
+	}
 	impl := &slogCoreImpl{
 		cfg:     cfg,
-		handler: slogconsolehandler.New(os.Stderr, opts),
+		handler: slogconsolehandler.New(writer, opts),
 	}
 	return impl
 }

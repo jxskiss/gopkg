@@ -61,7 +61,10 @@ func fieldToAttrs(fields []zapcore.Field) []slog.Attr {
 }
 
 func (c *slogCoreImpl) With(fields []zapcore.Field) zapcore.Core {
-	return &slogCoreImpl{handler: c.handler.WithAttrs(fieldToAttrs(fields))}
+	return &slogCoreImpl{
+		cfg:     c.cfg,
+		handler: c.handler.WithAttrs(fieldToAttrs(fields)),
+	}
 }
 
 func (c *slogCoreImpl) Check(entry zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {

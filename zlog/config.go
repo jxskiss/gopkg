@@ -330,11 +330,6 @@ func newWithMultiFilesOutput(cfg *Config, opts ...zap.Option) (*zap.Logger, *Pro
 // package.
 func NewWithOutput(cfg *Config, output zapcore.WriteSyncer, opts ...zap.Option) (*zap.Logger, *Properties, error) {
 	cfg = checkAndFillDefaults(cfg)
-	isStderr := false
-	if wrapper, ok := output.(*wrapStderr); ok {
-		isStderr = true
-		output = wrapper.WriteSyncer
-	}
 	encoder, err := cfg.buildEncoder()
 	if err != nil {
 		return nil, nil, err
@@ -342,7 +337,7 @@ func NewWithOutput(cfg *Config, output zapcore.WriteSyncer, opts ...zap.Option) 
 
 	// base core logging any level messages
 	var core zapcore.Core
-	if isStderr && cfg.Format == "console" {
+	if cfg.Format == "console" {
 		core = newCoreForConsole(cfg, encoder, output)
 	} else {
 		core = zapcore.NewCore(encoder, output, Level(-127))

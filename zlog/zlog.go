@@ -238,12 +238,13 @@ func (s SugaredLogger) Desugar() Logger {
 }
 
 func getCaller(skip int) (funcName, fullFileName, simpleFileName string, line int, ok bool) {
-	pc, fullFileName, line, ok := runtime.Caller(skip + 1)
-	if !ok {
+	var pc [1]uintptr
+	n := runtime.Callers(skip+2, pc[:])
+	if n < 1 {
 		return
 	}
-	fs := runtime.CallersFrames([]uintptr{pc})
-	frame, _ := fs.Next()
+	frame, _ := runtime.CallersFrames(pc[:n]).Next()
+	fullFileName, line = frame.File, frame.Line
 	funcName = frame.Func.Name()
 	for i := len(funcName) - 1; i >= 0; i-- {
 		if funcName[i] == '/' {
