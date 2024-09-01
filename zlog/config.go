@@ -2,13 +2,10 @@ package zlog
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-
-	"github.com/jxskiss/gopkg/v2/zlog/internal/terminal"
 )
 
 const (
@@ -194,7 +191,7 @@ func checkAndFillDefaults(cfg *Config) *Config {
 	return cfg
 }
 
-func (cfg *Config) buildEncoder(isStderr bool) (zapcore.Encoder, error) {
+func (cfg *Config) buildEncoder() (zapcore.Encoder, error) {
 	encConfig := zap.NewProductionEncoderConfig()
 	encConfig.EncodeLevel = encodeLevelLowercase
 	if cfg.Development {
@@ -210,11 +207,7 @@ func (cfg *Config) buildEncoder(isStderr bool) (zapcore.Encoder, error) {
 		return zapcore.NewJSONEncoder(encConfig), nil
 	case "console":
 		encConfig.EncodeLevel = encodeLevelCapital
-		encConfig.EncodeTime = zapcore.TimeEncoderOfLayout(consoleTimeLayout)
-		encConfig.ConsoleSeparator = " "
-		if isStderr && terminal.CheckIsTerminal(os.Stderr) {
-			encConfig.EncodeLevel = encodeLevelColorCapital
-		}
+		encConfig.EncodeTime = zapcore.TimeEncoderOfLayout("01/02 15:04:05.000")
 		return zapcore.NewConsoleEncoder(encConfig), nil
 	case "logfmt":
 		return NewLogfmtEncoder(encConfig), nil
@@ -290,7 +283,7 @@ func New(cfg *Config, opts ...zap.Option) (*zap.Logger, *Properties, error) {
 }
 
 func newWithMultiFilesOutput(cfg *Config, opts ...zap.Option) (*zap.Logger, *Properties, error) {
-	enc, err := cfg.buildEncoder(false)
+	enc, err := cfg.buildEncoder()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -337,18 +330,18 @@ func newWithMultiFilesOutput(cfg *Config, opts ...zap.Option) (*zap.Logger, *Pro
 // package.
 func NewWithOutput(cfg *Config, output zapcore.WriteSyncer, opts ...zap.Option) (*zap.Logger, *Properties, error) {
 	cfg = checkAndFillDefaults(cfg)
-	isStderr := false
-	if wrapper, ok := output.(*wrapStderr); ok {
-		isStderr = true
-		output = wrapper.WriteSyncer
-	}
-	encoder, err := cfg.buildEncoder(isStderr)
+	encoder, err := cfg.buildEncoder()
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// base core logging any level messages
-	core := zapcore.NewCore(encoder, output, Level(-127))
+	var core zapcore.Core
+	if cfg.Format == "console" {
+		core = newCoreForConsole(cfg, encoder, output)
+	} else {
+		core = zapcore.NewCore(encoder, output, Level(-127))
+	}
 
 	var level Level
 	if !unmarshalLevel(&level, cfg.Level) {

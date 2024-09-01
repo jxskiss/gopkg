@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-var _ slog.Handler = (*slogImpl)(nil)
+var _ slog.Handler = (*slogHandlerImpl)(nil)
 
 // For Go1.21+, we also replace the default logger in slog package.
 func init() {
@@ -37,7 +37,7 @@ func SetSlogDefault(l *slog.Logger) {
 // NewSlogLogger creates a new slog.Logger.
 func NewSlogLogger(options ...func(*SlogOptions)) *slog.Logger {
 	opts := newSlogOptions(options)
-	impl := &slogImpl{
+	impl := &slogHandlerImpl{
 		opts: opts,
 		l:    opts.Logger,
 		name: opts.Logger.Name(),
@@ -104,7 +104,7 @@ func (rr ReplaceResult) hasValidField() bool {
 	return (rr.Field.Type != zapcore.UnknownType && rr.Field != zap.Skip()) || len(rr.Multi) > 0
 }
 
-type slogImpl struct {
+type slogHandlerImpl struct {
 	opts      *SlogOptions
 	l         *zap.Logger
 	name      string   // logger name
@@ -112,7 +112,7 @@ type slogImpl struct {
 	groups    []string // groups that not converted to namespace field
 }
 
-func (h *slogImpl) Enabled(ctx context.Context, level slog.Level) bool {
+func (h *slogHandlerImpl) Enabled(ctx context.Context, level slog.Level) bool {
 	zLevel := slogToZapLevel(level)
 	ctxFunc := globals.Props.cfg.CtxHandler.ChangeLevel
 	if ctx == nil || ctxFunc == nil {
@@ -124,7 +124,7 @@ func (h *slogImpl) Enabled(ctx context.Context, level slog.Level) bool {
 	return h.l.Core().Enabled(zLevel)
 }
 
-func (h *slogImpl) Handle(ctx context.Context, record slog.Record) error {
+func (h *slogHandlerImpl) Handle(ctx context.Context, record slog.Record) error {
 	var ctxResult CtxResult
 	ctxFunc := globals.Props.cfg.CtxHandler.WithCtx
 	if ctx != nil && ctxFunc != nil {
@@ -148,12 +148,11 @@ func (h *slogImpl) Handle(ctx context.Context, record slog.Record) error {
 
 	// Add caller information.
 	if record.PC > 0 && !h.opts.DisableCaller {
-		var stack [1]uintptr
-		stack[0] = record.PC
-		frame, _ := runtime.CallersFrames(stack[:]).Next()
+		fs := runtime.CallersFrames([]uintptr{record.PC})
+		frame, _ := fs.Next()
 		ce.Caller = zapcore.EntryCaller{
 			Defined:  true,
-			PC:       frame.PC,
+			PC:       record.PC, // NOTE: don's use frame.PC here, it's different with record.PC
 			File:     frame.File,
 			Line:     frame.Line,
 			Function: frame.Function,
@@ -188,7 +187,7 @@ func (h *slogImpl) Handle(ctx context.Context, record slog.Record) error {
 	return nil
 }
 
-func (h *slogImpl) WithAttrs(attrs []slog.Attr) slog.Handler {
+func (h *slogHandlerImpl) WithAttrs(attrs []slog.Attr) slog.Handler {
 	guessCap := len(attrs) + len(h.groups) + 2
 	fields := make([]zapcore.Field, 0, guessCap)
 	var addedNamespace bool
@@ -215,14 +214,14 @@ func (h *slogImpl) WithAttrs(attrs []slog.Attr) slog.Handler {
 	return &clone
 }
 
-func (h *slogImpl) appendGroups(fields []zapcore.Field) []zapcore.Field {
+func (h *slogHandlerImpl) appendGroups(fields []zapcore.Field) []zapcore.Field {
 	for _, g := range h.groups {
 		fields = append(fields, zap.Namespace(g))
 	}
 	return fields
 }
 
-func (h *slogImpl) WithGroup(name string) slog.Handler {
+func (h *slogHandlerImpl) WithGroup(name string) slog.Handler {
 	// If the name is empty, WithGroup returns the receiver.
 	if name == "" {
 		return h
@@ -238,7 +237,7 @@ func (h *slogImpl) WithGroup(name string) slog.Handler {
 	return &clone
 }
 
-func (h *slogImpl) convertAttrToField(attr slog.Attr) ReplaceResult {
+func (h *slogHandlerImpl) convertAttrToField(attr slog.Attr) ReplaceResult {
 	// Optionally replace attrs.
 	// attr.Value is resolved before calling ReplaceAttr, so the user doesn't have to.
 	if attr.Value.Kind() == slog.KindLogValuer {
@@ -250,7 +249,7 @@ func (h *slogImpl) convertAttrToField(attr slog.Attr) ReplaceResult {
 	return ReplaceResult{Field: ConvertAttrToField(attr)}
 }
 
-func (h *slogImpl) GetUnderlying() *zap.Logger {
+func (h *slogHandlerImpl) GetUnderlying() *zap.Logger {
 	return h.opts.Logger
 }
 

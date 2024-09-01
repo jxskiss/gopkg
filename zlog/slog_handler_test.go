@@ -40,10 +40,10 @@ func TestRedirectStdLog(t *testing.T) {
 
 	lines := out.Lines()
 	require.Len(t, lines, 2)
-	assert.Contains(t, lines[0], "DEBUG stdlog zlog/slog_test.go:")
-	assert.Contains(t, lines[0], "[Debug] std log Printf, key1=value1")
-	assert.Contains(t, lines[1], "DEBUG zlog/slog_test.go:")
-	assert.Contains(t, lines[1], `std slog Debug {"key1": "value1"}`)
+	assert.Contains(t, lines[0], "logger= stdlog  source= zlog/slog_handler_test.go:")
+	assert.Contains(t, lines[0], "DEBUG  [Debug] std log Printf, key1=value1")
+	assert.Contains(t, lines[1], "source= zlog/slog_handler_test.go:")
+	assert.Contains(t, lines[1], "DEBUG  std slog Debug \tkey1= value1")
 }
 
 func TestSetSlogDefault(t *testing.T) {
@@ -60,22 +60,22 @@ func TestSetSlogDefault(t *testing.T) {
 
 	lines := out.Lines()
 	require.Len(t, lines, 2)
-	assert.Contains(t, lines[0], "WARN stdlog zlog/slog_test.go:")
-	assert.Contains(t, lines[0], "[Warn] std log Printf, key1=value1")
-	assert.Contains(t, lines[1], "WARN zlog/slog_test.go:")
-	assert.Contains(t, lines[1], `std slog Warn {"key2": "value2"}`)
+	assert.Contains(t, lines[0], "logger= stdlog  source= zlog/slog_handler_test.go:")
+	assert.Contains(t, lines[0], "WARN   [Warn] std log Printf, key1=value1")
+	assert.Contains(t, lines[1], "source= zlog/slog_handler_test.go:")
+	assert.Contains(t, lines[1], "WARN   std slog Warn \tkey2= value2")
 }
 
 func TestNewSlogLogger(t *testing.T) {
 	r0 := NewSlogLogger()
-	assert.NotNil(t, r0.Handler().(*slogImpl).opts)
-	assert.NotNil(t, r0.Handler().(*slogImpl).l)
+	assert.NotNil(t, r0.Handler().(*slogHandlerImpl).opts)
+	assert.NotNil(t, r0.Handler().(*slogHandlerImpl).l)
 
 	l := L().Named("slogTest").With(zap.String("ns", "default"))
 	r1 := NewSlogLogger(func(options *SlogOptions) {
 		options.Logger = l.Logger
 	})
-	assert.Equal(t, "slogTest", r1.Handler().(*slogImpl).name)
+	assert.Equal(t, "slogTest", r1.Handler().(*slogHandlerImpl).name)
 	r1.Info("test NewSlogLogger with logger")
 }
 
@@ -95,7 +95,7 @@ func TestSlogLoggerLogging(t *testing.T) {
 	logger.Info("test info", "ns", "default", "podnum", 2)
 	lines := out.Lines()
 	assert.Contains(t, lines[0], `"level":"info"`)
-	assert.Contains(t, lines[0], `"caller":"zlog/slog_test.go:`)
+	assert.Contains(t, lines[0], `"caller":"zlog/slog_handler_test.go:`)
 	assert.Contains(t, lines[0], `"ns":"default"`)
 	assert.Contains(t, lines[0], `"podnum":2`)
 }
@@ -129,8 +129,8 @@ func TestSlogLoggerCtxHandler(t *testing.T) {
 
 		lines := out.Lines()
 		require.Len(t, lines, 1)
-		assert.Contains(t, lines[0], "DEBUG zlog/slog_test.go:")
-		assert.Contains(t, lines[0], `a debug message`)
+		assert.Contains(t, lines[0], "source= zlog/slog_handler_test.go:")
+		assert.Contains(t, lines[0], `DEBUG  a debug message`)
 	})
 
 	t.Run("ctx fields", func(t *testing.T) {
@@ -152,8 +152,8 @@ func TestSlogLoggerCtxHandler(t *testing.T) {
 
 		lines := out.Lines()
 		require.Len(t, lines, 1)
-		assert.Contains(t, lines[0], "INFO zlog/slog_test.go:")
-		assert.Contains(t, lines[0], `an info message {"logid": "abcde", "userID": 12345}`)
+		assert.Contains(t, lines[0], "source= zlog/slog_handler_test.go:")
+		assert.Contains(t, lines[0], "INFO   an info message \tlogid= abcde  userID= 12345")
 	})
 }
 
@@ -182,12 +182,12 @@ func TestSlogOptionsReplaceAttr(t *testing.T) {
 
 		lines := out.Lines()
 		require.Len(t, lines, 3)
-		assert.Contains(t, lines[0], "ERROR zlog/slog_test.go:")
-		assert.Contains(t, lines[0], `error log 1 {"error": "test error 1"}`)
-		assert.Contains(t, lines[1], "ERROR zlog/slog_test.go:")
-		assert.Contains(t, lines[1], `error log 2 {"error": "test error 2"}`)
-		assert.Contains(t, lines[2], "ERROR zlog/slog_test.go:")
-		assert.Contains(t, lines[2], `error log 3 {"notMatchErrKey": "test error 3"}`)
+		assert.Contains(t, lines[0], "source= zlog/slog_handler_test.go:")
+		assert.Contains(t, lines[0], `ERROR  error log 1 	error= "test error 1"`)
+		assert.Contains(t, lines[1], "source= zlog/slog_handler_test.go:")
+		assert.Contains(t, lines[1], `ERROR  error log 2 	error= "test error 2"`)
+		assert.Contains(t, lines[2], "source= zlog/slog_handler_test.go:")
+		assert.Contains(t, lines[2], `ERROR  error log 3 	notMatchErrKey= "test error 3"`)
 	})
 
 	t.Run("error stacktrace", func(t *testing.T) {
@@ -217,12 +217,11 @@ func TestSlogOptionsReplaceAttr(t *testing.T) {
 
 		logger.Error("error log", "err", wrapFunc(3, getErrorWithStackTrace)())
 
-		lines := out.Lines()
-		require.Len(t, lines, 1)
-		assert.Contains(t, lines[0], "ERROR zlog/slog_test.go:")
-		assert.Contains(t, lines[0], `error log {"error": "test error", "stacktrace": "`)
-		assert.Contains(t, lines[0], `zlog.getErrorWithStackTrace()\n\t`)
-		assert.Contains(t, lines[0], "zlog/slog_test.go:23")
+		lines := out.String()
+		assert.Contains(t, lines, "source= zlog/slog_handler_test.go:")
+		assert.Contains(t, lines, `ERROR  error log 	error= "test error"  `)
+		assert.Contains(t, lines, "zlog.getErrorWithStackTrace()\n\t")
+		assert.Contains(t, lines, "zlog/slog_handler_test.go:23")
 	})
 }
 

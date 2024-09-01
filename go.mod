@@ -7,6 +7,7 @@ require (
 	github.com/go-logr/logr v1.4.1
 	github.com/gobwas/glob v0.2.3
 	github.com/json-iterator/go v1.1.12
+	github.com/jxskiss/slog-console-handler v0.2.2
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/spf13/cast v1.6.0
 	github.com/stretchr/testify v1.8.4
@@ -14,7 +15,6 @@ require (
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/sync v0.6.0
-	golang.org/x/sys v0.18.0
 	google.golang.org/protobuf v1.33.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -26,6 +26,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
+	golang.org/x/sys v0.24.0 // indirect
 )
 
 retract (

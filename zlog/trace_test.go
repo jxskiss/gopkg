@@ -41,7 +41,7 @@ func TestTracef(t *testing.T) {
 
 func TestTRACE(t *testing.T) {
 	buf := &zaptest.Buffer{}
-	l, p, _ := NewWithOutput(&Config{Level: "trace", Development: true}, buf)
+	l, p, _ := NewWithOutput(&Config{Level: "trace", Format: "logfmt"}, buf)
 	defer ReplaceGlobals(l, p)()
 
 	TRACE()
@@ -53,9 +53,9 @@ func TestTRACE(t *testing.T) {
 	TRACE(L().With(zap.Int("TestTRACE", 1)))
 	TRACE(S().With("TestTRACE", 1))
 	for _, line := range buf.Lines() {
-		assert.Contains(t, line, " TRACE ")
+		assert.Contains(t, line, "level=trace")
 		assert.Regexp(t, `zlog/trace_test.go:5\d`, line)
-		assert.Contains(t, line, `"TestTRACE": 1`)
+		assert.Contains(t, line, `TestTRACE=1`)
 	}
 
 	buf.Reset()
@@ -64,7 +64,7 @@ func TestTRACE(t *testing.T) {
 	TRACE(L(), "a", "b", "c", 1, 2, 3)
 	TRACE(S(), "a", "b", "c", 1, 2, 3)
 	for _, line := range buf.Lines() {
-		assert.Contains(t, line, " TRACE ")
+		assert.Contains(t, line, "level=trace")
 		assert.Regexp(t, `zlog/trace_test\.go:6\d`, line)
 		assert.Contains(t, line, "abc1 2 3")
 	}
@@ -75,7 +75,7 @@ func TestTRACE(t *testing.T) {
 	TRACE(L(), "a=%v, b=%v, c=%v", 1, 2, 3)
 	TRACE(S(), "a=%v, b=%v, c=%v", 1, 2, 3)
 	for _, line := range buf.Lines() {
-		assert.Contains(t, line, " TRACE ")
+		assert.Contains(t, line, "level=trace")
 		assert.Regexp(t, `zlog/trace_test\.go:7\d`, line)
 		assert.Contains(t, line, "a=1, b=2, c=3")
 	}
@@ -125,7 +125,7 @@ func wrappedTRACE1(arg0 any, args ...any) {
 
 func TestTRACE1(t *testing.T) {
 	buf := &zaptest.Buffer{}
-	l, p, _ := NewWithOutput(&Config{Level: "trace", Development: true}, buf)
+	l, p, _ := NewWithOutput(&Config{Level: "trace", Format: "logfmt"}, buf)
 	defer ReplaceGlobals(l, p)()
 
 	TRACE1("a")
@@ -137,9 +137,9 @@ func TestTRACE1(t *testing.T) {
 	TRACE1(L().With(zap.Int("TestTRACE1", 1)))
 	TRACE1(S().With("TestTRACE1", 1))
 	for _, line := range buf.Lines() {
-		assert.Contains(t, line, " TRACE ")
+		assert.Contains(t, line, "level=trace")
 		assert.Regexp(t, `zlog/trace_test.go:13\d`, line)
-		assert.Contains(t, line, `"TestTRACE1": 1`)
+		assert.Contains(t, line, `TestTRACE1=1`)
 	}
 
 	buf.Reset()
@@ -148,7 +148,7 @@ func TestTRACE1(t *testing.T) {
 	TRACE1(L(), "a", "b", "c", 1, 2, 3)
 	TRACE1(S(), "a", "b", "c", 1, 2, 3)
 	for _, line := range buf.Lines() {
-		assert.Contains(t, line, " TRACE ")
+		assert.Contains(t, line, "level=trace")
 		assert.Regexp(t, `zlog/trace_test.go:14\d`, line)
 		assert.Contains(t, line, "abc1 2 3")
 	}
@@ -159,7 +159,7 @@ func TestTRACE1(t *testing.T) {
 	TRACE1(L(), "a=%v, b=%v, c=%v", 1, 2, 3)
 	TRACE1(S(), "a=%v, b=%v, c=%v", 1, 2, 3)
 	for _, line := range buf.Lines() {
-		assert.Contains(t, line, " TRACE ")
+		assert.Contains(t, line, "level=trace")
 		assert.Regexp(t, `zlog/trace_test.go:1[56]\d`, line)
 		assert.Contains(t, line, "a=1, b=2, c=3")
 	}
@@ -177,7 +177,6 @@ func TestTRACESkip1(t *testing.T) {
 	lines := buf.Lines()
 	assert.Len(t, lines, 4)
 	for _, line := range lines {
-		t.Log(line)
 		assert.Contains(t, line, `"level":"trace"`)
 		assert.Contains(t, line, "test trace 1")
 		assert.Contains(t, line, `"level":"trace"`)
