@@ -1,10 +1,46 @@
 package linkname
 
 import (
+	"fmt"
+	"reflect"
+	"strings"
 	"unsafe"
 
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
+
+func GetReflectTypeByName(name string) (reflect.Type, error) {
+	sections, offsets := Reflect_typelinks()
+	for i, base := range sections {
+		for _, offset := range offsets[i] {
+			typ := unsafeheader.ToReflectType(Reflect_resolveTypeOff(base, offset))
+			for typ.Name() == "" && typ.Kind() == reflect.Ptr {
+				typ = typ.Elem()
+			}
+			typName := typ.Name()
+			if typName == "" || !strings.HasSuffix(name, typName) {
+				continue
+			}
+			pkgPath := removeVendorPrefix(typ.PkgPath())
+			if name == pkgPath+"."+typName {
+				return typ, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("type %s not found", name)
+}
+
+func removeVendorPrefix(path string) string {
+	const prefix = "/vendor/"
+	const prefixLen = 8
+	idx := strings.LastIndex(path, prefix)
+	if idx >= 0 {
+		path = path[idx+prefixLen:]
+	}
+	return path
+}
+
+// -------- link to package reflect --------
 
 func Reflect_typelinks() ([]unsafe.Pointer, [][]int32) {
 	return reflect_typelinks()
@@ -46,6 +82,10 @@ func reflect_typelinks() ([]unsafe.Pointer, [][]int32)
 
 //go:linkname reflect_resolveTypeOff reflect.resolveTypeOff
 func reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
+
+//go:linkname reflect_ifaceIndir reflect.ifaceIndir
+//go:noescape
+func reflect_ifaceIndir(rtype unsafe.Pointer) bool
 
 //go:linkname reflect_unsafe_New reflect.unsafe_New
 func reflect_unsafe_New(unsafe.Pointer) unsafe.Pointer

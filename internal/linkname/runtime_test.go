@@ -12,8 +12,7 @@ func compileRuntimeFunctions() {
 	call(Runtime_memhash32)
 	call(Runtime_memhash64)
 	call(Runtime_stringHash)
-	call(Runtime_bytesHash)
-	call(Runtime_efaceHash)
+	call(Runtime_nilinterhash)
 	call(Runtime_typehash)
 	call(Runtime_activeModules)
 }
@@ -81,8 +80,7 @@ var runtimeSourceCode = []SourceCodeTestCase{
 			"func memhash32(p unsafe.Pointer, h uintptr) uintptr",
 			"func memhash64(p unsafe.Pointer, h uintptr) uintptr",
 			"func stringHash(s string, seed uintptr) uintptr",
-			"func bytesHash(b []byte, seed uintptr) uintptr",
-			"func efaceHash(i any, seed uintptr) uintptr",
+			"func nilinterhash(p unsafe.Pointer, h uintptr) uintptr",
 			"func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr",
 		},
 	},

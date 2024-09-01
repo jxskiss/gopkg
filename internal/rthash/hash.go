@@ -26,9 +26,10 @@ func NewHashFunc[K comparable]() HashFunc[K] {
 
 	var zero K
 	typ := reflect.TypeOf(zero)
-	if typ == nil {
+	if typ == nil { // nil interface
 		return func(key K) uintptr {
-			return linkname.Runtime_efaceHash(key, seed)
+			x := any(key)
+			return linkname.Runtime_nilinterhash(noescape(unsafe.Pointer(&x)), seed)
 		}
 	}
 
@@ -53,23 +54,6 @@ func NewHashFunc[K comparable]() HashFunc[K] {
 		return func(key K) uintptr {
 			return linkname.Runtime_typehash(rtype, unsafe.Pointer(&key), seed)
 		}
-	}
-}
-
-// NewBytesHash returns a new hash function to hash byte slice.
-//
-// Note that this function generates a random seed, each calling of this
-// function returns DIFFERENT hash function, different hash functions
-// generate different hash result for same input.
-//
-// The returned function is safe for concurrent use by multiple goroutines.
-func NewBytesHash() func(b []byte) uintptr {
-	var seed uintptr
-	for seed == 0 {
-		seed = uintptr(linkname.Runtime_fastrand64())
-	}
-	return func(b []byte) uintptr {
-		return linkname.Runtime_bytesHash(b, seed)
 	}
 }
 

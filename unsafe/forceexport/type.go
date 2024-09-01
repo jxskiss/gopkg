@@ -13,24 +13,11 @@ import (
 // If the specified type does not exist, or inactive (haven't been
 // compiled into the binary), it panics.
 func GetType(name string) *reflectx.RType {
-	sections, offsets := linkname.Reflect_typelinks()
-	for i, base := range sections {
-		for _, offset := range offsets[i] {
-			typ := (*reflectx.RType)(linkname.Reflect_resolveTypeOff(base, offset))
-			for typ.Name() == "" && typ.Kind() == reflect.Ptr {
-				typ = typ.Elem()
-			}
-			typName := typ.Name()
-			if typName == "" || !strings.HasSuffix(name, typName) {
-				continue
-			}
-			pkgPath := removeVendorPrefix(typ.PkgPath())
-			if name == pkgPath+"."+typName {
-				return typ
-			}
-		}
+	typ, err := linkname.GetReflectTypeByName(name)
+	if err != nil {
+		panic(fmt.Sprintf("forceexport: cannot find type %s, maybe inactive", name))
 	}
-	panic(fmt.Sprintf("forceexport: cannot find type %s, maybe inactive", name))
+	return reflectx.ToRType(typ)
 }
 
 // ScanTypes scans type information which are available from reflect.typelinks.

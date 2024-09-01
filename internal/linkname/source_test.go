@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -66,14 +67,17 @@ func TestParseGoVer(t *testing.T) {
 }
 
 func TestSourceCode(t *testing.T) {
+	markEnv := "TEST_LINKNAME_SOURCE"
+	if os.Getenv(markEnv) == "" {
+		t.Skipf("env %s not set, skip", markEnv)
+	}
+
 	versions := []string{
-		"go1.19",
-		"go1.20",
-		"go1.20.13",
 		"go1.21.0",
-		"go1.21.10",
+		"go1.21.13",
 		"go1.22.0",
-		"go1.22.3",
+		"go1.22.6",
+		"go1.23.0",
 		"master",
 	}
 
