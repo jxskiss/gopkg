@@ -19,7 +19,6 @@ linters:
     # - dogsled
     - dupl
     - durationcheck
-    - exportloopref
     - gci
     - gofmt
     # - gofumpt

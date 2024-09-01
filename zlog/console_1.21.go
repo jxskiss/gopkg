@@ -8,16 +8,16 @@ import (
 	"os"
 	"time"
 
-	"github.com/jxskiss/slog-console-handler"
+	slogconsolehandler "github.com/jxskiss/slog-console-handler"
 	"go.uber.org/zap/zapcore"
 )
 
-func newCoreForConsole(cfg *Config, enc zapcore.Encoder, ws zapcore.WriteSyncer) zapcore.Core {
+func newCoreForConsole(cfg *Config, _ zapcore.Encoder, ws zapcore.WriteSyncer) zapcore.Core {
 	opts := &slogconsolehandler.HandlerOptions{
 		// NB: caller info is handled by the ReplaceAttr option.
 		AddSource: false,
 		Level:     slog.Level(-127),
-		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
 			switch a.Key {
 			case slog.TimeKey:
 				if a.Value.Kind() == slog.KindTime {

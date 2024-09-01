@@ -219,7 +219,7 @@ func (p *Cache[K, V]) MGetSlice(ctx context.Context, pks []K) ([]V, error) {
 	pks = easy.Unique(pks, false)
 
 	out := make([]V, 0, len(pks))
-	valfunc := func(pk K, elem V) {
+	valfunc := func(_ K, elem V) {
 		out = append(out, elem)
 	}
 	err := p.mget(ctx, pks, valfunc)

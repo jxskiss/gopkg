@@ -27,7 +27,7 @@ type RegexpOrString interface {
 func MatchRegexp[T RegexpOrString](name string, pattern T, value string) RuleFunc {
 	re, isRegexp := any(pattern).(*regexp.Regexp)
 	if isRegexp {
-		return func(ctx context.Context, result *Result) (any, error) {
+		return func(_ context.Context, _ *Result) (any, error) {
 			var err error
 			match := re.MatchString(value)
 			if !match {
@@ -37,7 +37,7 @@ func MatchRegexp[T RegexpOrString](name string, pattern T, value string) RuleFun
 		}
 	}
 
-	return func(ctx context.Context, result *Result) (any, error) {
+	return func(_ context.Context, _ *Result) (any, error) {
 		var err error
 		reStr := any(pattern).(string)
 		if reCache != nil {

@@ -12,7 +12,7 @@ var (
 			return addJitter(d, 0.5)
 		},
 		// default no-op hook
-		Hook: func(attempts int, err error) {}, // dummy no-op hook
+		Hook: func(_ int, _ error) {},
 	}
 )
 
