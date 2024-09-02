@@ -7,7 +7,6 @@ import (
 	"unsafe"
 
 	"github.com/jxskiss/gopkg/v2/internal/linkname"
-	"github.com/jxskiss/gopkg/v2/unsafe/reflectx"
 )
 
 // GetFunc gets the function defined by the given fully-qualified name.
@@ -58,10 +57,11 @@ func CreateFuncForCodePtr(outFuncPtr any, codePtr uintptr) {
 // If the function does not exist, or is inlined, or inactive (haven't been
 // compiled into the binary), it panics.
 func FindFuncWithName(name string) uintptr {
-	for _, moduleData := range activeModules() {
-		pclntable := moduleData.pclntable()
-		for _, ftab := range moduleData.ftab() {
-			f := (*runtime.Func)(unsafe.Pointer(&pclntable[ftab.funcoff]))
+	modulesSlice := linkname.Runtime_activeModules()
+	for _, md := range modulesSlice {
+		pclntable := md.Field_pclntable()
+		for _, ftab := range md.Field_ftab() {
+			f := (*runtime.Func)(unsafe.Pointer(&pclntable[ftab.Field_funcoff()]))
 			if getName(f) == name {
 				return f.Entry()
 			}
@@ -75,68 +75,4 @@ func getName(f *runtime.Func) string {
 		recover()
 	}()
 	return f.Name()
-}
-
-func activeModules() []moduledata {
-	mdptrs := linkname.Runtime_activeModules()
-	out := make([]moduledata, len(mdptrs))
-	for i, ptr := range mdptrs {
-		out[i] = moduledata{ptr}
-	}
-	return out
-}
-
-// moduledata is an opaque proxy type to runtime.moduledata.
-type moduledata struct {
-	p unsafe.Pointer
-}
-
-// functab is a copy type of runtime.functab.
-type functab struct {
-	entryoff uint32 // relative to runtime.text
-	funcoff  uint32
-}
-
-func (p *moduledata) pclntable() []byte {
-	return *(*[]byte)(unsafe.Pointer(uintptr(p.p) + moduledata_pclntableOffset))
-}
-
-func (p *moduledata) ftab() []functab {
-	return *(*[]functab)(unsafe.Pointer(uintptr(p.p) + moduledata_ftabOffset))
-}
-
-var (
-	moduledata_pclntableOffset uintptr
-	moduledata_ftabOffset      uintptr
-)
-
-func init() {
-	rtmdType := GetType("runtime.moduledata")
-	moduledata_pclntableOffset = getOffset(rtmdType, "pclntable", "forceexport: moduledata.pclntable not found")
-	moduledata_ftabOffset = getOffset(rtmdType, "ftab", "foceexport: moduledata.ftab not found")
-
-	functabType := GetType("runtime.functab")
-	if functabType.NumField() != 2 {
-		panic("forceexport: functab fields number not match")
-	}
-	assertStructField(functabType, "entryoff", 0, "forceexport: functab field entryoff not match")
-	assertStructField(functabType, "funcoff", 4, "forceexport: functab field funcoff not match")
-}
-
-func getOffset(t *reflectx.RType, fieldname string, msg string) uintptr {
-	f, ok := t.FieldByName(fieldname)
-	if !ok {
-		panic(msg)
-	}
-	return f.Offset
-}
-
-func assertStructField(structTyp *reflectx.RType, fieldname string, offset uintptr, msg string) {
-	field, ok := structTyp.FieldByName(fieldname)
-	if !ok {
-		panic(msg)
-	}
-	if field.Name != fieldname || field.Offset != offset {
-		panic(msg)
-	}
 }

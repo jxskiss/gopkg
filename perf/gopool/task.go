@@ -29,6 +29,7 @@ type task struct {
 	next *task
 }
 
+//nolint:unused
 func newTask() *task {
 	if t := taskPool.Get(); t != nil {
 		return t.(*task)

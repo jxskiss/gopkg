@@ -38,8 +38,9 @@ func TestScanTypes(t *testing.T) {
 			}
 			return true
 		})
+		assert.Contains(t, got, "github.com/jxskiss/gopkg/v2/internal/linkname.functab")
+		assert.Contains(t, got, "github.com/jxskiss/gopkg/v2/internal/linkname.Runtime_moduledata")
 		assert.Contains(t, got, "github.com/jxskiss/gopkg/v2/unsafe/forceexport.iface")
-		assert.Contains(t, got, "github.com/jxskiss/gopkg/v2/unsafe/forceexport.moduledata")
 		assert.Contains(t, got, "github.com/jxskiss/gopkg/v2/unsafe/forceexport.TestStruct")
 		assert.Contains(t, got, "github.com/jxskiss/gopkg/v2/unsafe/reflectx.RType")
 	})

@@ -19,16 +19,18 @@ func TestRTypeMethods(t *testing.T) {
 	reflectTyp := reflect.TypeOf((*reflect.Type)(nil)).Elem()
 	rtyp := reflect.TypeOf((*RType)(nil))
 
-	assert.Equal(t, 31, reflectTyp.NumMethod())
-	assert.Equal(t, 33, rtyp.NumMethod())
-
+checkMethod:
 	for i := 0; i < reflectTyp.NumMethod(); i++ {
 		meth := reflectTyp.Method(i)
-		if !meth.IsExported() {
-			// private methods:
-			//   - common() *rtype
-			//   - uncommon() *uncommonType
-			continue
+		for _, x := range []string{
+			// Private methods.
+			"common", "uncommon",
+			// Unsupported new methods since Go 1.23.
+			"OverflowComplex", "OverflowFloat", "OverflowInt", "OverflowUint", "CanSeq", "CanSeq2",
+		} {
+			if meth.Name == x {
+				continue checkMethod
+			}
 		}
 		_, ok := rtyp.MethodByName(meth.Name)
 		assert.Truef(t, ok, "missing method %v", meth.Name)

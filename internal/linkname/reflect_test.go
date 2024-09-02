@@ -71,9 +71,9 @@ var reflectSourceCode = []SourceCodeTestCase{
 	},
 	{
 		MinVer:   newVer(1, 23, 0),
-		FileName: "internal/abi/type.go",
+		FileName: "reflect/badlinkname.go",
 		Lines: []string{
-			"func (t *Type) IfaceIndir() bool",
+			"//go:linkname unusedIfaceIndir reflect.ifaceIndir",
 		},
 	},
 	{

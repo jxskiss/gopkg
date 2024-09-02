@@ -30,19 +30,11 @@ func Runtime_memhash64(p unsafe.Pointer, h uintptr) uintptr
 //go:linkname Runtime_stringHash runtime.stringHash
 func Runtime_stringHash(s string, seed uintptr) uintptr
 
-//go:linkname Runtime_bytesHash runtime.bytesHash
-func Runtime_bytesHash(b []byte, seed uintptr) uintptr
-
-//go:linkname Runtime_efaceHash runtime.efaceHash
-func Runtime_efaceHash(i any, seed uintptr) uintptr
+//go:linkname Runtime_nilinterhash runtime.nilinterhash
+func Runtime_nilinterhash(p unsafe.Pointer, h uintptr) uintptr
 
 //go:linkname Runtime_typehash runtime.typehash
 func Runtime_typehash(rtype unsafe.Pointer, p unsafe.Pointer, h uintptr) uintptr
-
-// -------- runtime moduledata --------
-
-//go:linkname Runtime_activeModules runtime.activeModules
-func Runtime_activeModules() []unsafe.Pointer
 
 // -------- runtime malloc without memclr cost --------
 

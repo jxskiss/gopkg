@@ -37,18 +37,6 @@ func TestHashFunc(t *testing.T) {
 	}
 }
 
-func TestBytesHash(t *testing.T) {
-	testCases := []string{
-		"123",
-		"abc",
-	}
-	f := NewBytesHash()
-	for _, x := range testCases {
-		hash := f([]byte(x))
-		t.Logf("bytes: %s, hash: %d", x, hash)
-	}
-}
-
 type hashable struct {
 	A int
 	B string
@@ -65,14 +53,6 @@ func BenchmarkHashFunc_Int64(b *testing.B) {
 func BenchmarkHashFunc_String(b *testing.B) {
 	f := NewHashFunc[string]()
 	x := "this is a short sample text"
-	for i := 0; i < b.N; i++ {
-		_ = f(x)
-	}
-}
-
-func BenchmarkHashFunc_Bytes(b *testing.B) {
-	f := NewBytesHash()
-	x := []byte("this is a short sample text")
 	for i := 0; i < b.N; i++ {
 		_ = f(x)
 	}

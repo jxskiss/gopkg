@@ -237,6 +237,7 @@ func (s SugaredLogger) Desugar() Logger {
 	return Logger{Logger: s.SugaredLogger.Desugar()}
 }
 
+//nolint:nakedret
 func getCaller(skip int) (funcName, fullFileName, simpleFileName string, line int, ok bool) {
 	var pc [1]uintptr
 	n := runtime.Callers(skip+2, pc[:])
@@ -244,6 +245,10 @@ func getCaller(skip int) (funcName, fullFileName, simpleFileName string, line in
 		return
 	}
 	frame, _ := runtime.CallersFrames(pc[:n]).Next()
+	ok = frame.PC > 0
+	if !ok {
+		return
+	}
 	fullFileName, line = frame.File, frame.Line
 	funcName = frame.Func.Name()
 	for i := len(funcName) - 1; i >= 0; i-- {
