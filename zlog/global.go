@@ -162,6 +162,14 @@ func DPanicf(format string, args ...any) { _s().DPanicf(format, args...) }
 func Panicf(format string, args ...any)  { _s().Panicf(format, args...) }
 func Fatalf(format string, args ...any)  { _s().Fatalf(format, args...) }
 
+func Debugw(msg string, keysAndValues ...any)  { _s().Debugw(msg, keysAndValues...) }
+func Infow(msg string, keysAndValues ...any)   { _s().Infow(msg, keysAndValues...) }
+func Warnw(msg string, keysAndValues ...any)   { _s().Warnw(msg, keysAndValues...) }
+func Errorw(msg string, keysAndValues ...any)  { _s().Errorw(msg, keysAndValues...) }
+func DPanicw(msg string, keysAndValues ...any) { _s().DPanicw(msg, keysAndValues...) }
+func Panicw(msg string, keysAndValues ...any)  { _s().Panicw(msg, keysAndValues...) }
+func Fatalw(msg string, keysAndValues ...any)  { _s().Fatalw(msg, keysAndValues...) }
+
 // Print uses fmt.Sprint to log a message at InfoLevel if it's enabled.
 //
 // It has same signature with log.Print, which helps to migrate from the
