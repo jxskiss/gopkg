@@ -1,6 +1,6 @@
 module github.com/jxskiss/gopkg/_snippets
 
-go 1.19
+go 1.21
 
 require (
 	github.com/jxskiss/gopkg/v2 v2.0.0-00010101000000-000000000000

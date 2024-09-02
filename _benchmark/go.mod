@@ -1,6 +1,6 @@
 module github.com/jxskiss/gopkg/_benchmark
 
-go 1.19
+go 1.21
 
 require (
 	github.com/jxskiss/gopkg/v2 v2.0.0
