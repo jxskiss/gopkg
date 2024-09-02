@@ -66,7 +66,7 @@ func (h *Heap[T]) Pop() (x T, ok bool) {
 }
 
 const (
-	bktShift = 11
+	bktShift = 10
 	bktSize  = 1 << bktShift
 	bktMask  = bktSize - 1
 	initSize = 64
@@ -123,7 +123,7 @@ func (p *heapItems[T]) Push(x any) {
 			copy(newBkt, p.s0[:p.len])
 			p.s0 = newBkt
 			p.ss[0] = unsafe.Pointer(&newBkt[0])
-			p.cap *= 2
+			p.cap = len(newBkt)
 		} else {
 			newBkt := make([]T, bktSize)
 			p.addBucket(newBkt)
