@@ -40,6 +40,12 @@ func newCoreForConsole(cfg *Config, _ zapcore.Encoder, ws zapcore.WriteSyncer) z
 							Line:     s.Line,
 						}))
 					}
+					if s, ok := a.Value.Any().(*slog.Source); ok && s != nil {
+						if s.File == "" {
+							return slog.Attr{}
+						}
+						return slog.String(slog.SourceKey, slogconsolehandler.FormatSourceShort(*s))
+					}
 				}
 			}
 			return a

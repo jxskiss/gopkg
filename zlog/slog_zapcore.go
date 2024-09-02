@@ -4,13 +4,14 @@ package zlog
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"math"
 	"time"
 
 	"go.uber.org/zap/zapcore"
 )
+
+var _ zapcore.Core = (*slogCoreImpl)(nil)
 
 // slogCoreImpl is a zapcore.Core implementation that forwards logs to
 // slog.Handler.
@@ -23,7 +24,7 @@ func (c *slogCoreImpl) Enabled(level zapcore.Level) bool {
 	return c.handler.Enabled(context.Background(), zapToSlogLevel(level))
 }
 
-func fieldToAttr(field zapcore.Field) slog.Attr {
+func ConvertFieldToAttr(field zapcore.Field) slog.Attr {
 	switch field.Type {
 	case zapcore.StringType:
 		return slog.String(field.Key, field.String)
@@ -53,9 +54,12 @@ func fieldToAttr(field zapcore.Field) slog.Attr {
 }
 
 func fieldToAttrs(fields []zapcore.Field) []slog.Attr {
+	if len(fields) == 0 {
+		return nil
+	}
 	attrs := make([]slog.Attr, 0, len(fields))
 	for _, field := range fields {
-		attrs = append(attrs, fieldToAttr(field))
+		attrs = append(attrs, ConvertFieldToAttr(field))
 	}
 	return attrs
 }
@@ -91,12 +95,7 @@ func (c *slogCoreImpl) Write(entry zapcore.Entry, fields []zapcore.Field) error 
 	r := slog.NewRecord(entry.Time, zapToSlogLevel(entry.Level), entry.Message, 0)
 	r.AddAttrs(attrs...)
 
-	err := c.handler.Handle(context.Background(), r)
-	if err != nil {
-		return fmt.Errorf("write log: %w", err)
-	}
-
-	return nil
+	return c.handler.Handle(context.Background(), r)
 }
 
 func (c *slogCoreImpl) Sync() error {
