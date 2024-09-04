@@ -23,6 +23,22 @@ func TestMap(t *testing.T) {
 		assert.Equal(t, "abc", val2)
 	})
 
+	t.Run("GetSlice", func(t *testing.T) {
+		var m Map
+		m.Set("k1", []int{1, 2, 3})
+		got := m.GetSlice("k1")
+		assert.Len(t, got, 3)
+	})
+
+	t.Run("GetSliceElem", func(t *testing.T) {
+		var m Map
+		m.Set("k1", []int{1, 2, 3})
+		assert.Equal(t, 1, m.GetSliceElem("k1", 0))
+		assert.Equal(t, 2, m.GetSliceElem("k1", 1))
+		assert.Equal(t, 3, m.GetSliceElem("k1", 2))
+		assert.Nil(t, m.GetSliceElem("k1", 3))
+	})
+
 	t.Run("Merge", func(t *testing.T) {
 		m1 := Map{"abc": 123}
 		var m2 Map
@@ -51,8 +67,7 @@ servers:
 	err := yaml.Unmarshal([]byte(s), &m)
 	require.Nil(t, err)
 
-	services, ok := m.GetSlice("servers").([]any)
-	require.True(t, ok)
+	services := m.GetSlice("servers")
 	assert.Len(t, services, 2)
 	assert.Equal(t, 80, services[0].(map[string]any)["ports"].([]any)[0])
 	assert.Equal(t, 81, services[1].(map[string]any)["ports"].([]any)[1])

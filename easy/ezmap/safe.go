@@ -182,8 +182,17 @@ func (p *SafeMap) GetStrings(key string) []string {
 // GetSlice returns the value associated with the key as a slice.
 // It returns nil if key does not present in Map or the value's type
 // is not a slice.
-func (p *SafeMap) GetSlice(key string) any {
+func (p *SafeMap) GetSlice(key string) []any {
 	return getWithRLock(&p.mu, p.map_.GetSlice, key)
+}
+
+// GetSliceElem returns the ith element of a slice associated with key.
+// It returns nil if key does not present in Map or the value's type
+// is not a slice, or i exceeds the slice's length.
+func (p *SafeMap) GetSliceElem(key string, i int) any {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.map_.GetSliceElem(key, i)
 }
 
 // GetMap returns the value associated with the key as a Map (map[string]any).

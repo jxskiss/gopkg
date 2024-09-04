@@ -265,12 +265,32 @@ func (p Map) GetStrings(key string) []string {
 // GetSlice returns the value associated with the key as a slice.
 // It returns nil if key does not present in Map or the value's type
 // is not a slice.
-func (p Map) GetSlice(key string) any {
+func (p Map) GetSlice(key string) []any {
 	val, ok := p[key]
 	if !ok || reflect.TypeOf(val).Kind() != reflect.Slice {
 		return nil
 	}
-	return val
+	rv := reflect.ValueOf(val)
+	out := make([]any, rv.Len())
+	for i, n := 0, rv.Len(); i < n; i++ {
+		out[i] = rv.Index(i).Interface()
+	}
+	return out
+}
+
+// GetSliceElem returns the ith element of a slice associated with key.
+// It returns nil if key does not present in Map or the value's type
+// is not a slice, or i exceeds the slice's length.
+func (p Map) GetSliceElem(key string, i int) any {
+	val, ok := p[key]
+	if !ok || reflect.TypeOf(val).Kind() != reflect.Slice {
+		return nil
+	}
+	rv := reflect.ValueOf(val)
+	if i < rv.Len() {
+		return rv.Index(i).Interface()
+	}
+	return nil
 }
 
 // GetMap returns the value associated with the key as a Map (map[string]any).
