@@ -293,6 +293,24 @@ func (p Map) GetSliceElem(key string, i int) any {
 	return nil
 }
 
+// GetSliceElemMap returns the ith element of a slice associated
+// with key as a Map (map[string]any).
+// It returns nil if key does not present in Map or the value's type
+// is not a slice, or i exceeds the slice's length,
+// or the slice element is not a map.
+func (p Map) GetSliceElemMap(key string, i int) Map {
+	elem := p.GetSliceElem(key, i)
+	if elem != nil {
+		switch val := elem.(type) {
+		case Map:
+			return val
+		case map[string]any:
+			return val
+		}
+	}
+	return nil
+}
+
 // GetMap returns the value associated with the key as a Map (map[string]any).
 func (p Map) GetMap(key string) Map {
 	val, ok := p[key]

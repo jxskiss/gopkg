@@ -195,6 +195,17 @@ func (p *SafeMap) GetSliceElem(key string, i int) any {
 	return p.map_.GetSliceElem(key, i)
 }
 
+// GetSliceElemMap returns the ith element of a slice associated
+// with key as a Map (map[string]any).
+// It returns nil if key does not present in Map or the value's type
+// is not a slice, or i exceeds the slice's length,
+// or the slice element is not a map.
+func (p *SafeMap) GetSliceElemMap(key string, i int) Map {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.map_.GetSliceElemMap(key, i)
+}
+
 // GetMap returns the value associated with the key as a Map (map[string]any).
 func (p *SafeMap) GetMap(key string) Map {
 	return getWithRLock(&p.mu, p.map_.GetMap, key)
