@@ -75,7 +75,17 @@ func MarshalCSV[T ~map[string]any](records []T) ([]byte, error) {
 // The first record parsed from the first row is treated as CSV header,
 // and used as the result map keys.
 func UnmarshalCVS(data []byte) ([]Map, error) {
+	return UnmarshalCSVWithSeparator(data, ',')
+}
+
+// UnmarshalCSVWithSeparator is same to [UnmarshalCVS],
+// except that it allows caller to specify the separator.
+func UnmarshalCSVWithSeparator(data []byte, sep rune) ([]Map, error) {
+	if sep != ',' && sep != ';' && sep != '\t' {
+		return nil, fmt.Errorf("unsupported separator: %c", sep)
+	}
 	csvReader := csv.NewReader(bytes.NewReader(data))
+	csvReader.Comma = sep
 	records, err := csvReader.ReadAll()
 	if err != nil {
 		return nil, fmt.Errorf("csv.Reader.ReadAll: %w", err)

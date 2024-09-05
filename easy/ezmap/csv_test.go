@@ -76,3 +76,34 @@ true,123,"abc",456
 		assert.Contains(t, err.Error(), "duplicate header: int")
 	})
 }
+
+func TestUnmarshalCSVWithSeparator(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		data := `Name	ID	UID
+name1	515211140	17592701255556
+name2	502359508	17592688403924
+name3	35184904144031	35184904144031
+`
+		got, err := UnmarshalCSVWithSeparator([]byte(data), '\t')
+		require.Nil(t, err)
+
+		want := []Map{
+			{
+				"Name": "name1",
+				"ID":   "515211140",
+				"UID":  "17592701255556",
+			},
+			{
+				"Name": "name2",
+				"ID":   "502359508",
+				"UID":  "17592688403924",
+			},
+			{
+				"Name": "name3",
+				"ID":   "35184904144031",
+				"UID":  "35184904144031",
+			},
+		}
+		assert.Equal(t, want, got)
+	})
+}
