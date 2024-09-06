@@ -37,7 +37,7 @@ func TestValidate(t *testing.T) {
 		ParseStrsToInt64Slice("var3", []string{"123", "456", "789"}),
 	)
 	require.Nil(t, err)
-	assert.Equal(t, []int64{123, 456, 789}, got2.Data.GetSlice("var3"))
+	assert.Equal(t, []any{int64(123), int64(456), int64(789)}, got2.Data.GetSlice("var3"))
 	assert.False(t, got2.IsValidationError)
 
 	got3, err := Validate(ctx,
