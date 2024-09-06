@@ -7,7 +7,7 @@ require (
 	github.com/go-logr/logr v1.4.1
 	github.com/gobwas/glob v0.2.3
 	github.com/json-iterator/go v1.1.12
-	github.com/jxskiss/slog-console-handler v0.2.4
+	github.com/jxskiss/slog-console-handler v1.0.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/spf13/cast v1.6.0
 	github.com/stretchr/testify v1.8.4
