@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"sort"
 	"unsafe"
+
+	"github.com/jxskiss/gopkg/v2/utils/strutil"
 )
 
 // MarshalCSV marshal map[string]any records to CSV encoding.
@@ -84,6 +86,7 @@ func UnmarshalCSVWithSeparator(data []byte, sep rune) ([]Map, error) {
 	if sep != ',' && sep != ';' && sep != '\t' {
 		return nil, fmt.Errorf("unsupported separator: %c", sep)
 	}
+	data = strutil.TrimBOM(data)
 	csvReader := csv.NewReader(bytes.NewReader(data))
 	csvReader.Comma = sep
 	records, err := csvReader.ReadAll()
