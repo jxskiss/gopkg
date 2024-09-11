@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jxskiss/gopkg/v2/easy"
@@ -16,7 +17,7 @@ import (
 // by ShardingCache.
 //
 // A ShardingModel implementation type should save ShardingData with it,
-// and cna tell whether it's a shard or a complete model.
+// and can tell whether it's a shard or a complete model.
 type ShardingModel interface {
 	Model
 
@@ -125,25 +126,35 @@ type ShardingCache[K comparable, V ShardingModel] struct {
 	config *ShardingCacheConfig[K, V]
 
 	newElemFunc func() V
+	queryPool   sync.Pool
 }
 
 // Set writes a key value pair to ShardingCache.
 func (p *ShardingCache[K, V]) Set(ctx context.Context, pk K, elem V, expiration time.Duration) error {
 	_ = pk
-	return p.MSet(ctx, []V{elem}, expiration)
+	return p.MSetSlice(ctx, []V{elem}, expiration)
 }
 
-// MSet serializes and writes multiple models to ShardingCache.
-func (p *ShardingCache[K, V]) MSet(ctx context.Context, models []V, expiration time.Duration) error {
+// MSetSlice serializes and writes multiple models to ShardingCache.
+func (p *ShardingCache[K, V]) MSetSlice(ctx context.Context, models []V, expiration time.Duration) error {
 	if len(models) == 0 {
 		return nil
 	}
 	kvPairs, err := p.marshalModels(models)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot marshal models: %w", err)
 	}
 	stor := p.config.Storage(ctx)
 	return msetToStorage(ctx, stor, kvPairs, expiration, p.config.MSetBatchSize)
+}
+
+// MSetMap serializes and writes multiple models to ShardingCache.
+func (p *ShardingCache[K, V]) MSetMap(ctx context.Context, models map[K]V, expiration time.Duration) error {
+	if len(models) == 0 {
+		return nil
+	}
+	valueSlice := easy.Values(models)
+	return p.MSetSlice(ctx, valueSlice, expiration)
 }
 
 // Delete deletes key values from ShardingCache.
@@ -215,7 +226,7 @@ func (p *ShardingCache[K, V]) deleteAllShards(ctx context.Context, pks []K) erro
 	for _, bat := range batches {
 		err = stor.Delete(ctx, bat...)
 		if err != nil {
-			return err
+			return fmt.Errorf("write storage: %w", err)
 		}
 	}
 	return nil
@@ -281,7 +292,7 @@ func (p *ShardingCache[K, V]) Get(ctx context.Context, pk K) (V, error) {
 	key := p.config.KeyFunc(pk)
 	cacheResult, err := stor.MGet(ctx, key)
 	if err != nil {
-		return zeroVal, err
+		return zeroVal, fmt.Errorf("query storage: %w", err)
 	}
 
 	if len(cacheResult) == 0 || len(cacheResult[0]) == 0 {
@@ -323,7 +334,7 @@ func (p *ShardingCache[K, V]) Get(ctx context.Context, pk K) (V, error) {
 		shardNum := getShardNumFromKey(ithKey)
 		ithShard, isShard := ithVal.GetShardingData()
 		if !isShard || ithShard.ShardNum != shardNum {
-			return zeroVal, fmt.Errorf("sharding data is invalid: %s", ithKey)
+			return zeroVal, fmt.Errorf("sharding data shardNum not match: %s", ithKey)
 		}
 		if !bytes.Equal(ithShard.Digest, shard0.Digest) {
 			return zeroVal, fmt.Errorf("sharding data digest not match: %s", ithKey)
@@ -338,16 +349,45 @@ func (p *ShardingCache[K, V]) Get(ctx context.Context, pk K) (V, error) {
 	return elem, nil
 }
 
-// MGet queries ShardingCache for multiple pks.
-func (p *ShardingCache[K, V]) MGet(ctx context.Context, pks []K) (
-	result map[K]V, errMap map[K]error, storageErr error) {
-	query := &shardingQuery[K, V]{
-		stor:          p.config.Storage(ctx),
-		mgetBatchSize: p.config.MGetBatchSize,
-		keyFunc:       p.config.KeyFunc,
-		newElemFunc:   p.newElemFunc,
-		pks:           pks,
+// MGetSlice queries ShardingCache for multiple pks and returns
+// the cached values as a slice of type []V.
+// Note the returned values may be less than requested.
+func (p *ShardingCache[K, V]) MGetSlice(ctx context.Context, pks []K) (
+	result []V, errMap map[K]error, storageErr error) {
+	mapRet, errMap, storageErr := p.MGetMap(ctx, pks)
+	if len(mapRet) > 0 {
+		result = make([]V, 0, len(mapRet))
+		for _, pk := range pks {
+			if val, ok := mapRet[pk]; ok {
+				result = append(result, val)
+			}
+		}
 	}
+	return result, errMap, storageErr
+}
+
+// MGetMap queries ShardingCache for multiple pks and returns
+// the cached values as a map of type map[K]V.
+// Note the returned values may be less than requested.
+func (p *ShardingCache[K, V]) MGetMap(ctx context.Context, pks []K) (
+	result map[K]V, errMap map[K]error, storageErr error) {
+	type SQ = shardingQuery[K, V]
+	var query *SQ
+	if x, ok := p.queryPool.Get().(*SQ); ok {
+		query = x
+	} else {
+		query = &SQ{}
+	}
+	defer func() {
+		query.reset()
+		p.queryPool.Put(query)
+	}()
+
+	query.stor = p.config.Storage(ctx)
+	query.mgetBatchSize = p.config.MGetBatchSize
+	query.keyFunc = p.config.KeyFunc
+	query.newElemFunc = p.newElemFunc
+	query.pks = pks
 	query.Do(ctx)
 	return query.Result()
 }
@@ -368,6 +408,17 @@ type shardingQuery[K comparable, V ShardingModel] struct {
 	result     map[K]V
 	retErrs    map[K]error
 	storageErr error
+}
+
+func (sq *shardingQuery[K, V]) reset() {
+	sq.pks = sq.pks[:0]
+	sq.keys = sq.keys[:0]
+	sq.shardingPKs = sq.shardingPKs[:0]
+	sq.shard0Data = sq.shard0Data[:0]
+	sq.ithShardKeys = sq.ithShardKeys[:0]
+	sq.result = nil
+	sq.retErrs = nil
+	sq.storageErr = nil
 }
 
 func (sq *shardingQuery[K, V]) setError(pk K, err error) {
@@ -540,7 +591,7 @@ func mgetFromStorage(ctx context.Context, stor Storage, keys []string, batchSize
 	for _, batchKeys := range easy.Split(keys, batchSize) {
 		batchRet, err := stor.MGet(ctx, batchKeys...)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("query storage: %w", err)
 		}
 		ret = append(ret, batchRet...)
 	}
@@ -551,7 +602,7 @@ func msetToStorage(ctx context.Context, stor Storage, kvPairs []KVPair, expirati
 	for _, batchKVPairs := range easy.Split(kvPairs, batchSize) {
 		err := stor.MSet(ctx, batchKVPairs, expiration)
 		if err != nil {
-			return err
+			return fmt.Errorf("write storage: %w", err)
 		}
 	}
 	return nil
