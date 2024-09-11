@@ -2,6 +2,7 @@ package vdutil
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 
@@ -25,37 +26,37 @@ type RegexpOrString interface {
 // If pattern is a string and cache is enabled by calling EnableRegexpCache,
 // the compiled regular expression will be cached for reuse.
 func MatchRegexp[T RegexpOrString](name string, pattern T, value string) RuleFunc {
-	re, isRegexp := any(pattern).(*regexp.Regexp)
-	if isRegexp {
-		return func(_ context.Context, _ *Result) (any, error) {
-			var err error
-			match := re.MatchString(value)
-			if !match {
-				err = &ValidationError{Name: name, Err: fmt.Errorf("value %q not match regexp", value)}
-			}
-			return value, err
-		}
-	}
-
+	re, compileErr := compileRegexp(pattern)
 	return func(_ context.Context, _ *Result) (any, error) {
-		var err error
-		reStr := any(pattern).(string)
-		if reCache != nil {
-			re, _, _ = reCache.Get(reStr)
-		}
-		if re == nil {
-			re, err = regexp.Compile(reStr)
-			if err != nil {
-				return value, fmt.Errorf("cannot compile regexp %q: %w", reStr, err)
-			}
-			if reCache != nil {
-				reCache.Set(reStr, re, 0)
-			}
+		if compileErr != nil {
+			return value, compileErr
 		}
 		match := re.MatchString(value)
 		if !match {
-			err = &ValidationError{Name: name, Err: fmt.Errorf("value %q not match regexp", value)}
+			return value, &ValidationError{Name: name, Err: errors.New("value not match regexp")}
 		}
-		return value, err
+		return value, nil
 	}
+}
+
+func compileRegexp(expr any) (*regexp.Regexp, error) {
+	if re, ok := expr.(*regexp.Regexp); ok {
+		return re, nil
+	}
+	var re *regexp.Regexp
+	exprStr := expr.(string)
+	if reCache != nil {
+		re, _, _ = reCache.Get(exprStr)
+	}
+	if re == nil {
+		var err error
+		re, err = regexp.Compile(exprStr)
+		if err != nil {
+			return nil, fmt.Errorf("cannot compile regexp %q: %w", exprStr, err)
+		}
+		if reCache != nil {
+			reCache.Set(exprStr, re, 0)
+		}
+	}
+	return re, nil
 }

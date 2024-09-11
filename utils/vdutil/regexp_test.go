@@ -26,7 +26,7 @@ func TestMatchRegexp(t *testing.T) {
 		_, err = MatchRegexp("testVar", pattern, "abc123").Validate(ctx, nil)
 		require.NotNil(t, err)
 		assert.True(t, errors.As(err, &vdErr))
-		assert.Equal(t, `testVar: value "abc123" not match regexp`, err.Error())
+		assert.Equal(t, `testVar: value not match regexp`, err.Error())
 	})
 
 	t.Run("invalid pattern", func(t *testing.T) {
@@ -46,7 +46,7 @@ func TestMatchRegexp(t *testing.T) {
 		_, err = MatchRegexp("testVar", pattern, "abc123").Validate(ctx, nil)
 		require.NotNil(t, err)
 		assert.True(t, errors.As(err, &vdErr))
-		assert.Equal(t, `testVar: value "abc123" not match regexp`, err.Error())
+		assert.Equal(t, `testVar: value not match regexp`, err.Error())
 	})
 
 	t.Run("cache enabled", func(t *testing.T) {
