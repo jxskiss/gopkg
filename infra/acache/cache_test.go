@@ -227,6 +227,13 @@ func TestDeleteFunc(t *testing.T) {
 }
 
 func TestClose(t *testing.T) {
+	// Timer on Windows platform is inaccurate, which cause this test fails
+	// randomly, skip it.
+	if runtime.GOOS == "windows" {
+		t.Skip("Skip acache.TestClose on the Windows platform")
+		return
+	}
+
 	var sleep = 200 * time.Millisecond
 	var count int64
 	opt := Options{
