@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding"
 	"errors"
+	"fmt"
 	"reflect"
 	"time"
 	"unsafe"
@@ -25,6 +26,19 @@ const DefaultLoaderBatchSize = 500
 const DefaultLRUExpiration = time.Second
 
 var ErrDataNotFound = errors.New("data not found")
+
+type setCacheError struct {
+	error
+}
+
+func (e *setCacheError) Error() string { return "set cache data: " + e.error.Error() }
+func (e *setCacheError) Unwrap() error { return e.error }
+
+// IsSetCacheError tells whether an error returned from this package is
+// occurred when set data to underlying cache storage.
+func IsSetCacheError(err error) bool {
+	return errors.As(err, new(*setCacheError))
+}
 
 // Model is the interface implemented by types that can be cached by Cache.
 type Model interface {
@@ -158,6 +172,11 @@ type Cache[K comparable, V Model] struct {
 //
 // If pk cannot be found either in the cache nor from the Loader,
 // it returns an error ErrDataNotFound.
+//
+// Error may occur during setting data to cache, while we do get data
+// from Loader, in this case the returned value is valid, but the error
+// is returned together with the value, user can use IsSetCacheError
+// to check it.
 func (p *Cache[K, V]) Get(ctx context.Context, pk K) (V, error) {
 	if p.config.LRUCache != nil {
 		val, exists := p.config.LRUCache.GetNotStale(pk)
@@ -171,13 +190,13 @@ func (p *Cache[K, V]) Get(ctx context.Context, pk K) (V, error) {
 	key := p.config.KeyFunc(pk)
 	cacheResult, err := stor.MGet(ctx, key)
 	if err != nil && p.config.Loader == nil {
-		return zeroVal, err
+		return zeroVal, fmt.Errorf("query storage: %w", err)
 	}
 	if len(cacheResult) > 0 && len(cacheResult[0]) > 0 {
 		elem := p.newElemFunc()
 		err = elem.UnmarshalBinary(cacheResult[0])
 		if err != nil {
-			return zeroVal, err
+			return zeroVal, fmt.Errorf("cannot unmarshal data: %w", err)
 		}
 		if p.config.LRUCache != nil {
 			p.config.LRUCache.Set(pk, elem, p.config.LRUExpiration)
@@ -188,18 +207,19 @@ func (p *Cache[K, V]) Get(ctx context.Context, pk K) (V, error) {
 		var loaderResult map[K]V
 		loaderResult, err = p.config.Loader(ctx, []K{pk})
 		if err != nil {
-			return zeroVal, err
+			return zeroVal, fmt.Errorf("execute loader: %w", err)
 		}
 		elem, exists := loaderResult[pk]
 		if exists {
 			if p.config.CacheLoaderResultAsync {
 				go func() {
+					defer func() { recover() }()
 					_ = p.Set(ctx, pk, elem, p.config.CacheExpiration)
 				}()
 			} else {
 				err = p.Set(ctx, pk, elem, p.config.CacheExpiration)
 				if err != nil {
-					return zeroVal, err
+					return elem, &setCacheError{err}
 				}
 			}
 			return elem, nil
@@ -210,6 +230,14 @@ func (p *Cache[K, V]) Get(ctx context.Context, pk K) (V, error) {
 
 // MGetSlice queries Cache and returns the cached values as a slice
 // of type []V.
+// Note the returned values may be less than requested.
+//
+// Error may occur during setting data to cache, while we do get data
+// from Loader, in this case the returned value is valid, but the error
+// is returned together with the value, user can use IsSetCacheError
+// to check it.
+// But for any error that IsSetCacheError returns false, the returned
+// data is incomplete and shall not be used.
 func (p *Cache[K, V]) MGetSlice(ctx context.Context, pks []K) ([]V, error) {
 	if len(pks) == 0 {
 		return nil, nil
@@ -228,6 +256,14 @@ func (p *Cache[K, V]) MGetSlice(ctx context.Context, pks []K) ([]V, error) {
 
 // MGetMap queries Cache and returns the cached values as a map
 // of type map[K]V.
+// Note the returned values may be less than requested.
+//
+// Error may occur during setting data to cache, while we do get data
+// from Loader, in this case the returned value is valid, but the error
+// is returned together with the value, user can use IsSetCacheError
+// to check it.
+// But for any error that IsSetCacheError returns false, the returned
+// data is incomplete and shall not be used.
 func (p *Cache[K, V]) MGetMap(ctx context.Context, pks []K) (map[K]V, error) {
 	if len(pks) == 0 {
 		return nil, nil
@@ -281,7 +317,7 @@ func (p *Cache[K, V]) mget(ctx context.Context, pks []K, f func(pk K, elem V)) e
 	for _, bat := range batchKeys {
 		batchValues, err = stor.MGet(ctx, bat...)
 		if err != nil {
-			return err
+			return fmt.Errorf("query storage: %w", err)
 		}
 		for _, val := range batchValues {
 			if len(val) == 0 {
@@ -290,7 +326,7 @@ func (p *Cache[K, V]) mget(ctx context.Context, pks []K, f func(pk K, elem V)) e
 			elem := p.newElemFunc()
 			err = elem.UnmarshalBinary(val)
 			if err != nil {
-				return err
+				return fmt.Errorf("cannot unmarshal data: %w", err)
 			}
 			pk := p.config.IDFunc(elem)
 			if fromCache != nil {
@@ -310,7 +346,7 @@ func (p *Cache[K, V]) mget(ctx context.Context, pks []K, f func(pk K, elem V)) e
 		for _, bat := range batchPKs {
 			batchResult, err := p.config.Loader(ctx, bat)
 			if err != nil {
-				return err
+				return fmt.Errorf("execute loader: %w", err)
 			}
 			for pk, elem := range batchResult {
 				f(pk, elem)
@@ -325,12 +361,13 @@ func (p *Cache[K, V]) mget(ctx context.Context, pks []K, f func(pk K, elem V)) e
 	if len(fromLoader) > 0 {
 		if p.config.CacheLoaderResultAsync {
 			go func() {
+				defer func() { recover() }()
 				_ = p.MSetMap(ctx, fromLoader, p.config.CacheExpiration)
 			}()
 		} else {
 			err = p.MSetMap(ctx, fromLoader, p.config.CacheExpiration)
 			if err != nil {
-				return err
+				return &setCacheError{err}
 			}
 		}
 	}
@@ -343,13 +380,13 @@ func (p *Cache[K, V]) Set(ctx context.Context, pk K, elem V, expiration time.Dur
 	key := p.config.KeyFunc(pk)
 	buf, err := elem.MarshalBinary()
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot marshal model: %w", err)
 	}
 	kvPairs := []KVPair{{K: key, V: buf}}
 	stor := p.config.Storage(ctx)
 	err = stor.MSet(ctx, kvPairs, expiration)
 	if err != nil {
-		return err
+		return fmt.Errorf("write storage: %w", err)
 	}
 	if p.config.LRUCache != nil {
 		p.config.LRUCache.Set(pk, elem, p.config.LRUExpiration)
@@ -375,7 +412,7 @@ func (p *Cache[K, V]) MSetSlice(ctx context.Context, models []V, expiration time
 		for _, elem := range batchModels {
 			buf, err := elem.MarshalBinary()
 			if err != nil {
-				return err
+				return fmt.Errorf("cannot marshal model: %w", err)
 			}
 			pk := p.config.IDFunc(elem)
 			key := p.config.KeyFunc(pk)
@@ -386,7 +423,7 @@ func (p *Cache[K, V]) MSetSlice(ctx context.Context, models []V, expiration time
 		}
 		err := stor.MSet(ctx, kvPairs, expiration)
 		if err != nil {
-			return err
+			return fmt.Errorf("write storage: %w", err)
 		}
 		if p.config.LRUCache != nil {
 			p.config.LRUCache.MSet(kvMap, p.config.LRUExpiration)
@@ -407,14 +444,14 @@ func (p *Cache[K, V]) MSetMap(ctx context.Context, models map[K]V, expiration ti
 	for pk, elem := range models {
 		buf, err := elem.MarshalBinary()
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot marshal model: %w", err)
 		}
 		key := p.config.KeyFunc(pk)
 		kvPairs = append(kvPairs, KVPair{key, buf})
 		if len(kvPairs) == batchSize {
 			err = stor.MSet(ctx, kvPairs, expiration)
 			if err != nil {
-				return err
+				return fmt.Errorf("write storage: %w", err)
 			}
 			kvPairs = kvPairs[:0]
 		}
@@ -422,7 +459,7 @@ func (p *Cache[K, V]) MSetMap(ctx context.Context, models map[K]V, expiration ti
 	if len(kvPairs) > 0 {
 		err := stor.MSet(ctx, kvPairs, expiration)
 		if err != nil {
-			return err
+			return fmt.Errorf("write storage: %w", err)
 		}
 	}
 	if p.config.LRUCache != nil {
@@ -445,7 +482,7 @@ func (p *Cache[K, V]) Delete(ctx context.Context, pks ...K) error {
 	stor := p.config.Storage(ctx)
 	err := stor.Delete(ctx, key)
 	if err != nil {
-		return err
+		return fmt.Errorf("write storage: %w", err)
 	}
 	if p.config.LRUCache != nil {
 		p.config.LRUCache.Delete(pk)
@@ -470,18 +507,11 @@ func (p *Cache[K, V]) mDelete(ctx context.Context, pks []K) error {
 	for _, bat := range batches {
 		err := stor.Delete(ctx, bat...)
 		if err != nil {
-			return err
+			return fmt.Errorf("write storage: %w", err)
 		}
 	}
 	if p.config.LRUCache != nil {
 		p.config.LRUCache.MDelete(pks...)
 	}
 	return nil
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

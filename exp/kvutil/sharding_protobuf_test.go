@@ -102,8 +102,8 @@ func TestShardingCache_Protobuf(t *testing.T) {
 		assert.Nil(t, gotModel)
 	})
 
-	t.Run("MGet / not found", func(t *testing.T) {
-		modelMap, errMap, err := sc.MGet(ctx, testIntIds)
+	t.Run("MGetMap / not found", func(t *testing.T) {
+		modelMap, errMap, err := sc.MGetMap(ctx, testIntIds)
 		assert.Nil(t, err)
 		assert.Len(t, errMap, 0)
 		assert.Len(t, modelMap, 0)
@@ -141,7 +141,7 @@ func TestShardingCache_Protobuf(t *testing.T) {
 		assert.Nil(t, got3.Entity.ShardData)
 		assert.Equal(t, testProtobufShardingModelList[2].Entity.BizData, got3.Entity.BizData)
 
-		mgetRet, errMap, err := sc.MGet(ctx, []int64{111, 112, 113, 114})
+		mgetRet, errMap, err := sc.MGetMap(ctx, []int64{111, 112, 113, 114})
 		assert.Nil(t, err)
 		assert.Len(t, errMap, 0)
 		assert.Len(t, mgetRet, 3)
@@ -150,15 +150,15 @@ func TestShardingCache_Protobuf(t *testing.T) {
 		assert.Equal(t, testProtobufShardingModelList[2].Entity.BizData, mgetRet[113].Entity.BizData)
 	})
 
-	t.Run("MSet", func(t *testing.T) {
+	t.Run("MSetSlice", func(t *testing.T) {
 		clearMemoryStorage(ctx, sc.config.Storage)
 		stor := getMemoryStorage(ctx, sc.config.Storage)
 		_ = stor
 
-		err := sc.MSet(ctx, testProtobufShardingModelList, 0)
+		err := sc.MSetSlice(ctx, testProtobufShardingModelList, 0)
 		require.Nil(t, err)
 
-		mgetRet, errMap, err := sc.MGet(ctx, []int64{111, 112, 113, 114})
+		mgetRet, errMap, err := sc.MGetMap(ctx, []int64{111, 112, 113, 114})
 		assert.Nil(t, err)
 		assert.Len(t, errMap, 0)
 		assert.Len(t, mgetRet, 3)
@@ -172,7 +172,7 @@ func TestShardingCache_Protobuf(t *testing.T) {
 		stor := getMemoryStorage(ctx, sc.config.Storage)
 		_ = stor
 
-		err := sc.MSet(ctx, testProtobufShardingModelList, 0)
+		err := sc.MSetSlice(ctx, testProtobufShardingModelList, 0)
 		require.Nil(t, err)
 
 		err = sc.Delete(ctx, false, 111, 112)

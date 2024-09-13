@@ -2,6 +2,7 @@ package timeutil
 
 import (
 	"bytes"
+	"runtime"
 	"testing"
 	"time"
 
@@ -26,7 +27,11 @@ func TestLatencyRecorder(t *testing.T) {
 	require.Nil(t, err)
 	assert.GreaterOrEqual(t, latencyMap["op1"], 10*time.Millisecond)
 	assert.GreaterOrEqual(t, latencyMap["op2"], 10*time.Millisecond)
-	assert.Less(t, latencyMap["op2"], 20*time.Millisecond)
+	// Timer on Windows platform is inaccurate, skip this assertion,
+	// it fails randomly on Windows platform.
+	if runtime.GOOS != "windows" {
+		assert.Less(t, latencyMap["op2"], 20*time.Millisecond)
+	}
 	assert.GreaterOrEqual(t, latencyMap["op3"], 20*time.Millisecond)
 	assert.GreaterOrEqual(t, latencyMap["op4"], time.Second)
 	assert.Greater(t, latencyMap["total"], 20*time.Millisecond)

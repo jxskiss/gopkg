@@ -2,6 +2,7 @@ package kvutil
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"testing"
 	"time"
@@ -40,6 +41,10 @@ var (
 	testDeleteIntIds = []int64{111, 112}
 	testDeleteStrIds = []string{"aab", "aac"}
 )
+
+func TestIsSetCacheError(t *testing.T) {
+	assert.True(t, IsSetCacheError(&setCacheError{errors.New("test error")}))
+}
 
 func TestCache(t *testing.T) {
 	mcInt := makeTestingCache("TestIntCache",
