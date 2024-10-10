@@ -46,6 +46,48 @@ func Test_Retry(t *testing.T) {
 	is.Equal(merrors[2].Error(), "error 1")
 }
 
+func Test_Stop(t *testing.T) {
+	is := assert.New(t)
+
+	t.Run("struct Stop", func(t *testing.T) {
+		fakeErrFunc := fakeErrors(1)
+		r := Retry(3, 100*time.Millisecond, func() error {
+			err := fakeErrFunc()
+			if err != nil {
+				return err
+			}
+			return Stop{Err: fmt.Errorf("stop")}
+		})
+		is.True(!r.Ok)
+		is.Equal(r.Attempts, 2)
+		merr, ok := r.Error.(*SizedError)
+		is.True(ok)
+		merrors := merr.Errors()
+		is.Equal(len(merrors), 2)
+		is.Equal(merrors[0].Error(), "stop")
+		is.Equal(merrors[1].Error(), "error 1")
+	})
+
+	t.Run("pointer of struct Stop", func(t *testing.T) {
+		fakeErrFunc := fakeErrors(1)
+		r := Retry(3, 100*time.Millisecond, func() error {
+			err := fakeErrFunc()
+			if err != nil {
+				return err
+			}
+			return &Stop{Err: fmt.Errorf("stop")}
+		})
+		is.True(!r.Ok)
+		is.Equal(r.Attempts, 2)
+		merr, ok := r.Error.(*SizedError)
+		is.True(ok)
+		merrors := merr.Errors()
+		is.Equal(len(merrors), 2)
+		is.Equal(merrors[0].Error(), "stop")
+		is.Equal(merrors[1].Error(), "error 1")
+	})
+}
+
 func Test_Hook(t *testing.T) {
 	is := assert.New(t)
 	target := fakeErrors(3)

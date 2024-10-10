@@ -83,6 +83,9 @@ func retry(opt options, f func() error, opts ...Option) (r Result) {
 		if _, ok := err.(Stop); ok {
 			break
 		}
+		if s, ok := err.(*Stop); ok && s != nil {
+			break
+		}
 		// attempts <= 0 means retry forever.
 		if opt.Attempts > 0 && r.Attempts >= opt.Attempts {
 			break
@@ -119,10 +122,14 @@ func retry(opt options, f func() error, opts ...Option) (r Result) {
 	if err != nil {
 		if s, ok := err.(Stop); ok {
 			// Return the original error for later checking.
+			// Stop error from caller don't count for circuit breaker.
 			merr.Append(s.Err)
 			opt.Hook(r.Attempts, s.Err)
-
+		} else if s, ok := err.(*Stop); ok && s != nil {
+			// Return the original error for later checking.
 			// Stop error from caller don't count for circuit breaker.
+			merr.Append(s.Err)
+			opt.Hook(r.Attempts, s.Err)
 		} else {
 			merr.Append(err)
 			opt.Hook(r.Attempts, err)
