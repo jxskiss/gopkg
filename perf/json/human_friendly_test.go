@@ -87,7 +87,8 @@ func TestHumanFriendlyIndentation(t *testing.T) {
         "sha": "6dcb09b5b57875f334f61aebed695e2e4193db5e",
         "url": "https://api.github.com/repos/octocat/Hello-World/commits/6dcb09b5b57875f334f61aebed695e2e4193db5e"
     }
-]`
+]
+`
 	var m []any
 	err := UnmarshalFromString(data, &m)
 	assert.Nil(t, err)
@@ -102,8 +103,5 @@ func TestHumanFriendlyIndentation(t *testing.T) {
 	var buf bytes.Buffer
 	err = HumanFriendly.NewEncoder(&buf).SetIndent("", "    ").Encode(m)
 	assert.Nil(t, err)
-	assert.True(t, bytes.HasPrefix(got, []byte("[\n    {\n        \"author\": {\n            \"avatar_url\"")))
-	assert.True(t, bytes.Contains(got, []byte(",\n        \"comments_url\": \"")))
-	assert.True(t, bytes.Contains(got, []byte("        \"commit\": {\n            \"author\": {\n                \"date\": \"")))
-	assert.True(t, bytes.Contains(got, []byte(",\n        \"parents\": [\n            {\n                \"sha\": \"")))
+	assert.Equal(t, data, buf.String())
 }

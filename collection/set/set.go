@@ -366,17 +366,3 @@ func (s *Set) UnmarshalYAML(unmarshal func(any) error) error {
 	}
 	return err
 }
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
