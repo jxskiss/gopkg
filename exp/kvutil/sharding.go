@@ -22,9 +22,9 @@ type ShardingModel interface {
 	Model
 
 	// GetShardingData returns whether a model is a shard or a complete model.
-	// When the returned bool value is false, the returned ShardingData
+	// When the returned bool value is true, the returned ShardingData
 	// can be a zero value, and shall not be used.
-	GetShardingData() (ShardingData, bool)
+	GetShardingData() (data ShardingData, isShard bool)
 
 	// SetShardingData sets a shard data to a new model created when
 	// doing serialization to split data into shards and save to storage.
@@ -233,14 +233,17 @@ func (p *ShardingCache[K, V]) deleteAllShards(ctx context.Context, pks []K) erro
 }
 
 func (p *ShardingCache[K, V]) marshalModels(entityList []V) (result []KVPair, err error) {
+	idFunc := p.config.IDFunc
+	keyFunc := p.config.KeyFunc
+	newElemFunc := p.newElemFunc
 	shardSize := p.config.ShardingSize
 	for _, elem := range entityList {
 		buf, err := elem.MarshalBinary()
 		if err != nil {
 			return nil, err
 		}
-		pk := p.config.IDFunc(elem)
-		key := p.config.KeyFunc(pk)
+		pk := idFunc(elem)
+		key := keyFunc(pk)
 		if len(buf) <= shardSize {
 			result = append(result, KVPair{K: key, V: buf})
 			continue
@@ -249,7 +252,7 @@ func (p *ShardingCache[K, V]) marshalModels(entityList []V) (result []KVPair, er
 		// Split big value into shards.
 		totalNum := (len(buf) + shardSize - 1) / shardSize
 		digest := calcDigest(buf)
-		shard0 := p.newElemFunc()
+		shard0 := newElemFunc()
 		shard0.SetShardingData(ShardingData{
 			TotalNum: int32(totalNum),
 			ShardNum: 0,
@@ -266,7 +269,7 @@ func (p *ShardingCache[K, V]) marshalModels(entityList []V) (result []KVPair, er
 			i := num * shardSize
 			j := min((num+1)*shardSize, len(buf))
 			ithKey := GetShardKey(key, num)
-			ithShard := p.newElemFunc()
+			ithShard := newElemFunc()
 			ithShard.SetShardingData(ShardingData{
 				TotalNum: int32(totalNum),
 				ShardNum: int32(num),
@@ -411,7 +414,7 @@ type shardingQuery[K comparable, V ShardingModel] struct {
 }
 
 func (sq *shardingQuery[K, V]) reset() {
-	sq.pks = sq.pks[:0]
+	sq.pks = nil
 	sq.keys = sq.keys[:0]
 	sq.shardingPKs = sq.shardingPKs[:0]
 	sq.shard0Data = sq.shard0Data[:0]
@@ -448,7 +451,7 @@ func (sq *shardingQuery[K, V]) Do(ctx context.Context) {
 		return
 	}
 
-	newElemFunc := buildNewElemFunc[V]()
+	newElemFunc := sq.newElemFunc
 	sq.result = make(map[K]V, len(sq.keys))
 	sq.retErrs = make(map[K]error, len(sq.keys))
 	for i, buf := range mgetRet {
@@ -482,7 +485,7 @@ func (sq *shardingQuery[K, V]) Do(ctx context.Context) {
 	}
 
 	if len(sq.shardingPKs) > 0 {
-		sq.queryShardingData(ctx)
+		sq.queryAndMergeShardingData(ctx)
 	}
 }
 
@@ -491,7 +494,7 @@ type ithResult struct {
 	Err   error
 }
 
-func (sq *shardingQuery[K, V]) queryShardingData(ctx context.Context) {
+func (sq *shardingQuery[K, V]) queryAndMergeShardingData(ctx context.Context) {
 	ithShardKeys := sq.ithShardKeys
 	shardRet, err := mgetFromStorage(ctx, sq.stor, ithShardKeys, sq.mgetBatchSize)
 	if err != nil {
@@ -499,7 +502,7 @@ func (sq *shardingQuery[K, V]) queryShardingData(ctx context.Context) {
 		return
 	}
 
-	newElemFunc := buildNewElemFunc[V]()
+	newElemFunc := sq.newElemFunc
 	ithShardMap := make(map[string]ithResult, len(ithShardKeys))
 	for i, ithKey := range ithShardKeys {
 		buf := shardRet[i]

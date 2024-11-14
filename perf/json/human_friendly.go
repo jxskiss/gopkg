@@ -25,7 +25,7 @@ var HumanFriendly = struct {
 	MarshalToString:     hFriendlyMarshalToString,
 	MarshalIndent:       hFriendlyMarshalIndent,
 	MarshalIndentString: hFriendlyMarshalIndentString,
-	NewEncoder:          newHumanFriendlyEncoder,
+	NewEncoder:          hFriendlyNewEncoder,
 }
 
 var jsoniterHumanFriendlyConfig = jsoniter.Config{
@@ -65,33 +65,48 @@ func hFriendlyMarshalIndentString(v any, prefix, indent string) (string, error) 
 	return unsafeheader.BytesToString(buf), nil
 }
 
-func newHumanFriendlyEncoder(w io.Writer) *Encoder {
-	return &Encoder{&hFriendlyEncoder{w: w}}
+// 注意 jsoniter 对 prefix, indent 的处理有问题，这里不能直接使用
+// jsoniterHumanFriendlyConfig.NewEncoder
+func hFriendlyNewEncoder(w io.Writer) *Encoder {
+	buf := bytes.NewBuffer(nil)
+	return &Encoder{&hFriendlyEncoder{
+		w:   w,
+		buf: buf,
+		enc: jsoniterHumanFriendlyConfig.NewEncoder(buf),
+	}}
 }
 
 type hFriendlyEncoder struct {
 	w      io.Writer
+	buf    *bytes.Buffer
+	enc    *jsoniter.Encoder
 	prefix string
 	indent string
 }
 
 func (h *hFriendlyEncoder) Encode(val any) error {
-	var buf []byte
 	var err error
-	if h.prefix == "" && h.indent == "" {
-		buf, err = jsoniterHumanFriendlyConfig.Marshal(val)
-	} else {
-		buf, err = hFriendlyMarshalIndent(val, h.prefix, h.indent)
-	}
+	var out []byte
+	err = h.enc.Encode(val)
 	if err != nil {
 		return err
 	}
-	_, err = h.w.Write(buf)
+	if h.prefix != "" || h.indent != "" {
+		var indentBuf bytes.Buffer
+		err = json.Indent(&indentBuf, h.buf.Bytes(), h.prefix, h.indent)
+		if err != nil {
+			return err
+		}
+		out = indentBuf.Bytes()
+	} else {
+		out = h.buf.Bytes()
+	}
+	_, err = h.w.Write(out)
 	return err
 }
 
-func (h *hFriendlyEncoder) SetEscapeHTML(_ bool) {
-	return
+func (h *hFriendlyEncoder) SetEscapeHTML(on bool) {
+	h.enc.SetEscapeHTML(on)
 }
 
 func (h *hFriendlyEncoder) SetIndent(prefix, indent string) {

@@ -41,6 +41,8 @@ func NewLatencyRecorder() *LatencyRecorder {
 }
 
 // Reset resets the recorder to initial state, which is ready to be reused.
+// The caller must ensure that the recorder is not used asynchronously
+// after Reset, else data-race or panic happens.
 func (p *LatencyRecorder) Reset() {
 	p.startTime = time.Now()
 	p.frames = p.frames[:0]
@@ -118,7 +120,7 @@ func (p *LatencyRecorder) WriteTo(w io.Writer) (n int64, err error) {
 
 //nolint:errcheck
 func (p *LatencyRecorder) formatToBuffer() *bbp.Buffer {
-	var tmp [8]byte
+	var tmp [32]byte
 	buf := latencyBufPool.GetBuffer()
 	totalMsec := time.Since(p.startTime).Milliseconds()
 

@@ -139,13 +139,11 @@ func buildNewElemFunc[V any]() func() V {
 	if typ.Kind() == reflect.Ptr {
 		valTyp := typ.Elem()
 		return func() V {
-			elem := linkname.Reflect_unsafe_New(unsafe.Pointer(valTyp))
-			return typ.PackInterface(elem).(V)
+			ptr := linkname.Reflect_unsafe_New(unsafe.Pointer(valTyp))
+			return *(*V)(unsafe.Pointer(&ptr))
 		}
 	}
-	return func() V {
-		return *new(V)
-	}
+	return func() (value V) { return }
 }
 
 // NewCache returns a new Cache instance.
