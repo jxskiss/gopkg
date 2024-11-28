@@ -18,6 +18,7 @@ package gopool
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/jxskiss/gopkg/v2/internal"
 )
@@ -53,6 +54,13 @@ type Config struct {
 	// The limit of adhoc worker number can be changed by calling
 	// SetAdhocWorkerLimit.
 	AdhocWorkerLimit int
+
+	// AdhocIdleTimeout specifies the idle timeout of an adhoc worker.
+	// If the idle timeout is exceeded, the worker will be stopped.
+	//
+	// The default value is zero, which exits an adhoc worker immediately
+	// after draining pending tasks.
+	AdhocIdleTimeout time.Duration
 
 	// PanicHandler specifies a handler when panic occurs.
 	// By default, a panic message with stack information is logged.

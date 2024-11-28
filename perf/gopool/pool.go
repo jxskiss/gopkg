@@ -20,6 +20,7 @@ import (
 	"math"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 // Pool manages a goroutine pool and tasks for better performance,
@@ -65,6 +66,9 @@ type internalPool struct {
 	config *Config
 	runner taskRunner
 
+	// idleTick is used to coordinate adhoc workers.
+	idleTick chan struct{}
+
 	// taskCh sends tasks to permanent workers.
 	taskCh chan *task
 
@@ -81,8 +85,35 @@ func (p *internalPool) init(config *Config, runner taskRunner) {
 	config.checkAndSetDefaults()
 	p.config = config
 	p.runner = runner
+	p.idleTick = make(chan struct{})
+	p.taskCh = make(chan *task)
 	p.SetAdhocWorkerLimit(config.AdhocWorkerLimit)
 	p.startPermanentWorkers()
+	p.startWakeupTick()
+}
+
+func (p *internalPool) startWakeupTick() {
+	if p.config.AdhocIdleTimeout <= 0 {
+		close(p.idleTick)
+		return
+	}
+
+	go func() {
+		halfTimeout := max(p.config.AdhocIdleTimeout/2, 10*time.Millisecond)
+		ticker := time.NewTicker(halfTimeout)
+	tickLoop:
+		for range ticker.C {
+			_, n := p.getAdhocState()
+			for i := int32(0); i < n; i++ {
+				select {
+				case p.idleTick <- struct{}{}:
+					continue
+				default:
+					continue tickLoop
+				}
+			}
+		}
+	}()
 }
 
 // Name returns the name of a pool.
@@ -116,13 +147,11 @@ func (p *internalPool) submit(ctx context.Context, arg any) {
 	t.ctx = ctx
 	t.arg = arg
 
-	// Try permanent worker first.
-	if p.taskCh != nil {
-		select {
-		case p.taskCh <- t:
-			return
-		default:
-		}
+	// Try permanent worker or wake up a sleeping adhoc worker first.
+	select {
+	case p.taskCh <- t:
+		return
+	default:
 	}
 
 	// No free permanent worker available, check to start a new
@@ -179,7 +208,6 @@ func (p *internalPool) startPermanentWorkers() {
 	if p.config.PermanentWorkerNum <= 0 {
 		return
 	}
-	p.taskCh = make(chan *task)
 	for i := 0; i < p.config.PermanentWorkerNum; i++ {
 		go p.permanentWorker()
 	}
@@ -206,16 +234,39 @@ func (p *internalPool) permanentWorker() {
 }
 
 func (p *internalPool) adhocWorker(t *task) {
-	p.runner(p, t)
+taskLoop:
 	for {
+		p.runner(p, t)
+
 		p.mu.Lock()
 		t = p.taskList.pop()
-		if t == nil {
-			p.decAdhocWorkerCount()
-			p.mu.Unlock()
-			return
-		}
 		p.mu.Unlock()
-		p.runner(p, t)
+		if t != nil {
+			continue
+		}
+
+		// No more tasks, sleep until wakeup by a new task or exit after idle timeout.
+		tickCnt := 0
+		for {
+			select {
+			case t = <-p.taskCh:
+				continue taskLoop
+			case _, ok := <-p.idleTick:
+				tickCnt += 1
+				// Exit this adhoc worker.
+				if !ok || tickCnt >= 2 {
+					// Check and drain pending tasks before exit.
+					p.mu.Lock()
+					t = p.taskList.pop()
+					if t == nil {
+						p.decAdhocWorkerCount()
+						p.mu.Unlock()
+						return
+					}
+					p.mu.Unlock()
+					continue taskLoop
+				}
+			}
+		}
 	}
 }
