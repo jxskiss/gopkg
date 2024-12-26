@@ -1,10 +1,12 @@
-package ezmap
+package easy
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/jxskiss/gopkg/v2/easy/ezmap"
 )
 
 func TestMarshalCSV(t *testing.T) {
@@ -13,7 +15,7 @@ func TestMarshalCSV(t *testing.T) {
 		A bool
 		B AString
 	}
-	records := []Map{
+	records := []ezmap.Map{
 		{
 			"bool":   true,
 			"int":    1234,
@@ -48,7 +50,7 @@ false,4321,12345,65432,"{""A"":false,""B"":""65432""}"
 		got, err := UnmarshalCVS([]byte(data))
 		require.Nil(t, err)
 
-		want := []Map{
+		want := []ezmap.Map{
 			{
 				"bool":   "true",
 				"int":    "1234",
@@ -87,7 +89,7 @@ name3	35184904144031	35184904144031
 		got, err := UnmarshalCSVWithSeparator([]byte(data), '\t')
 		require.Nil(t, err)
 
-		want := []Map{
+		want := []ezmap.Map{
 			{
 				"Name": "name1",
 				"ID":   "515211140",

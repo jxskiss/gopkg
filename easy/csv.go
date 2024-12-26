@@ -1,4 +1,4 @@
-package ezmap
+package easy
 
 import (
 	"bytes"
@@ -9,6 +9,7 @@ import (
 	"sort"
 	"unsafe"
 
+	"github.com/jxskiss/gopkg/v2/easy/ezmap"
 	"github.com/jxskiss/gopkg/v2/utils/strutil"
 )
 
@@ -76,13 +77,13 @@ func MarshalCSV[T ~map[string]any](records []T) ([]byte, error) {
 // It uses the std encoding/csv.Reader with its default settings for csv encoding.
 // The first record parsed from the first row is treated as CSV header,
 // and used as the result map keys.
-func UnmarshalCVS(data []byte) ([]Map, error) {
+func UnmarshalCVS(data []byte) ([]ezmap.Map, error) {
 	return UnmarshalCSVWithSeparator(data, ',')
 }
 
 // UnmarshalCSVWithSeparator is same to [UnmarshalCVS],
 // except that it allows caller to specify the separator.
-func UnmarshalCSVWithSeparator(data []byte, sep rune) ([]Map, error) {
+func UnmarshalCSVWithSeparator(data []byte, sep rune) ([]ezmap.Map, error) {
 	if sep != ',' && sep != ';' && sep != '\t' {
 		return nil, fmt.Errorf("unsupported separator: %c", sep)
 	}
@@ -104,9 +105,9 @@ func UnmarshalCSVWithSeparator(data []byte, sep rune) ([]Map, error) {
 			}
 		}
 	}
-	out := make([]Map, 0, len(records))
+	out := make([]ezmap.Map, 0, len(records))
 	for _, record := range records {
-		m := make(Map, len(header))
+		m := make(ezmap.Map, len(header))
 		for i, x := range record {
 			m[header[i]] = x
 		}
