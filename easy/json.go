@@ -95,9 +95,9 @@ func prettyIndent(v any, indent string) string {
 
 type JSONPathMapping [][3]string
 
-// ParseJSONRecordsWithMapping parses gjson.Result array to slice of
+// ParseJSONToMaps parses gjson.Result array to slice of
 // map[string]any according to json path mapping.
-func ParseJSONRecordsWithMapping(arr []gjson.Result, mapping JSONPathMapping) []ezmap.Map {
+func ParseJSONToMaps(arr []gjson.Result, mapping JSONPathMapping) []ezmap.Map {
 	out := make([]ezmap.Map, 0, len(arr))
 	mapper := &jsonMapper{}
 	convFuncs := mapper.getConvFuncs(mapping)
@@ -117,7 +117,7 @@ func ParseJSONRecordsWithMapping(arr []gjson.Result, mapping JSONPathMapping) []
 //  2. It has very limited support for complex types of struct fields,
 //     e.g. []any, []*Struct, []map[string]any,
 //     map[string]any, map[string]*Struct, map[string]map[string]any
-func ParseJSONRecords[T any](dst *[]*T, records []gjson.Result, opts ...JSONMapperOpt) error {
+func ParseJSONRecords[T any](records *[]*T, arr []gjson.Result, opts ...JSONMapperOpt) error {
 	var sample T
 	if reflect.TypeOf(sample).Kind() != reflect.Struct {
 		return errors.New("ParseJSONRecords: type T must be a struct")
@@ -130,12 +130,12 @@ func ParseJSONRecords[T any](dst *[]*T, records []gjson.Result, opts ...JSONMapp
 		return err
 	}
 	convFuncs := mapper.getConvFuncs(mapping)
-	out := make([]map[string]any, 0, len(records))
-	for _, row := range records {
+	out := make([]map[string]any, 0, len(arr))
+	for _, row := range arr {
 		result := mapper.parseRecord(row, mapping, convFuncs)
 		out = append(out, result)
 	}
-	return mapstructure.Decode(out, &dst)
+	return mapstructure.Decode(out, records)
 }
 
 type jsonConvFunc func(j gjson.Result, path string) any
@@ -242,7 +242,7 @@ func (p *jsonMapper) newConvFunc(path, typ string) jsonConvFunc {
 				return out
 			}
 		}
-	case "arr", "array":
+	case "arr", "array", "slice":
 		var (
 			subMapping   JSONPathMapping
 			subConvFuncs []jsonConvFunc

@@ -141,7 +141,7 @@ var parseJSONRecordsTestData = `
     "processingTime": 31.543533999999998
 }`
 
-func TestParseJSONRecordsWithMapping(t *testing.T) {
+func TestParseJSONToMaps(t *testing.T) {
 	mapping := JSONPathMapping{
 		{"DisplayName", "displayName"},
 		{"RepoName", "repoName"},
@@ -151,7 +151,7 @@ func TestParseJSONRecordsWithMapping(t *testing.T) {
 	}
 
 	j := gjson.Parse(parseJSONRecordsTestData).Get("files")
-	got := ParseJSONRecordsWithMapping(j.Array(), mapping)
+	got := ParseJSONToMaps(j.Array(), mapping)
 	assert.Len(t, got, 2)
 	assert.Equal(t, "README.md", got[0]["DisplayName"])
 	assert.Equal(t, "LICENSE", got[1]["DisplayName"])
