@@ -30,13 +30,11 @@ func (l *stdLogWriter) Write(p []byte) (int, error) {
 	p = bytes.TrimSpace(p)
 	str := string(p)
 	level := detectLevel(str)
-	_logAttrs(2, context.Background(), logger, level, str, l.attrs)
+	_logAttrs(context.Background(), 2, logger, level, str, l.attrs)
 	return n, nil
 }
 
 // detectLevel guess logging level by checking the begging of a message.
-// Note that we don't guess level greater than ErrorLevel
-// from this function to avoid crashing a program accidentally.
 func detectLevel(message string) slog.Level {
 	const levelPrefixMinLen = 5
 	if len(message) < levelPrefixMinLen {
