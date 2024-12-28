@@ -1,4 +1,4 @@
-package zlog
+package radixtree
 
 import (
 	"fmt"
@@ -6,13 +6,25 @@ import (
 	"strings"
 )
 
-type radixTree[T any] struct {
+type RadixTree[T any] struct {
 	root radixNode[T]
 }
 
-func (p *radixTree[T]) search(name string) (T, bool) {
+func New[T any]() *RadixTree[T] {
+	return &RadixTree[T]{}
+}
+
+func (p *RadixTree[T]) Insert(name string, value T) {
+	p.root.insert(name, value)
+}
+
+func (p *RadixTree[T]) Search(name string) (T, bool) {
 	value, found := p.root.search(name)
 	return value, found
+}
+
+func (p *RadixTree[T]) Dump(prefix string) string {
+	return p.root.dumpTree(prefix)
 }
 
 type radixNode[T any] struct {
@@ -131,7 +143,7 @@ func (n *radixNode[T]) getChild(label byte) *radixNode[T] {
 func (n *radixNode[T]) dumpTree(prefix string) string {
 	var out string
 	if n.value != nil {
-		out += fmt.Sprintf("%s=%v\n", prefix+n.prefix, n.value)
+		out += fmt.Sprintf("%s=%v\n", prefix+n.prefix, *n.value)
 	}
 	for _, child := range n.childNodes.nodes {
 		out += child.dumpTree(prefix + n.prefix)
@@ -141,12 +153,9 @@ func (n *radixNode[T]) dumpTree(prefix string) string {
 
 // longestPrefix finds the length of the shared prefix of two strings.
 func longestPrefix(k1, k2 string) int {
-	max := len(k1)
-	if l := len(k2); l < max {
-		max = l
-	}
+	n := min(len(k1), len(k2))
 	var i int
-	for i = 0; i < max; i++ {
+	for i = 0; i < n; i++ {
 		if k1[i] != k2[i] {
 			break
 		}
