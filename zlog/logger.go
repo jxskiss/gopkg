@@ -89,8 +89,8 @@ func Fatal(ctx context.Context, msg string, args ...any) {
 }
 
 // _log is the low-level logging method for methods that take ...any.
-// It must always be called directly by an exported logging method
-// or function, because it uses a fixed call depth to obtain the pc.
+// Param skip can be used to skip call stacks when obtaining the pc,
+// to get correct source information.
 func _log(ctx context.Context, skip int, l *Logger, level slog.Level, msg string, args []any) {
 	if ctx == nil {
 		ctx = context.Background()
