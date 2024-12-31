@@ -116,13 +116,13 @@ reasonable API compatibility and versioning.
 
 1. `utils/vdutil` helps to do data validation.
 
-1. `zlog` provides opinionated high-level logging facilities based on go.uber.org/zap.
+1. `zlog` provides utilities to use slog with context, and a better implementation
+   to redirect package log's default logger.
 
 See [GoDoc][godoc] for detailed online docs.
 
 [bytedance/sonic]: https://github.com/bytedance/sonic
 [jsoniter]: https://github.com/json-iterator/go
-[zap]: https://github.com/uber-go/zap
 
 Also note that the following packages, which were originally located in this repository,
 have been moved to standalone repositories:

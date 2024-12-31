@@ -101,6 +101,9 @@ func Println(args ...any) {
 	}
 	if l.Enabled(nil, level) {
 		msg := fmt.Sprintln(args...)
+		if len(msg) > 0 && msg[len(msg)-1] == '\n' {
+			msg = msg[:len(msg)-1]
+		}
 		_log(nil, 0, l, level, msg, nil)
 	}
 }
