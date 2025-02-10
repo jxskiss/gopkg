@@ -7,8 +7,8 @@ import (
 	"os"
 )
 
-// Debugf ...
-// Deprecated: this function will be removed in the future, please use Debug instead.
+// Debugf logs a message at level slog.LevelDebug.
+// Arguments are handled in the manner of [fmt.Printf].
 func Debugf(format string, args ...any) {
 	l := Default()
 	if l.Enabled(nil, slog.LevelDebug) {
@@ -17,8 +17,8 @@ func Debugf(format string, args ...any) {
 	}
 }
 
-// Infof ...
-// Deprecated: this function will be removed in the future, please use Info instead.
+// Infof logs a message at level slog.LevelInfo.
+// Arguments are handled in the manner of [fmt.Printf].
 func Infof(format string, args ...any) {
 	l := Default()
 	if l.Enabled(nil, slog.LevelInfo) {
@@ -27,8 +27,8 @@ func Infof(format string, args ...any) {
 	}
 }
 
-// Warnf ...
-// Deprecated: this function will be removed in the future, please use Warn instead.
+// Warnf logs a message at level slog.LevelWarn.
+// Arguments are handled in the manner of [fmt.Printf].
 func Warnf(format string, args ...any) {
 	l := Default()
 	if l.Enabled(nil, slog.LevelWarn) {
@@ -37,27 +37,24 @@ func Warnf(format string, args ...any) {
 	}
 }
 
-// Errorf ...
-// Deprecated: this function will be removed in the future, please use Error instead.
+// Errorf logs a message at level slog.LevelError.
+// Arguments are handled in the manner of [fmt.Printf].
 func Errorf(format string, args ...any) {
 	msg := formatMessage(format, args)
 	_log(nil, 0, Default(), slog.LevelError, msg, nil)
 }
 
 // Fatalf is equivalent to Errorf() followed by a call to os.Exit(1).
-// Deprecated: this function will be removed in the future, please use Fatal instead.
 func Fatalf(format string, args ...any) {
 	msg := formatMessage(format, args)
 	_log(nil, 0, Default(), slog.LevelError, msg, nil)
 	os.Exit(1)
 }
 
-// Print uses [fmt.Sprint] to log a message at InfoLevel, or level
-// detected from args, if it's enabled.
-// It has same signature with [log.Print].
-//
-// Deprecated: this function will be removed in the future, please use
-// Logger or the leveled logging functions.
+// Print logs a message at level slog.LevelInfo, or level detected
+// from args, if it's enabled.
+// It has same signature with [log.Print],
+// arguments are handled in the manner of [fmt.Print].
 func Print(args ...any) {
 	l := Default()
 	level := slog.LevelInfo
@@ -71,12 +68,10 @@ func Print(args ...any) {
 	}
 }
 
-// Printf uses [fmt.Sprintf] to log a message at InfoLevel, or level
-// detected from args, if it's enabled.
-// It has same signature with [log.Printf].
-//
-// Deprecated: this function will be removed in the future, please use
-// Logger or the leveled logging functions.
+// Printf logs a message at level slog.LevelInfo, or level detected
+// from args, if it's enabled.
+// It has same signature with [log.Printf],
+// arguments are handled in the manner of [fmt.Printf].
 func Printf(format string, args ...any) {
 	l := Default()
 	level := detectLevel(format)
@@ -86,12 +81,10 @@ func Printf(format string, args ...any) {
 	}
 }
 
-// Println uses [fmt.Sprintln] to log a message at InfoLevel, or level
-// detected from args, if it's enabled.
-// It has same signature with [log.Println].
-//
-// Deprecated: this function will be removed in the future, please use
-// Logger or the leveled logging functions.
+// Println logs a message at level slog.LevelInfo, or level detected
+// from args, if it's enabled.
+// It has same signature with [log.Println],
+// arguments are handled in the manner of [fmt.Println].
 func Println(args ...any) {
 	l := Default()
 	level := slog.LevelInfo
