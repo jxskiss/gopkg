@@ -21,10 +21,10 @@ func PrependAttrs(parent context.Context, args ...any) context.Context {
 		parent = context.Background()
 	}
 	if v, ok := parent.Value(prependKey).([]slog.Attr); ok {
-		attrs := append(slices.Clip(v), ArgsToAttrSlice(args)...)
+		attrs := append(slices.Clip(v), ArgsToAttrSlice(args...)...)
 		return context.WithValue(parent, prependKey, attrs)
 	}
-	return context.WithValue(parent, prependKey, ArgsToAttrSlice(args))
+	return context.WithValue(parent, prependKey, ArgsToAttrSlice(args...))
 }
 
 // ExtractPrepended is an AttrExtractor that returns the prepended attributes
@@ -46,10 +46,10 @@ func AppendAttrs(parent context.Context, args ...any) context.Context {
 		parent = context.Background()
 	}
 	if v, ok := parent.Value(appendKey).([]slog.Attr); ok {
-		attrs := append(slices.Clip(v), ArgsToAttrSlice(args)...)
+		attrs := append(slices.Clip(v), ArgsToAttrSlice(args...)...)
 		return context.WithValue(parent, appendKey, attrs)
 	}
-	return context.WithValue(parent, appendKey, ArgsToAttrSlice(args))
+	return context.WithValue(parent, appendKey, ArgsToAttrSlice(args...))
 }
 
 // ExtractAppended is an AttrExtractor that returns the appended attributes
@@ -67,10 +67,13 @@ const badKey = "!BADKEY"
 
 // ArgsToAttrSlice turns a slice of arguments, some of which pairs of primitives,
 // some might be attributes already, into a slice of attributes.
-func ArgsToAttrSlice(args []any) []slog.Attr {
+func ArgsToAttrSlice(args ...any) []slog.Attr {
 	if len(args) == 1 {
 		if attrs, ok := args[0].([]slog.Attr); ok {
 			return attrs
+		}
+		if arg0Slice, ok := args[0].([]any); ok {
+			return ArgsToAttrSlice(arg0Slice...)
 		}
 	}
 
