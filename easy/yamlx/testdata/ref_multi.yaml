@@ -1,0 +1,7 @@
+env:
+  obj_id1: 12345
+objects:
+  some1:
+    id_integer: "@@ref env.obj_id1"
+  some2:
+    id_str: "@@ref env.obj_id1|@tostr"

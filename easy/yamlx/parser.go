@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -455,7 +456,7 @@ func (p *parser) resolveIncludes() error {
 			}
 			incParser := newParserWithOpts(incBuf, p.opts)
 			incParser.filename = incFilePath
-			incParser.incStack = append(clip(p.incStack), incFilePath)
+			incParser.incStack = append(slices.Clip(p.incStack), incFilePath)
 			err = incParser.parse()
 			if err != nil {
 				return fmt.Errorf("cannot parse include file: %w", err)
@@ -540,13 +541,13 @@ func (p *parser) resolveReferences() error {
 		case yaml.SequenceNode:
 			for i := 0; i < len(node.N.Content); i++ {
 				_n := node.N.Content[i]
-				_p := append(clip(node.P), strconv.Itoa(i))
+				_p := append(slices.Clip(node.P), strconv.Itoa(i))
 				stack.push(NodePath{_n, _p})
 			}
 		case yaml.MappingNode:
 			for i, j := 0, 1; j < len(node.N.Content); i, j = i+2, j+2 {
 				_n := node.N.Content[j]
-				_p := append(clip(node.P), gjson.Escape(node.N.Content[i].Value))
+				_p := append(slices.Clip(node.P), gjson.Escape(node.N.Content[i].Value))
 				stack.push(NodePath{_n, _p})
 			}
 		case yaml.AliasNode:
@@ -661,11 +662,11 @@ func (p *parser) getReferID(path, origPath string) (int, string) {
 		p.refTable = make(map[string]int)
 		p.refRevTable = make(map[int]pathTuple)
 	}
-	seq := p.refTable[path]
+	seq := p.refTable[origPath]
 	if seq == 0 {
 		p.refCounter++
 		seq = p.refCounter
-		p.refTable[path] = seq
+		p.refTable[origPath] = seq
 		p.refRevTable[seq] = pathTuple{path, origPath}
 	}
 	placeholder := p.referPlaceholder(seq)
@@ -723,15 +724,4 @@ func (p *parser) unescapeStrings() {
 			node.Value = unescapeStrValue(node.Value)
 		}
 	}
-}
-
-func clip[T any](s []T) []T {
-	return s[:len(s):len(s)]
-}
-
-func max(a, b int) int {
-	if a < b {
-		return b
-	}
-	return a
 }

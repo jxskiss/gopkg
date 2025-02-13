@@ -164,6 +164,30 @@ func TestUnmarshal(t *testing.T) {
 		assert.Equal(t, `{"deployment":"test","name":"Deploy","name1":"Deploy","name2":"level2","name3":"Build and test","script":["./deploy.sh target/my-app.jar","./deploy.sh target/my-app.jar","./deploy.sh target/my-app.jar","mvn package"]}`, gjson.Get(jsonData, "definitions.steps.1.tostr").Str)
 	})
 
+	t.Run("reference / multi", func(t *testing.T) {
+		yamlData, err := os.ReadFile("./testdata/ref_multi.yaml")
+		require.Nil(t, err)
+
+		var out struct {
+			Env struct {
+				ObjID1 int64 `yaml:"obj_id1"`
+			} `yaml:"env"`
+			Objects struct {
+				Some1 struct {
+					IDInteger int32 `yaml:"id_integer"`
+				} `yaml:"some1"`
+				Some2 struct {
+					IDStr string `yaml:"id_str"`
+				} `yaml:"some2"`
+			} `yaml:"objects"`
+		}
+		err = Unmarshal(yamlData, &out)
+		require.Nil(t, err)
+		assert.Equal(t, int64(12345), out.Env.ObjID1)
+		assert.Equal(t, int32(12345), out.Objects.Some1.IDInteger)
+		assert.Equal(t, "12345", out.Objects.Some2.IDStr)
+	})
+
 	t.Run("variable / success", func(t *testing.T) {
 		yamlData, err := os.ReadFile("./testdata/variable.yaml")
 		require.Nil(t, err)
