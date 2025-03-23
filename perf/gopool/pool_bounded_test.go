@@ -24,7 +24,7 @@ import (
 	"time"
 )
 
-const benchmarkTimes = 10000
+const benchmarkTimes = 1000
 
 func DoCopyStack(a, b int) int {
 	if b < 100 {
@@ -37,22 +37,19 @@ func testFunc() {
 	DoCopyStack(0, 0)
 }
 
-func TestPool(t *testing.T) {
-	cfg := NewConfig()
-	cfg.AdhocWorkerLimit = 100
+func TestBoundedPool(t *testing.T) {
+	cfg := NewConfig().SetBounded(1, 0, 100)
 	p := NewPool(cfg)
-	testWithPool(t, p, 100)
+	testWithBoundedPool(t, p, 100)
 }
 
-func TestPoolWithPermanentWorkers(t *testing.T) {
-	p := NewPool(&Config{
-		PermanentWorkerNum: 100,
-		AdhocWorkerLimit:   100,
-	})
-	testWithPool(t, p, 100)
+func TestBoundedPoolWithPermanentWorkers(t *testing.T) {
+	cfg := NewConfig().SetBounded(0, 100, 100)
+	p := NewPool(cfg)
+	testWithBoundedPool(t, p, 100)
 }
 
-func testWithPool(t *testing.T, p *Pool, adhocLimit int32) {
+func testWithBoundedPool(t *testing.T, p *Pool, adhocLimit int) {
 	var n int32
 	var wg sync.WaitGroup
 	for i := 0; i < 2000; i++ {
@@ -75,8 +72,8 @@ func testWithPool(t *testing.T, p *Pool, adhocLimit int32) {
 	}
 }
 
-func TestPoolPanic(t *testing.T) {
-	p := NewPool(&Config{AdhocWorkerLimit: 100})
+func TestBoundedPoolPanic(t *testing.T) {
+	p := NewPool(NewConfig().SetBounded(0, 0, 100))
 	var wg sync.WaitGroup
 	wg.Add(1)
 	p.Go(func() {
@@ -86,18 +83,18 @@ func TestPoolPanic(t *testing.T) {
 	wg.Wait()
 }
 
-func BenchmarkDefaultPool(b *testing.B) {
-	p := NewPool(&Config{
-		AdhocWorkerLimit: runtime.GOMAXPROCS(0),
-	})
+func BenchmarkBoundedPool(b *testing.B) {
+	p := NewPool(NewConfig().SetBounded(0, 0, runtime.GOMAXPROCS(0)))
 	benchmarkWithPool(b, p)
 }
 
-func BenchmarkPoolWithPermanentWorkers(b *testing.B) {
-	p := NewPool(&Config{
-		PermanentWorkerNum: runtime.GOMAXPROCS(0),
-		AdhocWorkerLimit:   runtime.GOMAXPROCS(0),
-	})
+func BenchmarkBoundedPoolParallel(b *testing.B) {
+	p := NewPool(NewConfig().SetBounded(0, 0, runtime.GOMAXPROCS(0)))
+	benchmarkWithPoolParallel(b, p)
+}
+
+func BenchmarkBoundedPoolWithPermanentWorkers(b *testing.B) {
+	p := NewPool(NewConfig().SetBounded(0, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0)))
 	benchmarkWithPool(b, p)
 }
 
@@ -115,6 +112,24 @@ func benchmarkWithPool(b *testing.B, p *Pool) {
 		}
 		wg.Wait()
 	}
+}
+
+func benchmarkWithPoolParallel(b *testing.B, p *Pool) {
+	b.ReportAllocs()
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			var wg sync.WaitGroup
+			wg.Add(benchmarkTimes)
+			for j := 0; j < benchmarkTimes; j++ {
+				p.Go(func() {
+					testFunc()
+					wg.Done()
+				})
+			}
+			wg.Wait()
+		}
+	})
 }
 
 func BenchmarkGo(b *testing.B) {
@@ -143,18 +158,14 @@ func testIncInt32(_ context.Context, arg incInt32Data) {
 	atomic.AddInt32(arg.n, 1)
 }
 
-func TestTypedPool(t *testing.T) {
-	cfg := NewConfig()
-	cfg.AdhocWorkerLimit = 100
+func TestBoundedTypedPool(t *testing.T) {
+	cfg := NewConfig().SetBounded(0, 0, 100)
 	p := NewTypedPool(cfg, testIncInt32)
 	testWithTypedPool(t, p)
 }
 
-func TestTypedPoolWithPermanentWorkers(t *testing.T) {
-	cfg := &Config{
-		PermanentWorkerNum: 100,
-		AdhocWorkerLimit:   100,
-	}
+func TestBoundedTypedPoolWithPermanentWorkers(t *testing.T) {
+	cfg := NewConfig().SetBounded(0, 100, 100)
 	p := NewTypedPool(cfg, testIncInt32)
 	testWithTypedPool(t, p)
 }
@@ -176,8 +187,8 @@ func testWithTypedPool(t *testing.T, p *TypedPool[incInt32Data]) {
 	}
 }
 
-func TestTypedPoolPanic(t *testing.T) {
-	cfg := &Config{AdhocWorkerLimit: 100}
+func TestBoundedTypedPoolPanic(t *testing.T) {
+	cfg := NewConfig().SetBounded(0, 0, 100)
 	p := NewTypedPool(cfg, func(_ context.Context, arg incInt32Data) {
 		defer arg.wg.Done()
 		panic("test panic")
@@ -190,10 +201,8 @@ func TestTypedPoolPanic(t *testing.T) {
 	wg.Wait()
 }
 
-func BenchmarkTypedPool(b *testing.B) {
-	cfg := &Config{
-		AdhocWorkerLimit: runtime.GOMAXPROCS(0),
-	}
+func BenchmarkBoundedTypedPool(b *testing.B) {
+	cfg := NewConfig().SetBounded(0, 0, runtime.GOMAXPROCS(0))
 	p := NewTypedPool(cfg, func(_ context.Context, wg *sync.WaitGroup) {
 		testFunc()
 		wg.Done()
@@ -201,11 +210,17 @@ func BenchmarkTypedPool(b *testing.B) {
 	benchmarkWithTypedPool(b, p)
 }
 
-func BenchmarkTypedPoolWithPermanentWorkers(b *testing.B) {
-	cfg := &Config{
-		PermanentWorkerNum: runtime.GOMAXPROCS(0),
-		AdhocWorkerLimit:   runtime.GOMAXPROCS(0),
-	}
+func BenchmarkBoundedTypedPoolParallel(b *testing.B) {
+	cfg := NewConfig().SetBounded(0, 0, runtime.GOMAXPROCS(0))
+	p := NewTypedPool(cfg, func(_ context.Context, wg *sync.WaitGroup) {
+		testFunc()
+		wg.Done()
+	})
+	benchmarkWithTypedPoolParallel(b, p)
+}
+
+func BenchmarkBoundedTypedPoolWithPermanentWorkers(b *testing.B) {
+	cfg := NewConfig().SetBounded(0, runtime.GOMAXPROCS(0), runtime.GOMAXPROCS(0))
 	p := NewTypedPool(cfg, func(_ context.Context, wg *sync.WaitGroup) {
 		testFunc()
 		wg.Done()
@@ -226,8 +241,24 @@ func benchmarkWithTypedPool(b *testing.B, p *TypedPool[*sync.WaitGroup]) {
 	}
 }
 
+func benchmarkWithTypedPoolParallel(b *testing.B, p *TypedPool[*sync.WaitGroup]) {
+	b.ReportAllocs()
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			var wg sync.WaitGroup
+			wg.Add(benchmarkTimes)
+			for j := 0; j < benchmarkTimes; j++ {
+				p.Go(&wg)
+			}
+			wg.Wait()
+		}
+	})
+}
+
 func TestSetAdhocWorkerLimit(t *testing.T) {
-	pool := NewPool(&Config{AdhocWorkerLimit: 100})
+	cfg := NewConfig().SetBounded(0, 0, 100)
+	pool := NewPool(cfg)
 	wg := &sync.WaitGroup{}
 
 	wg.Add(100)

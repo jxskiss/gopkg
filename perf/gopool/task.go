@@ -30,11 +30,13 @@ type task struct {
 }
 
 //nolint:unused
-func newTask() *task {
+func newTask(ctx context.Context, arg any) *task {
 	if t := taskPool.Get(); t != nil {
-		return t.(*task)
+		t1 := t.(*task)
+		*t1 = task{ctx: ctx, arg: arg}
+		return t1
 	}
-	return &task{}
+	return &task{ctx: ctx, arg: arg}
 }
 
 func (t *task) Recycle() {
@@ -70,12 +72,12 @@ func (l *taskList) pop() (t *task) {
 	return t
 }
 
-type taskRunner func(p *internalPool, t *task)
+type taskRunner func(t *task, panicHandler func(ctx context.Context, r any))
 
-func funcTaskRunner(p *internalPool, t *task) {
+func funcTaskRunner(t *task, panicHandler func(ctx context.Context, r any)) {
 	defer func() {
 		if r := recover(); r != nil {
-			p.config.PanicHandler(t.ctx, r)
+			panicHandler(t.ctx, r)
 		}
 	}()
 	t.arg.(func())()
@@ -83,10 +85,10 @@ func funcTaskRunner(p *internalPool, t *task) {
 }
 
 func newTypedTaskRunner[T any](handler func(context.Context, T)) taskRunner {
-	return func(p *internalPool, t *task) {
+	return func(t *task, panicHandler func(ctx context.Context, r any)) {
 		defer func() {
 			if r := recover(); r != nil {
-				p.config.PanicHandler(t.ctx, r)
+				panicHandler(t.ctx, r)
 			}
 		}()
 		handler(t.ctx, t.arg.(T))

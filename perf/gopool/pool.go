@@ -18,8 +18,6 @@ package gopool
 import (
 	"context"
 	"math"
-	"sync"
-	"sync/atomic"
 )
 
 // Pool manages a goroutine pool and tasks for better performance,
@@ -40,7 +38,11 @@ func NewPool(config *Config) *Pool {
 // Compared to Pool, it helps to reduce unnecessary memory allocation of
 // closures when submitting tasks.
 type TypedPool[T any] struct {
-	internalPool
+	config *Config
+
+	boundedPool   *boundedPool
+	unboundedPool *unboundedPool
+	submitFunc    func(context.Context, any)
 }
 
 // NewTypedPool creates a new task-specific pool with given handler and config.
@@ -51,171 +53,56 @@ func NewTypedPool[T any](config *Config, handler func(context.Context, T)) *Type
 	return p
 }
 
+func (p *TypedPool[T]) init(config *Config, runner taskRunner) {
+	if config.isUnbounded() {
+		p.unboundedPool = newUnboundedPool(config, runner)
+		p.submitFunc = p.unboundedPool.submitTask
+	} else {
+		p.boundedPool = newBoundedPool(config, runner)
+		p.submitFunc = p.boundedPool.submitTask
+	}
+}
+
 // Go submits a task to the pool.
 func (p *TypedPool[T]) Go(arg T) {
-	p.submit(context.Background(), arg)
+	p.submitFunc(context.Background(), arg)
 }
 
 // CtxGo submits a task to the pool, it's preferred over Go.
 func (p *TypedPool[T]) CtxGo(ctx context.Context, arg T) {
-	p.submit(ctx, arg)
-}
-
-type internalPool struct {
-	config *Config
-	runner taskRunner
-
-	// taskCh sends tasks to permanent workers.
-	taskCh chan *task
-
-	// mu protects adhocState and taskList.
-	// adhocState:
-	// - higher 32 bits is adhocLimit, max number of adhoc workers that can run simultaneously
-	// - lower 32 bits is adhocCount, the number of currently running adhoc workers
-	mu         sync.Mutex
-	adhocState int64
-	taskList   taskList
-}
-
-func (p *internalPool) init(config *Config, runner taskRunner) {
-	config.checkAndSetDefaults()
-	p.config = config
-	p.runner = runner
-	p.SetAdhocWorkerLimit(config.AdhocWorkerLimit)
-	p.startPermanentWorkers()
+	p.submitFunc(ctx, arg)
 }
 
 // Name returns the name of a pool.
-func (p *internalPool) Name() string {
+func (p *TypedPool[T]) Name() string {
 	return p.config.Name
 }
 
 // SetAdhocWorkerLimit changes the limit of adhoc workers.
 // 0 or negative value means no limit.
-func (p *internalPool) SetAdhocWorkerLimit(limit int) {
-	if limit <= 0 || limit > math.MaxInt32 {
-		limit = math.MaxInt32
-	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	oldLimit, _ := p.getAdhocState()
-	diff := int32(limit) - oldLimit
-	if diff != 0 {
-		atomic.AddInt64(&p.adhocState, int64(diff)<<32)
-	}
-}
-
-func (p *internalPool) submit(ctx context.Context, arg any) {
-	// Inline newTask()
-	var t *task
-	if tt := taskPool.Get(); tt != nil {
-		t = tt.(*task)
-	} else {
-		t = &task{}
-	}
-	t.ctx = ctx
-	t.arg = arg
-
-	// Try permanent worker first.
-	if p.taskCh != nil {
-		select {
-		case p.taskCh <- t:
-			return
-		default:
-		}
-	}
-
-	// No free permanent worker available, check to start a new
-	// adhoc worker or submit to the task list.
-	//
-	// Start a new adhoc worker if there are currently no adhoc workers,
-	// or the following two conditions are met:
-	//   1. the number of tasks is greater than the threshold.
-	//   2. The current number of adhoc workers is less than the limit.
-	p.mu.Lock()
-	tCnt := p.taskList.count + 1
-	wLimit, wCnt := p.getAdhocState()
-	if wCnt == 0 || (tCnt >= p.config.ScaleThreshold && wCnt < wLimit) {
-		p.incAdhocWorkerCount()
-		p.mu.Unlock()
-		go p.adhocWorker(t)
-	} else {
-		p.taskList.add(t)
-		p.mu.Unlock()
+// For an unbounded pool, calling this method is a no-op.
+func (p *TypedPool[T]) SetAdhocWorkerLimit(limit int) {
+	if p.boundedPool != nil {
+		p.boundedPool.setAdhocWorkerLimit(limit)
 	}
 }
 
 // AdhocWorkerLimit returns the current limit of adhoc workers.
-func (p *internalPool) AdhocWorkerLimit() int32 {
-	limit, _ := p.getAdhocState()
-	return limit
+// For an unbounded pool, it always returns math.MaxInt32.
+func (p *TypedPool[T]) AdhocWorkerLimit() int {
+	if p.boundedPool != nil {
+		limit, _ := p.boundedPool.getAdhocState()
+		return int(limit)
+	}
+	return math.MaxInt32
 }
 
 // AdhocWorkerCount returns the number of running adhoc workers.
-func (p *internalPool) AdhocWorkerCount() int32 {
-	_, count := p.getAdhocState()
-	return count
-}
-
-func (p *internalPool) getAdhocState() (limit, count int32) {
-	x := atomic.LoadInt64(&p.adhocState)
-	return int32(x >> 32), int32((x << 32) >> 32)
-}
-
-func (p *internalPool) incAdhocWorkerCount() {
-	atomic.AddInt64(&p.adhocState, 1)
-}
-
-func (p *internalPool) decAdhocWorkerCount() {
-	atomic.AddInt64(&p.adhocState, -1)
-}
-
-// PermanentWorkerCount returns the number of permanent workers.
-func (p *internalPool) PermanentWorkerCount() int32 {
-	return int32(p.config.PermanentWorkerNum)
-}
-
-func (p *internalPool) startPermanentWorkers() {
-	if p.config.PermanentWorkerNum <= 0 {
-		return
+// For an unbounded pool, it returns the number of all running workers.
+func (p *TypedPool[T]) AdhocWorkerCount() int {
+	if p.boundedPool != nil {
+		_, count := p.boundedPool.getAdhocState()
+		return int(count)
 	}
-	p.taskCh = make(chan *task)
-	for i := 0; i < p.config.PermanentWorkerNum; i++ {
-		go p.permanentWorker()
-	}
-}
-
-func (p *internalPool) permanentWorker() {
-	for {
-		select {
-		case t := <-p.taskCh:
-			p.runner(p, t)
-
-			// Drain pending tasks.
-			for {
-				p.mu.Lock()
-				t = p.taskList.pop()
-				p.mu.Unlock()
-				if t == nil {
-					break
-				}
-				p.runner(p, t)
-			}
-		}
-	}
-}
-
-func (p *internalPool) adhocWorker(t *task) {
-	p.runner(p, t)
-	for {
-		p.mu.Lock()
-		t = p.taskList.pop()
-		if t == nil {
-			p.decAdhocWorkerCount()
-			p.mu.Unlock()
-			return
-		}
-		p.mu.Unlock()
-		p.runner(p, t)
-	}
+	return p.unboundedPool.workersCount()
 }

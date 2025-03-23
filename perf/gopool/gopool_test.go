@@ -37,7 +37,7 @@ func TestDefaultPool(t *testing.T) {
 		ch <- struct{}{}
 	})
 
-	var adhocWorkerCnt int32
+	var adhocWorkerCnt int
 	CtxGo(context.Background(), func() {
 		adhocWorkerCnt = defaultPool.AdhocWorkerCount()
 
@@ -54,8 +54,8 @@ func TestDefaultPool(t *testing.T) {
 		t.Errorf("adhocWorkerCnt == 0")
 	}
 	time.Sleep(100 * time.Millisecond)
-	if n := defaultPool.AdhocWorkerCount(); n != 0 {
-		t.Errorf("defualtPool adhoc worker count, want 0, got %d", n)
+	if n := defaultPool.AdhocWorkerCount(); n <= 0 {
+		t.Errorf("defualtPool adhoc worker count, got %d", n)
 	}
 }
 
