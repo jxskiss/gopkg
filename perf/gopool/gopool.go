@@ -19,28 +19,14 @@ package gopool
 
 import (
 	"context"
-	"fmt"
-	"sync"
 )
 
+// defaultPool is the default unbounded pool.
 var defaultPool *Pool
-
-var poolMap sync.Map
 
 func init() {
 	config := &Config{Name: "gopool.defaultPool"}
 	defaultPool = NewPool(config)
-}
-
-// Default returns the global default pool.
-// The default pool does not enable permanent workers,
-// it also does not limit the adhoc worker count.
-// The package-level methods Go and CtxGo submit tasks to the default pool.
-//
-// Note that it's not recommended to change the worker limit
-// of the default pool, which affects other code that use the default pool.
-func Default() *Pool {
-	return defaultPool
 }
 
 // Go is an alternative to the go keyword, which is able to recover panic,
@@ -54,28 +40,4 @@ func Go(f func()) {
 // CtxGo is preferred over Go.
 func CtxGo(ctx context.Context, f func()) {
 	defaultPool.CtxGo(ctx, f)
-}
-
-// Register registers a Pool to the global map,
-// it returns error if the same name has already been registered.
-// To register a pool, the pool should be configured with a
-// non-empty name.
-//
-// Get can be used to get the registered pool by name.
-func Register(p *Pool) error {
-	_, loaded := poolMap.LoadOrStore(p.Name(), p)
-	if loaded {
-		return fmt.Errorf("pool %s already registered", p.Name())
-	}
-	return nil
-}
-
-// Get gets a registered Pool by name.
-// It returns nil if specified pool is not registered.
-func Get(name string) *Pool {
-	p, ok := poolMap.Load(name)
-	if !ok {
-		return nil
-	}
-	return p.(*Pool)
 }

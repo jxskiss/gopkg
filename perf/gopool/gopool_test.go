@@ -39,7 +39,7 @@ func TestDefaultPool(t *testing.T) {
 
 	var adhocWorkerCnt int32
 	CtxGo(context.Background(), func() {
-		adhocWorkerCnt = Default().AdhocWorkerCount()
+		adhocWorkerCnt = defaultPool.AdhocWorkerCount()
 
 		mu.Lock()
 		x++
@@ -54,7 +54,7 @@ func TestDefaultPool(t *testing.T) {
 		t.Errorf("adhocWorkerCnt == 0")
 	}
 	time.Sleep(100 * time.Millisecond)
-	if n := Default().AdhocWorkerCount(); n != 0 {
+	if n := defaultPool.AdhocWorkerCount(); n != 0 {
 		t.Errorf("defualtPool adhoc worker count, want 0, got %d", n)
 	}
 }
@@ -80,24 +80,5 @@ func TestDefaultPanicHandler(t *testing.T) {
 	}
 	if !bytes.Contains([]byte(logStr), []byte("perf/gopool.TestDefaultPanicHandler.func2:")) {
 		t.Errorf("log output does not contain panic location")
-	}
-}
-
-var registerTestPoolOnce sync.Once
-
-func TestRegister(t *testing.T) {
-	p := NewPool(&Config{Name: "testPool"})
-
-	// Use sync.Once to avoid error when run with argument -count=N where N > 1.
-	registerTestPoolOnce.Do(func() {
-		err := Register(p)
-		if err != nil {
-			t.Error(err)
-		}
-	})
-
-	p = Get("testPool")
-	if p == nil {
-		t.Error("Get did not return registered pool")
 	}
 }
