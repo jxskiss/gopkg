@@ -86,8 +86,11 @@ func PRETTYSkip(skip int, args ...any) {
 func logdebug(skip int, stringer stringerFunc, args ...any) {
 	ctx := context.Background()
 	if len(args) > 0 {
-		if _ctx, ok := args[0].(context.Context); ok && _ctx != nil {
-			ctx = _ctx
+		if arg0ctx, ok := args[0].(context.Context); ok {
+			if arg0ctx != nil {
+				ctx = arg0ctx
+			}
+			args = args[1:]
 		}
 	}
 	if _logcfg.EnableDebug == nil || !_logcfg.EnableDebug(ctx) {
@@ -106,10 +109,10 @@ func logdebug(skip int, stringer stringerFunc, args ...any) {
 			arg0()
 			return
 		}
-		logger, args = parseLogger(args)
+		logger, args = parseArg0Logger(args)
 	}
 	if logger == nil {
-		logger = _logcfg.getLogger(nil)
+		logger = _logcfg.getLogger(ctx)
 	}
 	callerPrefix := "[" + caller + "] "
 	if len(args) > 0 {
@@ -126,17 +129,11 @@ func logdebug(skip int, stringer stringerFunc, args ...any) {
 
 var debugLoggerTyp = reflect.TypeOf((*DebugLogger)(nil)).Elem()
 
-func parseLogger(args []any) (DebugLogger, []any) {
+func parseArg0Logger(args []any) (DebugLogger, []any) {
 	var logger DebugLogger
-	if arg0, ok := args[0].(DebugLogger); ok {
-		logger = arg0
-		args = args[1:]
-		return logger, args
-	}
-
 	switch arg0 := args[0].(type) {
-	case context.Context:
-		logger = _logcfg.getLogger(&arg0)
+	case DebugLogger:
+		logger = arg0
 		args = args[1:]
 	case func(string, ...any):
 		logger = PrintFunc(arg0)

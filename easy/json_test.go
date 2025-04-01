@@ -44,6 +44,8 @@ func TestLasyFunc(t *testing.T) {
 	got1 := Pretty2(x)
 	got2 := fmt.Sprint(LazyFunc(x, Pretty2))
 	assert.Equal(t, got1, got2)
+	got3 := fmt.Sprint(LazyFunc0(func() string { return Pretty2(x) }))
+	assert.Equal(t, got1, got3)
 }
 
 var prettyTestWant = strings.TrimSpace(`

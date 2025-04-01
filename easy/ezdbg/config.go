@@ -82,12 +82,8 @@ type Cfg struct {
 	filter *logfilter.FileNameFilter
 }
 
-func (p Cfg) getLogger(ctxp *context.Context) DebugLogger {
-	ctx := context.Background()
-	if ctxp != nil && *ctxp != nil {
-		ctx = *ctxp
-	}
-	if p.LoggerFunc != nil {
+func (p *Cfg) getLogger(ctx context.Context) DebugLogger {
+	if ctx != nil && p.LoggerFunc != nil {
 		if lg := p.LoggerFunc(ctx); lg != nil {
 			return lg
 		}

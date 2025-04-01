@@ -31,7 +31,7 @@ func JSON(v any) string {
 }
 
 // LazyJSON returns a lazy object which wraps v, and it marshals v
-// using JSON when it's String method is called.
+// using JSON when its String method is called.
 // This helps to avoid unnecessary marshaling in some use case,
 // such as leveled logging.
 func LazyJSON(v any) fmt.Stringer {
@@ -39,7 +39,7 @@ func LazyJSON(v any) fmt.Stringer {
 }
 
 // LazyFunc returns a lazy object which wraps v,
-// which marshals v using f when it's String method is called.
+// which marshals v using f when its String method is called.
 // This helps to avoid unnecessary marshaling in some use case,
 // such as leveled logging.
 func LazyFunc(v any, f func(any) string) fmt.Stringer {
@@ -52,6 +52,18 @@ type lazyString struct {
 }
 
 func (x lazyString) String() string { return x.f(x.v) }
+
+// LazyFunc0 returns a lazy fmt.Stringer which calls f when
+// its String method is called.
+func LazyFunc0(f func() string) fmt.Stringer {
+	return lazyString0{f: f}
+}
+
+type lazyString0 struct {
+	f func() string
+}
+
+func (x lazyString0) String() string { return x.f() }
 
 // Pretty converts given object to a pretty formatted json string.
 // If the input is a json string, it will be formatted using json.Indent
