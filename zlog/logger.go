@@ -2,6 +2,7 @@ package zlog
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"runtime"
@@ -29,10 +30,20 @@ func SetDefault(l *Logger) {
 
 // SetDevelopment sets the default logger to use [slogconsolehandler.Default]
 // as the underlying handler.
-func SetDevelopment(level slog.Level) {
-	slogconsolehandler.SetLevel(level)
+func SetDevelopment(level string) {
+	lv := parseLevel(level, slog.LevelDebug)
+	slogconsolehandler.SetLevel(lv)
 	handler := NewHandler(slogconsolehandler.Default, nil)
 	SetDefault(slog.New(handler))
+}
+
+func parseLevel(s string, defaultVal slog.Level) slog.Level {
+	var level slog.Level
+	if err := level.UnmarshalText([]byte(s)); err != nil {
+		Default().Warn(fmt.Sprintf("failed to parse slog level %q: %v", s, err))
+		return defaultVal
+	}
+	return level
 }
 
 func With(ctx context.Context, args ...any) *Logger {
