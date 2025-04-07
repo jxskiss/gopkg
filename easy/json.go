@@ -53,6 +53,11 @@ type lazyString struct {
 
 func (x lazyString) String() string { return x.f(x.v) }
 
+func (x lazyString) MarshalText() ([]byte, error) {
+	s := x.String()
+	return unsafeheader.StringToBytes(s), nil
+}
+
 // LazyFunc0 returns a lazy fmt.Stringer which calls f when
 // its String method is called.
 func LazyFunc0(f func() string) fmt.Stringer {
@@ -64,6 +69,11 @@ type lazyString0 struct {
 }
 
 func (x lazyString0) String() string { return x.f() }
+
+func (x lazyString0) MarshalText() ([]byte, error) {
+	s := x.String()
+	return unsafeheader.StringToBytes(s), nil
+}
 
 // Pretty converts given object to a pretty formatted json string.
 // If the input is a json string, it will be formatted using json.Indent
