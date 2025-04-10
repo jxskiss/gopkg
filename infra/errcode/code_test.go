@@ -14,7 +14,7 @@ func TestCode(t *testing.T) {
 	dummy1 := reg.Register(100001, "")
 	dummy2 := reg.RegisterReserved(100002, "dummy2")
 
-	assert.Equal(t, dummy1.Error(), "[100001] unknown")
+	assert.Equal(t, dummy1.Error(), "[100001] unknown error")
 	assert.Equal(t, dummy2.Error(), "[100002] dummy2")
 
 	got1 := func() error { return dummy1 }()
@@ -61,7 +61,7 @@ func TestCodeFormat(t *testing.T) {
 
 		got2 := fmt.Sprintf("%+v", err)
 		t.Log(got2)
-		assert.Equal(t, "[100400] bad request\ndetails:\n -  test detail\n -  12345", got2)
+		assert.Equal(t, "[100400] bad request; Details[0]: test detail; Details[1]: 12345", got2)
 	})
 }
 

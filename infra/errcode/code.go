@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
@@ -49,30 +48,23 @@ func (e *Code) Format(f fmt.State, c rune) {
 }
 
 func (e *Code) formatWithDetails(w io.Writer) {
-	const (
-		sep    = "\n -  "
-		indent = "\n    "
-	)
 	io.WriteString(w, e.Error())
 	if len(e.details) > 0 {
-		io.WriteString(w, "\ndetails:")
-		for _, x := range e.details {
-			s := fmt.Sprintf("%+v", x)
-			s = strings.ReplaceAll(s, "\n", indent)
-			io.WriteString(w, sep)
-			io.WriteString(w, s)
+		for i, x := range e.details {
+			io.WriteString(w, fmt.Sprintf("; Details[%d]: ", i))
+			io.WriteString(w, fmt.Sprintf("%+v", x))
 		}
 	}
 }
 
 // Error returns the error message, it implements the error interface.
-// If message is not registered for the error code, it uses "unknown"
+// If message is not registered for the error code, it uses "unknown error"
 // as a default message.
 func (e *Code) Error() string {
 	code := e.Code()
 	msg := e.Message()
 	if msg == "" {
-		msg = "unknown"
+		msg = "unknown error"
 	}
 	return fmt.Sprintf("[%d] %s", code, msg)
 }
