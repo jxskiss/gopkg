@@ -30,6 +30,7 @@ type HandlerOptions struct {
 // It passes the final record and attributes off to the next handler when finished.
 type Handler struct {
 	next       slog.Handler
+	level      *slog.LevelVar
 	goa        *groupOrAttrs
 	prependers []AttrExtractor
 	appenders  []AttrExtractor
@@ -75,6 +76,9 @@ func NewHandler(next slog.Handler, opts *HandlerOptions) *Handler {
 }
 
 func (h *Handler) Enabled(ctx context.Context, level slog.Level) bool {
+	if h.level != nil {
+		return level >= h.level.Level()
+	}
 	return h.next.Enabled(ctx, level)
 }
 
@@ -91,7 +95,7 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	// the tmp attrSlice, which is the most common case,
 	// we can achieve better performance by reusing attrSlice.
 	var tmpAttrs *attrSlice
-	if h.goa == nil || h.goa.hasGroup == 0 {
+	if h.goa.getGroupFlag() == 0 {
 		tmpAttrs = attrSlicePool.Get().(*attrSlice)
 		tmpAttrs.ensureCap(nBuf, nFinal)
 		defer tmpAttrs.recycle()
@@ -112,7 +116,11 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	}
 
 	// Iterate the goa (group or attributes) linked list, which is ordered from newest to oldest.
+	var loggerName string
 	for g := h.goa; g != nil; g = g.next {
+		if loggerName == "" && g.loggerName != "" {
+			loggerName = g.loggerName
+		}
 		if g.group != "" {
 			tmpAttrs.prependGroup(g.group)
 		} else {
@@ -122,13 +130,16 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 
 	// Add prepended context attributes and finalize the log attributes.
 	final := tmpAttrs.final
-	if len(h.prependers) > 0 {
+	if loggerName == "" && len(h.prependers) == 0 {
+		final = tmpAttrs.cur
+	} else {
+		if loggerName != "" {
+			final = append(final, slog.String(LoggerNameKey, loggerName))
+		}
 		for _, f := range h.prependers {
 			final = append(final, f(ctx, r.Time, r.Message, r.Level))
 		}
 		final = append(final, tmpAttrs.cur...)
-	} else {
-		final = tmpAttrs.cur
 	}
 
 	clone := slog.Record{
@@ -150,6 +161,13 @@ func (h *Handler) WithGroup(name string) slog.Handler {
 func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	clone := *h
 	clone.goa = h.goa.withAttrs(attrs)
+	return &clone
+}
+
+func (h *Handler) withScope(loggerName string, level *slog.LevelVar) *Handler {
+	clone := *h
+	clone.level = level
+	clone.goa = h.goa.withLoggerName(loggerName)
 	return &clone
 }
 
@@ -213,11 +231,22 @@ const maxUint16 = 1<<16 - 1
 // groupOrAttrs holds either a group name or a list of slog.Attrs.
 // It also holds a reference/link to its parent groupOrAttrs, forming a linked list.
 type groupOrAttrs struct {
-	group    string        // group name if non-empty
-	attrs    []slog.Attr   // attrs if non-empty
-	next     *groupOrAttrs // parent
-	hasGroup uint16        // has group in the linked list
-	nAttr    uint16        // estimate number of attrs in the linked list
+	loggerName string        // name of a scoped logger
+	group      string        // group name if non-empty
+	attrs      []slog.Attr   // attrs if non-empty
+	next       *groupOrAttrs // parent
+	groupFlag  uint16        // has group in the linked list
+	nAttr      uint16        // estimate number of attrs in the linked list
+}
+
+func (g *groupOrAttrs) withLoggerName(name string) *groupOrAttrs {
+	clone := &groupOrAttrs{
+		loggerName: name,
+		next:       g,
+		groupFlag:  g.getGroupFlag(),
+		nAttr:      g.getAttrNum() + 1,
+	}
+	return clone
 }
 
 // withGroup returns a new groupOrAttrs that includes the given group, and links to the old groupOrAttrs.
@@ -231,10 +260,10 @@ func (g *groupOrAttrs) withGroup(name string) *groupOrAttrs {
 		return g
 	}
 	return &groupOrAttrs{
-		group:    name,
-		next:     g,
-		hasGroup: 1,
-		nAttr:    g.getAttrNum() + 1,
+		group:     name,
+		next:      g,
+		groupFlag: 1,
+		nAttr:     g.getAttrNum() + 1,
 	}
 }
 
@@ -247,14 +276,19 @@ func (g *groupOrAttrs) withAttrs(attrs []slog.Attr) *groupOrAttrs {
 		return g
 	}
 	clone := &groupOrAttrs{
-		attrs: attrs,
-		next:  g,
-		nAttr: uint16(n1 + n2),
-	}
-	if g != nil {
-		clone.hasGroup = g.hasGroup
+		attrs:     attrs,
+		next:      g,
+		groupFlag: g.getGroupFlag(),
+		nAttr:     uint16(n1 + n2),
 	}
 	return clone
+}
+
+func (g *groupOrAttrs) getGroupFlag() uint16 {
+	if g == nil {
+		return 0
+	}
+	return g.groupFlag
 }
 
 func (g *groupOrAttrs) getAttrNum() uint16 {
