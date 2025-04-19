@@ -13,7 +13,7 @@ func TestNewCtxAndFromCtx(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	ctx := NewCtx(nil, logger)
 
-	got1 := FromCtx(nil)
+	got1 := FromCtx(context.TODO())
 	got2 := FromCtx(context.Background())
 	got3 := FromCtx(ctx)
 	assert.True(t, got1 != logger)

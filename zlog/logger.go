@@ -11,7 +11,10 @@ import (
 	slogconsolehandler "github.com/jxskiss/slog-console-handler"
 )
 
-const ErrorKey = "error"
+const (
+	ErrorKey      = "error"
+	LoggerNameKey = "logger"
+)
 
 type Logger = slog.Logger
 
@@ -103,9 +106,6 @@ func Fatal(ctx context.Context, msg string, args ...any) {
 // Param skip can be used to skip call stacks when obtaining the pc,
 // to get correct source information.
 func _log(ctx context.Context, skip int, l *Logger, level slog.Level, msg string, args []any) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	if !l.Enabled(ctx, level) {
 		return
 	}
@@ -122,9 +122,6 @@ func _log(ctx context.Context, skip int, l *Logger, level slog.Level, msg string
 
 // _logAttrs is like _log, but for methods that take ...Attr.
 func _logAttrs(ctx context.Context, skip int, l *Logger, level slog.Level, msg string, attrs []slog.Attr) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	if !l.Enabled(ctx, level) {
 		return
 	}

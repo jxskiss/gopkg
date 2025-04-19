@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jxskiss/gopkg/v2/zlog/internal/test"
 )
@@ -74,7 +75,7 @@ func TestHandler(t *testing.T) {
 
 	if unmarshalled.Source.Function != "github.com/jxskiss/gopkg/v2/zlog.TestHandler" ||
 		!strings.HasSuffix(unmarshalled.Source.File, "zlog/handler_test.go") ||
-		unmarshalled.Source.Line != 43 {
+		unmarshalled.Source.Line != 44 {
 		t.Errorf("Expected source fields are incorrect: %#+v\n", unmarshalled)
 	}
 }
@@ -86,7 +87,7 @@ func TestHandlerMultipleAttrExtractor(t *testing.T) {
 	h := NewMiddleware(&HandlerOptions{
 		Prependers: []AttrExtractor{
 			ExtractPrepended,
-			func(ctx context.Context, _ *slog.Record) slog.Attr {
+			func(ctx context.Context, _ time.Time, _ string, _ slog.Level) slog.Attr {
 				if v, ok := ctx.Value(prependKey).([]slog.Attr); ok {
 					v = slices.Clone(v)
 					for i := 0; i < len(v); i++ {
@@ -96,13 +97,13 @@ func TestHandlerMultipleAttrExtractor(t *testing.T) {
 				}
 				return slog.Attr{}
 			},
-			func(_ context.Context, _ *slog.Record) slog.Attr {
+			func(_ context.Context, _ time.Time, _ string, _ slog.Level) slog.Attr {
 				return slog.Attr{}
 			},
 		},
 		Appenders: []AttrExtractor{
 			ExtractAppended,
-			func(ctx context.Context, _ *slog.Record) slog.Attr {
+			func(ctx context.Context, _ time.Time, _ string, _ slog.Level) slog.Attr {
 				if v, ok := ctx.Value(appendKey).([]slog.Attr); ok {
 					v = slices.Clone(v)
 					for i := 0; i < len(v); i++ {
@@ -112,7 +113,7 @@ func TestHandlerMultipleAttrExtractor(t *testing.T) {
 				}
 				return slog.Attr{}
 			},
-			func(_ context.Context, _ *slog.Record) slog.Attr {
+			func(_ context.Context, _ time.Time, _ string, _ slog.Level) slog.Attr {
 				return slog.Attr{}
 			},
 		},

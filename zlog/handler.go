@@ -4,11 +4,12 @@ import (
 	"context"
 	"log/slog"
 	"sync"
+	"time"
 )
 
 // AttrExtractor is a function that retrieves or creates slog.Attr based
 // on information/values found in the context.Context and the slog.Record.
-type AttrExtractor func(ctx context.Context, record *slog.Record) slog.Attr
+type AttrExtractor func(ctx context.Context, recordTime time.Time, recordMessage string, recordLevel slog.Level) slog.Attr
 
 // HandlerOptions are options for a Handler
 type HandlerOptions struct {
@@ -101,13 +102,13 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	// Collect all attributes from the record (which is the most recent).
 	// These attributes are ordered from oldest to newest, and our collection will be too.
 	r.Attrs(func(a slog.Attr) bool {
-		tmpAttrs.appendAttrs(a)
+		tmpAttrs.appendAttr(a)
 		return true
 	})
 
 	// Add appended context attributes to the end.
 	for _, f := range h.appenders {
-		tmpAttrs.appendAttrs(f(ctx, &r))
+		tmpAttrs.appendAttr(f(ctx, r.Time, r.Message, r.Level))
 	}
 
 	// Iterate the goa (group or attributes) linked list, which is ordered from newest to oldest.
@@ -123,7 +124,7 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	final := tmpAttrs.final
 	if len(h.prependers) > 0 {
 		for _, f := range h.prependers {
-			final = append(final, f(ctx, &r))
+			final = append(final, f(ctx, r.Time, r.Message, r.Level))
 		}
 		final = append(final, tmpAttrs.cur...)
 	} else {
@@ -187,8 +188,8 @@ func (p *attrSlice) recycle() {
 	attrSlicePool.Put(p)
 }
 
-func (p *attrSlice) appendAttrs(attrs ...slog.Attr) {
-	p.cur = append(p.cur, attrs...)
+func (p *attrSlice) appendAttr(attr slog.Attr) {
+	p.cur = append(p.cur, attr)
 }
 
 func (p *attrSlice) prependAttrs(attrs ...slog.Attr) {
@@ -204,7 +205,7 @@ func (p *attrSlice) prependGroup(group string) {
 		Key:   group,
 		Value: slog.GroupValue(cur...),
 	})
-	p.cur = p.cur[len(p.cur)-1:]
+	p.cur = p.cur[len(cur):]
 }
 
 const maxUint16 = 1<<16 - 1

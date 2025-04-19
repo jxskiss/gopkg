@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"slices"
+	"time"
 )
 
 type ctxAttrKey int
@@ -30,11 +31,12 @@ func PrependAttrs(parent context.Context, args ...any) context.Context {
 // ExtractPrepended is an AttrExtractor that returns the prepended attributes
 // stored in the context. The returned attr should not be modified in any way,
 // doing so will cause a race condition.
-func ExtractPrepended(ctx context.Context, _ *slog.Record) slog.Attr {
+func ExtractPrepended(ctx context.Context, _ time.Time, _ string, _ slog.Level) slog.Attr {
+	var attrs []slog.Attr
 	if v, ok := ctx.Value(prependKey).([]slog.Attr); ok {
-		return slog.Attr{Value: slog.GroupValue(v...)}
+		attrs = v
 	}
-	return slog.Attr{}
+	return slog.Attr{Value: slog.GroupValue(attrs...)}
 }
 
 // AppendAttrs adds the attribute arguments to the end of the group that
@@ -55,11 +57,12 @@ func AppendAttrs(parent context.Context, args ...any) context.Context {
 // ExtractAppended is an AttrExtractor that returns the appended attributes
 // stored in the context. The returned attr should not be modified in any way,
 // doing so will cause a race condition.
-func ExtractAppended(ctx context.Context, _ *slog.Record) slog.Attr {
+func ExtractAppended(ctx context.Context, _ time.Time, _ string, _ slog.Level) slog.Attr {
+	var attrs []slog.Attr
 	if v, ok := ctx.Value(appendKey).([]slog.Attr); ok {
-		return slog.Attr{Value: slog.GroupValue(v...)}
+		attrs = v
 	}
-	return slog.Attr{}
+	return slog.Attr{Value: slog.GroupValue(attrs...)}
 }
 
 // This is copied from golang package log/slog.

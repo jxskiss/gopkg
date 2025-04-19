@@ -21,9 +21,6 @@ func NewCtx(parent context.Context, logger *Logger) context.Context {
 // slog.Default() is returned.
 // This function will convert a logr.Logger to a *slog.Logger only if necessary.
 func FromCtx(ctx context.Context) *Logger {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	l := logr.FromContextAsSlogLogger(ctx)
 	if l != nil {
 		return l

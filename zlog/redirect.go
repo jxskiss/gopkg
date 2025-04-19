@@ -14,7 +14,9 @@ func RedirectStdLog(l *Logger, attrs []slog.Attr) {
 	log.SetOutput(&stdLogWriter{logger: l, attrs: attrs})
 }
 
-var defaultStdLogAttrs = []slog.Attr{slog.String("_logger", "stdlog")}
+var defaultStdLogAttrs = []slog.Attr{
+	slog.String(LoggerNameKey, "stdlog"),
+}
 
 type stdLogWriter struct {
 	logger *Logger
