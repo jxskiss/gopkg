@@ -65,40 +65,40 @@ func WithGroup(ctx context.Context, group string, args ...any) *Logger {
 }
 
 func Debug(ctx context.Context, msg string, args ...any) {
-	_log(ctx, 0, FromCtx(ctx), slog.LevelDebug, msg, args)
+	_log(ctx, 0, fromCtx(ctx), slog.LevelDebug, msg, args)
 }
 
 func Info(ctx context.Context, msg string, args ...any) {
-	_log(ctx, 0, FromCtx(ctx), slog.LevelInfo, msg, args)
+	_log(ctx, 0, fromCtx(ctx), slog.LevelInfo, msg, args)
 }
 
 func Warn(ctx context.Context, msg string, args ...any) {
-	_log(ctx, 0, FromCtx(ctx), slog.LevelWarn, msg, args)
+	_log(ctx, 0, fromCtx(ctx), slog.LevelWarn, msg, args)
 }
 
 func Error(ctx context.Context, msg string, args ...any) {
-	_log(ctx, 0, FromCtx(ctx), slog.LevelError, msg, args)
+	_log(ctx, 0, fromCtx(ctx), slog.LevelError, msg, args)
 }
 
 func Log(ctx context.Context, level slog.Level, msg string, args ...any) {
-	_log(ctx, 0, FromCtx(ctx), level, msg, args)
+	_log(ctx, 0, fromCtx(ctx), level, msg, args)
 }
 
 func LogAttrs(ctx context.Context, level slog.Level, msg string, attrs ...slog.Attr) {
-	_logAttrs(ctx, 0, FromCtx(ctx), level, msg, attrs)
+	_logAttrs(ctx, 0, fromCtx(ctx), level, msg, attrs)
 }
 
 func LogSkip(ctx context.Context, skip int, level slog.Level, msg string, args ...any) {
-	_log(ctx, skip, FromCtx(ctx), level, msg, args)
+	_log(ctx, skip, fromCtx(ctx), level, msg, args)
 }
 
 func LogAttrsSkip(ctx context.Context, skip int, level slog.Level, msg string, attrs ...slog.Attr) {
-	_logAttrs(ctx, skip, FromCtx(ctx), level, msg, attrs)
+	_logAttrs(ctx, skip, fromCtx(ctx), level, msg, attrs)
 }
 
 // Fatal is equivalent to Error() followed by a call to os.Exit(1).
 func Fatal(ctx context.Context, msg string, args ...any) {
-	_log(ctx, 0, FromCtx(ctx), slog.LevelError, msg, args)
+	_log(ctx, 0, fromCtx(ctx), slog.LevelError, msg, args)
 	os.Exit(1)
 }
 

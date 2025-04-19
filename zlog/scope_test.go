@@ -98,8 +98,9 @@ func TestScope_loggers(t *testing.T) {
 		log1 := RegisterScope("log1", "log1 description")
 		logger1 := log1.WithGroup(ctx, "group1", "k1", 123).With("k2", "abc")
 		logger2 := log1.WithGroup(ctx, "group2").With("k1", 123).With("k2", "abc")
-		logger1.InfoContext(ctx, "test logger1")
-		logger2.InfoContext(ctx, "test logger2")
+
+		logger1.Info("test logger1") // ctx passed by FromCtx
+		logger2.Info("test logger2") // ctx passed by FromCtx
 		got := buf.String()
 
 		// assert logger1's output

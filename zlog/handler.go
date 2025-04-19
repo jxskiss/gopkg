@@ -34,6 +34,10 @@ type Handler struct {
 	goa        *groupOrAttrs
 	prependers []AttrExtractor
 	appenders  []AttrExtractor
+
+	// fromCtx is set by function FromCtx, when the method Handle is called
+	// with context.Background(), it uses fromCtx instead.
+	fromCtx context.Context
 }
 
 // NewMiddleware creates a slog.Handler middleware
@@ -83,6 +87,9 @@ func (h *Handler) Enabled(ctx context.Context, level slog.Level) bool {
 }
 
 func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
+	if ctx == context.Background() && h.fromCtx != nil {
+		ctx = h.fromCtx
+	}
 	if len(h.prependers) == 0 && len(h.appenders) == 0 && h.goa == nil {
 		return h.next.Handle(ctx, r)
 	}
@@ -161,6 +168,12 @@ func (h *Handler) WithGroup(name string) slog.Handler {
 func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	clone := *h
 	clone.goa = h.goa.withAttrs(attrs)
+	return &clone
+}
+
+func (h *Handler) withContext(ctx context.Context) *Handler {
+	clone := *h
+	clone.fromCtx = ctx
 	return &clone
 }
 
