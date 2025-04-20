@@ -69,8 +69,15 @@ func (s *Scope) GetLevel() slog.Level { return s.level.Level() }
 // SetLevel changes the output level associated with the scope.
 func (s *Scope) SetLevel(level slog.Level) { s.level.Set(level) }
 
+// Logger returns a scoped logger wrapping slog's default logger.
+// For most use-case, methods [Scope.With], [Scope.WithError], [Scope.WithGroup]
+// are better choices for context-aware logging.
+//
+// IMPORTANT NOTE:
+// the returned logger must not be used as slog's default logger by
+// calling slog.SetDefault, which leads to indefinite recursive calling.
 func (s *Scope) Logger() *Logger {
-	h0 := &wrapDefaultHandler{level: s.level}
+	h0 := &proxyDefaultHandler{}
 	h1 := &Handler{
 		level: s.level,
 		next:  h0,
@@ -109,22 +116,32 @@ func (s *Scope) newScopeLogger(l *Logger) *Logger {
 	return slog.New(h)
 }
 
-type wrapDefaultHandler struct {
-	level *slog.LevelVar
-}
+type proxyDefaultHandler struct{}
 
-func (h *wrapDefaultHandler) Enabled(_ context.Context, level slog.Level) bool {
-	return level >= h.level.Level()
-}
+func (*proxyDefaultHandler) Handle(ctx context.Context, record slog.Record) error {
+	// In case of misuse, setting this handler to slog.Default() leads to
+	// indefinite recursive calling, which exhausts all CPU and memory resource.
+	// We use ctx marker to detect recursive calling.
+	type ctxMarker struct{}
+	marker, _ := ctx.Value(ctxMarker{}).(int)
+	if marker > 0 {
+		panic("bug: zlog scope logger must not be used as slog's default logger")
+	}
 
-func (h *wrapDefaultHandler) Handle(ctx context.Context, record slog.Record) error {
+	// set or update the ctx marker
+	ctx = context.WithValue(ctx, ctxMarker{}, marker+1)
+
 	return Default().Handler().Handle(ctx, record)
 }
 
-func (h *wrapDefaultHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return Default().Handler().WithAttrs(attrs)
+func (*proxyDefaultHandler) Enabled(_ context.Context, _ slog.Level) bool {
+	panic("unreachable")
 }
 
-func (h *wrapDefaultHandler) WithGroup(name string) slog.Handler {
-	return Default().Handler().WithGroup(name)
+func (*proxyDefaultHandler) WithAttrs(_ []slog.Attr) slog.Handler {
+	panic("unreachable")
+}
+
+func (*proxyDefaultHandler) WithGroup(_ string) slog.Handler {
+	panic("unreachable")
 }

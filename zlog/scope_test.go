@@ -158,6 +158,43 @@ func TestScope_loggers(t *testing.T) {
 	})
 }
 
+func TestScope_misuseRecursiveCalling(t *testing.T) {
+	resetScopes()
+
+	log1 := RegisterScope("log1", "log1 description").Logger()
+	slog.SetDefault(log1) // misuse
+
+	ctx := context.Background()
+
+	assert.NotPanics(t, func() {
+		_ = log1.Enabled(ctx, slog.LevelError)
+		_ = log1.With("k1", "v1")
+		_ = log1.WithGroup("group1")
+	})
+
+	assert.Panics(t, func() {
+		log1.Info("info message")
+	})
+	assert.Panics(t, func() {
+		log1.With("k1", "v1").Info("info message")
+	})
+	assert.Panics(t, func() {
+		log1.WithGroup("group1").Info("info message")
+	})
+	assert.Panics(t, func() {
+		log1.InfoContext(ctx, "info message")
+	})
+	assert.Panics(t, func() {
+		log1.Log(ctx, slog.LevelInfo, "info message", "k1", "v1")
+	})
+	assert.Panics(t, func() {
+		log1.LogAttrs(ctx, slog.LevelInfo, "info message")
+	})
+	assert.Panics(t, func() {
+		_ = log1.Handler().Handle(ctx, slog.Record{})
+	})
+}
+
 func resetScopes() {
 	scopeLock.Lock()
 	defer scopeLock.Unlock()

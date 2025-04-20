@@ -203,12 +203,12 @@ func newAttrSlice(nBuf, nFinal int) *attrSlice {
 }
 
 func (p *attrSlice) ensureCap(nBuf, nFinal int) {
-	if cap(p.buf) < nBuf {
-		p.buf = make([]slog.Attr, 0, nBuf)
-		p.cur = p.buf[:0]
-	}
-	if cap(p.final) < nFinal {
-		p.final = make([]slog.Attr, 0, nFinal)
+	if cap(p.buf) < nBuf || cap(p.final) < nFinal {
+		n := nBuf + nFinal
+		buf := make([]slog.Attr, 0, n)
+		p.buf = buf[:0:nBuf]
+		p.cur = buf[:0:nBuf]
+		p.final = buf[nBuf:nBuf:n]
 	}
 }
 
