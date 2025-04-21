@@ -23,18 +23,22 @@ func NewCtx(parent context.Context, logger *Logger) context.Context {
 // which is used when Handler.Handle is called without ctx.
 // This function will convert a logr.Logger to a *slog.Logger only if necessary.
 func FromCtx(ctx context.Context) *Logger {
-	l := fromCtx(ctx)
-	if h, ok := l.Handler().(*Handler); ok {
-		if h.fromCtx == ctx {
-			return l
+	return slog.New(fromCtxHandler(ctx))
+}
+
+// fromCtxHandler helps to optimize performance of scoped loggers.
+func fromCtxHandler(ctx context.Context) *Handler {
+	h0 := fromCtx(ctx).Handler()
+	if h1, ok := h0.(*Handler); ok {
+		if h1.fromCtx == ctx {
+			return h1
 		}
-		return slog.New(h.withContext(ctx))
+		return h1.withContext(ctx)
 	}
-	h := &Handler{
-		next:    l.Handler(),
+	return &Handler{
+		next:    h0,
 		fromCtx: ctx,
 	}
-	return slog.New(h)
 }
 
 func fromCtx(ctx context.Context) *Logger {

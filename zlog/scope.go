@@ -79,41 +79,36 @@ func (s *Scope) SetLevel(level slog.Level) { s.level.Set(level) }
 func (s *Scope) Logger() *Logger {
 	h0 := &proxyDefaultHandler{}
 	h1 := &Handler{
-		level: s.level,
 		next:  h0,
+		scope: s,
 	}
-	h1.goa = h1.goa.withLoggerName(s.name)
 	return slog.New(h1)
 }
 
 func (s *Scope) With(ctx context.Context, args ...any) *Logger {
-	return s.newScopeLogger(FromCtx(ctx)).With(args...)
+	h0 := fromCtxHandler(ctx)
+	h1 := h0.withScope(s).withArgs(args)
+	return slog.New(h1)
 }
 
 func (s *Scope) WithError(ctx context.Context, err error, args ...any) *Logger {
 	if err == nil {
 		return s.With(ctx, args...)
 	}
-	return s.newScopeLogger(FromCtx(ctx)).With(slog.Any(ErrorKey, err)).With(args...)
+	h0 := fromCtxHandler(ctx)
+	h1 := h0.withScope(s).
+		WithAttrs([]slog.Attr{slog.Any(ErrorKey, err)}).(*Handler).
+		withArgs(args)
+	return slog.New(h1)
 }
 
 func (s *Scope) WithGroup(ctx context.Context, group string, args ...any) *Logger {
 	if group == "" {
 		return s.With(ctx, args...)
 	}
-	return s.newScopeLogger(FromCtx(ctx)).WithGroup(group).With(args...)
-}
-
-func (s *Scope) newScopeLogger(l *Logger) *Logger {
-	if h, ok := l.Handler().(*Handler); ok {
-		return slog.New(h.withScope(s.name, s.level))
-	}
-	h := &Handler{
-		level: s.level,
-		next:  l.Handler(),
-	}
-	h.goa = h.goa.withLoggerName(s.name)
-	return slog.New(h)
+	h0 := fromCtxHandler(ctx)
+	h1 := h0.withScope(s).WithGroup(group).(*Handler).withArgs(args)
+	return slog.New(h1)
 }
 
 type proxyDefaultHandler struct{}

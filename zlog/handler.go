@@ -30,8 +30,8 @@ type HandlerOptions struct {
 // It passes the final record and attributes off to the next handler when finished.
 type Handler struct {
 	next       slog.Handler
-	level      *slog.LevelVar
-	goa        *groupOrAttrs
+	scope      *Scope
+	goa        groupOrAttrs
 	prependers []AttrExtractor
 	appenders  []AttrExtractor
 
@@ -80,8 +80,8 @@ func NewHandler(next slog.Handler, opts *HandlerOptions) *Handler {
 }
 
 func (h *Handler) Enabled(ctx context.Context, level slog.Level) bool {
-	if h.level != nil {
-		return level >= h.level.Level()
+	if h.scope != nil {
+		return level >= h.scope.level.Level()
 	}
 	return h.next.Enabled(ctx, level)
 }
@@ -90,22 +90,25 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	if ctx == context.Background() && h.fromCtx != nil {
 		ctx = h.fromCtx
 	}
-	if len(h.prependers) == 0 && len(h.appenders) == 0 && h.goa == nil {
+	if h.scope == nil &&
+		len(h.prependers) == 0 && len(h.appenders) == 0 &&
+		h.goa.getAttrNum() == 0 {
 		return h.next.Handle(ctx, r)
 	}
 
 	nBuf := r.NumAttrs() + len(h.appenders) + int(h.goa.getAttrNum())
-	nFinal := len(h.prependers) + nBuf
+	nFinal := len(h.prependers) + nBuf + 1 // extra 1 for loggerName
 
 	// slog.Record.AddAttrs iterate and copy every attr in the given attrs slice.
 	// So if there is no group in the goa linked list, then it is safe to reuse
 	// the tmp attrSlice, which is the most common case,
 	// we can achieve better performance by reusing attrSlice.
-	var tmpAttrs *attrSlice
+	var tmpAttrs attrSlice
 	if h.goa.getGroupFlag() == 0 {
-		tmpAttrs = attrSlicePool.Get().(*attrSlice)
-		tmpAttrs.ensureCap(nBuf, nFinal)
-		defer tmpAttrs.recycle()
+		tmp := attrSlicePool.Get().(*attrSlice)
+		tmp.ensureCap(nBuf, nFinal)
+		tmpAttrs = *tmp
+		defer tmp.recycle()
 	} else {
 		tmpAttrs = newAttrSlice(nBuf, nFinal)
 	}
@@ -123,11 +126,7 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	}
 
 	// Iterate the goa (group or attributes) linked list, which is ordered from newest to oldest.
-	var loggerName string
-	for g := h.goa; g != nil; g = g.next {
-		if loggerName == "" && g.loggerName != "" {
-			loggerName = g.loggerName
-		}
+	for g := &h.goa; g != nil; g = g.next {
 		if g.group != "" {
 			tmpAttrs.prependGroup(g.group)
 		} else {
@@ -137,11 +136,11 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 
 	// Add prepended context attributes and finalize the log attributes.
 	final := tmpAttrs.final
-	if loggerName == "" && len(h.prependers) == 0 {
+	if h.scope == nil && len(h.prependers) == 0 {
 		final = tmpAttrs.cur
 	} else {
-		if loggerName != "" {
-			final = append(final, slog.String(LoggerNameKey, loggerName))
+		if h.scope != nil {
+			final = append(final, slog.String(LoggerNameKey, h.scope.Name()))
 		}
 		for _, f := range h.prependers {
 			final = append(final, f(ctx, r.Time, r.Message, r.Level))
@@ -171,16 +170,24 @@ func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	return &clone
 }
 
+func (h *Handler) withArgs(args []any) *Handler {
+	if len(args) == 0 {
+		return h
+	}
+	clone := *h
+	clone.goa = h.goa.withAttrs(ArgsToAttrSlice(args))
+	return &clone
+}
+
 func (h *Handler) withContext(ctx context.Context) *Handler {
 	clone := *h
 	clone.fromCtx = ctx
 	return &clone
 }
 
-func (h *Handler) withScope(loggerName string, level *slog.LevelVar) *Handler {
+func (h *Handler) withScope(scope *Scope) *Handler {
 	clone := *h
-	clone.level = level
-	clone.goa = h.goa.withLoggerName(loggerName)
+	clone.scope = scope
 	return &clone
 }
 
@@ -192,10 +199,10 @@ type attrSlice struct {
 
 var attrSlicePool = sync.Pool{New: func() any { return &attrSlice{} }}
 
-func newAttrSlice(nBuf, nFinal int) *attrSlice {
+func newAttrSlice(nBuf, nFinal int) attrSlice {
 	n := nBuf + nFinal
 	buf := make([]slog.Attr, 0, n)
-	return &attrSlice{
+	return attrSlice{
 		buf:   buf[:0:nBuf],
 		cur:   buf[:0:nBuf],
 		final: buf[nBuf:nBuf:n],
@@ -204,11 +211,7 @@ func newAttrSlice(nBuf, nFinal int) *attrSlice {
 
 func (p *attrSlice) ensureCap(nBuf, nFinal int) {
 	if cap(p.buf) < nBuf || cap(p.final) < nFinal {
-		n := nBuf + nFinal
-		buf := make([]slog.Attr, 0, n)
-		p.buf = buf[:0:nBuf]
-		p.cur = buf[:0:nBuf]
-		p.final = buf[nBuf:nBuf:n]
+		*p = newAttrSlice(nBuf, nFinal)
 	}
 }
 
@@ -239,74 +242,49 @@ func (p *attrSlice) prependGroup(group string) {
 	p.cur = p.cur[len(cur):]
 }
 
-const maxUint16 = 1<<16 - 1
-
 // groupOrAttrs holds either a group name or a list of slog.Attrs.
 // It also holds a reference/link to its parent groupOrAttrs, forming a linked list.
 type groupOrAttrs struct {
-	loggerName string        // name of a scoped logger
-	group      string        // group name if non-empty
-	attrs      []slog.Attr   // attrs if non-empty
-	next       *groupOrAttrs // parent
-	groupFlag  uint16        // has group in the linked list
-	nAttr      uint16        // estimate number of attrs in the linked list
-}
-
-func (g *groupOrAttrs) withLoggerName(name string) *groupOrAttrs {
-	clone := &groupOrAttrs{
-		loggerName: name,
-		next:       g,
-		groupFlag:  g.getGroupFlag(),
-		nAttr:      g.getAttrNum() + 1,
-	}
-	return clone
+	group     string        // group name if non-empty
+	attrs     []slog.Attr   // attrs if non-empty
+	next      *groupOrAttrs // parent
+	groupFlag uint32        // has group in the linked list
+	nAttr     uint32        // number of attrs in the linked list
 }
 
 // withGroup returns a new groupOrAttrs that includes the given group, and links to the old groupOrAttrs.
 // Safe to call on a nil groupOrAttrs.
-func (g *groupOrAttrs) withGroup(name string) *groupOrAttrs {
+func (g *groupOrAttrs) withGroup(name string) groupOrAttrs {
 	// Empty-name groups are inlined as if they didn't exist.
 	if name == "" {
-		return g
+		return *g
 	}
-	if g.getAttrNum() == maxUint16 { // overflow uint16
-		return g
-	}
-	return &groupOrAttrs{
+	clone := groupOrAttrs{
 		group:     name,
 		next:      g,
 		groupFlag: 1,
-		nAttr:     g.getAttrNum() + 1,
-	}
-}
-
-// withAttrs returns a new groupOrAttrs that includes the given attrs, and links to the old groupOrAttrs.
-// Safe to call on a nil groupOrAttrs.
-func (g *groupOrAttrs) withAttrs(attrs []slog.Attr) *groupOrAttrs {
-	// Check empty attr slice or overflow uint16.
-	n1, n2 := int(g.getAttrNum()), len(attrs)
-	if n2 == 0 || n1+n2 > maxUint16 {
-		return g
-	}
-	clone := &groupOrAttrs{
-		attrs:     attrs,
-		next:      g,
-		groupFlag: g.getGroupFlag(),
-		nAttr:     uint16(n1 + n2),
+		nAttr:     g.nAttr + 1,
 	}
 	return clone
 }
 
-func (g *groupOrAttrs) getGroupFlag() uint16 {
-	if g == nil {
-		return 0
+// withAttrs returns a new groupOrAttrs that includes the given attrs, and links to the old groupOrAttrs.
+// Safe to call on a nil groupOrAttrs.
+func (g *groupOrAttrs) withAttrs(attrs []slog.Attr) groupOrAttrs {
+	nAttr := g.nAttr + uint32(len(attrs))
+	clone := groupOrAttrs{
+		attrs:     attrs,
+		next:      g,
+		groupFlag: g.groupFlag,
+		nAttr:     nAttr,
 	}
+	return clone
+}
+
+func (g *groupOrAttrs) getGroupFlag() uint32 {
 	return g.groupFlag
 }
 
-func (g *groupOrAttrs) getAttrNum() uint16 {
-	if g == nil {
-		return 0
-	}
+func (g *groupOrAttrs) getAttrNum() uint32 {
 	return g.nAttr
 }
