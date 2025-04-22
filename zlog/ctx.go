@@ -18,9 +18,30 @@ func NewCtx(parent context.Context, logger *Logger) context.Context {
 
 // FromCtx returns the logger associated with the ctx.
 // If no logger is associated, or the logger or ctx is nil,
-// slog.Default() is returned.
+// slog.Default() is used.
+// The returned logger's handler is a *Handler with fromCtx set to ctx,
+// which is used when Handler.Handle is called without ctx.
 // This function will convert a logr.Logger to a *slog.Logger only if necessary.
 func FromCtx(ctx context.Context) *Logger {
+	return slog.New(fromCtxHandler(ctx))
+}
+
+// fromCtxHandler helps to optimize performance of scoped loggers.
+func fromCtxHandler(ctx context.Context) *Handler {
+	h0 := fromCtx(ctx).Handler()
+	if h1, ok := h0.(*Handler); ok {
+		if h1.fromCtx == ctx {
+			return h1
+		}
+		return h1.withContext(ctx)
+	}
+	return &Handler{
+		next:    h0,
+		fromCtx: ctx,
+	}
+}
+
+func fromCtx(ctx context.Context) *Logger {
 	l := logr.FromContextAsSlogLogger(ctx)
 	if l != nil {
 		return l

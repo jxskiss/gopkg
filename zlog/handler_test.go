@@ -153,3 +153,27 @@ func TestHandlerMultipleAttrExtractor(t *testing.T) {
 		t.Errorf("Expected:\n%s\nGot:\n%s\n", expectedText, string(b))
 	}
 }
+
+func TestHandler_fromCtx(t *testing.T) {
+	t.Parallel()
+
+	tester := &test.Handler{}
+	h := NewHandler(tester, nil)
+	SetDefault(slog.New(h))
+
+	ctx := PrependAttrs(nil, "prepend1", "arg1", slog.String("prepend1", "arg2"))
+	ctx = PrependAttrs(ctx, "prepend2", "arg1", "prepend2", "arg2")
+	ctx = AppendAttrs(ctx, "append1", "arg1", "append1", "arg2")
+	ctx = AppendAttrs(ctx, slog.String("append2", "arg1"), "append2", "arg2")
+
+	With(ctx, "with1", "arg1", "with1", "arg2").
+		WithGroup("group1").WithGroup("").
+		With("with2", "arg1", "with2", "arg2").
+		Info("logger.Info message", "main1", "arg1", "main1", "arg2")
+
+	expectedText := `time=2023-09-29T13:00:59.000Z level=INFO msg="logger.Info message" prepend1=arg1 prepend1=arg2 prepend2=arg1 prepend2=arg2 with1=arg1 with1=arg2 group1.with2=arg1 group1.with2=arg2 group1.main1=arg1 group1.main1=arg2 group1.append1=arg1 group1.append1=arg2 group1.append2=arg1 group1.append2=arg2
+`
+	if s := tester.String(); s != expectedText {
+		t.Errorf("Expected:\n%s\nGot:\n%s\n", expectedText, s)
+	}
+}
