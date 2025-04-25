@@ -115,7 +115,15 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 
 	// Collect all attributes from the record (which is the most recent).
 	// These attributes are ordered from oldest to newest, and our collection will be too.
+	// Also, we check loggerName set by parent handlers, don't override it.
+	loggerName := h.LoggerName()
 	r.Attrs(func(a slog.Attr) bool {
+		if a.Key == LoggerNameKey {
+			if x, ok := a.Value.Any().(string); ok && x != "" {
+				loggerName = x
+				return true
+			}
+		}
 		tmpAttrs.appendAttr(a)
 		return true
 	})
@@ -136,11 +144,11 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 
 	// Add prepended context attributes and finalize the log attributes.
 	final := tmpAttrs.final
-	if h.scope == nil && len(h.prependers) == 0 {
+	if loggerName == "" && len(h.prependers) == 0 {
 		final = tmpAttrs.cur
 	} else {
-		if h.scope != nil {
-			final = append(final, slog.String(LoggerNameKey, h.scope.Name()))
+		if loggerName != "" {
+			final = append(final, slog.String(LoggerNameKey, loggerName))
 		}
 		for _, f := range h.prependers {
 			final = append(final, f(ctx, r.Time, r.Message, r.Level))
@@ -168,6 +176,13 @@ func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	clone := *h
 	clone.goa = h.goa.withAttrs(attrs)
 	return &clone
+}
+
+func (h *Handler) LoggerName() string {
+	if h.scope != nil {
+		return h.scope.Name()
+	}
+	return ""
 }
 
 func (h *Handler) withArgs(args []any) *Handler {

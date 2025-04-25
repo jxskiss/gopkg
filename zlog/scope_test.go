@@ -147,13 +147,13 @@ func TestScope_loggers(t *testing.T) {
 
 		FromCtx(ctx).InfoContext(ctx, "test FromCtx")
 		got1 := buf.String()
-		assert.Regexp(t, `INFO\s+ test FromCtx.+prepend1= arg1.+logger= log1.+ctx1= 123.+append1= arg1.+append2= arg2.+source=.*zlog/scope_test.go:\d+`, got1)
+		assert.Regexp(t, `INFO\s+ test FromCtx.+logger= log1.+prepend1= arg1.+ctx1= 123.+append1= arg1.+append2= arg2.+source=.*zlog/scope_test.go:\d+`, got1)
 
 		buf.Reset()
 		scopepkg.PrintLog(ctx, "k1", 123, "k2", "abc")
 		got2 := buf.String()
 
-		assert.Regexp(t, `INFO\s+ test scope logger.+prepend1= arg1.+logger= scopepkg.+ctx1= 123.+k1= 123.+k2= abc.+append1= arg1.+append2= arg2.+source=.*zlog/internal/scopepkg/scope.go:\d+`, got2)
+		assert.Regexp(t, `INFO\s+ test scope logger.+logger= scopepkg.+prepend1= arg1.+ctx1= 123.+k1= 123.+k2= abc.+append1= arg1.+append2= arg2.+source=.*zlog/internal/scopepkg/scope.go:\d+`, got2)
 		assert.NotRegexp(t, `logger= log1`, got2)
 	})
 }
