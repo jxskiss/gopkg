@@ -23,6 +23,9 @@ func NewCtx(parent context.Context, logger *Logger) context.Context {
 // which is used when Handler.Handle is called without ctx.
 // This function will convert a logr.Logger to a *slog.Logger only if necessary.
 func FromCtx(ctx context.Context) *Logger {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	return slog.New(fromCtxHandler(ctx))
 }
 

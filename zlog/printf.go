@@ -2,6 +2,7 @@
 package zlog
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -13,7 +14,7 @@ func Debugf(format string, args ...any) {
 	l := Default()
 	if l.Enabled(nil, slog.LevelDebug) {
 		msg := formatMessage(format, args)
-		_log(nil, 0, l, slog.LevelDebug, msg, nil)
+		_log(context.Background(), 0, l, slog.LevelDebug, msg, nil)
 	}
 }
 
@@ -23,7 +24,7 @@ func Infof(format string, args ...any) {
 	l := Default()
 	if l.Enabled(nil, slog.LevelInfo) {
 		msg := formatMessage(format, args)
-		_log(nil, 0, l, slog.LevelInfo, msg, nil)
+		_log(context.Background(), 0, l, slog.LevelInfo, msg, nil)
 	}
 }
 
@@ -33,7 +34,7 @@ func Warnf(format string, args ...any) {
 	l := Default()
 	if l.Enabled(nil, slog.LevelWarn) {
 		msg := formatMessage(format, args)
-		_log(nil, 0, l, slog.LevelWarn, msg, nil)
+		_log(context.Background(), 0, l, slog.LevelWarn, msg, nil)
 	}
 }
 
@@ -41,13 +42,13 @@ func Warnf(format string, args ...any) {
 // Arguments are handled in the manner of [fmt.Printf].
 func Errorf(format string, args ...any) {
 	msg := formatMessage(format, args)
-	_log(nil, 0, Default(), slog.LevelError, msg, nil)
+	_log(context.Background(), 0, Default(), slog.LevelError, msg, nil)
 }
 
 // Fatalf is equivalent to Errorf() followed by a call to os.Exit(1).
 func Fatalf(format string, args ...any) {
 	msg := formatMessage(format, args)
-	_log(nil, 0, Default(), slog.LevelError, msg, nil)
+	_log(context.Background(), 0, Default(), slog.LevelError, msg, nil)
 	os.Exit(1)
 }
 
@@ -64,7 +65,7 @@ func Print(args ...any) {
 	}
 	if l.Enabled(nil, level) {
 		msg := fmt.Sprint(args...)
-		_log(nil, 0, l, level, msg, nil)
+		_log(context.Background(), 0, l, level, msg, nil)
 	}
 }
 
@@ -77,7 +78,7 @@ func Printf(format string, args ...any) {
 	level := detectLevel(format)
 	if l.Enabled(nil, level) {
 		msg := formatMessage(format, args)
-		_log(nil, 0, l, level, msg, nil)
+		_log(context.Background(), 0, l, level, msg, nil)
 	}
 }
 
@@ -97,7 +98,7 @@ func Println(args ...any) {
 		if len(msg) > 0 && msg[len(msg)-1] == '\n' {
 			msg = msg[:len(msg)-1]
 		}
-		_log(nil, 0, l, level, msg, nil)
+		_log(context.Background(), 0, l, level, msg, nil)
 	}
 }
 
