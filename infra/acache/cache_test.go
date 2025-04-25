@@ -3,6 +3,7 @@ package acache
 import (
 	"errors"
 	"runtime"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -78,10 +79,15 @@ func TestGetError(t *testing.T) {
 }
 
 func TestGetOrDefault(t *testing.T) {
-	var key, val, defaultVal = "key", "val", "default"
+	var (
+		mu                   sync.Mutex
+		key, val, defaultVal = "key", "val", "default"
+	)
 	opt := Options{
 		RefreshInterval: 50 * time.Millisecond,
 		Fetcher: FuncFetcher(func(key string) (any, error) {
+			mu.Lock()
+			defer mu.Unlock()
 			return val, nil
 		}),
 	}
@@ -92,7 +98,12 @@ func TestGetOrDefault(t *testing.T) {
 	assert.Equal(t, val, got)
 
 	time.Sleep(opt.RefreshInterval / 2)
+
+	// update val
+	mu.Lock()
 	val = "newVal"
+	mu.Unlock()
+
 	got = c.GetOrDefault(key, defaultVal)
 	assert.NotEqual(t, val, got)
 
