@@ -98,6 +98,9 @@ func LogAttrsSkip(ctx context.Context, skip int, level slog.Level, msg string, a
 
 // Fatal is equivalent to Error() followed by a call to os.Exit(1).
 func Fatal(ctx context.Context, msg string, args ...any) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	_log(ctx, 0, fromCtx(ctx), slog.LevelError, msg, args)
 	os.Exit(1)
 }
