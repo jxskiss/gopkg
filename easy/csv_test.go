@@ -47,7 +47,7 @@ func TestUnmarshalCSV(t *testing.T) {
 true,1234,12345,23456,"{""A"":true,""B"":""23456""}"
 false,4321,12345,65432,"{""A"":false,""B"":""65432""}"
 `
-		got, err := UnmarshalCVS([]byte(data))
+		got, err := UnmarshalCSV([]byte(data))
 		require.Nil(t, err)
 
 		want := []ezmap.Map{
@@ -73,7 +73,7 @@ false,4321,12345,65432,"{""A"":false,""B"":""65432""}"
 		data := `bool,int,str,int
 true,123,"abc",456
 `
-		_, err := UnmarshalCVS([]byte(data))
+		_, err := UnmarshalCSV([]byte(data))
 		require.NotNil(t, err)
 		assert.Contains(t, err.Error(), "duplicate header: int")
 	})

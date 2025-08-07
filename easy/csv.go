@@ -73,15 +73,15 @@ func MarshalCSV[T ~map[string]any](records []T) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// UnmarshalCVS parses CSV-encoded data to map[string]any records.
+// UnmarshalCSV parses CSV-encoded data to map[string]any records.
 // It uses the std encoding/csv.Reader with its default settings for csv encoding.
 // The first record parsed from the first row is treated as CSV header,
 // and used as the result map keys.
-func UnmarshalCVS(data []byte) ([]ezmap.Map, error) {
+func UnmarshalCSV(data []byte) ([]ezmap.Map, error) {
 	return UnmarshalCSVWithSeparator(data, ',')
 }
 
-// UnmarshalCSVWithSeparator is same to [UnmarshalCVS],
+// UnmarshalCSVWithSeparator is same to [UnmarshalCSV],
 // except that it allows caller to specify the separator.
 func UnmarshalCSVWithSeparator(data []byte, sep rune) ([]ezmap.Map, error) {
 	if sep != ',' && sep != ';' && sep != '\t' {
