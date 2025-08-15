@@ -23,8 +23,8 @@ type sonicImpl struct {
 	api sonic.API
 
 	marshalNoHTMLEscape func(v any, prefix, indent string) ([]byte, error)
-	encoderFactory      func(w io.Writer) json.UnderlyingEncoder
-	decoderFactor       func(r io.Reader) json.UnderlyingDecoder
+	encoderFactory      func(w io.Writer) *json.Encoder
+	decoderFactor       func(r io.Reader) *json.Decoder
 }
 
 func (impl sonicImpl) Marshal(v any) ([]byte, error) {
@@ -71,10 +71,10 @@ func (impl sonicImpl) MarshalNoHTMLEscape(v any, prefix, indent string) ([]byte,
 	return impl.marshalNoHTMLEscape(v, prefix, indent)
 }
 
-func (impl sonicImpl) NewEncoder(w io.Writer) json.UnderlyingEncoder {
+func (impl sonicImpl) NewEncoder(w io.Writer) *json.Encoder {
 	return impl.encoderFactory(w)
 }
 
-func (impl sonicImpl) NewDecoder(r io.Reader) json.UnderlyingDecoder {
+func (impl sonicImpl) NewDecoder(r io.Reader) *json.Decoder {
 	return impl.decoderFactor(r)
 }

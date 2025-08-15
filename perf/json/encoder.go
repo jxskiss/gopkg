@@ -13,7 +13,7 @@ type Encoder struct {
 
 // NewEncoder returns a new Encoder that writes to w.
 func NewEncoder(w io.Writer) *Encoder {
-	return &Encoder{getImpl().NewEncoder(w)}
+	return getImpl().NewEncoder(w)
 }
 
 // SetEscapeHTML specifies whether problematic HTML characters

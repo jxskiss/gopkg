@@ -11,21 +11,20 @@ import (
 type Implementation interface {
 	Marshal(v any) ([]byte, error)
 	MarshalIndent(v any, prefix, indent string) ([]byte, error)
-	Unmarshal(data []byte, v any) error
-	Valid(data []byte) bool
-
+	MarshalNoHTMLEscape(v any, prefix, indent string) ([]byte, error)
 	MarshalToString(v any) (string, error)
+	MarshalFastest(v any) ([]byte, error)
+
+	Unmarshal(data []byte, v any) error
 	UnmarshalFromString(data string, v any) error
 
 	Compact(dst *bytes.Buffer, src []byte) error
 	HTMLEscape(dst *bytes.Buffer, src []byte)
 	Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error
+	Valid(data []byte) bool
 
-	MarshalFastest(v any) ([]byte, error)
-	MarshalNoHTMLEscape(v any, prefix, indent string) ([]byte, error)
-
-	NewEncoder(w io.Writer) UnderlyingEncoder
-	NewDecoder(r io.Reader) UnderlyingDecoder
+	NewEncoder(w io.Writer) *Encoder
+	NewDecoder(r io.Reader) *Decoder
 }
 
 type UnderlyingEncoder interface {

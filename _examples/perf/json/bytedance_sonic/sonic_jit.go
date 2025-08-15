@@ -1,4 +1,4 @@
-//go:build amd64 && !go1.22
+//go:build (amd64 && go1.18 && !go1.26) || (arm64 && go1.20 && !go1.26)
 
 package bytedance_sonic
 
@@ -7,6 +7,8 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/bytedance/sonic/encoder"
+
+	"github.com/jxskiss/gopkg/v2/perf/json"
 )
 
 func marshalFastest(v any) ([]byte, error) {
@@ -24,14 +26,14 @@ func marshalNoHTMLEscape(api sonic.API) func(v any, prefix, indent string) ([]by
 	}
 }
 
-func newEncoderFactory(api sonic.API) func(w io.Writer) underlyingEncoder {
-	return func(w io.Writer) underlyingEncoder {
-		return api.NewEncoder(w)
+func newEncoderFactory(api sonic.API) func(w io.Writer) *json.Encoder {
+	return func(w io.Writer) *json.Encoder {
+		return &json.Encoder{UnderlyingEncoder: api.NewEncoder(w)}
 	}
 }
 
-func newDecodeFactory(api sonic.API) func(r io.Reader) underlyingDecoder {
-	return func(r io.Reader) underlyingDecoder {
-		return api.NewDecoder(r)
+func newDecodeFactory(api sonic.API) func(r io.Reader) *json.Decoder {
+	return func(r io.Reader) *json.Decoder {
+		return &json.Decoder{UnderlyingDecoder: api.NewDecoder(r)}
 	}
 }

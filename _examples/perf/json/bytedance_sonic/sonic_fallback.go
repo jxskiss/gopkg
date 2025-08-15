@@ -1,4 +1,4 @@
-//go:build !amd64 || go1.22
+//go:build (!amd64 && !arm64) || go1.26
 
 package bytedance_sonic
 
@@ -18,10 +18,10 @@ func marshalNoHTMLEscape(_ sonic.API) func(v any, prefix, indent string) ([]byte
 	return json.StdImpl.MarshalNoHTMLEscape
 }
 
-func newEncoderFactory(_ sonic.API) func(w io.Writer) json.UnderlyingEncoder {
+func newEncoderFactory(_ sonic.API) func(w io.Writer) *json.Encoder {
 	return json.DefaultJSONIteratorImpl.NewEncoder
 }
 
-func newDecodeFactory(_ sonic.API) func(r io.Reader) json.UnderlyingDecoder {
+func newDecodeFactory(_ sonic.API) func(r io.Reader) *json.Decoder {
 	return json.DefaultJSONIteratorImpl.NewDecoder
 }

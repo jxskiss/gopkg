@@ -76,10 +76,10 @@ func (impl jsoniterImpl) MarshalNoHTMLEscape(v any, prefix, indent string) ([]by
 	return StdImpl.MarshalNoHTMLEscape(v, prefix, indent)
 }
 
-func (impl jsoniterImpl) NewEncoder(w io.Writer) UnderlyingEncoder {
-	return impl.api.NewEncoder(w)
+func (impl jsoniterImpl) NewEncoder(w io.Writer) *Encoder {
+	return &Encoder{impl.api.NewEncoder(w)}
 }
 
-func (impl jsoniterImpl) NewDecoder(r io.Reader) UnderlyingDecoder {
-	return impl.api.NewDecoder(r)
+func (impl jsoniterImpl) NewDecoder(r io.Reader) *Decoder {
+	return &Decoder{impl.api.NewDecoder(r)}
 }

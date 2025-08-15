@@ -13,7 +13,7 @@ type Decoder struct {
 
 // NewDecoder returns a new Decoder that reads from r.
 func NewDecoder(r io.Reader) *Decoder {
-	return &Decoder{getImpl().NewDecoder(r)}
+	return getImpl().NewDecoder(r)
 }
 
 // UseNumber causes the Decoder to unmarshal a number into an interface{}

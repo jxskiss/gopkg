@@ -78,10 +78,10 @@ func (stdImpl) MarshalNoHTMLEscape(v any, prefix, indent string) ([]byte, error)
 	return out, nil
 }
 
-func (stdImpl) NewEncoder(w io.Writer) UnderlyingEncoder {
-	return json.NewEncoder(w)
+func (stdImpl) NewEncoder(w io.Writer) *Encoder {
+	return &Encoder{json.NewEncoder(w)}
 }
 
-func (stdImpl) NewDecoder(r io.Reader) UnderlyingDecoder {
-	return json.NewDecoder(r)
+func (stdImpl) NewDecoder(r io.Reader) *Decoder {
+	return &Decoder{json.NewDecoder(r)}
 }
