@@ -21,10 +21,15 @@ func TestLatencyRecorder(t *testing.T) {
 	time.Sleep(time.Millisecond)
 
 	var buf bytes.Buffer
-	latencyMap := lRec.GetLatencyMap()
+	marks, latencyMap := lRec.GetLatencyMap()
 	logStr := lRec.Format()
 	_, err := lRec.WriteTo(&buf)
+	t.Logf("marks: %v", marks)
+	t.Logf("logStr: %s", logStr)
+	t.Logf("buf: %s", buf.String())
+
 	require.Nil(t, err)
+	assert.Equal(t, []string{"op1", "op2", "op3", "op4", "total"}, marks)
 	assert.GreaterOrEqual(t, latencyMap["op1"], 10*time.Millisecond)
 	assert.GreaterOrEqual(t, latencyMap["op2"], 10*time.Millisecond)
 	// Timer on Windows platform is inaccurate, skip this assertion,
@@ -42,7 +47,7 @@ func TestLatencyRecorder(t *testing.T) {
 	assert.Regexp(t, `\s+total=\d+`, logStr)
 
 	lRec.Reset()
-	latencyMap = lRec.GetLatencyMap()
+	_, latencyMap = lRec.GetLatencyMap()
 	assert.Len(t, latencyMap, 1)
 	assert.Contains(t, latencyMap, "total")
 }

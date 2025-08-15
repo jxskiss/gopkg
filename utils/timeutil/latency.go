@@ -81,28 +81,38 @@ func (p *LatencyRecorder) MarkWithStartTime(name string, start time.Time) {
 	p.mu.Unlock()
 }
 
-// GetLatencyMap returns a map of all recorded latencies.
-func (p *LatencyRecorder) GetLatencyMap() map[string]time.Duration {
+// GetLatencyMap returns all recorded latencies.
+// The returned value marks are the operation names in the order of calling Mark,
+// and latency contains each operation's duration.
+func (p *LatencyRecorder) GetLatencyMap() (marks []string, latency map[string]time.Duration) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
 	total := time.Since(p.startTime)
-	n := len(p.frames) + len(p.slots) + 1
-	out := make(map[string]time.Duration, n)
-	for i := range p.frames {
-		out[p.frames[i].name] = p.frames[i].latency
+	frames := p.frames
+	slots := p.slots
+
+	n := len(frames) + len(slots) + 1
+	marks = make([]string, 0, n)
+	latency = make(map[string]time.Duration, n)
+	for i := range frames {
+		marks = append(marks, frames[i].name)
+		latency[frames[i].name] = frames[i].latency
 	}
-	for i := range p.slots {
-		out[p.slots[i].name] = p.slots[i].latency
+	for i := range slots {
+		marks = append(marks, slots[i].name)
+		latency[slots[i].name] = slots[i].latency
 	}
-	out["total"] = total
-	return out
+	marks = append(marks, "total")
+	latency["total"] = total
+	return marks, latency
 }
 
 // Format formats the recorded latencies into a string,
 // which can be sent to log by a logger.
 func (p *LatencyRecorder) Format() string {
-	buf := p.formatToBuffer()
+	buf := latencyBufPool.GetBuffer()
+	p.formatToBuffer(buf)
 	out := buf.String()
 	latencyBufPool.PutBuffer(buf)
 	return out
@@ -111,7 +121,8 @@ func (p *LatencyRecorder) Format() string {
 // WriteTo formats and writes the recorded latencies to the given io.Writer.
 // It implements the interface io.WriterTo,
 func (p *LatencyRecorder) WriteTo(w io.Writer) (n int64, err error) {
-	buf := p.formatToBuffer()
+	buf := latencyBufPool.GetBuffer()
+	p.formatToBuffer(buf)
 	x, err := w.Write(buf.Bytes())
 	n = int64(x)
 	latencyBufPool.PutBuffer(buf)
@@ -119,29 +130,30 @@ func (p *LatencyRecorder) WriteTo(w io.Writer) (n int64, err error) {
 }
 
 //nolint:errcheck
-func (p *LatencyRecorder) formatToBuffer() *bbp.Buffer {
-	var tmp [32]byte
-	buf := latencyBufPool.GetBuffer()
+func (p *LatencyRecorder) formatToBuffer(buf *bbp.Buffer) {
 	totalMsec := time.Since(p.startTime).Milliseconds()
 
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	for i := range p.frames {
-		msec := p.frames[i].latency.Milliseconds()
-		buf.WriteString(p.frames[i].name)
+	frames := p.frames
+	slots := p.slots
+	tmp := [32]byte{} // enough for formatting milliseconds
+	for i := range frames {
+		msec := frames[i].latency.Milliseconds()
+		buf.WriteString(frames[i].name)
 		buf.WriteByte('=')
 		buf.Write(strconv.AppendInt(tmp[:0], msec, 10))
-		buf.WriteByte(' ')
+		buf.WriteString("ms ")
 	}
-	for i := range p.slots {
-		msec := p.slots[i].latency.Milliseconds()
-		buf.WriteString(p.slots[i].name)
+	for i := range slots {
+		msec := slots[i].latency.Milliseconds()
+		buf.WriteString(slots[i].name)
 		buf.WriteByte('=')
 		buf.Write(strconv.AppendInt(tmp[:0], msec, 10))
-		buf.WriteByte(' ')
+		buf.WriteString("ms ")
 	}
 	buf.WriteString("total=")
 	buf.Write(strconv.AppendInt(tmp[:0], totalMsec, 10))
-	return buf
+	buf.WriteString("ms")
 }
