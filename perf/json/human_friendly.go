@@ -10,23 +10,12 @@ import (
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
 
-// HumanFriendly is a config which generates data that is more friendly
-// for human reading.
+// HumanFriendly is a marshaler implementation which generates data
+// that is friendly for human reading.
 // Also, this config can encode data with `interface{}` as map keys,
 // in contrast, the standard library fails in this case.
-var HumanFriendly = struct {
-	Marshal             func(v any) ([]byte, error)
-	MarshalToString     func(v any) (string, error)
-	MarshalIndent       func(v any, prefix, indent string) ([]byte, error)
-	MarshalIndentString func(v any, prefix, indent string) (string, error)
-	NewEncoder          func(w io.Writer) *Encoder
-}{
-	Marshal:             hFriendlyMarshal,
-	MarshalToString:     hFriendlyMarshalToString,
-	MarshalIndent:       hFriendlyMarshalIndent,
-	MarshalIndentString: hFriendlyMarshalIndentString,
-	NewEncoder:          hFriendlyNewEncoder,
-}
+// This utility is not designed for performance sensitive use-case.
+var HumanFriendly = humanFriendlyImpl{}
 
 var jsoniterHumanFriendlyConfig = jsoniter.Config{
 	EscapeHTML:                    false,
@@ -36,12 +25,26 @@ var jsoniterHumanFriendlyConfig = jsoniter.Config{
 	ObjectFieldMustBeSimpleString: true,
 }.Froze()
 
-func hFriendlyMarshal(v any) ([]byte, error) {
+type humanFriendlyImpl struct{}
+
+func (humanFriendlyImpl) Marshal(v any) ([]byte, error) {
 	return jsoniterHumanFriendlyConfig.Marshal(v)
 }
 
-func hFriendlyMarshalToString(v any) (string, error) {
+func (humanFriendlyImpl) MarshalToString(v any) (string, error) {
 	return jsoniterHumanFriendlyConfig.MarshalToString(v)
+}
+
+func (humanFriendlyImpl) MarshalIndent(v any, prefix, indent string) ([]byte, error) {
+	return hFriendlyMarshalIndent(v, prefix, indent)
+}
+
+func (humanFriendlyImpl) MarshalIndentString(v any, prefix, indent string) (string, error) {
+	buf, err := hFriendlyMarshalIndent(v, prefix, indent)
+	if err != nil {
+		return "", err
+	}
+	return unsafeheader.BytesToString(buf), nil
 }
 
 func hFriendlyMarshalIndent(v any, prefix, indent string) ([]byte, error) {
@@ -57,17 +60,10 @@ func hFriendlyMarshalIndent(v any, prefix, indent string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func hFriendlyMarshalIndentString(v any, prefix, indent string) (string, error) {
-	buf, err := hFriendlyMarshalIndent(v, prefix, indent)
-	if err != nil {
-		return "", err
-	}
-	return unsafeheader.BytesToString(buf), nil
-}
-
+// NewEncoder ...
 // 注意 jsoniter 对 prefix, indent 的处理有问题，这里不能直接使用
 // jsoniterHumanFriendlyConfig.NewEncoder
-func hFriendlyNewEncoder(w io.Writer) *Encoder {
+func (humanFriendlyImpl) NewEncoder(w io.Writer) *Encoder {
 	buf := bytes.NewBuffer(nil)
 	return &Encoder{&hFriendlyEncoder{
 		w:   w,

@@ -171,11 +171,7 @@ func SplitMap[M ~map[K]V, K comparable, V any](m M, batchSize int) []M {
 	cnt := (len(m) + batchSize - 1) / batchSize
 	out := make([]M, cnt)
 	for i := range out {
-		if i < len(out)-1 {
-			out[i] = make(M, batchSize)
-		} else {
-			out[i] = make(M, len(m)%batchSize)
-		}
+		out[i] = make(M, batchSize)
 	}
 	i := 0
 	for k, v := range m {

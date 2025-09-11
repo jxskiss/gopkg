@@ -1,6 +1,7 @@
 package easy
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -67,4 +68,13 @@ func TestSplitMap(t *testing.T) {
 	cVal2, ok2 := got3[1]["c"]
 	assert.True(t, ok1 || ok2)
 	assert.False(t, cVal1 || cVal2)
+
+	m4 := make(map[string]int)
+	for i := 0; i < 120; i++ {
+		m4[strconv.Itoa(i)] = i
+	}
+	got4 := SplitMap(m4, 100)
+	assert.Len(t, got4, 2)
+	assert.Len(t, got4[0], 100)
+	assert.Len(t, got4[1], 20)
 }
