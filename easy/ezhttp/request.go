@@ -19,12 +19,15 @@ import (
 
 const (
 	hdrContentTypeKey = "Content-Type"
-	contentTypeJSON   = "application/json"
-	contentTypeXML    = "application/xml"
+	contentTypeJSON   = "application/json; charset=utf-8"
+	contentTypeXML    = "application/xml; charset=utf-8"
 	contentTypeForm   = "application/x-www-form-urlencoded"
 )
 
 // Request represents a request and options to send with the Do function.
+//
+// A program may use wrapper functions to do middleware-like processing
+// before and/or after calling Do.
 type Request struct {
 
 	// Req should be a fully prepared http Request to sent, if not nil,
@@ -191,16 +194,16 @@ func (p *Request) getDefaultClient() *http.Client {
 	return http.DefaultClient
 }
 
-func (p *Request) prepareRequest(method string) (err error) {
+func (p *Request) prepareRequest(method string) (req *http.Request, err error) {
 	if p.Req != nil {
-		return p.mergeRequest()
+		return p.mergeRequest(p.Req)
 	}
 
 	reqURL := p.URL
 	if p.Params != nil {
 		reqURL, err = mergeQuery(reqURL, p.Params)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -216,40 +219,44 @@ func (p *Request) prepareRequest(method string) (err error) {
 		var contentType string
 		body, contentType, err = p.buildBody()
 		if err != nil {
-			return err
+			return nil, fmt.Errorf("build request body: %w", err)
 		}
-		p.Req, err = http.NewRequest(method, reqURL, body)
+		req, err = http.NewRequest(method, reqURL, body)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if contentType != "" {
-			p.Req.Header.Set(hdrContentTypeKey, contentType)
+			req.Header.Set(hdrContentTypeKey, contentType)
 		}
 	} else {
-		p.Req, err = http.NewRequest(method, reqURL, nil)
+		req, err = http.NewRequest(method, reqURL, nil)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	p.setHeaders()
-	return nil
+	p.setHeaders(req)
+	return req, nil
 }
 
-func (p *Request) mergeRequest() (err error) {
-	httpReq := p.Req
+func (p *Request) mergeRequest(req *http.Request) (*http.Request, error) {
 	if p.Params != nil {
-		addQuery := castQueryParams(p.Params).Encode()
-		if addQuery != "" {
-			if httpReq.URL.RawQuery != "" && !strings.HasSuffix(httpReq.URL.RawQuery, "&") {
-				httpReq.URL.RawQuery += "&" + addQuery
-			} else {
-				httpReq.URL.RawQuery += addQuery
+		addQuery := castQueryParams(p.Params)
+		if len(addQuery) > 0 {
+			newQuery, err := url.ParseQuery(req.URL.RawQuery)
+			if err != nil {
+				return nil, err
 			}
+			for k, values := range addQuery {
+				if len(values) > 0 {
+					newQuery[k] = values
+				}
+			}
+			req.URL.RawQuery = newQuery.Encode()
 		}
 	}
-	p.setHeaders()
-	return nil
+	p.setHeaders(req)
+	return req, nil
 }
 
 func mergeQuery(reqURL string, params any) (string, error) {
@@ -263,8 +270,8 @@ func mergeQuery(reqURL string, params any) (string, error) {
 	}
 	addQuery := castQueryParams(params)
 	for k, values := range addQuery {
-		for _, v := range values {
-			query.Add(k, v)
+		if len(values) > 0 {
+			query[k] = values
 		}
 	}
 	parsed.RawQuery = query.Encode()
@@ -314,10 +321,9 @@ func (p *Request) buildBody() (body io.Reader, contentType string, err error) {
 		var bodyBuf []byte
 		switch data := p.Body.(type) {
 		case io.Reader:
-			bodyBuf, err = io.ReadAll(data)
-			if err != nil {
-				return nil, "", err
-			}
+			// don't read body to detect content-type in case of an io.Reader,
+			// the body may be very large which may cause problems
+			return data, "", nil
 		case []byte:
 			bodyBuf = data
 		case string:
@@ -393,27 +399,35 @@ func makeHTTPBody(data any, marshal marshalFunc) (io.Reader, error) {
 	return body, nil
 }
 
-func (p *Request) setHeaders() {
+func (p *Request) setHeaders(req *http.Request) {
 	for k, v := range p.Headers {
-		p.Req.Header.Set(k, v)
+		req.Header.Set(k, v)
 	}
 	if p.internalData.BasicAuth.Username != "" || p.internalData.BasicAuth.Password != "" {
-		p.Req.SetBasicAuth(p.internalData.BasicAuth.Username, p.internalData.BasicAuth.Password)
+		req.SetBasicAuth(p.internalData.BasicAuth.Username, p.internalData.BasicAuth.Password)
 	}
 }
 
+// Do is an alias method of function [Do].
+func (p *Request) Do() (header http.Header, respContent []byte, statusCode int, err error) {
+	return Do(p)
+}
+
 // Do is a convenient function to send request and control redirect
-// and debug options. If `Request.Resp` is provided, it will be used as
+// and debug options. If Request.Resp is provided, it will be used as
 // destination to try to unmarshal the response body.
+//
+// Note that if Request.Req is set, the request can not be used with retry,
+// which is same for a [http.Request].
 //
 // Trade-off was taken to balance simplicity and convenience.
 //
 // For more powerful controls of a http request and handy utilities,
 // you may take a look at the awesome library `https://github.com/go-resty/resty/`.
-func Do(req *Request) (header http.Header, respContent []byte, status int, err error) {
-	err = req.prepareRequest("")
+func Do(req *Request) (header http.Header, respContent []byte, statusCode int, err error) {
+	httpReq, err := req.prepareRequest("")
 	if err != nil {
-		return header, respContent, status, err
+		return header, respContent, statusCode, err
 	}
 
 	dumpFunc := req.DumpFunc
@@ -421,8 +435,7 @@ func Do(req *Request) (header http.Header, respContent []byte, status int, err e
 		dumpFunc = log.Printf
 	}
 
-	httpReq := req.Req
-	if req.Context != nil {
+	if req.Context != nil && httpReq.Context() != req.Context {
 		httpReq = httpReq.WithContext(req.Context)
 	}
 	if req.Timeout > 0 {
@@ -434,7 +447,7 @@ func Do(req *Request) (header http.Header, respContent []byte, status int, err e
 		var dump []byte
 		dump, err = httputil.DumpRequestOut(httpReq, true)
 		if err != nil {
-			return header, respContent, status, err
+			return header, respContent, statusCode, err
 		}
 		dumpFunc("[DEBUG] ezhttp: dump HTTP request:\n%s", dump)
 	}
@@ -442,17 +455,17 @@ func Do(req *Request) (header http.Header, respContent []byte, status int, err e
 	httpClient := req.buildClient()
 	httpResp, err := httpClient.Do(httpReq)
 	if err != nil {
-		return header, respContent, status, err
+		return header, respContent, statusCode, err
 	}
 	defer httpResp.Body.Close()
 
 	header = httpResp.Header
-	status = httpResp.StatusCode
+	statusCode = httpResp.StatusCode
 	if req.DumpResponse {
 		var dump []byte
 		dump, err = httputil.DumpResponse(httpResp, true)
 		if err != nil {
-			return header, respContent, status, err
+			return header, respContent, statusCode, err
 		}
 		dumpFunc("[DEBUG] ezhttp: dump HTTP response:\n%s", dump)
 	}
@@ -460,18 +473,18 @@ func Do(req *Request) (header http.Header, respContent []byte, status int, err e
 	if req.DiscardResponseBody {
 		_, err = io.Copy(io.Discard, httpResp.Body)
 		if err != nil {
-			return header, respContent, status, err
+			return header, respContent, statusCode, err
 		}
 	} else {
 		respContent, err = io.ReadAll(httpResp.Body)
 		if err != nil {
-			return header, respContent, status, err
+			return header, respContent, statusCode, err
 		}
 	}
 	if req.RaiseForStatus {
 		if httpResp.StatusCode >= 400 {
-			err = fmt.Errorf("unexpected status: %v", httpResp.Status)
-			return header, respContent, status, err
+			err = fmt.Errorf("unexpected statusCode: %v", httpResp.Status)
+			return header, respContent, statusCode, err
 		}
 	}
 
@@ -489,8 +502,8 @@ func Do(req *Request) (header http.Header, respContent []byte, status int, err e
 		}
 		err = unmarshal(respContent, req.Resp)
 		if err != nil {
-			return header, respContent, status, err
+			return header, respContent, statusCode, err
 		}
 	}
-	return header, respContent, status, err
+	return header, respContent, statusCode, err
 }
