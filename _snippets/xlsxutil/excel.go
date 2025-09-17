@@ -16,7 +16,9 @@ type Link struct {
 	URL   string `json:"url" yaml:"url"`
 }
 
-func SaveExcelFile(filename string, data []map[string]any, columns []string) error {
+var trySheetNameKeys = []string{"SheetName", "sheetName", "sheet_name", "SheetKey", "sheetKey", "sheet_key", "Sheet", "sheet"}
+
+func SaveExcelFile[T ~map[string]any](filename string, data []T, columns []string) error {
 	dirPath := filepath.Dir(filename)
 	if dirPath != "/" && dirPath != "." {
 		err := easy.CreateNonExistingFolder(dirPath, 0o755)
@@ -29,25 +31,27 @@ func SaveExcelFile(filename string, data []map[string]any, columns []string) err
 	defer file.Close()
 
 	// Detect sheet name column.
-	sheetKey := "Sheet"
-	if _, ok := data[0][sheetKey]; !ok {
-		sheetKey = "sheet"
-		if _, ok = data[0][sheetKey]; !ok {
-			sheetKey = ""
+	var sheetKey string
+	for _, x := range trySheetNameKeys {
+		if _, ok := data[0][x]; ok {
+			sheetKey = x
+			break
 		}
 	}
 
 	// Split and save sheets.
-	var sheetRecords map[any][]map[string]any
+	var sheetNames = []any{defaultSheetName}
+	var sheetRecords map[any][]T
 	if sheetKey == "" {
-		sheetRecords = map[any][]map[string]any{
+		sheetRecords = map[any][]T{
 			defaultSheetName: data,
 		}
 	} else {
-		sheetRecords = GroupMapRecords(data, sheetKey)
+		sheetNames, sheetRecords = GroupMapRecords(data, sheetKey)
 	}
-	for sheetNameAny, records := range sheetRecords {
+	for _, sheetNameAny := range sheetNames {
 		sheetName := fmt.Sprint(sheetNameAny)
+		records := sheetRecords[sheetNameAny]
 		err := WriteExcelSheet(file, sheetName, records, columns)
 		if err != nil {
 			return fmt.Errorf("write sheet: %w", err)
@@ -61,7 +65,7 @@ func SaveExcelFile(filename string, data []map[string]any, columns []string) err
 	return nil
 }
 
-func WriteExcelSheet(file *excelize.File, sheetName string, records []map[string]any, columns []string) error {
+func WriteExcelSheet[T ~map[string]any](file *excelize.File, sheetName string, records []T, columns []string) error {
 	if sheetName == "" {
 		sheetName = defaultSheetName
 	}
@@ -137,11 +141,26 @@ func convExcelValues(m map[string]any, columns []string, rowIdx, colIdx int) (
 	return values, hyperLinks
 }
 
-func GroupMapRecords(records []map[string]any, col string) map[any][]map[string]any {
-	out := make(map[any][]map[string]any)
+func GroupMapRecords[T ~map[string]any](records []T, col string) (groupKeys []any, groupRecords map[any][]T) {
+	groupRecords = make(map[any][]T)
 	for _, record := range records {
 		key := record[col]
-		out[key] = append(out[key], record)
+		if key == nil || key == "" {
+			key = defaultSheetName
+		}
+		if !isInSlice(groupKeys, key) {
+			groupKeys = append(groupKeys, key)
+		}
+		groupRecords[key] = append(groupRecords[key], record)
 	}
-	return out
+	return groupKeys, groupRecords
+}
+
+func isInSlice(s []any, x any) bool {
+	for _, v := range s {
+		if v == x {
+			return true
+		}
+	}
+	return false
 }
