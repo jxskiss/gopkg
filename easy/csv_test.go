@@ -1,6 +1,7 @@
 package easy
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -39,6 +40,15 @@ true,1234,12345,23456,"{""A"":true,""B"":""23456""}"
 false,4321,12345,65432,"{""A"":false,""B"":""65432""}"
 `
 	assert.Equal(t, want, string(got))
+
+	wantHeader := []string{"str", "int", "str_2", "bool"}
+	got, err = MarshalCSV(records, wantHeader...)
+	require.Nil(t, err)
+	want2 := `str,int,str_2,bool
+12345,1234,23456,true
+12345,4321,65432,false
+`
+	assert.Equal(t, want2, string(got))
 }
 
 func TestUnmarshalCSV(t *testing.T) {
@@ -108,4 +118,29 @@ name3	35184904144031	35184904144031
 		}
 		assert.Equal(t, want, got)
 	})
+}
+
+func TestWriteAndReadCSVFile(t *testing.T) {
+	type Struct struct {
+		Int  int    `csv:"int"`
+		Bool bool   `csv:"bool"`
+		Str  string `csv:"str"`
+		Str2 string `csv:"str_2"`
+	}
+	records := []*Struct{
+		{Int: 1, Bool: true, Str: "a", Str2: "b"},
+		{Int: 2, Bool: false, Str: "c", Str2: "d"},
+	}
+
+	tmpDir := t.TempDir()
+	tmpFilename := filepath.Join(tmpDir, "test.csv")
+
+	err := WriteCSVFile(tmpFilename, records)
+	require.Nil(t, err)
+
+	var got []*Struct
+	err = ReadCSVFile(tmpFilename, &got)
+	require.Nil(t, err)
+	assert.Equal(t, *records[0], *got[0])
+	assert.Equal(t, *records[1], *got[1])
 }

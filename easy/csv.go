@@ -5,9 +5,13 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
 	"reflect"
 	"sort"
 	"unsafe"
+
+	"github.com/jszwec/csvutil"
 
 	"github.com/jxskiss/gopkg/v2/easy/ezmap"
 	"github.com/jxskiss/gopkg/v2/utils/strutil"
@@ -18,24 +22,45 @@ import (
 // If length of records is zero, it returns (nil, nil).
 //
 // Caller should guarantee that every record have same schema.
-// The keys of the first item in records is used as the result CSV header,
+// If header is provided, it is used as the CSV header, and only the fields
+// present in header are marshaled to the result,
+// otherwise the keys of the first item in records is used as the CSV header,
 // for the left items in records, if a key is missing, it is ignored,
 // keys not present in the first item are simply ignored.
-func MarshalCSV[T ~map[string]any](records []T) ([]byte, error) {
+func MarshalCSV[T ~map[string]any](records []T, header ...string) ([]byte, error) {
+	return MarshalCSVWithWriter(records, csv.Writer{Comma: ','}, header...)
+}
+
+// MarshalCSVWithWriter marshal map[string]any records to CSV encoding.
+// It is like [MarshalCSV], except that it allows caller to specify a template csv.Writer
+// to customize the behavior of csv encoding, such as field delimiter and line ending.
+// The underlying buffer of w is not used, it is ignored.
+//
+// Caller should guarantee that every record have same schema.
+// If header is provided, it is used as the CSV header, and only the fields
+// present in header are marshaled to the result,
+// otherwise the keys of the first item in records is used as the CSV header,
+// for the left items in records, if a key is missing, it is ignored,
+// keys not present in the first item are simply ignored.
+func MarshalCSVWithWriter[T ~map[string]any](records []T, w csv.Writer, header ...string) ([]byte, error) {
 	if len(records) == 0 {
 		return nil, nil
 	}
 
-	header := make([]string, 0, len(records[0]))
-	for k := range records[0] {
-		header = append(header, k)
+	if len(header) == 0 {
+		header = make([]string, 0, len(records[0]))
+		for k := range records[0] {
+			header = append(header, k)
+		}
+		sort.Strings(header)
 	}
-	sort.Strings(header)
 
 	var err error
 	var buf bytes.Buffer
-	w := csv.NewWriter(&buf)
-	if err = w.Write(header); err != nil {
+	writer := csv.NewWriter(&buf)
+	writer.Comma = w.Comma
+	writer.UseCRLF = w.UseCRLF
+	if err = writer.Write(header); err != nil {
 		return nil, err
 	}
 
@@ -62,12 +87,12 @@ func MarshalCSV[T ~map[string]any](records []T) ([]byte, error) {
 			}
 			strRecord = append(strRecord, valueStr)
 		}
-		if err = w.Write(strRecord); err != nil {
+		if err = writer.Write(strRecord); err != nil {
 			return nil, err
 		}
 	}
-	w.Flush()
-	if err = w.Error(); err != nil {
+	writer.Flush()
+	if err = writer.Error(); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
@@ -140,4 +165,55 @@ func toJSON(v any) (string, error) {
 func castStr(v any) string {
 	// type eface struct { rtype unsafe.Pointer, word unsafe.Pointer }
 	return *(*string)((*[2]unsafe.Pointer)(unsafe.Pointer(&v))[1])
+}
+
+// ReadCSVFile reads CSV records from a file and unmarshal to dst.
+// dst must be a pointer to a slice of struct with csv tags.
+// It automatically removes BOM bytes from the head of the file content if exists.
+func ReadCSVFile(filename string, dst any) error {
+	fd, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer fd.Close()
+	return ReadCSV(fd, dst)
+}
+
+// ReadCSV reads CSV records from rd and unmarshal to dst.
+// dst must be a pointer to a slice of struct with csv tags.
+// It automatically removes BOM bytes from the head of the data if exists.
+func ReadCSV(rd io.Reader, dst any) error {
+	buf, err := io.ReadAll(rd)
+	if err != nil {
+		return err
+	}
+	buf = strutil.TrimBOM(buf)
+	err = csvutil.Unmarshal(buf, dst)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// WriteCSVFile writes CSV records to a file.
+// It automatically adds UTF-8 BOM to the head of the file
+// to be compatible with most spreadsheet applications.
+func WriteCSVFile[T any](filename string, records []T) error {
+	buf, err := csvutil.Marshal(records)
+	if err != nil {
+		return err
+	}
+	fd, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
+	defer fd.Close()
+	_, err = fd.WriteString(strutil.BOM_UTF8)
+	if err != nil {
+		return err
+	}
+	if _, err = fd.Write(buf); err != nil {
+		return err
+	}
+	return nil
 }
