@@ -49,7 +49,7 @@ func Test_getDirectoryPermFromFilePerm(t *testing.T) {
 	}
 }
 
-func TestRunTaskWithSignal(t *testing.T) {
+func TestRunTask(t *testing.T) {
 	t.Run("task finished", func(t *testing.T) {
 		var taskDone bool
 		var signalReceived bool
@@ -60,7 +60,7 @@ func TestRunTaskWithSignal(t *testing.T) {
 		onSignal := func(_ os.Signal) {
 			signalReceived = true
 		}
-		RunTaskWaitSignal(task, onSignal)
+		RunTask(task, onSignal)
 		assert.True(t, taskDone)
 		assert.False(t, signalReceived)
 	})

@@ -107,8 +107,8 @@ func SlashJoin(path ...string) string {
 func WithTimeout(operationName string, timeout time.Duration, f func() error) (err error) {
 	resultChan := make(chan error, 1)
 	go func() {
-		defer close(resultChan)
 		resultChan <- Safe1(f)()
+		close(resultChan)
 	}()
 	select {
 	case <-time.After(timeout):
