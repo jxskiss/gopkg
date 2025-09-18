@@ -12,6 +12,7 @@ import (
 	"github.com/tidwall/gjson"
 	"gopkg.in/yaml.v3"
 
+	"github.com/jxskiss/gopkg/v2/collection/dag"
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 	"github.com/jxskiss/gopkg/v2/perf/json"
 	"github.com/jxskiss/gopkg/v2/utils/strutil"
@@ -60,7 +61,7 @@ type parser struct {
 	refCounter  int
 	refTable    map[string]int
 	refRevTable map[int]pathTuple
-	refDag      dag
+	refDag      dag.DAG[int]
 
 	// directive var
 	varMap     map[string]*yaml.Node
@@ -568,7 +569,7 @@ func (p *parser) resolveReferences() error {
 			jsonPath, origPath, isTostr, modifier := directive.getRefPath(node.P)
 			seq, placeholder := p.getReferID(jsonPath, origPath)
 			node.N.Value = placeholder
-			p.refDag.addVertex(seq)
+			p.refDag.AddVertex(seq)
 			if isTostr {
 				toStrRefs[seq] = modifier
 			}
@@ -621,7 +622,7 @@ func (p *parser) resolveReferences() error {
 			if refSeq == seq {
 				return fmt.Errorf("circular reference detected: %s", refPath)
 			}
-			isCyclic := p.refDag.addEdge(refSeq, seq)
+			isCyclic := p.refDag.AddEdge(refSeq, seq)
 			if isCyclic {
 				return fmt.Errorf("circular reference detected: %s", refPath)
 			}
@@ -629,14 +630,14 @@ func (p *parser) resolveReferences() error {
 		}
 	}
 
-	order := p.refDag.topoSort()
+	order := p.refDag.TopoSort()
 	for _, seq := range order {
 		if modifier := toStrRefs[seq]; modifier != "" {
 			resolved[seq] = convToStr(resolved[seq], modifier)
 		}
 		final := resolved[seq]
 		placeholder := `"` + p.referPlaceholder(seq) + `"`
-		p.refDag.visitNeighbors(seq, func(to int) {
+		p.refDag.VisitNeighbors(seq, func(to int) {
 			resolved[to] = strings.ReplaceAll(resolved[to], placeholder, final)
 		})
 	}
