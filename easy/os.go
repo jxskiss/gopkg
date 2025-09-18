@@ -3,7 +3,9 @@ package easy
 import (
 	"bufio"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 
 	"github.com/jxskiss/gopkg/v2/utils/strutil"
 )
@@ -54,4 +56,34 @@ func getDirectoryPermFromFilePerm(filePerm os.FileMode) os.FileMode {
 		dirPerm |= (filePerm & 0o007) | 0x001
 	}
 	return dirPerm
+}
+
+// RunTaskWaitSignal runs task in a goroutine and waits for it to return.
+// If also waits for signals to exit, it calls onSignal
+// when a signal is received before task returns.
+// If signals is empty, it waits for SIGINT and SIGTERM by default.
+func RunTaskWaitSignal(task func(), onSignal func(sig os.Signal), signals ...os.Signal) {
+	if len(signals) == 0 {
+		signals = []os.Signal{syscall.SIGINT, syscall.SIGTERM}
+	}
+	sigc := make(chan os.Signal, 1)
+	signal.Notify(sigc, signals...)
+	defer signal.Stop(sigc)
+
+	// run the task
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		task()
+	}()
+
+	// wait for signal or task done
+	select {
+	case <-done:
+		break
+	case sig := <-sigc:
+		if onSignal != nil {
+			onSignal(sig)
+		}
+	}
 }

@@ -1,9 +1,11 @@
 package easy
 
 import (
+	"fmt"
 	"reflect"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/jxskiss/gopkg/v2/unsafe/reflectx"
 )
@@ -97,4 +99,21 @@ func SingleJoin(sep string, text ...string) string {
 // that only one "/" appears between two segments.
 func SlashJoin(path ...string) string {
 	return SingleJoin("/", path...)
+}
+
+// WithTimeout runs f in a goroutine and waits for it to return.
+// If f returns before timeout, it returns f's return value.
+// If f panics or timeout, it returns an error.
+func WithTimeout(operationName string, timeout time.Duration, f func() error) (err error) {
+	resultChan := make(chan error, 1)
+	go func() {
+		defer close(resultChan)
+		resultChan <- Safe1(f)()
+	}()
+	select {
+	case <-time.After(timeout):
+		return fmt.Errorf("operation %s timeout", operationName)
+	case err = <-resultChan:
+		return err
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -46,4 +47,21 @@ func Test_getDirectoryPermFromFilePerm(t *testing.T) {
 		got := getDirectoryPermFromFilePerm(tCase.FilePerm)
 		assert.Equal(t, tCase.Want, got)
 	}
+}
+
+func TestRunTaskWithSignal(t *testing.T) {
+	t.Run("task finished", func(t *testing.T) {
+		var taskDone bool
+		var signalReceived bool
+		task := func() {
+			time.Sleep(time.Second)
+			taskDone = true
+		}
+		onSignal := func(_ os.Signal) {
+			signalReceived = true
+		}
+		RunTaskWaitSignal(task, onSignal)
+		assert.True(t, taskDone)
+		assert.False(t, signalReceived)
+	})
 }

@@ -1,7 +1,9 @@
 package easy
 
 import (
+	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -42,7 +44,7 @@ func TestCaller(t *testing.T) {
 	name, file, line := Caller(0)
 	assert.Equal(t, "easy.TestCaller", name)
 	assert.Equal(t, "easy/utils_test.go", file)
-	assert.Equal(t, 42, line)
+	assert.Equal(t, 44, line)
 }
 
 func TestCallerName(t *testing.T) {
@@ -70,4 +72,41 @@ func TestSlashJoin(t *testing.T) {
 	want2 := "/a/b/c.png"
 	got2 := SlashJoin(path2...)
 	assert.Equal(t, want2, got2)
+}
+
+func TestWithTimeout(t *testing.T) {
+	t.Run("no timeout", func(t *testing.T) {
+		err := WithTimeout("test", time.Second, func() error {
+			return nil
+		})
+		assert.Nil(t, err)
+	})
+
+	t.Run("timeout", func(t *testing.T) {
+		err := WithTimeout("test", 100*time.Millisecond, func() error {
+			time.Sleep(time.Second)
+			return nil
+		})
+		assert.NotNil(t, err)
+		assert.Contains(t, err.Error(), "operation test timeout")
+		t.Log(err.Error())
+	})
+
+	t.Run("error", func(t *testing.T) {
+		err := WithTimeout("test", 100*time.Millisecond, func() error {
+			return errors.New("test error")
+		})
+		assert.NotNil(t, err)
+		assert.Contains(t, err.Error(), "test error")
+		t.Log(err.Error())
+	})
+
+	t.Run("panic", func(t *testing.T) {
+		err := WithTimeout("test", 100*time.Millisecond, func() error {
+			panic("test panic")
+		})
+		assert.NotNil(t, err)
+		assert.Contains(t, err.Error(), "test panic")
+		t.Log(err.Error())
+	})
 }
