@@ -179,7 +179,7 @@ func (p *Loader) processFile(config any, file string) error {
 	}
 
 	p.getLogFunc()("loading configuration from file: %v", file)
-	var unmarshalFunc = p.Config.UnmarshalFunc
+	var unmarshalFunc = p.UnmarshalFunc
 	if unmarshalFunc == nil {
 		extname := path.Ext(file)
 		switch strings.ToLower(extname) {

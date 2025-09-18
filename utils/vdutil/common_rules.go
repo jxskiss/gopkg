@@ -160,30 +160,34 @@ const (
 )
 
 // InRange validates that value >= min and value <= max.
+//
+//nolint:revive
 func InRange[T constraints.Ordered](name string, min, max T, value T) RuleFunc {
 	return InRangeMode(name, GteAndLte, min, max, value)
 }
 
 // InRangeMode validates that value is in range of min and max,
 // according to RangeMode.
+//
+//nolint:revive
 func InRangeMode[T constraints.Ordered](name string, mode RangeMode, min, max T, value T) RuleFunc {
 	return func(_ context.Context, _ *Result) (any, error) {
 		var err error
 		switch mode {
 		case GtAndLte:
-			if !(value > min && value <= max) {
+			if value <= min || value > max {
 				err = &ValidationError{Name: name, Err: fmt.Errorf("value %v is not in range (%v, %v]", value, min, max)}
 			}
 		case GtAndLt:
-			if !(value > min && value < max) {
+			if value <= min || value >= max {
 				err = &ValidationError{Name: name, Err: fmt.Errorf("value %v is not in range (%v, %v)", value, min, max)}
 			}
 		case GteAndLte:
-			if !(value >= min && value <= max) {
+			if value < min || value > max {
 				err = &ValidationError{Name: name, Err: fmt.Errorf("value %v is not in range [%v, %v]", value, min, max)}
 			}
 		case GteAndLt:
-			if !(value >= min && value < max) {
+			if value < min || value >= max {
 				err = &ValidationError{Name: name, Err: fmt.Errorf("value %v is not in range [%v, %v)", value, min, max)}
 			}
 		default:

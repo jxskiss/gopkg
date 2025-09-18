@@ -637,7 +637,7 @@ func (p *parser) resolveReferences() error {
 		final := resolved[seq]
 		placeholder := `"` + p.referPlaceholder(seq) + `"`
 		p.refDag.visitNeighbors(seq, func(to int) {
-			resolved[to] = strings.Replace(resolved[to], placeholder, final, -1)
+			resolved[to] = strings.ReplaceAll(resolved[to], placeholder, final)
 		})
 	}
 	oldnew := make([]string, 0, 2*len(resolved))

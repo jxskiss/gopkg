@@ -20,11 +20,11 @@ func NewIntWithSize(size int) Int {
 	return Int{NewWithSize[int](size)}
 }
 
-func (s Int) Del(vals ...int)                 { s.Generic.Delete(vals...) }
+func (s Int) Del(vals ...int)                 { s.Delete(vals...) }
 func (s Int) Diff(other Int) Int              { return Int{s.Generic.Diff(other.Generic)} }
 func (s Int) DiffSlice(other []int) Int       { return Int{s.Generic.DiffSlice(other)} }
-func (s Int) FilterInclude(slice []int) []int { return s.Generic.FilterContains(slice) }
-func (s Int) FilterExclude(slice []int) []int { return s.Generic.FilterNotContains(slice) }
+func (s Int) FilterInclude(slice []int) []int { return s.FilterContains(slice) }
+func (s Int) FilterExclude(slice []int) []int { return s.FilterNotContains(slice) }
 func (s Int) Intersect(other Int) Int         { return Int{s.Generic.Intersect(other.Generic)} }
 func (s Int) IntersectSlice(other []int) Int  { return Int{s.Generic.IntersectSlice(other)} }
 func (s Int) Union(other Int) Int             { return Int{s.Generic.Union(other.Generic)} }
@@ -50,11 +50,11 @@ func NewInt64WithSize(size int) Int64 {
 	return Int64{NewWithSize[int64](size)}
 }
 
-func (s Int64) Del(vals ...int64)                   { s.Generic.Delete(vals...) }
+func (s Int64) Del(vals ...int64)                   { s.Delete(vals...) }
 func (s Int64) Diff(other Int64) Int64              { return Int64{s.Generic.Diff(other.Generic)} }
 func (s Int64) DiffSlice(other []int64) Int64       { return Int64{s.Generic.DiffSlice(other)} }
-func (s Int64) FilterInclude(slice []int64) []int64 { return s.Generic.FilterContains(slice) }
-func (s Int64) FilterExclude(slice []int64) []int64 { return s.Generic.FilterNotContains(slice) }
+func (s Int64) FilterInclude(slice []int64) []int64 { return s.FilterContains(slice) }
+func (s Int64) FilterExclude(slice []int64) []int64 { return s.FilterNotContains(slice) }
 func (s Int64) Intersect(other Int64) Int64         { return Int64{s.Generic.Intersect(other.Generic)} }
 func (s Int64) IntersectSlice(other []int64) Int64  { return Int64{s.Generic.IntersectSlice(other)} }
 func (s Int64) Union(other Int64) Int64             { return Int64{s.Generic.Union(other.Generic)} }
@@ -80,11 +80,11 @@ func NewInt32WithSize(size int) Int32 {
 	return Int32{NewWithSize[int32](size)}
 }
 
-func (s Int32) Del(vals ...int32)                   { s.Generic.Delete(vals...) }
+func (s Int32) Del(vals ...int32)                   { s.Delete(vals...) }
 func (s Int32) Diff(other Int32) Int32              { return Int32{s.Generic.Diff(other.Generic)} }
 func (s Int32) DiffSlice(other []int32) Int32       { return Int32{s.Generic.DiffSlice(other)} }
-func (s Int32) FilterInclude(slice []int32) []int32 { return s.Generic.FilterContains(slice) }
-func (s Int32) FilterExclude(slice []int32) []int32 { return s.Generic.FilterNotContains(slice) }
+func (s Int32) FilterInclude(slice []int32) []int32 { return s.FilterContains(slice) }
+func (s Int32) FilterExclude(slice []int32) []int32 { return s.FilterNotContains(slice) }
 func (s Int32) Intersect(other Int32) Int32         { return Int32{s.Generic.Intersect(other.Generic)} }
 func (s Int32) IntersectSlice(other []int32) Int32  { return Int32{s.Generic.IntersectSlice(other)} }
 func (s Int32) Union(other Int32) Int32             { return Int32{s.Generic.Union(other.Generic)} }
@@ -110,11 +110,11 @@ func NewStringWithSize(size int) String {
 	return String{NewWithSize[string](size)}
 }
 
-func (s String) Del(vals ...string)                    { s.Generic.Delete(vals...) }
+func (s String) Del(vals ...string)                    { s.Delete(vals...) }
 func (s String) Diff(other String) String              { return String{s.Generic.Diff(other.Generic)} }
 func (s String) DiffSlice(other []string) String       { return String{s.Generic.DiffSlice(other)} }
-func (s String) FilterInclude(slice []string) []string { return s.Generic.FilterContains(slice) }
-func (s String) FilterExclude(slice []string) []string { return s.Generic.FilterNotContains(slice) }
+func (s String) FilterInclude(slice []string) []string { return s.FilterContains(slice) }
+func (s String) FilterExclude(slice []string) []string { return s.FilterNotContains(slice) }
 func (s String) Intersect(other String) String         { return String{s.Generic.Intersect(other.Generic)} }
 func (s String) IntersectSlice(other []string) String  { return String{s.Generic.IntersectSlice(other)} }
 func (s String) Union(other String) String             { return String{s.Generic.Union(other.Generic)} }

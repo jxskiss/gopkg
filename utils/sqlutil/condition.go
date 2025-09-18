@@ -146,7 +146,7 @@ func (p *Condition) Build() (string, []any) {
 // String returns the string representation of the Condition.
 func (p *Condition) String() string {
 	clause, args := p.Build()
-	format := strings.Replace(clause, "?", "%v", -1)
+	format := strings.ReplaceAll(clause, "?", "%v")
 	return fmt.Sprintf(format, args...)
 }
 

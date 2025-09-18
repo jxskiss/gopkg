@@ -40,7 +40,7 @@ func JSONHumanFriendly(w http.ResponseWriter, statusCode int, data any) {
 		w.Write(rspFailedMarshalJSON)
 		return
 	}
-	addNewline := false
+	var addNewline bool
 	if len(jsonBuf) > 0 && jsonBuf[len(jsonBuf)-1] != '\n' {
 		addNewline = true
 	}

@@ -179,6 +179,7 @@ func isPowerOfTwo(n int) bool {
 	return n&(n-1) == 0
 }
 
+//nolint:revive
 func makeBytes(len, cap int) (b []byte) {
 	if len < 0 || len > cap {
 		panic("bbp.makeBytes: len out of range")

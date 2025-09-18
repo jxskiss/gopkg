@@ -20,6 +20,7 @@ func testHttpHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(dump)
 }
 
+//nolint:all
 func TestDo(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(testHttpHandler))
 	defer s.Close()
@@ -95,6 +96,7 @@ func TestDiscardResponseBody(t *testing.T) {
 	assert.Equal(t, "", string(respText))
 }
 
+//nolint:all
 func TestMergeRequest(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(testHttpHandler))
 	defer s.Close()
@@ -190,6 +192,7 @@ func TestMergeRequest(t *testing.T) {
 	})
 }
 
+//nolint:all
 func TestRequestSetBasicAuth(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(testHttpHandler))
 	defer s.Close()

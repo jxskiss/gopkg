@@ -31,10 +31,7 @@ func equalFoldRune(sr, tr rune) bool {
 	for r != sr && r < tr {
 		r = unicode.SimpleFold(r)
 	}
-	if r == tr {
-		return true
-	}
-	return false
+	return r == tr
 }
 
 // HasPrefixFold is like strings.HasPrefix but uses Unicode case-folding,

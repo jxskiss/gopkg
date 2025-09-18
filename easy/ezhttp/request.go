@@ -194,6 +194,13 @@ func (p *Request) getDefaultClient() *http.Client {
 	return http.DefaultClient
 }
 
+func (p *Request) getContext() context.Context {
+	if p.Context != nil {
+		return p.Context
+	}
+	return context.Background()
+}
+
 func (p *Request) prepareRequest(method string) (req *http.Request, err error) {
 	if p.Req != nil {
 		return p.mergeRequest(p.Req)
@@ -214,6 +221,7 @@ func (p *Request) prepareRequest(method string) (req *http.Request, err error) {
 		}
 	}
 
+	ctx := p.getContext()
 	if mayHaveBody(method) {
 		var body io.Reader
 		var contentType string
@@ -221,7 +229,7 @@ func (p *Request) prepareRequest(method string) (req *http.Request, err error) {
 		if err != nil {
 			return nil, fmt.Errorf("build request body: %w", err)
 		}
-		req, err = http.NewRequest(method, reqURL, body)
+		req, err = http.NewRequestWithContext(ctx, method, reqURL, body)
 		if err != nil {
 			return nil, err
 		}
@@ -229,7 +237,7 @@ func (p *Request) prepareRequest(method string) (req *http.Request, err error) {
 			req.Header.Set(hdrContentTypeKey, contentType)
 		}
 	} else {
-		req, err = http.NewRequest(method, reqURL, nil)
+		req, err = http.NewRequestWithContext(ctx, method, reqURL, nil)
 		if err != nil {
 			return nil, err
 		}

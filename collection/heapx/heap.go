@@ -109,7 +109,6 @@ func (p *heapItems[T]) Less(i, j int) bool {
 func (p *heapItems[T]) Swap(i, j int) {
 	p1, p2 := p.index(i), p.index(j)
 	*p1, *p2 = *p2, *p1
-	return
 }
 
 func (p *heapItems[T]) Push(x any) {

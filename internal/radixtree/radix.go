@@ -76,7 +76,6 @@ func (n *radixNode[T]) insert(name string, value T) {
 	n.childNodes.labels = append(n.childNodes.labels, firstChar)
 	n.childNodes.nodes = append(n.childNodes.nodes, child)
 	sort.Sort(&n.childNodes)
-	return
 }
 
 func (n *radixNode[T]) splitCommonPrefix(existingChildIndex int, name string) (*radixNode[T], int) {

@@ -34,7 +34,7 @@ func IsASCIIDigit(str string) bool {
 		return false
 	}
 	for _, x := range str {
-		if !('0' <= x && x <= '9') {
+		if x < '0' || x > '9' {
 			return false
 		}
 	}

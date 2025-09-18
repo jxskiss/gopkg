@@ -30,17 +30,17 @@ type options struct {
 type Option func(options) options
 
 // MaxSleep will restrict the retry sleep time to at most max.
-func MaxSleep(max time.Duration) Option {
+func MaxSleep(d time.Duration) Option {
 	return func(opt options) options {
-		opt.MaxSleep = max
+		opt.MaxSleep = d
 		return opt
 	}
 }
 
 // MaxErrors set max errors to hold when retry for many times.
-func MaxErrors(max int) Option {
+func MaxErrors(n int) Option {
 	return func(opt options) options {
-		opt.MaxErrors = max
+		opt.MaxErrors = n
 		return opt
 	}
 }

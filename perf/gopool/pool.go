@@ -186,21 +186,18 @@ func (p *internalPool) startPermanentWorkers() {
 }
 
 func (p *internalPool) permanentWorker() {
-	for {
-		select {
-		case t := <-p.taskCh:
-			p.runner(p, t)
+	for t := range p.taskCh {
+		p.runner(p, t)
 
-			// Drain pending tasks.
-			for {
-				p.mu.Lock()
-				t = p.taskList.pop()
-				p.mu.Unlock()
-				if t == nil {
-					break
-				}
-				p.runner(p, t)
+		// Drain pending tasks.
+		for {
+			p.mu.Lock()
+			t = p.taskList.pop()
+			p.mu.Unlock()
+			if t == nil {
+				break
 			}
+			p.runner(p, t)
 		}
 	}
 }
