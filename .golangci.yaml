@@ -1,29 +1,10 @@
-run:
-  timeout: 5m
-
-linters-settings:
-  gci:
-    sections:
-      - standard
-      - default
-      - prefix(github.com/jxskiss/gopkg)
-  golint:
-    min-confidence: 0
-  goimports:
-    local-prefixes: github.com/jxskiss/gopkg
-
+version: "2"
 linters:
-  disable-all: true
+  default: none
   enable:
     - bodyclose
-    # - dogsled
     - dupl
     - durationcheck
-    - gci
-    - gofmt
-    # - gofumpt
-    - goimports
-    # - gomoddirectives
     - goprintffuncname
     - govet
     - importas
@@ -35,46 +16,71 @@ linters:
     - noctx
     - nolintlint
     - prealloc
-    # - predeclared
     - revive
     - rowserrcheck
     - sqlclosecheck
     - staticcheck
-    - stylecheck
     - tparallel
-    - typecheck
     - unconvert
     - unparam
     - unused
     - wastedassign
     - whitespace
-
-issues:
-  exclude-rules:
-    - path: 'internal/linkname/(.+).go'
-      linters:
-        - govet
-        - revive
-        - stylecheck
-        - unused
-    - path: 'unsafe/(.+)\.go'
-      linters:
-        - govet
-        - predeclared
-        - revive
-        - stylecheck
-        - unparam
-        - unused
-        - nolintlint
-    - path: '(.+)_test\.go'
-      linters:
-        - errcheck
-        - funlen
-        - goconst
-        - ineffassign
-        - revive
-        - staticcheck
-        - stylecheck
-        - unparam
-        - unused
-        - whitespace
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - govet
+          - revive
+          - staticcheck
+          - unused
+        path: 'internal/linkname/(.+).go'
+      - linters:
+          - govet
+          - nolintlint
+          - predeclared
+          - revive
+          - staticcheck
+          - unparam
+          - unused
+        path: 'unsafe/(.+)\.go'
+      - linters:
+          - errcheck
+          - funlen
+          - goconst
+          - ineffassign
+          - revive
+          - staticcheck
+          - unparam
+          - unused
+          - whitespace
+        path: '(.+)_test\.go'
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - goimports
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/jxskiss/gopkg)
+    goimports:
+      local-prefixes:
+        - github.com/jxskiss/gopkg
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
