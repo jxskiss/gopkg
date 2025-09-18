@@ -81,16 +81,16 @@ jobs:
       GOFLAGS: -mod=readonly
 
     steps:
-      # - name: Set up Go
-      #   uses: actions/setup-go@v3
-      #   with:
-      #     go-version: ${{ env.MIN_GO_VER }}
-
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
 
-      - name: Lint
-        uses: golangci/golangci-lint-action@v3
+      - name: Set up Go
+        uses: actions/setup-go@v6
         with:
-          version: v1.60.3
+          go-version: stable
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.1
           only-new-issues: true
