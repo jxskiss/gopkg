@@ -1,35 +1,42 @@
 package dag
 
+import "slices"
+
 // DAG is a directed acyclic graph.
 // A zero value of DAG is ready to use.
 type DAG[T comparable] struct {
-	initialized  bool
-	nodes        map[T]bool
-	edges        map[T]map[T]bool
-	reverseEdges map[T]map[T]bool
+	nodes        *dagNodes[T] // nil nodes means that the DAG is not initialized
+	edges        map[T]*dagNodes[T]
+	reverseEdges map[T]*dagNodes[T]
 }
 
 // NewDAG creates a new DAG object.
 func NewDAG[T comparable]() *DAG[T] {
-	return &DAG[T]{}
+	dag := &DAG[T]{}
+	dag.initialize()
+	return dag
 }
 
 func (d *DAG[T]) initialize() {
-	if d.initialized {
-		return
+	if d.nodes == nil {
+		d.nodes = newDagNodes[T]()
+		d.edges = make(map[T]*dagNodes[T])
+		d.reverseEdges = make(map[T]*dagNodes[T])
 	}
-	d.initialized = true
-	d.nodes = make(map[T]bool)
-	d.edges = make(map[T]map[T]bool)
-	d.reverseEdges = make(map[T]map[T]bool)
 }
 
 // AddVertex adds a vertex to the DAG.
 func (d *DAG[T]) AddVertex(n T) {
-	if !d.initialized {
+	if d.nodes == nil {
 		d.initialize()
 	}
-	d.nodes[n] = true
+	d.addVertex(n)
+}
+
+func (d *DAG[T]) addVertex(n T) {
+	if !d.nodes.Contains(n) {
+		d.nodes.Add(n)
+	}
 }
 
 // AddEdge adds an edge from 'from' to 'to' in the DAG.
@@ -39,11 +46,11 @@ func (d *DAG[T]) AddEdge(from, to T) (isCyclic bool) {
 	if d.IsCyclic(from, to) {
 		return true
 	}
-	if !d.initialized {
+	if d.nodes == nil {
 		d.initialize()
 	}
-	d.nodes[from] = true
-	d.nodes[to] = true
+	d.addVertex(from)
+	d.addVertex(to)
 	d.addToEdges(d.edges, from, to)
 	d.addToEdges(d.reverseEdges, to, from)
 	return false
@@ -60,11 +67,14 @@ func (d *DAG[T]) IsCyclic(from, to T) bool {
 
 	seen := make(map[T]bool)
 	for len(stack) > 0 {
-		m := d.reverseEdges[pop()]
-		if m[to] {
+		nodes := d.reverseEdges[pop()]
+		if nodes == nil {
+			continue
+		}
+		if nodes.Contains(to) {
 			return true
 		}
-		for n := range m {
+		for _, n := range nodes.list {
 			if !seen[n] {
 				stack = append(stack, n)
 				seen[n] = true
@@ -74,30 +84,43 @@ func (d *DAG[T]) IsCyclic(from, to T) bool {
 	return false
 }
 
-func (d *DAG[T]) addToEdges(edges map[T]map[T]bool, from, to T) {
-	m, ok := edges[from]
+func (d *DAG[T]) addToEdges(edges map[T]*dagNodes[T], from, to T) {
+	nodes, ok := edges[from]
 	if !ok {
-		m = make(map[T]bool)
-		edges[from] = m
+		nodes = newDagNodes[T]()
+		edges[from] = nodes
 	}
-	m[to] = true
+	if !nodes.Contains(to) {
+		nodes.Add(to)
+	}
 }
 
 // VisitVertex visits all vertices in the DAG.
 func (d *DAG[T]) VisitVertex(f func(n T)) {
-	for n := range d.nodes {
+	if d.nodes == nil {
+		return
+	}
+	for _, n := range d.nodes.list {
 		f(n)
 	}
 }
 
 // VisitNeighbors visits all neighbors of 'from' in the DAG.
 func (d *DAG[T]) VisitNeighbors(from T, f func(to T)) {
-	for n := range d.edges[from] {
+	nodes := d.edges[from]
+	if nodes == nil {
+		return
+	}
+	for _, n := range nodes.list {
 		f(n)
 	}
 }
 
-// TopoSort returns a topological sort of the DAG using Kahn's algorithm.
+// TopoSort returns a topological sort result of the DAG.
+//
+// The sort result is stable, which means that multiple calls
+// to TopoSort will return the same result, the order is determined
+// by the order of vertices and edges added to the DAG.
 func (d *DAG[T]) TopoSort() []T {
 	indegree := make(map[T]int)
 	d.VisitVertex(func(n T) {
@@ -119,7 +142,7 @@ func (d *DAG[T]) TopoSort() []T {
 		return
 	}
 
-	order := make([]T, 0, len(d.nodes))
+	order := make([]T, 0, len(d.nodes.list))
 	count := 0
 	for len(queue) > 0 {
 		n := pop()
@@ -133,9 +156,45 @@ func (d *DAG[T]) TopoSort() []T {
 		})
 	}
 
-	if count != len(d.nodes) { // unreachable
+	if count != len(d.nodes.list) { // unreachable
 		panic("DAG is in invalid state")
 	}
 
 	return order
+}
+
+const fastThreshold = 64
+
+type dagNodes[T comparable] struct {
+	list []T
+	set  map[T]bool
+}
+
+func newDagNodes[T comparable]() *dagNodes[T] {
+	return &dagNodes[T]{}
+}
+
+// Contains reports whether n is contained in dagNodes.
+func (p *dagNodes[T]) Contains(n T) bool {
+	if p.set != nil {
+		return p.set[n]
+	}
+	return slices.Contains(p.list, n)
+}
+
+// Add adds a new node to dagNodes.
+// Caller must ensure that n is not contained in the dagNodes,
+// by calling Contains(n) first.
+func (p *dagNodes[T]) Add(n T) {
+	p.list = append(p.list, n)
+	if len(p.list) <= fastThreshold {
+		return
+	}
+	if p.set == nil {
+		p.set = make(map[T]bool, len(p.list))
+		for _, x := range p.list {
+			p.set[x] = true
+		}
+	}
+	p.set[n] = true
 }
