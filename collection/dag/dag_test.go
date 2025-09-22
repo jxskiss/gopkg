@@ -57,3 +57,20 @@ func TestDAG_TopoSort(t *testing.T) {
 		assert.Equal(t, got[0], got[i])
 	}
 }
+
+func TestDAG_uninitialized(t *testing.T) {
+	var d DAG[int]
+	topoOrder := d.TopoSort()
+	assert.Equal(t, 0, len(topoOrder))
+	assert.NotPanics(t, func() {
+		d.VisitVertex(func(n int) {
+			t.Logf("visit vertex: %d", n)
+		})
+		d.VisitNeighbors(1, func(to int) {
+			t.Logf("visit neighbor: %d -> %d", 1, to)
+		})
+		assert.Equal(t, 0, len(d.TopoSort()))
+		d.AddEdge(1, 2)
+		assert.Equal(t, []int{1, 2}, d.TopoSort())
+	})
+}

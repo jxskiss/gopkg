@@ -33,12 +33,6 @@ func (d *DAG[T]) AddVertex(n T) {
 	d.addVertex(n)
 }
 
-func (d *DAG[T]) addVertex(n T) {
-	if !d.nodes.Contains(n) {
-		d.nodes.Add(n)
-	}
-}
-
 // AddEdge adds an edge from 'from' to 'to' in the DAG.
 // If 'from' to 'to' forms a cycle, it does not add the edge and returns true,
 // otherwise it returns false.
@@ -54,6 +48,19 @@ func (d *DAG[T]) AddEdge(from, to T) (isCyclic bool) {
 	d.addToEdges(d.edges, from, to)
 	d.addToEdges(d.reverseEdges, to, from)
 	return false
+}
+
+func (d *DAG[T]) addVertex(n T) {
+	d.nodes.Add(n)
+}
+
+func (d *DAG[T]) addToEdges(edges map[T]*dagNodes[T], from, to T) {
+	nodes, ok := edges[from]
+	if !ok {
+		nodes = newDagNodes[T]()
+		edges[from] = nodes
+	}
+	nodes.Add(to)
 }
 
 // IsCyclic reports whether there is a cycle from 'from' to 'to' in the DAG.
@@ -84,17 +91,6 @@ func (d *DAG[T]) IsCyclic(from, to T) bool {
 	return false
 }
 
-func (d *DAG[T]) addToEdges(edges map[T]*dagNodes[T], from, to T) {
-	nodes, ok := edges[from]
-	if !ok {
-		nodes = newDagNodes[T]()
-		edges[from] = nodes
-	}
-	if !nodes.Contains(to) {
-		nodes.Add(to)
-	}
-}
-
 // VisitVertex visits all vertices in the DAG.
 func (d *DAG[T]) VisitVertex(f func(n T)) {
 	if d.nodes == nil {
@@ -122,6 +118,10 @@ func (d *DAG[T]) VisitNeighbors(from T, f func(to T)) {
 // to TopoSort will return the same result, the order is determined
 // by the order of vertices and edges added to the DAG.
 func (d *DAG[T]) TopoSort() []T {
+	if d.nodes == nil {
+		return nil
+	}
+
 	indegree := make(map[T]int)
 	d.VisitVertex(func(n T) {
 		d.VisitNeighbors(n, func(to T) {
@@ -182,10 +182,11 @@ func (p *dagNodes[T]) Contains(n T) bool {
 	return slices.Contains(p.list, n)
 }
 
-// Add adds a new node to dagNodes.
-// Caller must ensure that n is not contained in the dagNodes,
-// by calling Contains(n) first.
+// Add adds a new node to dagNodes, if it is not contained in dagNodes.
 func (p *dagNodes[T]) Add(n T) {
+	if p.Contains(n) {
+		return
+	}
 	p.list = append(p.list, n)
 	if len(p.list) <= fastThreshold {
 		return
