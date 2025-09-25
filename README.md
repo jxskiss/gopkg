@@ -39,6 +39,10 @@ reasonable API compatibility and versioning.
 
 ## Packages
 
+1. `collection/dag` provides a directed acyclic graph (DAG) data structure.
+
+1. `collection/listx` provides generic list, queue and stack data structures.
+
 1. `collection/heapx` contains a ready-to-use heap implementation based on `container/heap`,
    and a generic priority queue based on heap data structure.
 

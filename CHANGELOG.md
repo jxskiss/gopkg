@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 TBD.
 
+## [2.19.0] - 2025-09-19
+
+* Feat: new package [collection/dag] providing a directed acyclic graph (DAG) data structure.
+* Feat: add go1.25 to CI workflow.
+
+## [2.17.0] - 2024-12-28
+
+* Breaking change: simplify and redesign package zlog.
+
 ## [2.14.0] - 2024-02-07
 
 * Feat: support Go1.22 (#76)
