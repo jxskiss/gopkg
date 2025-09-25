@@ -50,6 +50,17 @@ func TestDAG_VisitNeighbors(t *testing.T) {
 	}
 }
 
+func TestDAG_ListZeroIncomingVertices(t *testing.T) {
+	d := NewDAG[int]()
+	d.AddEdge(1, 2)
+	d.AddEdge(1, 3)
+	d.AddEdge(2, 4)
+	d.AddEdge(3, 4)
+	d.AddEdge(5, 2)
+	d.AddEdge(6, 4)
+	assert.Equal(t, []int{1, 5, 6}, d.ListZeroIncomingVertices())
+}
+
 // https://en.wikipedia.org/wiki/Topological_sorting
 func TestDAG_TopoSort(t *testing.T) {
 	/*
