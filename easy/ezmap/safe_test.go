@@ -7,8 +7,7 @@ import (
 )
 
 func TestSafeMap(t *testing.T) {
-	sm := NewSafeMap()
-
+	var sm SafeMap
 	func() {
 		sm.Set("var1", "value1")
 		sm.Set("var2", 1234)
@@ -31,4 +30,18 @@ func TestSafeMap(t *testing.T) {
 	assert.Equal(t, Map{"a": 1}, sm.GetSliceElemMap("slice2", 0))
 	assert.Equal(t, Map{"b": 2}, sm.GetSliceElemMap("slice2", 1))
 	assert.Nil(t, sm.GetSliceElemMap("slice2", 2))
+}
+
+func TestSafeMap_WithLock(t *testing.T) {
+	var sm SafeMap
+	sm.WithLock(func(m Map) {
+		m.Set("var1", "value1")
+	})
+	assert.Equal(t, "value1", sm.MustGet("var1"))
+
+	var got1 string
+	sm.WithRLock(func(m Map) {
+		got1 = m.GetString("var1")
+	})
+	assert.Equal(t, "value1", got1)
 }
