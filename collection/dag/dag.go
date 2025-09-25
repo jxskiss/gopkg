@@ -112,6 +112,17 @@ func (d *DAG[T]) VisitNeighbors(from T, f func(to T)) {
 	}
 }
 
+// VisitReverseNeighbors visits all reverse neighbors of 'to' in the DAG.
+func (d *DAG[T]) VisitReverseNeighbors(to T, f func(from T)) {
+	nodes := d.reverseEdges[to]
+	if nodes == nil {
+		return
+	}
+	for _, n := range nodes.list {
+		f(n)
+	}
+}
+
 // TopoSort returns a topological sort result of the DAG.
 //
 // The sort result is stable, which means that multiple calls

@@ -18,6 +18,38 @@ func TestDAG(t *testing.T) {
 	assert.Equal(t, []int{1, 2}, topoOrder)
 }
 
+func TestDAG_VisitNeighbors(t *testing.T) {
+	d := NewDAG[int]()
+	d.AddEdge(1, 2)
+	d.AddEdge(1, 3)
+	d.AddEdge(2, 4)
+	d.AddEdge(3, 4)
+
+	var got1 [][]int
+	for i := 0; i < 100; i++ {
+		var got []int
+		d.VisitNeighbors(1, func(to int) {
+			got = append(got, to)
+		})
+		got1 = append(got1, got)
+	}
+	for i := 0; i < len(got1); i++ {
+		assert.Equal(t, []int{2, 3}, got1[i])
+	}
+
+	var got2 [][]int
+	for i := 0; i < 100; i++ {
+		var got []int
+		d.VisitReverseNeighbors(4, func(from int) {
+			got = append(got, from)
+		})
+		got2 = append(got2, got)
+	}
+	for i := 0; i < len(got2); i++ {
+		assert.Equal(t, []int{2, 3}, got2[i])
+	}
+}
+
 // https://en.wikipedia.org/wiki/Topological_sorting
 func TestDAG_TopoSort(t *testing.T) {
 	/*
