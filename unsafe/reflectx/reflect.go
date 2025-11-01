@@ -29,7 +29,7 @@ func IsIntType(kind reflect.Kind) (isInt, isSigned bool) {
 }
 
 // ReflectInt returns v's underlying value as int64.
-// It panics if v is not a integer value.
+// It panics if v is not an integer value.
 func ReflectInt(v reflect.Value) int64 {
 	switch v.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:

@@ -1,4 +1,4 @@
-// Package json provides a on-the-fly change-able API for JSON serialization.
+// Package json provides an on-the-fly change-able API for JSON serialization.
 package json
 
 import (

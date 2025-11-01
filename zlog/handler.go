@@ -42,7 +42,7 @@ type Handler struct {
 
 // NewMiddleware creates a slog.Handler middleware
 // that conforms to [github.com/samber/slog-multi.Middleware] interface.
-// It can be used with slogmulti methods such as Pipe to easily setup
+// It can be used with slogmulti methods such as Pipe to easily set up
 // a pipeline of slog handlers:
 //
 //	slog.SetDefault(slog.New(slogmulti.

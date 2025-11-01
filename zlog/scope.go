@@ -75,7 +75,7 @@ func (s *Scope) SetLevel(level slog.Level) { s.level.Set(level) }
 //
 // IMPORTANT NOTE:
 // the returned logger must not be used as slog's default logger by
-// calling slog.SetDefault, which leads to indefinite recursive calling.
+// calling slog.SetDefault, which leads to infinite recursive calling.
 func (s *Scope) Logger() *Logger {
 	h0 := &proxyDefaultHandler{}
 	h1 := &Handler{
@@ -115,7 +115,7 @@ type proxyDefaultHandler struct{}
 
 func (*proxyDefaultHandler) Handle(ctx context.Context, record slog.Record) error {
 	// In case of misuse, setting this handler to slog.Default() leads to
-	// indefinite recursive calling, which exhausts all CPU and memory resource.
+	// infinite recursive calling, which exhausts all CPU and memory resource.
 	// We use ctx marker to detect recursive calling.
 	type ctxMarker struct{}
 	marker, _ := ctx.Value(ctxMarker{}).(int)

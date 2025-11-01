@@ -19,7 +19,7 @@ var (
 // JSON holds a map[string]any value, it implements
 // sql/driver.Valuer and sql.Scanner. It uses JSON to do serialization.
 //
-// JSON embeds a ezmap.Map, thus all methods defined on ezmap.Map is also
+// JSON embeds an ezmap.Map, thus all methods defined on ezmap.Map is also
 // available from a JSON instance.
 type JSON struct {
 	ezmap.Map

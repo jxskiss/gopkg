@@ -180,7 +180,7 @@ func MapValues[M ~map[K]V, K comparable, V any](m M) any {
 	return Values[M, K, V](m)
 }
 
-// IntKeys returns a int64 slice containing all the keys present
+// IntKeys returns an int64 slice containing all the keys present
 // in the map, in an indeterminate order.
 //
 // Deprecated: the generic function Keys is favored over this.
@@ -192,7 +192,7 @@ func IntKeys[M ~map[K]V, K constraints.Integer, V any](m M) (keys []int64) {
 	return
 }
 
-// IntValues returns a int64 slice containing all the values present
+// IntValues returns an int64 slice containing all the values present
 // in the map, in an indeterminate order.
 //
 // Deprecated: the generic function Values is favored over this.
