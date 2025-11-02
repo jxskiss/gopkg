@@ -1,9 +1,11 @@
-package kvutil
+package ezkv
 
 import (
+	"compress/gzip"
 	"context"
 	"errors"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,29 +13,34 @@ import (
 
 	"github.com/jxskiss/gopkg/v2/easy"
 	"github.com/jxskiss/gopkg/v2/perf/lru"
+	"github.com/jxskiss/gopkg/v2/utils/compress"
 )
 
 var (
 	testModelList = []*TestModel{
 		{
-			IntId: 111,
-			StrId: "aaa",
+			IntId:  111,
+			StrId:  "aaa",
+			Field3: strings.Repeat("aaa", 100),
 		},
 		{
-			IntId: 112,
-			StrId: "aab",
+			IntId:  112,
+			StrId:  "aab",
+			Field3: strings.Repeat("aab", 100),
 		},
 	}
 	testModelMapInt = map[int64]*TestModel{
 		113: {
-			IntId: 113,
-			StrId: "aac",
+			IntId:  113,
+			StrId:  "aac",
+			Field3: strings.Repeat("aac", 100),
 		},
 	}
 	testModelMapStr = map[string]*TestModel{
 		"aac": {
-			IntId: 113,
-			StrId: "aac",
+			IntId:  113,
+			StrId:  "aac",
+			Field3: strings.Repeat("aac", 100),
 		},
 	}
 	testIntIds       = []int64{111, 112, 113}
@@ -62,46 +69,46 @@ func TestCache(t *testing.T) {
 	var modelStrMap map[string]*TestModel
 	var err error
 
-	modelList, err = mcInt.MGetSlice(ctx, testIntIds)
+	modelList, err = mcInt.BatchGetSlice(ctx, testIntIds)
 	assert.Nil(t, err)
 	assert.Len(t, modelList, 0)
 
-	modelList, err = mcStr.MGetSlice(ctx, testStrIds)
+	modelList, err = mcStr.BatchGetSlice(ctx, testStrIds)
 	assert.Nil(t, err)
 	assert.Len(t, modelList, 0)
 
-	modelIntMap, err = mcInt.MGetMap(ctx, testIntIds)
+	modelIntMap, err = mcInt.BatchGetMap(ctx, testIntIds)
 	assert.Nil(t, err)
 	assert.Len(t, modelIntMap, 0)
 
-	modelStrMap, err = mcStr.MGetMap(ctx, testStrIds)
+	modelStrMap, err = mcStr.BatchGetMap(ctx, testStrIds)
 	assert.Nil(t, err)
 	assert.Len(t, modelStrMap, 0)
 
 	// we can populate cache using either a list or a map
-	err = mcInt.MSetSlice(ctx, testModelList, 0)
+	err = mcInt.BatchSetSlice(ctx, testModelList, 0)
 	assert.Nil(t, err)
-	err = mcInt.MSetMap(ctx, testModelMapInt, 0)
-	assert.Nil(t, err)
-
-	err = mcStr.MSetSlice(ctx, testModelList, 0)
-	assert.Nil(t, err)
-	err = mcStr.MSetMap(ctx, testModelMapStr, 0)
+	err = mcInt.BatchSetMap(ctx, testModelMapInt, 0)
 	assert.Nil(t, err)
 
-	modelList, err = mcInt.MGetSlice(ctx, testIntIds)
+	err = mcStr.BatchSetSlice(ctx, testModelList, 0)
+	assert.Nil(t, err)
+	err = mcStr.BatchSetMap(ctx, testModelMapStr, 0)
+	assert.Nil(t, err)
+
+	modelList, err = mcInt.BatchGetSlice(ctx, testIntIds)
 	assert.Nil(t, err)
 	assert.Len(t, modelList, 3)
 
-	modelList, err = mcStr.MGetSlice(ctx, testStrIds)
+	modelList, err = mcStr.BatchGetSlice(ctx, testStrIds)
 	assert.Nil(t, err)
 	assert.Len(t, modelList, 3)
 
-	modelIntMap, err = mcInt.MGetMap(ctx, testIntIds)
+	modelIntMap, err = mcInt.BatchGetMap(ctx, testIntIds)
 	assert.Nil(t, err)
 	assert.Len(t, modelIntMap, 3)
 
-	modelStrMap, err = mcStr.MGetMap(ctx, testStrIds)
+	modelStrMap, err = mcStr.BatchGetMap(ctx, testStrIds)
 	assert.Nil(t, err)
 	assert.Len(t, modelStrMap, 3)
 
@@ -127,11 +134,11 @@ func TestCacheWithLRUCache(t *testing.T) {
 	var modelMap map[int64]*TestModel
 	var err error
 
-	modelList, err = mc.MGetSlice(ctx, testIntIds)
+	modelList, err = mc.BatchGetSlice(ctx, testIntIds)
 	assert.Nil(t, err)
 	assert.Len(t, modelList, 0)
 
-	err = mc.MSetSlice(ctx, testModelList, 0)
+	err = mc.BatchSetSlice(ctx, testModelList, 0)
 	assert.Nil(t, err)
 	assert.Len(t, mc.config.Storage(ctx).(*memoryStorage).data, 2)
 
@@ -147,11 +154,11 @@ func TestCacheWithLRUCache(t *testing.T) {
 	assert.Nil(t, got3)
 	assert.False(t, exists3 || expired3)
 
-	modelList, err = mc.MGetSlice(ctx, testIntIds)
+	modelList, err = mc.BatchGetSlice(ctx, testIntIds)
 	assert.Nil(t, err)
 	assert.Len(t, modelList, 2)
 
-	modelMap, err = mc.MGetMap(ctx, testIntIds)
+	modelMap, err = mc.BatchGetMap(ctx, testIntIds)
 	assert.Nil(t, err)
 	assert.Len(t, modelMap, 2)
 
@@ -178,7 +185,7 @@ func TestCacheWithLoader(t *testing.T) {
 	var modelMap map[int64]*TestModel
 	var err error
 
-	modelList, err = mc.MGetSlice(ctx, []int64{111, 112, 113})
+	modelList, err = mc.BatchGetSlice(ctx, []int64{111, 112, 113})
 	assert.Nil(t, err)
 	assert.Len(t, modelList, 2)
 	assert.Equal(t, 2, mc.config.LRUCache.Len())
@@ -198,7 +205,7 @@ func TestCacheWithLoader(t *testing.T) {
 	assert.False(t, exists)
 
 	moreIntIds := []int64{111, 112, 113, 114, 115, 116, 117}
-	modelMap, err = mc.MGetMap(ctx, moreIntIds)
+	modelMap, err = mc.BatchGetMap(ctx, moreIntIds)
 	assert.Nil(t, err)
 	assert.Len(t, modelMap, 4)
 	assert.Equal(t, 4, mc.config.LRUCache.Len())
@@ -208,7 +215,7 @@ func TestCacheWithLoader(t *testing.T) {
 	for i, id := range moreIntIds {
 		cacheKeys[i] = mc.config.KeyFunc(id)
 	}
-	fromCache, err := mc.config.Storage(ctx).MGet(ctx, cacheKeys...)
+	fromCache, err := mc.config.Storage(ctx).Get(ctx, cacheKeys...)
 	assert.Nil(t, err)
 	assert.Len(t, fromCache, len(cacheKeys))
 	valid := easy.Filter(func(_ int, elem []byte) bool { return len(elem) > 0 }, fromCache)
@@ -251,15 +258,56 @@ func TestCacheSingleKeyValue(t *testing.T) {
 	assert.False(t, exists)
 }
 
-func makeTestingCache[K comparable, V Model](testName string, idFunc func(V) K) *Cache[K, V] {
+func TestCacheWithCompression(t *testing.T) {
+	mcInt := makeTestingCache("TestCacheWithCompression",
+		func(m *TestModel) int64 {
+			return m.IntId
+		})
+	compressor := compress.NewCompressor(compress.CompressorConfig{
+		Alg:       compress.NewGzipCompressor(gzip.BestSpeed),
+		Threshold: 1,
+		MinSaving: 0.00001,
+	})
+	mcInt.config.Compressor = compressor
+
+	ctx := context.Background()
+	var modelList []*TestModel
+	var err error
+
+	modelList, err = mcInt.BatchGetSlice(ctx, testIntIds)
+	assert.Nil(t, err)
+	assert.Len(t, modelList, 0)
+
+	// we can populate cache using either a list or a map
+	err = mcInt.BatchSetSlice(ctx, testModelList, 0)
+	assert.Nil(t, err)
+
+	var rawSize int
+	for _, m := range testModelList {
+		data, _ := m.MarshalBinary()
+		rawSize += len(data)
+	}
+	var compressedSize int
+	for _, data := range mcInt.config.Storage(ctx).(*memoryStorage).data {
+		compressedSize += len(data)
+	}
+	assert.Less(t, compressedSize, rawSize)
+
+	modelList, err = mcInt.BatchGetSlice(ctx, testIntIds)
+	assert.Nil(t, err)
+	assert.Len(t, modelList, 2)
+}
+
+func makeTestingCache[K comparable, V Model](testName string, idFunc func(V) K) *ModelCache[K, V] {
 	kf := KeyFactory{}
-	return NewCache(&CacheConfig[K, V]{
+	keyFun := kf.NewKey("test_model:{id}")
+	return NewModelCache(&ModelCacheConfig[K, V]{
 		Storage:         testClientFunc(testName),
 		IDFunc:          idFunc,
-		KeyFunc:         kf.NewKey("test_model:{id}"),
-		MGetBatchSize:   2,
-		MSetBatchSize:   2,
-		DeleteBatchSize: 2,
+		KeyFunc:         func(pk K) string { return keyFun(pk) },
+		BatchGetSize:    2,
+		BatchSetSize:    2,
+		BatchDeleteSize: 2,
 	})
 }
 
@@ -274,7 +322,7 @@ type memoryStorage struct {
 	data map[string][]byte
 }
 
-func (m *memoryStorage) MGet(ctx context.Context, keys ...string) ([][]byte, error) {
+func (m *memoryStorage) Get(ctx context.Context, keys ...string) ([][]byte, error) {
 	out := make([][]byte, 0, len(keys))
 	for _, k := range keys {
 		out = append(out, m.data[k])
@@ -282,9 +330,14 @@ func (m *memoryStorage) MGet(ctx context.Context, keys ...string) ([][]byte, err
 	return out, nil
 }
 
-func (m *memoryStorage) MSet(ctx context.Context, kvPairs []KVPair, expiration time.Duration) error {
-	for _, kv := range kvPairs {
-		m.data[kv.K] = kv.V
+func (m *memoryStorage) Set(ctx context.Context, key string, value []byte, expiration time.Duration) error {
+	m.data[key] = value
+	return nil
+}
+
+func (m *memoryStorage) BatchSet(ctx context.Context, keys []string, values [][]byte, expiration time.Duration) error {
+	for i, k := range keys {
+		m.data[k] = values[i]
 	}
 	return nil
 }
@@ -307,20 +360,23 @@ func getMemoryStorage(ctx context.Context, cliFunc func(ctx context.Context) Sto
 }
 
 type TestModel struct {
-	IntId int64
-	StrId string
+	IntId  int64
+	StrId  string
+	Field3 string
 }
 
 func (m *TestModel) MarshalBinary() ([]byte, error) {
 	var buf []byte
 	buf = append(buf, []byte(strconv.FormatInt(m.IntId, 10))...)
 	buf = append(buf, []byte(m.StrId)...)
+	buf = append(buf, []byte(m.Field3)...)
 	return buf, nil
 }
 
 func (m *TestModel) UnmarshalBinary(b []byte) error {
 	m.IntId, _ = strconv.ParseInt(string(b[:3]), 10, 64)
 	m.StrId = string(b[3:6])
+	m.Field3 = string(b[6:])
 	return nil
 }
 

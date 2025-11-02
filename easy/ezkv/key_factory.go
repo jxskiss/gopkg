@@ -1,4 +1,4 @@
-package kvutil
+package ezkv
 
 import (
 	"fmt"
@@ -25,7 +25,7 @@ func (kf *KeyFactory) SetPrefix(prefix string) {
 
 // NewKey creates a Key function.
 //
-// If argNames are given (eg. arg1, arg2), it replace the placeholders of
+// If argNames are given (e.g. arg1, arg2), it replaces the placeholders of
 // `{argN}` in format to "%v" as key arguments, else it uses a regular
 // expression `\{[^{]*\}` to replace all placeholders of `{arg}` in format
 // to "%v" as key arguments.
