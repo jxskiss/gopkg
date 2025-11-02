@@ -140,12 +140,12 @@ func (p *ShardingCache[K, V]) MSetSlice(ctx context.Context, models []V, expirat
 	if len(models) == 0 {
 		return nil
 	}
-	kvPairs, err := p.marshalModels(models)
+	keys, values, err := p.marshalModels(models)
 	if err != nil {
 		return fmt.Errorf("cannot marshal models: %w", err)
 	}
 	stor := p.config.Storage(ctx)
-	return msetToStorage(ctx, stor, kvPairs, expiration, p.config.MSetBatchSize)
+	return msetToStorage(ctx, stor, keys, values, expiration, p.config.MSetBatchSize)
 }
 
 // MSetMap serializes and writes multiple models to ShardingCache.
@@ -232,7 +232,7 @@ func (p *ShardingCache[K, V]) deleteAllShards(ctx context.Context, pks []K) erro
 	return nil
 }
 
-func (p *ShardingCache[K, V]) marshalModels(entityList []V) (result []KVPair, err error) {
+func (p *ShardingCache[K, V]) marshalModels(entityList []V) (resultKeys []string, resultValues [][]byte, err error) {
 	idFunc := p.config.IDFunc
 	keyFunc := p.config.KeyFunc
 	newElemFunc := p.newElemFunc
@@ -240,12 +240,13 @@ func (p *ShardingCache[K, V]) marshalModels(entityList []V) (result []KVPair, er
 	for _, elem := range entityList {
 		buf, err := elem.MarshalBinary()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		pk := idFunc(elem)
 		key := keyFunc(pk)
 		if len(buf) <= shardSize {
-			result = append(result, KVPair{K: key, V: buf})
+			resultKeys = append(resultKeys, key)
+			resultValues = append(resultValues, buf)
 			continue
 		}
 
@@ -261,10 +262,11 @@ func (p *ShardingCache[K, V]) marshalModels(entityList []V) (result []KVPair, er
 		})
 		shard0Buf, err := shard0.MarshalBinary()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
-		result = append(result, KVPair{K: key, V: shard0Buf})
+		resultKeys = append(resultKeys, key)
+		resultValues = append(resultValues, shard0Buf)
 		for num := 1; num < totalNum; num++ {
 			i := num * shardSize
 			j := min((num+1)*shardSize, len(buf))
@@ -278,12 +280,13 @@ func (p *ShardingCache[K, V]) marshalModels(entityList []V) (result []KVPair, er
 			})
 			ithBuf, err := ithShard.MarshalBinary()
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
-			result = append(result, KVPair{K: ithKey, V: ithBuf})
+			resultKeys = append(resultKeys, ithKey)
+			resultValues = append(resultValues, ithBuf)
 		}
 	}
-	return result, nil
+	return resultKeys, resultValues, nil
 }
 
 // Get queries ShardingCache for a given pk.
@@ -293,7 +296,7 @@ func (p *ShardingCache[K, V]) Get(ctx context.Context, pk K) (V, error) {
 	var zeroVal V
 	stor := p.config.Storage(ctx)
 	key := p.config.KeyFunc(pk)
-	cacheResult, err := stor.MGet(ctx, key)
+	cacheResult, err := stor.Get(ctx, key)
 	if err != nil {
 		return zeroVal, fmt.Errorf("query storage: %w", err)
 	}
@@ -592,7 +595,7 @@ func calcDigest(data []byte) []byte {
 func mgetFromStorage(ctx context.Context, stor Storage, keys []string, batchSize int) ([][]byte, error) {
 	ret := make([][]byte, 0, len(keys))
 	for _, batchKeys := range easy.Split(keys, batchSize) {
-		batchRet, err := stor.MGet(ctx, batchKeys...)
+		batchRet, err := stor.Get(ctx, batchKeys...)
 		if err != nil {
 			return nil, fmt.Errorf("query storage: %w", err)
 		}
@@ -601,9 +604,11 @@ func mgetFromStorage(ctx context.Context, stor Storage, keys []string, batchSize
 	return ret, nil
 }
 
-func msetToStorage(ctx context.Context, stor Storage, kvPairs []KVPair, expiration time.Duration, batchSize int) error {
-	for _, batchKVPairs := range easy.Split(kvPairs, batchSize) {
-		err := stor.MSet(ctx, batchKVPairs, expiration)
+func msetToStorage(ctx context.Context, stor Storage, keys []string, values [][]byte, expiration time.Duration, batchSize int) error {
+	for _, batch := range easy.SplitBatch(len(keys), batchSize) {
+		batchKeys := keys[batch.I:batch.J]
+		batchValues := values[batch.I:batch.J]
+		err := stor.SetMulti(ctx, batchKeys, batchValues, expiration)
 		if err != nil {
 			return fmt.Errorf("write storage: %w", err)
 		}

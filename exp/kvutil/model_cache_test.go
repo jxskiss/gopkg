@@ -208,7 +208,7 @@ func TestCacheWithLoader(t *testing.T) {
 	for i, id := range moreIntIds {
 		cacheKeys[i] = mc.config.KeyFunc(id)
 	}
-	fromCache, err := mc.config.Storage(ctx).MGet(ctx, cacheKeys...)
+	fromCache, err := mc.config.Storage(ctx).Get(ctx, cacheKeys...)
 	assert.Nil(t, err)
 	assert.Len(t, fromCache, len(cacheKeys))
 	valid := easy.Filter(func(_ int, elem []byte) bool { return len(elem) > 0 }, fromCache)
@@ -274,7 +274,7 @@ type memoryStorage struct {
 	data map[string][]byte
 }
 
-func (m *memoryStorage) MGet(ctx context.Context, keys ...string) ([][]byte, error) {
+func (m *memoryStorage) Get(ctx context.Context, keys ...string) ([][]byte, error) {
 	out := make([][]byte, 0, len(keys))
 	for _, k := range keys {
 		out = append(out, m.data[k])
@@ -282,9 +282,14 @@ func (m *memoryStorage) MGet(ctx context.Context, keys ...string) ([][]byte, err
 	return out, nil
 }
 
-func (m *memoryStorage) MSet(ctx context.Context, kvPairs []KVPair, expiration time.Duration) error {
-	for _, kv := range kvPairs {
-		m.data[kv.K] = kv.V
+func (m *memoryStorage) SetOne(ctx context.Context, key string, value []byte, expiration time.Duration) error {
+	m.data[key] = value
+	return nil
+}
+
+func (m *memoryStorage) SetMulti(ctx context.Context, keys []string, values [][]byte, expiration time.Duration) error {
+	for i, k := range keys {
+		m.data[k] = values[i]
 	}
 	return nil
 }

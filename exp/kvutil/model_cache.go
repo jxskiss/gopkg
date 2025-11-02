@@ -46,18 +46,20 @@ type Model interface {
 	encoding.BinaryUnmarshaler
 }
 
-// KVPair represents a key value pair to work with Cache.
-type KVPair struct {
-	K string
-	V []byte
-}
-
 // Storage is the interface which provides storage for Cache.
 // Users may use any key-value storage to implement this.
 type Storage interface {
-	MGet(ctx context.Context, keys ...string) ([][]byte, error)
-	MSet(ctx context.Context, kvPairs []KVPair, expiration time.Duration) error
+	Get(ctx context.Context, keys ...string) ([][]byte, error)
+	SetOne(ctx context.Context, key string, value []byte, expiration time.Duration) error
+	SetMulti(ctx context.Context, keys []string, values [][]byte, expiration time.Duration) error
 	Delete(ctx context.Context, keys ...string) error
+}
+
+// Compressor is the interface implemented by types that can compress
+// and decompress data.
+type Compressor interface {
+	Compress(dst, src []byte) ([]byte, error)
+	Decompress(dst, src []byte) ([]byte, error)
 }
 
 // Loader loads data from underlying persistent storage.
@@ -74,7 +76,7 @@ type CacheConfig[K comparable, V Model] struct {
 	IDFunc func(V) K
 
 	// KeyFunc specifies the key function to use with the storage.
-	KeyFunc Key
+	KeyFunc func(pk K) string
 
 	// MGetBatchSize optionally specifies the batch size for one MGet
 	// calling to storage. The default is 200.
@@ -113,6 +115,11 @@ type CacheConfig[K comparable, V Model] struct {
 	// to Storage async, errors returned from Storage.MSet will be ignored.
 	// The default is false, it reports errors to the caller.
 	CacheLoaderResultAsync bool
+
+	// Compressor optionally specifies the compressor to use for
+	// compressing and decompressing cached data.
+	// The default is nil, which means no compression.
+	Compressor Compressor
 }
 
 func (p *CacheConfig[_, _]) checkAndSetDefaults() {
@@ -186,7 +193,7 @@ func (p *Cache[K, V]) Get(ctx context.Context, pk K) (V, error) {
 	var zeroVal V
 	stor := p.config.Storage(ctx)
 	key := p.config.KeyFunc(pk)
-	cacheResult, err := stor.MGet(ctx, key)
+	cacheResult, err := stor.Get(ctx, key)
 	if err != nil && p.config.Loader == nil {
 		return zeroVal, fmt.Errorf("query storage: %w", err)
 	}
@@ -313,7 +320,7 @@ func (p *Cache[K, V]) mget(ctx context.Context, pks []K, f func(pk K, elem V)) e
 	var cachedPKs = set.NewWithSize[K](len(lruMissingKeys))
 	var batchKeys = easy.Split(lruMissingKeys, p.config.MGetBatchSize)
 	for _, bat := range batchKeys {
-		batchValues, err = stor.MGet(ctx, bat...)
+		batchValues, err = stor.Get(ctx, bat...)
 		if err != nil {
 			return fmt.Errorf("query storage: %w", err)
 		}
@@ -380,9 +387,8 @@ func (p *Cache[K, V]) Set(ctx context.Context, pk K, elem V, expiration time.Dur
 	if err != nil {
 		return fmt.Errorf("cannot marshal model: %w", err)
 	}
-	kvPairs := []KVPair{{K: key, V: buf}}
 	stor := p.config.Storage(ctx)
-	err = stor.MSet(ctx, kvPairs, expiration)
+	err = stor.SetOne(ctx, key, buf, expiration)
 	if err != nil {
 		return fmt.Errorf("write storage: %w", err)
 	}
@@ -400,9 +406,11 @@ func (p *Cache[K, V]) MSetSlice(ctx context.Context, models []V, expiration time
 
 	stor := p.config.Storage(ctx)
 	batchSize := min(p.config.MSetBatchSize, len(models))
-	kvPairs := make([]KVPair, 0, batchSize)
+	keys := make([]string, 0, batchSize)
+	values := make([][]byte, 0, batchSize)
 	for _, batchModels := range easy.Split(models, batchSize) {
-		kvPairs = kvPairs[:0]
+		keys = keys[:0]
+		values = values[:0]
 		var kvMap map[K]V
 		if p.config.LRUCache != nil {
 			kvMap = make(map[K]V, len(batchModels))
@@ -414,12 +422,13 @@ func (p *Cache[K, V]) MSetSlice(ctx context.Context, models []V, expiration time
 			}
 			pk := p.config.IDFunc(elem)
 			key := p.config.KeyFunc(pk)
-			kvPairs = append(kvPairs, KVPair{key, buf})
+			keys = append(keys, key)
+			values = append(values, buf)
 			if p.config.LRUCache != nil {
 				kvMap[pk] = elem
 			}
 		}
-		err := stor.MSet(ctx, kvPairs, expiration)
+		err := stor.SetMulti(ctx, keys, values, expiration)
 		if err != nil {
 			return fmt.Errorf("write storage: %w", err)
 		}
@@ -438,24 +447,27 @@ func (p *Cache[K, V]) MSetMap(ctx context.Context, models map[K]V, expiration ti
 
 	stor := p.config.Storage(ctx)
 	batchSize := min(p.config.MSetBatchSize, len(models))
-	kvPairs := make([]KVPair, 0, batchSize)
+	keys := make([]string, 0, batchSize)
+	values := make([][]byte, 0, batchSize)
 	for pk, elem := range models {
 		buf, err := elem.MarshalBinary()
 		if err != nil {
 			return fmt.Errorf("cannot marshal model: %w", err)
 		}
 		key := p.config.KeyFunc(pk)
-		kvPairs = append(kvPairs, KVPair{key, buf})
-		if len(kvPairs) == batchSize {
-			err = stor.MSet(ctx, kvPairs, expiration)
+		keys = append(keys, key)
+		values = append(values, buf)
+		if len(keys) == batchSize {
+			err = stor.SetMulti(ctx, keys, values, expiration)
 			if err != nil {
 				return fmt.Errorf("write storage: %w", err)
 			}
-			kvPairs = kvPairs[:0]
+			keys = keys[:0]
+			values = values[:0]
 		}
 	}
-	if len(kvPairs) > 0 {
-		err := stor.MSet(ctx, kvPairs, expiration)
+	if len(keys) > 0 {
+		err := stor.SetMulti(ctx, keys, values, expiration)
 		if err != nil {
 			return fmt.Errorf("write storage: %w", err)
 		}
