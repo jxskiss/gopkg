@@ -165,7 +165,7 @@ func makeBatchInsertSQL(where string, rows any, opts *InsertOptions) (sql string
 	var omitFieldIndex []int
 	buf.WriteString(" (")
 	for i, col := range typInfo.colNames {
-		if inStrings(opts.OmitCols, col) {
+		if inSlice(opts.OmitCols, col) {
 			omitFieldIndex = append(omitFieldIndex, typInfo.fieldIndex[i])
 			continue
 		}
@@ -180,7 +180,7 @@ func makeBatchInsertSQL(where string, rows any, opts *InsertOptions) (sql string
 	placeholders := typInfo.placeholders
 	fieldIndex := typInfo.fieldIndex
 	if len(omitFieldIndex) > 0 {
-		fieldIndex = diffInts(fieldIndex, omitFieldIndex)
+		fieldIndex = diffSlice(fieldIndex, omitFieldIndex)
 		placeholders = makePlaceholders(len(fieldIndex))
 	}
 	buf.WriteString(" VALUES ")
@@ -303,7 +303,7 @@ func indirectType(typ reflect.Type) reflect.Type {
 	return typ.Elem()
 }
 
-func inStrings(slice []string, elem string) bool {
+func inSlice[M ~[]E, E comparable](slice M, elem E) bool {
 	for _, x := range slice {
 		if x == elem {
 			return true
@@ -312,22 +312,12 @@ func inStrings(slice []string, elem string) bool {
 	return false
 }
 
-func inInts(slice []int, elem int) bool {
-	for _, x := range slice {
-		if x == elem {
-			return true
-		}
-	}
-	return false
-}
-
-func diffInts(a, b []int) []int {
-	out := make([]int, 0, len(a))
+func diffSlice[M ~[]E, E comparable](a, b M) M {
+	out := make(M, 0, len(a))
 	for _, x := range a {
-		if inInts(b, x) {
-			continue
+		if !inSlice(b, x) {
+			out = append(out, x)
 		}
-		out = append(out, x)
 	}
 	return out
 }

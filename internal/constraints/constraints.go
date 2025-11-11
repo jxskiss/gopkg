@@ -6,6 +6,8 @@
 // with type parameters.
 package constraints
 
+import "cmp"
+
 // Signed is a constraint that permits any signed integer type.
 // If future releases of Go add new predeclared signed integer types,
 // this constraint will be modified to include them.
@@ -50,6 +52,6 @@ type Complex interface {
 // that supports the operators < <= >= >.
 // If future releases of Go add new ordered types,
 // this constraint will be modified to include them.
-type Ordered interface {
-	Integer | Float | ~string
-}
+//
+// This type is redundant since Go 1.21 introduced [cmp.Ordered].
+type Ordered = cmp.Ordered
