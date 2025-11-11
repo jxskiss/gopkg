@@ -1,5 +1,9 @@
 package easy
 
+import (
+	"github.com/jxskiss/gopkg/v2/internal/constraints"
+)
+
 // DiffMaps returns a new map which contains elements which present in m,
 // but not present in others.
 //
@@ -177,6 +181,39 @@ func SplitMap[M ~map[K]V, K comparable, V any](m M, batchSize int) []M {
 	for k, v := range m {
 		out[i/batchSize][k] = v
 		i++
+	}
+	return out
+}
+
+// SplitMapStable splits a large map to batches, it returns a slice
+// of type []M whose elements are subset of the given map.
+// The elements in each sub map are stable between multiple calls
+// with same input.
+func SplitMapStable[M ~map[K]V, K constraints.Ordered, V any](m M, batchSize int) []M {
+	if len(m) == 0 {
+		return nil
+	}
+	if len(m) <= batchSize {
+		return []M{m}
+	}
+
+	keys := Keys(m)
+	Sort(keys)
+
+	cnt := (len(m) + batchSize - 1) / batchSize
+	out := make([]M, cnt)
+	for i := range out {
+		out[i] = make(M, batchSize)
+	}
+	total, step := len(m), batchSize
+	idx := 0
+	for i, j := 0, step; idx < cnt && i < total; i, j = i+step, j+step {
+		if j > total {
+			j = total
+		}
+		for _, k := range keys[i:j] {
+			out[idx][k] = m[k]
+		}
 	}
 	return out
 }

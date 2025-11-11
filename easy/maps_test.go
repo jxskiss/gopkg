@@ -78,3 +78,23 @@ func TestSplitMap(t *testing.T) {
 	assert.Len(t, got4[0], 100)
 	assert.Len(t, got4[1], 20)
 }
+
+func TestSplitMapStable(t *testing.T) {
+	origMap := make(map[string]int)
+	for i := 0; i < 300; i++ {
+		origMap[strconv.Itoa(i)] = i
+	}
+
+	var gotBatchMaps [][]map[string]int
+	batchSize := 20
+	for i := 0; i < 5; i++ {
+		gotBatchMaps = append(gotBatchMaps, SplitMapStable(origMap, batchSize))
+	}
+
+	got0 := gotBatchMaps[0]
+	for i := 1; i < len(gotBatchMaps); i++ {
+		for j := 0; j < len(got0); j++ {
+			assert.Equalf(t, got0[j], gotBatchMaps[i][j], "got map not equal, i= %d, j= %d", i, j)
+		}
+	}
+}
