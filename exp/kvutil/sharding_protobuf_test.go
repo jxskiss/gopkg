@@ -9,11 +9,11 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/jxskiss/gopkg/v2/easy"
-	"github.com/jxskiss/gopkg/v2/exp/kvutil/sharding_protobuf_test"
+	"github.com/jxskiss/gopkg/v2/internal/testpb"
 )
 
 type TestProtoShardingModel struct {
-	Entity *sharding_protobuf_test.TestShardingModel
+	Entity *testpb.TestShardingModel
 }
 
 func (m *TestProtoShardingModel) MarshalBinary() (data []byte, err error) {
@@ -21,7 +21,7 @@ func (m *TestProtoShardingModel) MarshalBinary() (data []byte, err error) {
 }
 
 func (m *TestProtoShardingModel) UnmarshalBinary(data []byte) error {
-	entity := &sharding_protobuf_test.TestShardingModel{}
+	entity := &testpb.TestShardingModel{}
 	err := proto.Unmarshal(data, entity)
 	if err != nil {
 		return err
@@ -45,9 +45,9 @@ func (m *TestProtoShardingModel) GetShardingData() (ShardingData, bool) {
 
 func (m *TestProtoShardingModel) SetShardingData(data ShardingData) {
 	if m.Entity == nil {
-		m.Entity = &sharding_protobuf_test.TestShardingModel{}
+		m.Entity = &testpb.TestShardingModel{}
 	}
-	m.Entity.ShardData = &sharding_protobuf_test.ShardingData{
+	m.Entity.ShardData = &testpb.ShardingData{
 		TotalNum: data.TotalNum,
 		ShardNum: data.ShardNum,
 		Digest:   data.Digest,
@@ -58,19 +58,19 @@ func (m *TestProtoShardingModel) SetShardingData(data ShardingData) {
 var (
 	testProtobufShardingModelList = []*TestProtoShardingModel{
 		{
-			Entity: &sharding_protobuf_test.TestShardingModel{
+			Entity: &testpb.TestShardingModel{
 				Id:      111,
 				BizData: []byte("test"),
 			},
 		},
 		{
-			Entity: &sharding_protobuf_test.TestShardingModel{
+			Entity: &testpb.TestShardingModel{
 				Id:      112,
 				BizData: easy.Repeat([]byte("test "), 10),
 			},
 		},
 		{
-			Entity: &sharding_protobuf_test.TestShardingModel{
+			Entity: &testpb.TestShardingModel{
 				Id:      113,
 				BizData: easy.Repeat([]byte("test "), 50),
 			},

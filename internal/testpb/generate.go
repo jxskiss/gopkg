@@ -1,3 +1,3 @@
-package sharding_protobuf_test
+package testpb
 
 //go:generate protoc --go_out=. model.proto
