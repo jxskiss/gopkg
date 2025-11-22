@@ -3,9 +3,12 @@ package sqlutil
 import (
 	"database/sql/driver"
 	"fmt"
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"unsafe"
+
+	"google.golang.org/protobuf/proto"
 )
 
 // NewLazyBinary creates a new lazy binary wrapper, delaying the
@@ -105,6 +108,12 @@ func (p *LazyBinary) Set(b []byte, data any) {
 	obj.mu.Unlock()
 }
 
+// SetBytes sets the underlying byte slice and updates the cached object to nil.
+func (p *LazyBinary) SetBytes(b []byte) {
+	p.raw = b
+	atomic.StorePointer(&p.obj, nil)
+}
+
 func (p *LazyBinary) getobj() (*lazyobj, bool) {
 	ptr := atomic.LoadPointer(&p.obj)
 	if ptr != nil {
@@ -118,4 +127,64 @@ func (p *LazyBinary) getobj() (*lazyobj, bool) {
 	}
 	ptr = atomic.LoadPointer(&p.obj)
 	return (*lazyobj)(ptr), false
+}
+
+// LazyProtobuf is a lazy wrapper around a protobuf message value,
+// where the underlying object will be unmarshalled the first time it is
+// needed and cached.
+// Type T must be a protobuf message pointer type.
+// It implements sql/driver.Valuer and sql.Scanner.
+//
+// LazyProtobuf provides same concurrency safety as []byte, it's safe for
+// concurrent read, but not safe for concurrent write or read/write.
+//
+// See types_test.go for example usage.
+type LazyProtobuf[T proto.Message] struct {
+	lb LazyBinary
+}
+
+// Value implements driver.Valuer interface.
+func (p LazyProtobuf[T]) Value() (driver.Value, error) {
+	return p.lb.Value()
+}
+
+// Scan implements sql.Scanner interface.
+func (p *LazyProtobuf[T]) Scan(src any) error {
+	return p.lb.Scan(src)
+}
+
+// Get returns the underlying protobuf message value wrapped by the wrapper,
+// if the message has not been unmarshalled, it will be unmarshalled.
+// The unmarshalling work will do only once, the result object and error
+// will be cached and reused for further calling.
+func (p *LazyProtobuf[T]) Get() (T, error) {
+	obj, err := p.lb.Get(func(buf []byte) (any, error) {
+		var zero T
+		result := reflect.New(reflect.TypeOf(zero).Elem()).Interface().(T)
+		err := proto.Unmarshal(buf, result)
+		return result, err
+	})
+	if err != nil {
+		return *new(T), err
+	}
+	return obj.(T), nil
+}
+
+// Set sets the protobuf message value to the LazyProtobuf wrapper.
+// If the param obj is nil, the underlying cache will be removed.
+func (p *LazyProtobuf[T]) Set(obj T) error {
+	buf, err := proto.Marshal(obj)
+	if err != nil {
+		return err
+	}
+	p.lb.Set(buf, obj)
+	return nil
+}
+
+func (p *LazyProtobuf[T]) GetBytes() []byte {
+	return p.lb.GetBytes()
+}
+
+func (p *LazyProtobuf[T]) SetBytes(b []byte) {
+	p.lb.SetBytes(b)
 }

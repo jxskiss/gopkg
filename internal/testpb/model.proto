@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = ".;sharding_protobuf_test";
+option go_package = ".;testpb";
 
 message ShardingData {
   int32 total_num = 1;
