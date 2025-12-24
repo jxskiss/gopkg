@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mitchellh/mapstructure"
 	"gopkg.in/yaml.v3"
 )
 
@@ -237,4 +238,13 @@ func getWithRLock[T any](mu *sync.RWMutex, f func(key string) T, key string) (re
 	ret = f(key)
 	mu.RUnlock()
 	return
+}
+
+// DecodeToStruct decodes the map to a struct using mapstructure.
+// output must be a pointer to a struct.
+// config is optional, if nil, the default decoder config will be used.
+func (p *SafeMap) DecodeToStruct(output any, config *mapstructure.DecoderConfig) error {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.map_.DecodeToStruct(output, config)
 }

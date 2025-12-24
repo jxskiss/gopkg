@@ -3,6 +3,7 @@ package ezmap
 import (
 	"testing"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -45,6 +46,31 @@ func TestMap(t *testing.T) {
 		m2.Merge(m1)
 		require.NotNil(t, m2)
 		assert.Equal(t, 123, m2.GetOr("abc", 0))
+	})
+
+	t.Run("DecodeToStruct", func(t *testing.T) {
+		var m Map
+		m.Set("abc", 123)
+		m.Set("def", map[string]any{"abc": 456, "Def": "def"})
+		var s1 struct {
+			Abc int `mapstructure:"abc"`
+			Def struct {
+				Abc int `mapstructure:"abc"`
+				Def string
+			} `mapstructure:"def"`
+		}
+
+		err1 := m.DecodeToStruct(&s1, nil)
+		require.Nil(t, err1)
+		assert.Equal(t, 123, s1.Abc)
+		assert.Equal(t, 456, s1.Def.Abc)
+		assert.Equal(t, "def", s1.Def.Def)
+
+		var s2 struct{ Def string }
+		err2 := m.GetMap("def").
+			DecodeToStruct(&s2, &mapstructure.DecoderConfig{})
+		require.Nil(t, err2)
+		assert.Equal(t, "def", s2.Def)
 	})
 }
 

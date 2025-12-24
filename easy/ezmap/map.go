@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cast"
 	"gopkg.in/yaml.v3"
 )
@@ -352,4 +353,19 @@ func (p *Map) Merge(other map[string]any) {
 	for k, v := range other {
 		(*p)[k] = v
 	}
+}
+
+// DecodeToStruct decodes the map to a struct using mapstructure.
+// output must be a pointer to a struct.
+// config is optional, if nil, the default decoder config will be used.
+func (p Map) DecodeToStruct(output any, config *mapstructure.DecoderConfig) error {
+	if config == nil {
+		return mapstructure.Decode(p, output)
+	}
+	config.Result = output
+	decoder, err := mapstructure.NewDecoder(config)
+	if err != nil {
+		return err
+	}
+	return decoder.Decode(p)
 }

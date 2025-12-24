@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
 )
@@ -229,26 +230,49 @@ func TestTestParseJSONRecords_Options(t *testing.T) {
 
 	j := gjson.Parse(parseJSONRecordsTestData).Get("files")
 
-	var got []*File
-	err := ParseJSONRecords(&got, j.Array(),
-		WithDynamicJSONMapping(map[string]string{
-			"__HeaderInfo_Level":        "level",
-			"HeaderInfo_1":              `{"toc":headerInfo.toc.0}`,
-			"__File_HeaderInfo_2":       `{"toc":headerInfo.toc.1}`,
-			"HeaderInfoLevels_1":        `headerInfo.toc.#(text="Code layout")#.level`,
-			"__File_HeaderInfoLevels_2": fmt.Sprintf("headerInfo.toc.#(anchor=%q)#.level", "code-layout"),
-		}))
-	assert.Nil(t, err)
-	assert.Len(t, got, 2)
+	opt1 := WithDynamicJSONMapping(map[string]string{
+		"__HeaderInfo_Level":        "level",
+		"HeaderInfo_1":              `{"toc":headerInfo.toc.0}`,
+		"__File_HeaderInfo_2":       `{"toc":headerInfo.toc.1}`,
+		"HeaderInfoLevels_1":        `headerInfo.toc.#(text="Code layout")#.level`,
+		"__File_HeaderInfoLevels_2": fmt.Sprintf("headerInfo.toc.#(anchor=%q)#.level", "code-layout"),
+	})
+	opt2 := WithDecoderConfig(&mapstructure.DecoderConfig{
+		ErrorUnset:  true,
+		ErrorUnused: true,
+		ZeroFields:  true,
+	})
 
-	assert.Equal(t, 1, len(got[0].HeaderInfo_1))
-	assert.Equal(t, HeaderInfo{1, "gopkg"}, *got[0].HeaderInfo_1["toc"])
-	assert.Equal(t, 1, len(got[0].HeaderInfo_2))
-	assert.Equal(t,
-		map[string]any{"level": float64(2), "text": "Status", "anchor": "status", "htmlText": "Status"},
-		got[0].HeaderInfo_2["toc"])
-	assert.Equal(t, []int{2}, got[0].HeaderInfoLevels_1)
-	assert.Equal(t, []any{float64(2)}, got[0].HeaderInfoLevels_2)
+	t.Run("option WithDynamicJSONMapping", func(t *testing.T) {
+		var got []*File
+		err := ParseJSONRecords(&got, j.Array(), opt1)
+		assert.Nil(t, err)
+		assert.Len(t, got, 2)
+
+		assert.Equal(t, 1, len(got[0].HeaderInfo_1))
+		assert.Equal(t, HeaderInfo{1, "gopkg"}, *got[0].HeaderInfo_1["toc"])
+		assert.Equal(t, 1, len(got[0].HeaderInfo_2))
+		assert.Equal(t,
+			map[string]any{"level": float64(2), "text": "Status", "anchor": "status", "htmlText": "Status"},
+			got[0].HeaderInfo_2["toc"])
+		assert.Equal(t, []int{2}, got[0].HeaderInfoLevels_1)
+		assert.Equal(t, []any{float64(2)}, got[0].HeaderInfoLevels_2)
+	})
+
+	t.Run("option WithDecoderConfig", func(t *testing.T) {
+		var got []*File
+		err := ParseJSONRecords(&got, j.Array(), opt1, opt2)
+		assert.Nil(t, err)
+		assert.Len(t, got, 2)
+
+		assert.Equal(t, HeaderInfo{1, "gopkg"}, *got[0].HeaderInfo_1["toc"])
+		assert.Equal(t, 1, len(got[0].HeaderInfo_2))
+		assert.Equal(t,
+			map[string]any{"level": float64(2), "text": "Status", "anchor": "status", "htmlText": "Status"},
+			got[0].HeaderInfo_2["toc"])
+		assert.Equal(t, []int{2}, got[0].HeaderInfoLevels_1)
+		assert.Equal(t, []any{float64(2)}, got[0].HeaderInfoLevels_2)
+	})
 }
 
 func TestParseJSONRecords_Recursive(t *testing.T) {

@@ -152,12 +152,20 @@ func ParseJSONRecords[T any](records *[]*T, arr []gjson.Result, opts ...JSONMapp
 		return err
 	}
 	convFuncs := mapper.getConvFuncs(mapping)
-	out := make([]map[string]any, 0, len(arr))
+	mappingOut := make([]map[string]any, 0, len(arr))
 	for _, row := range arr {
 		result := mapper.parseRecord(row, mapping, convFuncs)
-		out = append(out, result)
+		mappingOut = append(mappingOut, result)
 	}
-	return mapstructure.Decode(out, records)
+	if mapper.opts.DecoderConfig == nil {
+		return mapstructure.Decode(mappingOut, records)
+	}
+	mapper.opts.DecoderConfig.Result = records
+	decoder, err := mapstructure.NewDecoder(mapper.opts.DecoderConfig)
+	if err != nil {
+		return err
+	}
+	return decoder.Decode(mappingOut)
 }
 
 type jsonConvFunc func(j gjson.Result, path string) any
@@ -500,6 +508,7 @@ type JSONMapperOpt struct {
 
 type jsonMapperOptions struct {
 	DynamicMapping map[string]string
+	DecoderConfig  *mapstructure.DecoderConfig
 }
 
 func (p *jsonMapperOptions) Apply(opts ...JSONMapperOpt) *jsonMapperOptions {
@@ -516,6 +525,16 @@ func WithDynamicJSONMapping(mapping map[string]string) JSONMapperOpt {
 	return JSONMapperOpt{
 		apply: func(options *jsonMapperOptions) {
 			options.DynamicMapping = mapping
+		},
+	}
+}
+
+// WithDecoderConfig specifies a mapstructure.DecoderConfig to use
+// instead of the default.
+func WithDecoderConfig(config *mapstructure.DecoderConfig) JSONMapperOpt {
+	return JSONMapperOpt{
+		apply: func(options *jsonMapperOptions) {
+			options.DecoderConfig = config
 		},
 	}
 }
