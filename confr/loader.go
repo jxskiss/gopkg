@@ -27,7 +27,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"reflect"
@@ -38,6 +37,8 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/spf13/cast"
 	"gopkg.in/yaml.v3"
+
+	"github.com/jxskiss/gopkg/v2/internal"
 )
 
 const DefaultEnvPrefix = "Confr"
@@ -159,7 +160,7 @@ func (p *Loader) getLogFunc() func(format string, v ...any) {
 	if p.LogFunc != nil {
 		return p.LogFunc
 	}
-	return log.Printf
+	return internal.DefaultLoggerInfof
 }
 
 func (p *Loader) loadFiles(config any, files ...string) error {

@@ -2,10 +2,24 @@ package internal
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"log/slog"
 	"runtime"
 	"strings"
+	"time"
 )
+
+func DefaultLoggerInfof(format string, args ...interface{}) {
+	msg := format
+	if len(args) > 0 {
+		msg = fmt.Sprintf(format, args...)
+	}
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	r := slog.NewRecord(time.Now(), slog.LevelInfo, msg, pcs[0])
+	_ = slog.Default().Handler().Handle(context.Background(), r)
+}
 
 // IdentifyPanic reports the panic location when a panic happens.
 func IdentifyPanic(skip int) (location string, frames []runtime.Frame) {
