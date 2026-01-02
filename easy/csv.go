@@ -24,25 +24,25 @@ import (
 // Caller should guarantee that every record have same schema.
 // If header is provided, it is used as the CSV header, and only the fields
 // present in header are marshaled to the result,
-// otherwise the keys of the first item in records is used as the CSV header,
-// for the left items in records, if a key is missing, it is ignored,
-// keys not present in the first item are simply ignored.
+// otherwise the keys of the first item in records is used as the CSV header.
+// For the left items in records, if a key is missing, it is ignored.
+// Keys not present in the first item are simply ignored.
 func MarshalCSV[T ~map[string]any](records []T, header ...string) ([]byte, error) {
-	return MarshalCSVWithWriter(records, csv.Writer{Comma: ','}, header...)
+	return MarshalCSVWithConfig(records, csv.Writer{Comma: ','}, header...)
 }
 
-// MarshalCSVWithWriter marshal map[string]any records to CSV encoding.
+// MarshalCSVWithConfig marshal map[string]any records to CSV encoding.
 // It is like [MarshalCSV], except that it allows caller to specify a template csv.Writer
 // to customize the behavior of csv encoding, such as field delimiter and line ending.
-// The underlying buffer of w is not used, it is ignored.
+// The underlying buffer of cfg is not used, it is ignored.
 //
 // Caller should guarantee that every record have same schema.
 // If header is provided, it is used as the CSV header, and only the fields
 // present in header are marshaled to the result,
-// otherwise the keys of the first item in records is used as the CSV header,
-// for the left items in records, if a key is missing, it is ignored,
-// keys not present in the first item are simply ignored.
-func MarshalCSVWithWriter[T ~map[string]any](records []T, w csv.Writer, header ...string) ([]byte, error) {
+// otherwise the keys of the first item in records is used as the CSV header.
+// For the left items in records, if a key is missing, it is ignored.
+// Keys not present in the first item are simply ignored.
+func MarshalCSVWithConfig[T ~map[string]any](records []T, cfg csv.Writer, header ...string) ([]byte, error) {
 	if len(records) == 0 {
 		return nil, nil
 	}
@@ -58,8 +58,8 @@ func MarshalCSVWithWriter[T ~map[string]any](records []T, w csv.Writer, header .
 	var err error
 	var buf bytes.Buffer
 	writer := csv.NewWriter(&buf)
-	writer.Comma = w.Comma
-	writer.UseCRLF = w.UseCRLF
+	writer.Comma = cfg.Comma
+	writer.UseCRLF = cfg.UseCRLF
 	if err = writer.Write(header); err != nil {
 		return nil, err
 	}
