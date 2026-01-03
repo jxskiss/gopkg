@@ -3,6 +3,7 @@ module github.com/jxskiss/gopkg/_examples
 go 1.21
 
 require (
+	github.com/DataDog/zstd v1.5.7
 	github.com/bytedance/sonic v1.14.0
 	github.com/jxskiss/gopkg/v2 v2.0.0-00010101000000-000000000000
 	github.com/stretchr/testify v1.10.0

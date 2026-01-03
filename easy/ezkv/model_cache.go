@@ -1,4 +1,4 @@
-package kvutil
+package ezkv
 
 import (
 	"context"
@@ -11,19 +11,23 @@ import (
 
 	"github.com/jxskiss/gopkg/v2/collection/set"
 	"github.com/jxskiss/gopkg/v2/easy"
+	"github.com/jxskiss/gopkg/v2/internal"
 	"github.com/jxskiss/gopkg/v2/internal/linkname"
 	"github.com/jxskiss/gopkg/v2/perf/lru"
 	"github.com/jxskiss/gopkg/v2/unsafe/reflectx"
+	"github.com/jxskiss/gopkg/v2/utils/compress"
 )
 
-// DefaultBatchSize is the default batch size for batch operations.
-const DefaultBatchSize = 200
+const (
+	// DefaultBatchSize is the default batch size for batch operations.
+	DefaultBatchSize = 100
 
-// DefaultLoaderBatchSize is the default batch size for calling Loader.
-const DefaultLoaderBatchSize = 500
+	// DefaultLoaderBatchSize is the default batch size for calling Loader.
+	DefaultLoaderBatchSize = 300
 
-// DefaultLRUExpiration is the default expiration time for data in LRU cache.
-const DefaultLRUExpiration = time.Second
+	// DefaultLRUExpiration is the default expiration time for data in LRU cache.
+	DefaultLRUExpiration = 5 * time.Second
+)
 
 var ErrDataNotFound = errors.New("data not found")
 
@@ -40,31 +44,29 @@ func IsSetCacheError(err error) bool {
 	return errors.As(err, new(*setCacheError))
 }
 
-// Model is the interface implemented by types that can be cached by Cache.
+// Model is the interface implemented by types that can be cached by ModelCache.
 type Model interface {
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler
 }
 
-// KVPair represents a key value pair to work with Cache.
-type KVPair struct {
-	K string
-	V []byte
-}
-
-// Storage is the interface which provides storage for Cache.
+// Storage is the interface which provides storage for ModelCache.
 // Users may use any key-value storage to implement this.
 type Storage interface {
-	MGet(ctx context.Context, keys ...string) ([][]byte, error)
-	MSet(ctx context.Context, kvPairs []KVPair, expiration time.Duration) error
+	Get(ctx context.Context, keys ...string) ([][]byte, error)
+	Set(ctx context.Context, key string, value []byte, expiration time.Duration) error
+	BatchSet(ctx context.Context, keys []string, values [][]byte, expiration time.Duration) error
 	Delete(ctx context.Context, keys ...string) error
 }
 
 // Loader loads data from underlying persistent storage.
 type Loader[K comparable, V Model] func(ctx context.Context, pks []K) (map[K]V, error)
 
-// CacheConfig configures a Cache instance.
-type CacheConfig[K comparable, V Model] struct {
+// ModelCacheConfig configures a ModelCache instance.
+type ModelCacheConfig[K comparable, V Model] struct {
+
+	// BizName is used to identify the cache instance.
+	BizName string
 
 	// Storage must return a Storage implementation which will be used
 	// as the underlying key-value storage.
@@ -74,19 +76,19 @@ type CacheConfig[K comparable, V Model] struct {
 	IDFunc func(V) K
 
 	// KeyFunc specifies the key function to use with the storage.
-	KeyFunc Key
+	KeyFunc func(pk K) string
 
-	// MGetBatchSize optionally specifies the batch size for one MGet
+	// BatchGetSize optionally specifies the batch size for one BatchGet
 	// calling to storage. The default is 200.
-	MGetBatchSize int
+	BatchGetSize int
 
-	// MSetBatchSize optionally specifies the batch size for one MSet
+	// BatchSetSize optionally specifies the batch size for one Set
 	// calling to storage. The default is 200.
-	MSetBatchSize int
+	BatchSetSize int
 
-	// DeleteBatchSize optionally specifies the batch size for one Delete
+	// BatchDeleteSize optionally specifies the batch size for one Delete
 	// calling to storage. The default is 200.
-	DeleteBatchSize int
+	BatchDeleteSize int
 
 	// LRUCache optionally enables LRU cache, which may help to improve
 	// the performance for high concurrency use-case.
@@ -98,6 +100,12 @@ type CacheConfig[K comparable, V Model] struct {
 
 	// Loader optionally specifies a function to load data from underlying
 	// persistent storage when the data is missing from cache.
+	//
+	// If Loader is not nil, all errors happened when processing cache
+	// are treat as cache-miss and ignored, Loader will be called to load data
+	// from underlying persistent storage.
+	// If you want to fine-grained control the error handling,
+	// config this to nil and handle cache errors by yourself.
 	Loader Loader[K, V]
 
 	// LoaderBatchSize optionally specifies the batch size for calling
@@ -109,27 +117,38 @@ type CacheConfig[K comparable, V Model] struct {
 	// The default is zero, which means no expiration.
 	CacheExpiration time.Duration
 
-	// CacheLoaderResultAsync makes the Cache to save data from Loader
+	// CacheLoaderResultAsync makes the ModelCache to save data from Loader
 	// to Storage async, errors returned from Storage.MSet will be ignored.
 	// The default is false, it reports errors to the caller.
 	CacheLoaderResultAsync bool
+
+	// Compressor optionally specifies a compressor to use for
+	// compressing and decompressing cached data.
+	// The default is nil, which means no compression.
+	Compressor compress.Compressor
+
+	// ErrorLogger optionally specifies a function to log ignored errors.
+	ErrorLogger func(ctx context.Context, err error, msg string)
 }
 
-func (p *CacheConfig[_, _]) checkAndSetDefaults() {
-	if p.MGetBatchSize <= 0 {
-		p.MGetBatchSize = DefaultBatchSize
+func (p *ModelCacheConfig[_, _]) checkAndSetDefaults() {
+	if p.BatchGetSize <= 0 {
+		p.BatchGetSize = DefaultBatchSize
 	}
-	if p.MSetBatchSize <= 0 {
-		p.MSetBatchSize = DefaultBatchSize
+	if p.BatchSetSize <= 0 {
+		p.BatchSetSize = DefaultBatchSize
 	}
-	if p.DeleteBatchSize <= 0 {
-		p.DeleteBatchSize = DefaultBatchSize
+	if p.BatchDeleteSize <= 0 {
+		p.BatchDeleteSize = DefaultBatchSize
 	}
 	if p.LRUExpiration <= 0 {
 		p.LRUExpiration = DefaultLRUExpiration
 	}
 	if p.LoaderBatchSize <= 0 {
 		p.LoaderBatchSize = DefaultLoaderBatchSize
+	}
+	if p.ErrorLogger == nil {
+		p.ErrorLogger = internal.DefaultLoggerError
 	}
 }
 
@@ -146,27 +165,27 @@ func buildNewElemFunc[V any]() func() V {
 	return func() (value V) { return }
 }
 
-// NewCache returns a new Cache instance.
-func NewCache[K comparable, V Model](config *CacheConfig[K, V]) *Cache[K, V] {
+// NewModelCache returns a new ModelCache instance.
+func NewModelCache[K comparable, V Model](config *ModelCacheConfig[K, V]) *ModelCache[K, V] {
 	config.checkAndSetDefaults()
 	newElemFn := buildNewElemFunc[V]()
-	return &Cache[K, V]{
+	return &ModelCache[K, V]{
 		config:      config,
 		newElemFunc: newElemFn,
 	}
 }
 
-// Cache encapsulates frequently used batching cache operations,
+// ModelCache encapsulates frequently used batching cache operations,
 // such as MGet, MSet and Delete.
 //
-// A Cache must not be copied after initialized.
-type Cache[K comparable, V Model] struct {
-	config *CacheConfig[K, V]
+// A ModelCache must not be copied after initialized.
+type ModelCache[K comparable, V Model] struct {
+	config *ModelCacheConfig[K, V]
 
 	newElemFunc func() V
 }
 
-// Get queries Cache for a given pk.
+// Get queries ModelCache for a given pk.
 //
 // If pk cannot be found either in the cache nor from the Loader,
 // it returns an error ErrDataNotFound.
@@ -175,7 +194,7 @@ type Cache[K comparable, V Model] struct {
 // from Loader, in this case the returned value is valid, but the error
 // is returned together with the value, user can use IsSetCacheError
 // to check it.
-func (p *Cache[K, V]) Get(ctx context.Context, pk K) (V, error) {
+func (p *ModelCache[K, V]) Get(ctx context.Context, pk K) (V, error) {
 	if p.config.LRUCache != nil {
 		val, exists := p.config.LRUCache.GetNotStale(pk)
 		if exists {
@@ -186,20 +205,22 @@ func (p *Cache[K, V]) Get(ctx context.Context, pk K) (V, error) {
 	var zeroVal V
 	stor := p.config.Storage(ctx)
 	key := p.config.KeyFunc(pk)
-	cacheResult, err := stor.MGet(ctx, key)
+	cacheResult, err := stor.Get(ctx, key)
 	if err != nil && p.config.Loader == nil {
 		return zeroVal, fmt.Errorf("query storage: %w", err)
 	}
 	if len(cacheResult) > 0 && len(cacheResult[0]) > 0 {
-		elem := p.newElemFunc()
-		err = elem.UnmarshalBinary(cacheResult[0])
-		if err != nil {
-			return zeroVal, fmt.Errorf("cannot unmarshal data: %w", err)
+		val := cacheResult[0]
+		elem, success, err1 := p.decodeCacheValue(ctx, pk, val)
+		if err1 != nil {
+			return zeroVal, err1
 		}
-		if p.config.LRUCache != nil {
-			p.config.LRUCache.Set(pk, elem, p.config.LRUExpiration)
+		if success {
+			if p.config.LRUCache != nil {
+				p.config.LRUCache.Set(pk, elem, p.config.LRUExpiration)
+			}
+			return elem, nil
 		}
-		return elem, nil
 	}
 	if p.config.Loader != nil {
 		var loaderResult map[K]V
@@ -212,7 +233,10 @@ func (p *Cache[K, V]) Get(ctx context.Context, pk K) (V, error) {
 			if p.config.CacheLoaderResultAsync {
 				go func() {
 					defer func() { recover() }()
-					_ = p.Set(ctx, pk, elem, p.config.CacheExpiration)
+					err1 := p.Set(ctx, pk, elem, p.config.CacheExpiration)
+					if err1 != nil {
+						p.config.ErrorLogger(ctx, err1, fmt.Sprintf("[ModelCache] set cache failed, bizName= %s, pk= %v", p.config.BizName, pk))
+					}
 				}()
 			} else {
 				err = p.Set(ctx, pk, elem, p.config.CacheExpiration)
@@ -226,7 +250,34 @@ func (p *Cache[K, V]) Get(ctx context.Context, pk K) (V, error) {
 	return zeroVal, ErrDataNotFound
 }
 
-// MGetSlice queries Cache and returns the cached values as a slice
+func (p *ModelCache[K, V]) decodeCacheValue(ctx context.Context, pk K, cacheVal []byte) (elem V, success bool, err error) {
+	var zeroVal V
+	val := cacheVal
+	if p.config.Compressor != nil {
+		val, _, err = p.config.Compressor.Decompress(ctx, val)
+		if err != nil {
+			if p.config.Loader == nil {
+				return zeroVal, false, err
+			}
+			// treat as cache-miss, log and go ahead
+			p.config.ErrorLogger(ctx, err, fmt.Sprintf("[ModelCache] decompress failed, bizName= %s, pk= %v", p.config.BizName, pk))
+			return zeroVal, false, nil
+		}
+	}
+	elem = p.newElemFunc()
+	err = elem.UnmarshalBinary(val)
+	if err != nil {
+		if p.config.Loader == nil {
+			return zeroVal, false, fmt.Errorf("unmarshal model: %w", err)
+		}
+		// treat as cache-miss, log and go ahead
+		p.config.ErrorLogger(ctx, err, fmt.Sprintf("[ModelCache] unmarshal failed, bizName= %s, pk= %v", p.config.BizName, pk))
+		return zeroVal, false, nil
+	}
+	return elem, true, nil
+}
+
+// BatchGetSlice queries ModelCache and returns the cached values as a slice
 // of type []V.
 // Note the returned values may be less than requested.
 //
@@ -236,7 +287,7 @@ func (p *Cache[K, V]) Get(ctx context.Context, pk K) (V, error) {
 // to check it.
 // But for any error that IsSetCacheError returns false, the returned
 // data is incomplete and shall not be used.
-func (p *Cache[K, V]) MGetSlice(ctx context.Context, pks []K) ([]V, error) {
+func (p *ModelCache[K, V]) BatchGetSlice(ctx context.Context, pks []K) ([]V, error) {
 	if len(pks) == 0 {
 		return nil, nil
 	}
@@ -248,11 +299,11 @@ func (p *Cache[K, V]) MGetSlice(ctx context.Context, pks []K) ([]V, error) {
 	valfunc := func(_ K, elem V) {
 		out = append(out, elem)
 	}
-	err := p.mget(ctx, pks, valfunc)
+	err := p.mGet(ctx, pks, valfunc)
 	return out, err
 }
 
-// MGetMap queries Cache and returns the cached values as a map
+// BatchGetMap queries ModelCache and returns the cached values as a map
 // of type map[K]V.
 // Note the returned values may be less than requested.
 //
@@ -262,7 +313,7 @@ func (p *Cache[K, V]) MGetSlice(ctx context.Context, pks []K) ([]V, error) {
 // to check it.
 // But for any error that IsSetCacheError returns false, the returned
 // data is incomplete and shall not be used.
-func (p *Cache[K, V]) MGetMap(ctx context.Context, pks []K) (map[K]V, error) {
+func (p *ModelCache[K, V]) BatchGetMap(ctx context.Context, pks []K) (map[K]V, error) {
 	if len(pks) == 0 {
 		return nil, nil
 	}
@@ -274,11 +325,11 @@ func (p *Cache[K, V]) MGetMap(ctx context.Context, pks []K) (map[K]V, error) {
 	valfunc := func(pk K, elem V) {
 		out[pk] = elem
 	}
-	err := p.mget(ctx, pks, valfunc)
+	err := p.mGet(ctx, pks, valfunc)
 	return out, err
 }
 
-func (p *Cache[K, V]) mget(ctx context.Context, pks []K, f func(pk K, elem V)) error {
+func (p *ModelCache[K, V]) mGet(ctx context.Context, pks []K, f func(pk K, elem V)) error {
 	var lruMissingPKs []K
 	var lruMissingKeys []string
 	if p.config.LRUCache != nil {
@@ -302,6 +353,7 @@ func (p *Cache[K, V]) mget(ctx context.Context, pks []K, f func(pk K, elem V)) e
 		}
 	}
 
+	compressor := p.config.Compressor
 	stor := p.config.Storage(ctx)
 
 	var err error
@@ -311,20 +363,33 @@ func (p *Cache[K, V]) mget(ctx context.Context, pks []K, f func(pk K, elem V)) e
 		fromCache = make(map[K]V, len(lruMissingKeys))
 	}
 	var cachedPKs = set.NewWithSize[K](len(lruMissingKeys))
-	var batchKeys = easy.Split(lruMissingKeys, p.config.MGetBatchSize)
+	var batchKeys = easy.Split(lruMissingKeys, p.config.BatchGetSize)
 	for _, bat := range batchKeys {
-		batchValues, err = stor.MGet(ctx, bat...)
+		batchValues, err = stor.Get(ctx, bat...)
 		if err != nil {
-			return fmt.Errorf("query storage: %w", err)
+			if p.config.Loader == nil {
+				return fmt.Errorf("query storage: %w", err)
+			}
+			// treat as cache-miss, log and continue
+			p.config.ErrorLogger(ctx, err, fmt.Sprintf("[ModelCache] query storage failed, bizName= %s, keys= %v", p.config.BizName, bat))
+			continue
 		}
-		for _, val := range batchValues {
+		for i, val := range batchValues {
 			if len(val) == 0 {
 				continue
+			}
+			if compressor != nil {
+				val, _, err = compressor.Decompress(ctx, val)
+				if err != nil {
+					p.config.ErrorLogger(ctx, err, fmt.Sprintf("[ModelCache] decompress failed, bizName= %s, key= %s", p.config.BizName, bat[i]))
+					continue
+				}
 			}
 			elem := p.newElemFunc()
 			err = elem.UnmarshalBinary(val)
 			if err != nil {
-				return fmt.Errorf("cannot unmarshal data: %w", err)
+				p.config.ErrorLogger(ctx, err, fmt.Sprintf("[ModelCache] unmarshal failed, bizName= %s, key= %s", p.config.BizName, bat[i]))
+				continue
 			}
 			pk := p.config.IDFunc(elem)
 			if fromCache != nil {
@@ -360,10 +425,13 @@ func (p *Cache[K, V]) mget(ctx context.Context, pks []K, f func(pk K, elem V)) e
 		if p.config.CacheLoaderResultAsync {
 			go func() {
 				defer func() { recover() }()
-				_ = p.MSetMap(ctx, fromLoader, p.config.CacheExpiration)
+				err1 := p.BatchSetMap(ctx, fromLoader, p.config.CacheExpiration)
+				if err1 != nil {
+					p.config.ErrorLogger(ctx, err1, fmt.Sprintf("[ModelCache] batch set cache failed, bizName= %s", p.config.BizName))
+				}
 			}()
 		} else {
-			err = p.MSetMap(ctx, fromLoader, p.config.CacheExpiration)
+			err = p.BatchSetMap(ctx, fromLoader, p.config.CacheExpiration)
 			if err != nil {
 				return &setCacheError{err}
 			}
@@ -373,16 +441,18 @@ func (p *Cache[K, V]) mget(ctx context.Context, pks []K, f func(pk K, elem V)) e
 	return nil
 }
 
-// Set writes a key value pair to Cache.
-func (p *Cache[K, V]) Set(ctx context.Context, pk K, elem V, expiration time.Duration) error {
+// Set writes a key value pair to ModelCache.
+func (p *ModelCache[K, V]) Set(ctx context.Context, pk K, elem V, expiration time.Duration) error {
 	key := p.config.KeyFunc(pk)
 	buf, err := elem.MarshalBinary()
 	if err != nil {
-		return fmt.Errorf("cannot marshal model: %w", err)
+		return fmt.Errorf("marshal model: %w", err)
 	}
-	kvPairs := []KVPair{{K: key, V: buf}}
+	if p.config.Compressor != nil {
+		buf, _, _ = p.config.Compressor.Compress(ctx, buf)
+	}
 	stor := p.config.Storage(ctx)
-	err = stor.MSet(ctx, kvPairs, expiration)
+	err = stor.Set(ctx, key, buf, expiration)
 	if err != nil {
 		return fmt.Errorf("write storage: %w", err)
 	}
@@ -392,17 +462,20 @@ func (p *Cache[K, V]) Set(ctx context.Context, pk K, elem V, expiration time.Dur
 	return nil
 }
 
-// MSetSlice writes the given models to Cache.
-func (p *Cache[K, V]) MSetSlice(ctx context.Context, models []V, expiration time.Duration) error {
+// BatchSetSlice writes the given models to ModelCache.
+func (p *ModelCache[K, V]) BatchSetSlice(ctx context.Context, models []V, expiration time.Duration) error {
 	if len(models) == 0 {
 		return nil
 	}
 
+	compressor := p.config.Compressor
 	stor := p.config.Storage(ctx)
-	batchSize := min(p.config.MSetBatchSize, len(models))
-	kvPairs := make([]KVPair, 0, batchSize)
+	batchSize := min(p.config.BatchSetSize, len(models))
+	keys := make([]string, 0, batchSize)
+	values := make([][]byte, 0, batchSize)
 	for _, batchModels := range easy.Split(models, batchSize) {
-		kvPairs = kvPairs[:0]
+		keys = keys[:0]
+		values = values[:0]
 		var kvMap map[K]V
 		if p.config.LRUCache != nil {
 			kvMap = make(map[K]V, len(batchModels))
@@ -410,16 +483,20 @@ func (p *Cache[K, V]) MSetSlice(ctx context.Context, models []V, expiration time
 		for _, elem := range batchModels {
 			buf, err := elem.MarshalBinary()
 			if err != nil {
-				return fmt.Errorf("cannot marshal model: %w", err)
+				return fmt.Errorf("marshal model: %w", err)
+			}
+			if compressor != nil {
+				buf, _, _ = compressor.Compress(ctx, buf)
 			}
 			pk := p.config.IDFunc(elem)
 			key := p.config.KeyFunc(pk)
-			kvPairs = append(kvPairs, KVPair{key, buf})
+			keys = append(keys, key)
+			values = append(values, buf)
 			if p.config.LRUCache != nil {
 				kvMap[pk] = elem
 			}
 		}
-		err := stor.MSet(ctx, kvPairs, expiration)
+		err := stor.BatchSet(ctx, keys, values, expiration)
 		if err != nil {
 			return fmt.Errorf("write storage: %w", err)
 		}
@@ -430,32 +507,39 @@ func (p *Cache[K, V]) MSetSlice(ctx context.Context, models []V, expiration time
 	return nil
 }
 
-// MSetMap writes the given models to Cache.
-func (p *Cache[K, V]) MSetMap(ctx context.Context, models map[K]V, expiration time.Duration) error {
+// BatchSetMap writes the given models to ModelCache.
+func (p *ModelCache[K, V]) BatchSetMap(ctx context.Context, models map[K]V, expiration time.Duration) error {
 	if len(models) == 0 {
 		return nil
 	}
 
+	compressor := p.config.Compressor
 	stor := p.config.Storage(ctx)
-	batchSize := min(p.config.MSetBatchSize, len(models))
-	kvPairs := make([]KVPair, 0, batchSize)
+	batchSize := min(p.config.BatchSetSize, len(models))
+	keys := make([]string, 0, batchSize)
+	values := make([][]byte, 0, batchSize)
 	for pk, elem := range models {
 		buf, err := elem.MarshalBinary()
 		if err != nil {
-			return fmt.Errorf("cannot marshal model: %w", err)
+			return fmt.Errorf("marshal model: %w", err)
+		}
+		if compressor != nil {
+			buf, _, _ = compressor.Compress(ctx, buf)
 		}
 		key := p.config.KeyFunc(pk)
-		kvPairs = append(kvPairs, KVPair{key, buf})
-		if len(kvPairs) == batchSize {
-			err = stor.MSet(ctx, kvPairs, expiration)
+		keys = append(keys, key)
+		values = append(values, buf)
+		if len(keys) == batchSize {
+			err = stor.BatchSet(ctx, keys, values, expiration)
 			if err != nil {
 				return fmt.Errorf("write storage: %w", err)
 			}
-			kvPairs = kvPairs[:0]
+			keys = keys[:0]
+			values = values[:0]
 		}
 	}
-	if len(kvPairs) > 0 {
-		err := stor.MSet(ctx, kvPairs, expiration)
+	if len(keys) > 0 {
+		err := stor.BatchSet(ctx, keys, values, expiration)
 		if err != nil {
 			return fmt.Errorf("write storage: %w", err)
 		}
@@ -466,8 +550,8 @@ func (p *Cache[K, V]) MSetMap(ctx context.Context, models map[K]V, expiration ti
 	return nil
 }
 
-// Delete deletes key values from Cache.
-func (p *Cache[K, V]) Delete(ctx context.Context, pks ...K) error {
+// Delete deletes key values from ModelCache.
+func (p *ModelCache[K, V]) Delete(ctx context.Context, pks ...K) error {
 	if len(pks) == 0 {
 		return nil
 	}
@@ -488,8 +572,8 @@ func (p *Cache[K, V]) Delete(ctx context.Context, pks ...K) error {
 	return nil
 }
 
-// mDelete deletes multiple key values from Cache.
-func (p *Cache[K, V]) mDelete(ctx context.Context, pks []K) error {
+// mDelete deletes multiple key values from ModelCache.
+func (p *ModelCache[K, V]) mDelete(ctx context.Context, pks []K) error {
 	if len(pks) == 0 {
 		return nil
 	}
@@ -501,7 +585,7 @@ func (p *Cache[K, V]) mDelete(ctx context.Context, pks []K) error {
 	}
 
 	stor := p.config.Storage(ctx)
-	batches := easy.Split(keys, p.config.DeleteBatchSize)
+	batches := easy.Split(keys, p.config.BatchDeleteSize)
 	for _, bat := range batches {
 		err := stor.Delete(ctx, bat...)
 		if err != nil {

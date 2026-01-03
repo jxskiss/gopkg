@@ -21,6 +21,14 @@ func DefaultLoggerInfof(format string, args ...interface{}) {
 	_ = slog.Default().Handler().Handle(context.Background(), r)
 }
 
+func DefaultLoggerError(ctx context.Context, err error, msg string) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	r := slog.NewRecord(time.Now(), slog.LevelError, msg, pcs[0])
+	r.AddAttrs(slog.Any("error", err))
+	_ = slog.Default().Handler().Handle(ctx, r)
+}
+
 // IdentifyPanic reports the panic location when a panic happens.
 func IdentifyPanic(skip int) (location string, frames []runtime.Frame) {
 	var name, file string

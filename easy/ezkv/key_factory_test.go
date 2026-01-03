@@ -1,4 +1,4 @@
-package kvutil
+package ezkv
 
 import (
 	"testing"
