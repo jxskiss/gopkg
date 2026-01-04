@@ -214,6 +214,7 @@ func SplitMapStable[M ~map[K]V, K constraints.Ordered, V any](m M, batchSize int
 		for _, k := range keys[i:j] {
 			out[idx][k] = m[k]
 		}
+		idx++
 	}
 	return out
 }

@@ -56,6 +56,8 @@ reasonable API compatibility and versioning.
 
 1. `easy/ezhttp` contains some utilities to work with HTTP requests.
 
+1. `easy/ezkv` contains helpful utilities to work with key-value cache.
+
 1. `easy/ezmap` contains some utilities to manipulate map data structure.
 
 1. `easy/yamlx` extends the YAML unmarshaler with extra features, such as
@@ -64,8 +66,6 @@ reasonable API compatibility and versioning.
    "function calling", etc.
 
 1. `encrypt/crypto` contains some encryption utilities.
-
-1. `exp/kvutil` contains experimental utilities to work with key-value cache.
 
 1. `infra/acache` contains an async cache which can be used to fetch and update the
    latest data periodically and supports expiring a key if it's unused for a period.
@@ -101,6 +101,8 @@ reasonable API compatibility and versioning.
 1. `unsafe/reflectx` contains many utilities to work with reflection, providing convenient APIs
    or better performance.
 
+1. `utils/compress` provides utilities to compress and decompress data.
+
 1. `utils/ptr` provides small functions to work with pointer types, such as copying value as pointer,
    converting integer to string pointer, or dereference pointer which may be nil, etc.
    It helps to reduce duplicate code and makes code clearer and simpler.
@@ -131,7 +133,7 @@ See [GoDoc][godoc] for detailed online docs.
 Also note that the following packages, which were originally located in this repository,
 have been moved to standalone repositories:
 
-1. `base62` is a compact and high performance implementation of base62 algorithm for Golang.
+1. `base62` is a compact and high performance implementation of base62 algorithm for Go.
    It has been moved to https://github.com/jxskiss/base62.
 
 1. `mcli` is a minimal but very powerful and magic cli library for Go.

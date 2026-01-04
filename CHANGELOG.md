@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 TBD.
 
+## [2.20.0] - 2026-01-03
+
+* Feat: [collection/dag] support visit reverse neighbors
+* Feat: new util function `easy.SplitMapStable`
+* Feat: new helper SQL types `LazyJSON`, `LazyProtobuf`
+* Feat: ezmap support to decode Map to struct
+* Feat: new util package [utils/compress] to compress and decompress data
+* Feat: refactor package [exp/kvutil] and move to [easy/ezkv] (#98)
+* Breaking change: rename `easy.MarshalCSVWithWriter` to `easy.marshalCSVWithConfig`
+
 ## [2.19.0] - 2025-09-19
 
 * Feat: new package [collection/dag] providing a directed acyclic graph (DAG) data structure.

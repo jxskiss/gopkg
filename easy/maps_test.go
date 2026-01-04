@@ -88,7 +88,12 @@ func TestSplitMapStable(t *testing.T) {
 	var gotBatchMaps [][]map[string]int
 	batchSize := 20
 	for i := 0; i < 5; i++ {
-		gotBatchMaps = append(gotBatchMaps, SplitMapStable(origMap, batchSize))
+		got := SplitMapStable(origMap, batchSize)
+		gotBatchMaps = append(gotBatchMaps, got)
+		assert.Len(t, got, 15)
+		for j := 0; j < len(got); j++ {
+			assert.Len(t, got[j], batchSize)
+		}
 	}
 
 	got0 := gotBatchMaps[0]

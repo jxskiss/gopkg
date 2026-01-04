@@ -195,12 +195,18 @@ func (h *Handler) withArgs(args []any) *Handler {
 }
 
 func (h *Handler) withContext(ctx context.Context) *Handler {
+	if h.fromCtx == ctx {
+		return h
+	}
 	clone := *h
 	clone.fromCtx = ctx
 	return &clone
 }
 
 func (h *Handler) withScope(scope *Scope) *Handler {
+	if h.scope == scope {
+		return h
+	}
 	clone := *h
 	clone.scope = scope
 	return &clone

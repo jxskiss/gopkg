@@ -33,9 +33,6 @@ func FromCtx(ctx context.Context) *Logger {
 func fromCtxHandler(ctx context.Context) *Handler {
 	h0 := fromCtx(ctx).Handler()
 	if h1, ok := h0.(*Handler); ok {
-		if h1.fromCtx == ctx {
-			return h1
-		}
 		return h1.withContext(ctx)
 	}
 	return &Handler{
