@@ -98,7 +98,7 @@ func (p *SafeMap) MustGet(key string) any {
 	)
 	p.mu.RLock()
 	value, exists = p.map_.Get(key)
-	p.mu.RLock()
+	p.mu.RUnlock()
 	if exists {
 		return value
 	}
