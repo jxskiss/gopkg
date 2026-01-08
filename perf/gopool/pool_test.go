@@ -1,5 +1,4 @@
-// Copyright 2021 ByteDance Inc.
-// Copyright 2023 Shawn Wang <jxskiss@126.com>.
+// Copyright 2025 CloudWeGo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,262 +16,168 @@ package gopool
 
 import (
 	"context"
+	"fmt"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
-const benchmarkTimes = 10000
-
-func DoCopyStack(a, b int) int {
-	if b < 100 {
-		return DoCopyStack(0, b+1)
-	}
-	return 0
-}
-
-func testFunc() {
-	DoCopyStack(0, 0)
-}
-
-func TestPool(t *testing.T) {
-	cfg := NewConfig()
-	cfg.AdhocWorkerLimit = 100
-	p := NewPool(cfg)
-	testWithPool(t, p, 100)
-}
-
-func TestPoolWithPermanentWorkers(t *testing.T) {
-	p := NewPool(&Config{
-		PermanentWorkerNum: 100,
-		AdhocWorkerLimit:   100,
-	})
-	testWithPool(t, p, 100)
-}
-
-func testWithPool(t *testing.T, p *Pool, adhocLimit int32) {
-	var n int32
-	var wg sync.WaitGroup
-	for i := 0; i < 2000; i++ {
-		wg.Add(1)
-		p.Go(func() {
-			defer wg.Done()
-			atomic.AddInt32(&n, 1)
-			if x := p.AdhocWorkerCount(); x > adhocLimit {
-				t.Errorf("adhoc worker count, want <= %d, got %d", adhocLimit, x)
-			}
-		})
-	}
-	wg.Wait()
-	if n != 2000 {
-		t.Error(n)
-	}
-	time.Sleep(100 * time.Millisecond)
-	if x := p.AdhocWorkerCount(); x != 0 {
-		t.Errorf("adhoc worker count, want 0, got %d", x)
-	}
-}
-
-func TestPoolPanic(t *testing.T) {
-	p := NewPool(&Config{AdhocWorkerLimit: 100})
-	var wg sync.WaitGroup
-	wg.Add(1)
-	p.Go(func() {
-		defer wg.Done()
-		panic("test panic")
-	})
-	wg.Wait()
-}
-
-func BenchmarkDefaultPool(b *testing.B) {
-	p := NewPool(&Config{
-		AdhocWorkerLimit: runtime.GOMAXPROCS(0),
-	})
-	benchmarkWithPool(b, p)
-}
-
-func BenchmarkPoolWithPermanentWorkers(b *testing.B) {
-	p := NewPool(&Config{
-		PermanentWorkerNum: runtime.GOMAXPROCS(0),
-		AdhocWorkerLimit:   runtime.GOMAXPROCS(0),
-	})
-	benchmarkWithPool(b, p)
-}
-
-func benchmarkWithPool(b *testing.B, p *Pool) {
-	var wg sync.WaitGroup
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		wg.Add(benchmarkTimes)
-		for j := 0; j < benchmarkTimes; j++ {
+func TestGoPool(t *testing.T) {
+	{ // test normal case
+		p := New("TestGoPool", nil)
+		n := 10
+		wg := sync.WaitGroup{}
+		wg.Add(n)
+		v := int32(0)
+		for i := 0; i < n; i++ {
 			p.Go(func() {
-				testFunc()
+				time.Sleep(time.Millisecond)
+				atomic.AddInt32(&v, 1)
 				wg.Done()
 			})
 		}
 		wg.Wait()
+		require.Equal(t, int32(n), atomic.LoadInt32(&v))
 	}
-}
 
-func BenchmarkGo(b *testing.B) {
-	var wg sync.WaitGroup
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		wg.Add(benchmarkTimes)
-		for j := 0; j < benchmarkTimes; j++ {
-			go func() {
-				testFunc()
-				wg.Done()
-			}()
-		}
-		wg.Wait()
+	{ // test without PanicHandler
+		p := New("TestGoPool", nil)
+		p.Go(func() { panic("x") })
+		time.Sleep(time.Millisecond)
 	}
-}
 
-type incInt32Data struct {
-	wg *sync.WaitGroup
-	n  *int32
-}
-
-func testIncInt32(_ context.Context, arg incInt32Data) {
-	defer arg.wg.Done()
-	atomic.AddInt32(arg.n, 1)
-}
-
-func TestTypedPool(t *testing.T) {
-	cfg := NewConfig()
-	cfg.AdhocWorkerLimit = 100
-	p := NewTypedPool(cfg, testIncInt32)
-	testWithTypedPool(t, p)
-}
-
-func TestTypedPoolWithPermanentWorkers(t *testing.T) {
-	cfg := &Config{
-		PermanentWorkerNum: 100,
-		AdhocWorkerLimit:   100,
-	}
-	p := NewTypedPool(cfg, testIncInt32)
-	testWithTypedPool(t, p)
-}
-
-func testWithTypedPool(t *testing.T, p *TypedPool[incInt32Data]) {
-	var n int32
-	var wg sync.WaitGroup
-	for i := 0; i < 2000; i++ {
+	{ // test SetPanicHandler
+		wg := sync.WaitGroup{}
+		p := New("TestGoPool", nil) // fix p.SetPanicHandler data race
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		x := "testpanic"
+		p.SetPanicHandler(func(c context.Context, r interface{}) {
+			defer wg.Done()
+			require.Equal(t, x, r)
+			require.Same(t, ctx, c)
+		})
 		wg.Add(1)
-		p.Go(incInt32Data{&wg, &n})
-	}
-	wg.Wait()
-	if n != 2000 {
-		t.Error(n)
-	}
-	time.Sleep(100 * time.Millisecond)
-	if x := p.AdhocWorkerCount(); x != 0 {
-		t.Errorf("adhoc worker count, want 0, got %d", x)
-	}
-}
-
-func TestTypedPoolPanic(t *testing.T) {
-	cfg := &Config{AdhocWorkerLimit: 100}
-	p := NewTypedPool(cfg, func(_ context.Context, arg incInt32Data) {
-		defer arg.wg.Done()
-		panic("test panic")
-	})
-
-	var n int32
-	var wg sync.WaitGroup
-	wg.Add(1)
-	p.Go(incInt32Data{&wg, &n})
-	wg.Wait()
-}
-
-func BenchmarkTypedPool(b *testing.B) {
-	cfg := &Config{
-		AdhocWorkerLimit: runtime.GOMAXPROCS(0),
-	}
-	p := NewTypedPool(cfg, func(_ context.Context, wg *sync.WaitGroup) {
-		testFunc()
-		wg.Done()
-	})
-	benchmarkWithTypedPool(b, p)
-}
-
-func BenchmarkTypedPoolWithPermanentWorkers(b *testing.B) {
-	cfg := &Config{
-		PermanentWorkerNum: runtime.GOMAXPROCS(0),
-		AdhocWorkerLimit:   runtime.GOMAXPROCS(0),
-	}
-	p := NewTypedPool(cfg, func(_ context.Context, wg *sync.WaitGroup) {
-		testFunc()
-		wg.Done()
-	})
-	benchmarkWithTypedPool(b, p)
-}
-
-func benchmarkWithTypedPool(b *testing.B, p *TypedPool[*sync.WaitGroup]) {
-	var wg sync.WaitGroup
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		wg.Add(benchmarkTimes)
-		for j := 0; j < benchmarkTimes; j++ {
-			p.Go(&wg)
-		}
+		p.CtxGo(ctx, func() {
+			panic(x)
+		})
 		wg.Wait()
 	}
 }
 
-func TestSetAdhocWorkerLimit(t *testing.T) {
-	pool := NewPool(&Config{AdhocWorkerLimit: 100})
-	wg := &sync.WaitGroup{}
+func TestGoPool_Ticker(t *testing.T) {
+	o := DefaultOption()
+	o.WorkerMaxAge = 100 * time.Millisecond
+	p := New("TestGoPool_Ticker", o)
+	for i := 0; i < 10; i++ {
+		p.Go(func() { time.Sleep(o.WorkerMaxAge / 10) })
+	}
+	time.Sleep(10 * time.Millisecond) // wait all goroutines to run
+	require.Equal(t, 10, p.CurrentWorkers())
+	time.Sleep(o.WorkerMaxAge + o.WorkerMaxAge/10) // ticker will trigger worker to exit
+	require.Equal(t, 0, p.CurrentWorkers())
+}
 
-	wg.Add(100)
-	for i := 0; i < 100; i++ {
-		go func() {
-			pool.SetAdhocWorkerLimit(80)
-			wg.Done()
-		}()
-	}
-	wg.Wait()
-	if x := pool.AdhocWorkerLimit(); x != 80 {
-		t.Errorf("adhoc worker limit not match, want 80, got %d", x)
-	}
-	if x := pool.AdhocWorkerCount(); x != 0 {
-		t.Errorf("adhoc worker count not match, want 0, got %d", x)
-	}
+func TestGoPool_Full(t *testing.T) {
+	o := DefaultOption()
+	o.TaskChanBuffer = 1 // smaller value, easier to be full.
+	p := New("TestGoPool_Full", o)
 
-	wg.Add(100)
-	for i := 0; i < 100; i++ {
-		go func() {
-			pool.SetAdhocWorkerLimit(100)
-			wg.Done()
-		}()
+	v := int32(0)
+	n := 10000
+	for i := 0; i < n; i++ {
+		p.Go(func() { atomic.AddInt32(&v, 1) })
 	}
-	wg.Wait()
-	if x := pool.AdhocWorkerLimit(); x != 100 {
-		t.Errorf("adhoc worker limit not match, want 100, got %d", x)
-	}
-	if x := pool.AdhocWorkerCount(); x != 0 {
-		t.Errorf("adhoc worker count not match, want 0, got %d", x)
-	}
+	time.Sleep(10 * time.Millisecond) // wait all goroutines done
+	require.Equal(t, int32(n), atomic.LoadInt32(&v))
+}
 
-	wg.Add(100)
-	for i := 0; i < 100; i++ {
-		limit := 80 + 20*(i%2)
-		go func() {
-			pool.SetAdhocWorkerLimit(limit)
-			wg.Done()
-		}()
+func TestGoPool_MaxIdle(t *testing.T) {
+	o := DefaultOption()
+	o.MaxIdleWorkers = 7
+	p := New("TestGoPool_MaxIdle", o)
+
+	v := int32(0)
+	n := 10000
+	for i := 0; i < n; i++ {
+		p.Go(func() { atomic.AddInt32(&v, 1) })
 	}
-	wg.Wait()
-	if x := pool.AdhocWorkerLimit(); x != 100 && x != 80 {
-		t.Errorf("adhoc worker limit not match, got %d", x)
+	time.Sleep(10 * time.Millisecond) // wait all goroutines done
+	require.Equal(t, int32(n), atomic.LoadInt32(&v))
+	require.Equal(t, o.MaxIdleWorkers, p.CurrentWorkers())
+}
+
+// ======== Benchmarks ...
+
+// must be const then make() will allocate on stack
+const stacksize = 120
+
+var (
+	testDepths = []int{2, 32, 128}
+	benchBatch = 2
+)
+
+func recursiveFunc(depth int) {
+	if depth < 0 {
+		return
 	}
-	if x := pool.AdhocWorkerCount(); x != 0 {
-		t.Errorf("adhoc worker count not match, want 0, got %d", x)
+	b := make([]byte, stacksize)
+	recursiveFunc(depth - 1)
+	runtime.KeepAlive(b)
+}
+
+func makefunc(depth int, wg *sync.WaitGroup) func() {
+	return func() {
+		recursiveFunc(depth)
+		wg.Done()
+	}
+}
+
+func BenchmarkGoPool(b *testing.B) {
+	newHandler := func(depth int, wg *sync.WaitGroup) func() {
+		o := DefaultOption()
+		p := New("BenchmarkGoPool", o)
+		f := makefunc(depth, wg)
+		return func() {
+			p.Go(f)
+		}
+	}
+	benchmarkGo(newHandler, b)
+}
+
+func BenchmarkGoWithoutPool(b *testing.B) {
+	newHandler := func(depth int, wg *sync.WaitGroup) func() {
+		p := &GoPool{}
+		f := makefunc(depth, wg)
+		testf := func() {
+			// reuse runTask method
+			p.runTask(context.Background(), f)
+		}
+		return func() {
+			go testf()
+		}
+	}
+	benchmarkGo(newHandler, b)
+}
+
+func benchmarkGo(newHandler func(int, *sync.WaitGroup) func(), b *testing.B) {
+	for _, depth := range testDepths {
+		b.Run(fmt.Sprintf("batch_%d_stacksize_%d", benchBatch, depth*stacksize), func(b *testing.B) {
+			b.RunParallel(func(pb *testing.PB) {
+				var wg sync.WaitGroup
+				f := newHandler(depth, &wg)
+				for pb.Next() {
+					wg.Add(benchBatch)
+					for i := 0; i < benchBatch; i++ {
+						f()
+					}
+					wg.Wait()
+				}
+			})
+		})
 	}
 }

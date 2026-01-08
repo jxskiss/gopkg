@@ -1,5 +1,4 @@
-// Copyright 2021 ByteDance Inc.
-// Copyright 2023 Shawn Wang <jxskiss@126.com>.
+// Copyright 2025 CloudWeGo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,31 +12,71 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package gopool is a high-performance goroutine pool which aims to reuse goroutines
-// and limit the number of goroutines.
+// Package gopool provides goroutine pool that helps to reuse goroutines
+// for better performance.
 package gopool
 
 import (
 	"context"
+	"fmt"
+	"time"
+
+	"github.com/jxskiss/gopkg/v2/internal"
 )
 
-// defaultPool is the default unbounded pool.
-var defaultPool *Pool
+// Option configures the behavior of a GoPool.
+type Option struct {
+	// MaxIdleWorkers is the max number of idle workers keeping alive for waiting tasks.
+	// Idle workers exit after WorkerMaxAge.
+	MaxIdleWorkers int
 
-func init() {
-	config := &Config{Name: "gopool.defaultPool"}
-	defaultPool = NewPool(config)
+	// WorkerMaxAge is the max age of a worker.
+	WorkerMaxAge time.Duration
+
+	// TaskChanBuffer is the size of task queue channel.
+	// If the queue is full, we will fall back to use `go` directly without using pool.
+	// Normally, the queue length should be small,
+	// coz we create new workers to pick tasks if necessary.
+	TaskChanBuffer int
+
+	// PanicHandler specifies a handler when panic occurs.
+	// By default, a panic message with stack information is logged.
+	PanicHandler PanicHandler
 }
 
-// Go is an alternative to the go keyword, which is able to recover panic,
-// reuse goroutine stack, limit goroutine numbers, etc.
-//
-// See package doc for detailed introduction.
+type PanicHandler func(ctx context.Context, r any)
+
+// DefaultOption returns the default option.
+func DefaultOption() *Option {
+	return &Option{
+		MaxIdleWorkers: 1000,
+		WorkerMaxAge:   time.Minute,
+		TaskChanBuffer: 1000,
+	}
+}
+
+var defaultPanicHandler = func(ctx context.Context, r any) {
+	location, frames := internal.IdentifyPanic(1)
+	err := fmt.Errorf("%v", r)
+	msg := fmt.Sprintf("gopool: catch panic: %v\nlocation: %v\n%s\n", r, location, internal.FormatFrames(frames))
+	internal.DefaultLoggerError(ctx, err, msg)
+}
+
+var defaultPool = New("gopool.defaultPool", nil)
+
+// Go runs the given func in background
 func Go(f func()) {
 	defaultPool.CtxGo(context.Background(), f)
 }
 
-// CtxGo is preferred over Go.
+// CtxGo runs the given func in background, and it passes ctx to panic handler when happens.
 func CtxGo(ctx context.Context, f func()) {
 	defaultPool.CtxGo(ctx, f)
+}
+
+// SetDefaultPanicHandler sets a default panic handler.
+//
+// Check GoPool.SetPanicHandler for changing panic handler of an individual pool.
+func SetDefaultPanicHandler(handler PanicHandler) {
+	defaultPanicHandler = handler
 }

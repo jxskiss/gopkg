@@ -78,10 +78,9 @@ reasonable API compatibility and versioning.
 
 1. `perf/bbp` provides efficient byte buffer pools with anti-memory-waste protection.
 
-1. `perf/gopool` is a fork of `github.com/bytedance/gopkg/util/gopool`
+1. `perf/gopool` is a fork of `github.com/cloudwego/gopkg/concurrency/gopool`
    with opinionated changes.
-   It's a high-performance goroutine pool which aims to reuse goroutines
-   and limit the number of goroutines.
+   It helps to reuse goroutines for better performance.
 
 1. `perf/json` provides a drop-in replacement of `encoding/json` and extended features.
    By default, it uses [jsoniter] in underlying, which has better performance than `encoding/json`.

@@ -1,5 +1,4 @@
-// Copyright 2021 ByteDance Inc.
-// Copyright 2023 Shawn Wang <jxskiss@126.com>.
+// Copyright 2025 CloudWeGo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,202 +16,159 @@ package gopool
 
 import (
 	"context"
-	"math"
-	"sync"
 	"sync/atomic"
+	"time"
 )
 
-// Pool manages a goroutine pool and tasks for better performance,
-// it reuses goroutines and limits the number of goroutines.
-type Pool = TypedPool[func()]
+// GoPool is a goroutine pool that helps to reuse goroutines
+// for better performance.
+type GoPool struct {
+	name string
 
-// NewPool creates a new pool with the config.
-func NewPool(config *Config) *Pool {
-	runner := funcTaskRunner
-	p := &TypedPool[func()]{}
-	p.init(config, runner)
+	workers int32
+	maxIdle int32
+	maxAge  time.Duration
+
+	panicHandler PanicHandler
+
+	tasks     chan task
+	unixMilli int64
+}
+
+type task struct {
+	ctx context.Context
+	f   func()
+}
+
+var noopTask = task{f: func() {}}
+
+// New creates a new GoPool with the given name and options.
+func New(name string, option *Option) *GoPool {
+	if option == nil {
+		option = DefaultOption()
+	}
+	p := &GoPool{
+		name:         name,
+		maxIdle:      int32(option.MaxIdleWorkers),
+		maxAge:       option.WorkerMaxAge,
+		panicHandler: option.PanicHandler,
+		tasks:        make(chan task, option.TaskChanBuffer),
+	}
+	if p.panicHandler == nil {
+		p.panicHandler = defaultPanicHandler
+	}
 	return p
 }
 
-// TypedPool is a task-specific pool.
-// A TypedPool is like pool, but it executes a handler to process values
-// of a specific type.
-// Compared to Pool, it helps to reduce unnecessary memory allocation of
-// closures when submitting tasks.
-type TypedPool[T any] struct {
-	internalPool
+// Go runs the given func in background.
+func (p *GoPool) Go(f func()) {
+	p.CtxGo(context.Background(), f)
 }
 
-// NewTypedPool creates a new task-specific pool with given handler and config.
-func NewTypedPool[T any](config *Config, handler func(context.Context, T)) *TypedPool[T] {
-	runner := newTypedTaskRunner(handler)
-	p := &TypedPool[T]{}
-	p.init(config, runner)
-	return p
-}
-
-// Go submits a task to the pool.
-func (p *TypedPool[T]) Go(arg T) {
-	p.submit(context.Background(), arg)
-}
-
-// CtxGo submits a task to the pool, it's preferred over Go.
-func (p *TypedPool[T]) CtxGo(ctx context.Context, arg T) {
-	p.submit(ctx, arg)
-}
-
-type internalPool struct {
-	config *Config
-	runner taskRunner
-
-	// taskCh sends tasks to permanent workers.
-	taskCh chan *task
-
-	// mu protects adhocState and taskList.
-	// adhocState:
-	// - higher 32 bits is adhocLimit, max number of adhoc workers that can run simultaneously
-	// - lower 32 bits is adhocCount, the number of currently running adhoc workers
-	mu         sync.Mutex
-	adhocState int64
-	taskList   taskList
-}
-
-func (p *internalPool) init(config *Config, runner taskRunner) {
-	config.checkAndSetDefaults()
-	p.config = config
-	p.runner = runner
-	p.SetAdhocWorkerLimit(config.AdhocWorkerLimit)
-	p.startPermanentWorkers()
-}
-
-// Name returns the name of a pool.
-func (p *internalPool) Name() string {
-	return p.config.Name
-}
-
-// SetAdhocWorkerLimit changes the limit of adhoc workers.
-// 0 or negative value means no limit.
-func (p *internalPool) SetAdhocWorkerLimit(limit int) {
-	if limit <= 0 || limit > math.MaxInt32 {
-		limit = math.MaxInt32
-	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	oldLimit, _ := p.getAdhocState()
-	diff := int32(limit) - oldLimit
-	if diff != 0 {
-		atomic.AddInt64(&p.adhocState, int64(diff)<<32)
-	}
-}
-
-func (p *internalPool) submit(ctx context.Context, arg any) {
-	// Inline newTask()
-	var t *task
-	if tt := taskPool.Get(); tt != nil {
-		t = tt.(*task)
-	} else {
-		t = &task{}
-	}
-	t.ctx = ctx
-	t.arg = arg
-
-	// Try permanent worker first.
-	if p.taskCh != nil {
-		select {
-		case p.taskCh <- t:
-			return
-		default:
-		}
-	}
-
-	// No free permanent worker available, check to start a new
-	// adhoc worker or submit to the task list.
-	//
-	// Start a new adhoc worker if there are currently no adhoc workers,
-	// or the following two conditions are met:
-	//   1. the number of tasks is greater than the threshold.
-	//   2. The current number of adhoc workers is less than the limit.
-	p.mu.Lock()
-	tCnt := p.taskList.count + 1
-	wLimit, wCnt := p.getAdhocState()
-	if wCnt == 0 || (tCnt >= p.config.ScaleThreshold && wCnt < wLimit) {
-		p.incAdhocWorkerCount()
-		p.mu.Unlock()
-		go p.adhocWorker(t)
-	} else {
-		p.taskList.add(t)
-		p.mu.Unlock()
-	}
-}
-
-// AdhocWorkerLimit returns the current limit of adhoc workers.
-func (p *internalPool) AdhocWorkerLimit() int32 {
-	limit, _ := p.getAdhocState()
-	return limit
-}
-
-// AdhocWorkerCount returns the number of running adhoc workers.
-func (p *internalPool) AdhocWorkerCount() int32 {
-	_, count := p.getAdhocState()
-	return count
-}
-
-func (p *internalPool) getAdhocState() (limit, count int32) {
-	x := atomic.LoadInt64(&p.adhocState)
-	return int32(x >> 32), int32((x << 32) >> 32)
-}
-
-func (p *internalPool) incAdhocWorkerCount() {
-	atomic.AddInt64(&p.adhocState, 1)
-}
-
-func (p *internalPool) decAdhocWorkerCount() {
-	atomic.AddInt64(&p.adhocState, -1)
-}
-
-// PermanentWorkerCount returns the number of permanent workers.
-func (p *internalPool) PermanentWorkerCount() int32 {
-	return int32(p.config.PermanentWorkerNum)
-}
-
-func (p *internalPool) startPermanentWorkers() {
-	if p.config.PermanentWorkerNum <= 0 {
+// CtxGo runs the given func in background, and it passes ctx to panic handler when happens.
+func (p *GoPool) CtxGo(ctx context.Context, f func()) {
+	select {
+	case p.tasks <- task{ctx: ctx, f: f}:
+	default:
+		// task queue is full, fallback to use go directly
+		go p.runTask(ctx, f)
 		return
 	}
-	p.taskCh = make(chan *task)
-	for i := 0; i < p.config.PermanentWorkerNum; i++ {
-		go p.permanentWorker()
+	// luckily ... it's true when there are many idle workers
+	if len(p.tasks) == 0 {
+		return
 	}
+	// all workers are busy, create a new one
+	go p.runWorker()
 }
 
-func (p *internalPool) permanentWorker() {
-	for t := range p.taskCh {
-		p.runner(p, t)
+// SetPanicHandler sets a function for handling panic.
+//
+// Panic handler takes two args, `ctx` and `r`.
+// `ctx` is the one provided when calling CtxGo, and `r` is returned by recover()
+//
+// By default, GoPool uses slog to record the err and stack.
+//
+// It's recommended to set your own handler.
+func (p *GoPool) SetPanicHandler(handler PanicHandler) {
+	p.panicHandler = handler
+}
 
-		// Drain pending tasks.
-		for {
-			p.mu.Lock()
-			t = p.taskList.pop()
-			p.mu.Unlock()
-			if t == nil {
-				break
+func (p *GoPool) CurrentWorkers() int {
+	return int(atomic.LoadInt32(&p.workers))
+}
+
+func (p *GoPool) runTask(ctx context.Context, f func()) {
+	defer func(ctx context.Context, p *GoPool) {
+		if r := recover(); r != nil {
+			if p.panicHandler != nil {
+				p.panicHandler(ctx, r)
+			} else {
+				defaultPanicHandler(ctx, r)
 			}
-			p.runner(p, t)
+		}
+	}(ctx, p)
+	f()
+}
+
+func (p *GoPool) runWorker() {
+	id := atomic.AddInt32(&p.workers, 1)
+	defer atomic.AddInt32(&p.workers, -1)
+
+	// worker numbers exceeds maxIdle, drain task and  exit without waiting
+	if id > p.maxIdle {
+		for {
+			select {
+			case t := <-p.tasks:
+				p.runTask(t.ctx, t.f)
+			default:
+				return
+			}
 		}
 	}
-}
 
-func (p *internalPool) adhocWorker(t *task) {
-	p.runner(p, t)
-	for {
-		p.mu.Lock()
-		t = p.taskList.pop()
-		if t == nil {
-			p.decAdhocWorkerCount()
-			p.mu.Unlock()
+	tptr := &p.unixMilli
+	maxAge := p.maxAge.Milliseconds()
+	createdAt := time.Now().UnixMilli()
+	for t := range p.tasks {
+		p.runTask(t.ctx, t.f)
+		// start ticker if it's NOT running
+		now := atomic.LoadInt64(tptr)
+		if now == 0 {
+			now = time.Now().UnixMilli()
+			if atomic.CompareAndSwapInt64(tptr, 0, now) {
+				go p.runTicker()
+			}
+		}
+		// destroy the worker if maxAge is reached
+		if now-createdAt > maxAge {
 			return
 		}
-		p.mu.Unlock()
-		p.runner(p, t)
+	}
+}
+
+func (p *GoPool) runTicker() {
+	// Mark zero to trigger the ticker when we have active workers.
+	defer atomic.StoreInt64(&p.unixMilli, 0)
+
+	// If maxAge is 1 min, it updates `unixMilli` and sends 1000 noop tasks per minute.
+	// As a result, workers may take longer time to exit, which is expected.
+	// We set a minimum interval to avoid performance issues.
+	const minInterval = 10 * time.Millisecond
+	d := max(p.maxAge/1000, minInterval)
+	n0 := int(max(1, p.maxIdle/int32(p.maxAge/d)))
+
+	t := time.NewTicker(d)
+	defer t.Stop()
+	for now := range t.C {
+		x := p.CurrentWorkers()
+		if x == 0 {
+			return
+		}
+		atomic.StoreInt64(&p.unixMilli, now.UnixMilli())
+		n := max(1, min(n0, x, cap(p.tasks)-len(p.tasks)))
+		for i := 0; i < n; i++ {
+			p.tasks <- noopTask
+		}
 	}
 }
