@@ -5,7 +5,13 @@ import (
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"github.com/jxskiss/gopkg/v2/perf/lptime"
 )
+
+func init() {
+	lptime.SetPrecision(10 * time.Millisecond)
+}
 
 const maxCapacity = 1<<32 - 1
 
@@ -50,7 +56,7 @@ func (c *Cache[K, V]) Has(key K) (exists, expired bool) {
 	c.mu.RLock()
 	_, elem, exists := c.get(key)
 	if exists {
-		expired = elem.expires > 0 && elem.expires < time.Now().UnixNano()
+		expired = elem.isExpired(lptime.UnixNano())
 	}
 	c.mu.RUnlock()
 	return
@@ -61,7 +67,7 @@ func (c *Cache[K, V]) Get(key K) (v V, exists, expired bool) {
 	idx, elem, exists := c.get(key)
 	if exists {
 		v = elem.value.(V)
-		expired = elem.expires > 0 && elem.expires < time.Now().UnixNano()
+		expired = elem.isExpired(lptime.UnixNano())
 		c.promote(idx)
 	}
 	c.mu.RUnlock()
@@ -74,7 +80,7 @@ func (c *Cache[K, V]) GetWithTTL(key K) (v V, exists bool, ttl *time.Duration) {
 	if exists {
 		v = elem.value.(V)
 		if elem.expires > 0 {
-			x := time.Duration(elem.expires - time.Now().UnixNano())
+			x := time.Duration(elem.expires - lptime.UnixNano())
 			ttl = &x
 		}
 		c.promote(idx)
@@ -88,7 +94,7 @@ func (c *Cache[K, V]) GetQuiet(key K) (v V, exists, expired bool) {
 	_, elem, exists := c.get(key)
 	if exists {
 		v = elem.value.(V)
-		expired = elem.expires > 0 && elem.expires < time.Now().UnixNano()
+		expired = elem.isExpired(lptime.UnixNano())
 	}
 	c.mu.RUnlock()
 	return
@@ -98,7 +104,7 @@ func (c *Cache[K, V]) GetNotStale(key K) (v V, exists bool) {
 	c.mu.RLock()
 	idx, elem, exists := c.get(key)
 	if exists {
-		expired := elem.expires > 0 && elem.expires < time.Now().UnixNano()
+		expired := elem.isExpired(lptime.UnixNano())
 		if !expired {
 			v = elem.value.(V)
 			c.promote(idx)
@@ -119,12 +125,12 @@ func (c *Cache[K, V]) get(key K) (idx uint32, elem *element, exists bool) {
 }
 
 func (c *Cache[K, V]) MGet(keys ...K) map[K]V {
-	nowNano := time.Now().UnixNano()
+	nowNano := lptime.UnixNano()
 	return c.mget(false, nowNano, keys...)
 }
 
 func (c *Cache[K, V]) MGetNotStale(keys ...K) map[K]V {
-	nowNano := time.Now().UnixNano()
+	nowNano := lptime.UnixNano()
 	return c.mget(true, nowNano, keys...)
 }
 
@@ -145,7 +151,7 @@ func (c *Cache[K, V]) mget(notStale bool, nowNano int64, keys ...K) map[K]V {
 			idx, elem, exists := c.get(key)
 			if exists {
 				if notStale {
-					expired := elem.expires > 0 && elem.expires < nowNano
+					expired := elem.isExpired(nowNano)
 					if expired {
 						continue
 					}

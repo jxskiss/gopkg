@@ -28,7 +28,7 @@ func newWalBuf() *walbuf {
 // 3. 当 Cache.promote 方法被调用时，调用者(Get相关方法)一定持有了 RLock,
 //    在 flush walbuf 时，会持有排他锁，因此 promote 方法和 flushBuf 方法一定不会
 //    同时执行，flushBuf 函数可以排他地读写 walbuf 的数据;
-// 4. flushBuf 方法接受的 walbuf 参数是从 Cache.buf 中 CAS 出来的，又因为 promote
+// 4. flushBuf 方法接收的 walbuf 参数是从 Cache.buf 中 CAS 出来的，又因为 promote
 //    和 flushBuf 方法的互斥性，因此保证了一个 walbuf 被传递给 flushBuf 方法后，
 //    不会被其他任何 goroutine 持有，flushBuf 结束后，可以安全放回 walbufpool 重用;
 

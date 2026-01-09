@@ -11,6 +11,10 @@ type element struct {
 	index   uint32
 }
 
+func (e *element) isExpired(nowNano int64) bool {
+	return e.expires > 0 && e.expires < nowNano
+}
+
 func newList(capacity int) *list {
 	elems := make([]element, capacity+1)
 	l := &list{
