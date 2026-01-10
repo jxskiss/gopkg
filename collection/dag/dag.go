@@ -4,14 +4,16 @@ import "slices"
 
 // DAG is a directed acyclic graph.
 // A zero value of DAG is ready to use.
+//
+// DAG is not concurrent-safe.
 type DAG[T comparable] struct {
 	nodes        *dagNodes[T] // nil nodes means that the DAG is not initialized
 	edges        map[T]*dagNodes[T]
 	reverseEdges map[T]*dagNodes[T]
 }
 
-// NewDAG creates a new DAG object.
-func NewDAG[T comparable]() *DAG[T] {
+// New creates a new DAG object.
+func New[T comparable]() *DAG[T] {
 	dag := &DAG[T]{}
 	dag.initialize()
 	return dag
@@ -50,6 +52,61 @@ func (d *DAG[T]) AddEdge(from, to T) (isCyclic bool) {
 	return false
 }
 
+// RemoveEdge removes the edge from 'from' to 'to' in the DAG.
+func (d *DAG[T]) RemoveEdge(from, to T) {
+	if d.nodes == nil {
+		return
+	}
+	if nodes, ok := d.edges[from]; ok {
+		nodes.Remove(to)
+	}
+	if nodes, ok := d.reverseEdges[to]; ok {
+		nodes.Remove(from)
+	}
+}
+
+// RemoveVertex removes the vertex 'n' from the DAG.
+// It also removes all edges connected to 'n'.
+func (d *DAG[T]) RemoveVertex(n T) {
+	if d.nodes == nil {
+		return
+	}
+	if !d.nodes.Contains(n) {
+		return
+	}
+
+	// Remove outgoing edges
+	if nodes, ok := d.edges[n]; ok {
+		for _, to := range nodes.list {
+			if revNodes, ok := d.reverseEdges[to]; ok {
+				revNodes.Remove(n)
+			}
+		}
+		delete(d.edges, n)
+	}
+
+	// Remove incoming edges
+	if nodes, ok := d.reverseEdges[n]; ok {
+		for _, from := range nodes.list {
+			if fwdNodes, ok := d.edges[from]; ok {
+				fwdNodes.Remove(n)
+			}
+		}
+		delete(d.reverseEdges, n)
+	}
+
+	d.nodes.Remove(n)
+}
+
+// HasEdge reports whether there is an edge from 'from' to 'to' in the DAG.
+func (d *DAG[T]) HasEdge(from, to T) bool {
+	if d.nodes == nil {
+		return false
+	}
+	nodes := d.edges[from]
+	return nodes != nil && nodes.Contains(to)
+}
+
 func (d *DAG[T]) addVertex(n T) {
 	d.nodes.Add(n)
 }
@@ -65,6 +122,9 @@ func (d *DAG[T]) addToEdges(edges map[T]*dagNodes[T], from, to T) {
 
 // IsCyclic reports whether there is a cycle from 'from' to 'to' in the DAG.
 func (d *DAG[T]) IsCyclic(from, to T) bool {
+	if from == to {
+		return true
+	}
 	stack := []T{from}
 	pop := func() (n T) {
 		n = stack[len(stack)-1]
@@ -121,6 +181,24 @@ func (d *DAG[T]) VisitReverseNeighbors(to T, f func(from T)) {
 	for _, n := range nodes.list {
 		f(n)
 	}
+}
+
+// GetNeighbors returns all neighbors of 'from' in the DAG.
+func (d *DAG[T]) GetNeighbors(from T) []T {
+	nodes := d.edges[from]
+	if nodes == nil {
+		return nil
+	}
+	return slices.Clone(nodes.list)
+}
+
+// GetReverseNeighbors returns all reverse neighbors of 'to' in the DAG.
+func (d *DAG[T]) GetReverseNeighbors(to T) []T {
+	nodes := d.reverseEdges[to]
+	if nodes == nil {
+		return nil
+	}
+	return slices.Clone(nodes.list)
 }
 
 // ListZeroIncomingVertices returns all vertices in the DAG that
@@ -223,6 +301,24 @@ func (p *dagNodes[T]) Add(n T) {
 		for _, x := range p.list {
 			p.set[x] = true
 		}
+	} else {
+		p.set[n] = true
 	}
-	p.set[n] = true
+}
+
+// Remove removes a node from dagNodes.
+func (p *dagNodes[T]) Remove(n T) {
+	if p.set != nil {
+		delete(p.set, n)
+	}
+	idx := -1
+	for i, x := range p.list {
+		if x == n {
+			idx = i
+			break
+		}
+	}
+	if idx != -1 {
+		p.list = append(p.list[:idx], p.list[idx+1:]...)
+	}
 }

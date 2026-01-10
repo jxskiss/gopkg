@@ -7,7 +7,7 @@ import (
 )
 
 func TestDAG(t *testing.T) {
-	d := NewDAG[int]()
+	d := New[int]()
 	d.AddVertex(1)
 	d.AddVertex(2)
 	d.AddEdge(1, 2)
@@ -18,8 +18,70 @@ func TestDAG(t *testing.T) {
 	assert.Equal(t, []int{1, 2}, topoOrder)
 }
 
+func TestDAG_SelfLoop(t *testing.T) {
+	d := New[int]()
+	assert.True(t, d.IsCyclic(1, 1))
+	assert.True(t, d.AddEdge(1, 1))
+	assert.False(t, d.HasEdge(1, 1))
+}
+
+func TestDAG_Remove(t *testing.T) {
+	d := New[int]()
+	d.AddEdge(1, 2)
+	d.AddEdge(2, 3)
+
+	assert.True(t, d.HasEdge(1, 2))
+	d.RemoveEdge(1, 2)
+	assert.False(t, d.HasEdge(1, 2))
+
+	d.AddEdge(1, 2)
+	d.RemoveVertex(2)
+	assert.False(t, d.HasEdge(1, 2))
+	assert.False(t, d.HasEdge(2, 3))
+	assert.False(t, d.nodes.Contains(2))
+
+	// 1 and 3 remain. Both have 0 incoming edges.
+	zeroIncoming := d.ListZeroIncomingVertices()
+	assert.Contains(t, zeroIncoming, 1)
+	assert.Contains(t, zeroIncoming, 3)
+	assert.Len(t, zeroIncoming, 2)
+}
+
+func TestDAG_LargeData(t *testing.T) {
+	d := New[int]()
+	// Add > 64 neighbors to trigger set creation in dagNodes
+	for i := 0; i < 100; i++ {
+		d.AddEdge(0, i+1)
+	}
+	neighbors := d.GetNeighbors(0)
+	assert.Equal(t, 100, len(neighbors))
+	for i := 0; i < 100; i++ {
+		assert.True(t, d.HasEdge(0, i+1))
+	}
+
+	// Test remove from large set
+	d.RemoveEdge(0, 50)
+	assert.False(t, d.HasEdge(0, 50))
+	assert.Equal(t, 99, len(d.GetNeighbors(0)))
+
+	// Add back to ensure set is maintained correctly
+	d.AddEdge(0, 50)
+	assert.True(t, d.HasEdge(0, 50))
+	assert.Equal(t, 100, len(d.GetNeighbors(0)))
+}
+
+func TestDAG_Helpers(t *testing.T) {
+	d := New[int]()
+	d.AddEdge(1, 2)
+
+	assert.Equal(t, []int{2}, d.GetNeighbors(1))
+	assert.Equal(t, []int{1}, d.GetReverseNeighbors(2))
+	assert.Empty(t, d.GetNeighbors(2))
+	assert.Empty(t, d.GetReverseNeighbors(1))
+}
+
 func TestDAG_VisitNeighbors(t *testing.T) {
-	d := NewDAG[int]()
+	d := New[int]()
 	d.AddEdge(1, 2)
 	d.AddEdge(1, 3)
 	d.AddEdge(2, 4)
@@ -51,7 +113,7 @@ func TestDAG_VisitNeighbors(t *testing.T) {
 }
 
 func TestDAG_ListZeroIncomingVertices(t *testing.T) {
-	d := NewDAG[int]()
+	d := New[int]()
 	d.AddEdge(1, 2)
 	d.AddEdge(1, 3)
 	d.AddEdge(2, 4)
@@ -75,7 +137,7 @@ func TestDAG_TopoSort(t *testing.T) {
 		8 -> 9
 		2, 9, 10
 	*/
-	d := NewDAG[int]()
+	d := New[int]()
 	d.AddEdge(5, 11)
 	d.AddEdge(7, 11)
 	d.AddEdge(7, 8)
