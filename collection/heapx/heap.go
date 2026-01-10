@@ -19,8 +19,7 @@ func NewHeap[T any](cmp LessFunc[T]) *Heap[T] {
 }
 
 func (h *Heap[T]) init(lessFunc LessFunc[T]) {
-	h.items.elemSz = unsafe.Sizeof(*new(T))
-	h.items.lessFunc = lessFunc
+	h.items.init(lessFunc)
 }
 
 // Len returns the size of the heap.
@@ -79,23 +78,28 @@ type heapItems[T any] struct {
 	elemSz   uintptr
 	lessFunc LessFunc[T]
 
-	cap   int
-	len   int
-	s0    []T
-	ss    []unsafe.Pointer
-	ssPtr unsafe.Pointer
+	cap int
+	len int
+	s0  []T
+	ss  []unsafe.Pointer
+	ssp unsafe.Pointer // pointer to ss's data, i.e. &ss[0]
+}
+
+func (p *heapItems[T]) init(lessFunc LessFunc[T]) {
+	p.elemSz = unsafe.Sizeof(*new(T))
+	p.lessFunc = lessFunc
 }
 
 // index uses unsafe trick to eliminate slice bounds checking.
 func (p *heapItems[T]) index(i int) *T {
 	i, j := i>>bktShift, i&bktMask
-	sPtr := unsafe.Pointer(uintptr(p.ssPtr) + uintptr(i)*ptrSize)
-	return (*T)(unsafe.Pointer(uintptr(*(*unsafe.Pointer)(sPtr)) + uintptr(j)*p.elemSz))
+	sptr := unsafe.Pointer(uintptr(p.ssp) + uintptr(i)*ptrSize)
+	return (*T)(unsafe.Pointer(uintptr(*(*unsafe.Pointer)(sptr)) + uintptr(j)*p.elemSz))
 }
 
 func (p *heapItems[T]) addBucket(bkt []T) {
 	p.ss = append(p.ss, unsafe.Pointer(&bkt[0]))
-	p.ssPtr = unsafe.Pointer(&p.ss[0])
+	p.ssp = unsafe.Pointer(&p.ss[0])
 }
 
 func (p *heapItems[T]) Len() int {

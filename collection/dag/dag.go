@@ -123,6 +123,22 @@ func (d *DAG[T]) VisitReverseNeighbors(to T, f func(from T)) {
 	}
 }
 
+// ListZeroIncomingVertices returns all vertices in the DAG that
+// have no incoming edges.
+func (d *DAG[T]) ListZeroIncomingVertices() []T {
+	if d.nodes == nil {
+		return nil
+	}
+	result := make([]T, 0, len(d.nodes.list))
+	for _, n := range d.nodes.list {
+		nodes := d.reverseEdges[n]
+		if nodes == nil || len(nodes.list) == 0 {
+			result = append(result, n)
+		}
+	}
+	return result
+}
+
 // TopoSort returns a topological sort result of the DAG.
 //
 // The sort result is stable, which means that multiple calls

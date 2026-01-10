@@ -130,13 +130,13 @@ func (*proxyDefaultHandler) Handle(ctx context.Context, record slog.Record) erro
 }
 
 func (*proxyDefaultHandler) Enabled(_ context.Context, _ slog.Level) bool {
-	panic("unreachable")
+	panic("bug: unreachable code")
 }
 
 func (*proxyDefaultHandler) WithAttrs(_ []slog.Attr) slog.Handler {
-	panic("unreachable")
+	panic("bug: unreachable code")
 }
 
 func (*proxyDefaultHandler) WithGroup(_ string) slog.Handler {
-	panic("unreachable")
+	panic("bug: unreachable code")
 }

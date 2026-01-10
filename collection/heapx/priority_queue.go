@@ -2,9 +2,7 @@ package heapx
 
 import "github.com/jxskiss/gopkg/v2/internal/constraints"
 
-type Ordered interface {
-	constraints.Integer | ~string
-}
+type Ordered = constraints.Ordered
 
 // PriorityQueue is a heap-based priority queue implementation.
 //

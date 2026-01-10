@@ -52,7 +52,7 @@ func Shuffle(n int, swap func(i, j int)) { globalRand.Shuffle(n, swap) }
 // It panics if n <= 0.
 func N[Int constraints.Integer](n Int) Int {
 	if n <= 0 {
-		panic("invalid argument to N")
+		panic("fastrand: invalid argument to N")
 	}
 	return Int(uint64n(globalRand, uint64(n)))
 }

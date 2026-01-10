@@ -20,12 +20,12 @@ func (q *Queue[T]) Len() int {
 
 // Enqueue adds an item at the back of the Queue in *O(1)* time complexity.
 func (q *Queue[T]) Enqueue(item T) {
-	q.l.PushFront(item)
+	q.l.PushBack(item)
 }
 
 // Dequeue removes and returns the Queue's front item in *O(1)* time complexity.
 func (q *Queue[T]) Dequeue() (item T, ok bool) {
-	last := q.l.Back()
+	last := q.l.Front()
 	if last != nil {
 		item = q.l.Remove(last)
 		ok = true
@@ -36,7 +36,7 @@ func (q *Queue[T]) Dequeue() (item T, ok bool) {
 // Peek returns the Queue's front item in *O(1)* time complexity,
 // it does not remove the item from the Queue.
 func (q *Queue[T]) Peek() (item T, ok bool) {
-	last := q.l.Back()
+	last := q.l.Front()
 	if last != nil {
 		item, ok = last.Value.(T), true
 	}

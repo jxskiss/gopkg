@@ -233,6 +233,23 @@ func (p *SafeMap) Merge(other map[string]any) {
 	p.map_.Merge(other)
 }
 
+// WithRLock invokes the given function fn with read lock held.
+func (p *SafeMap) WithRLock(fn func(m Map)) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	fn(p.map_)
+}
+
+// WithLock invokes the given function fn with write lock held.
+func (p *SafeMap) WithLock(fn func(m Map)) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.map_ == nil {
+		p.map_ = make(Map)
+	}
+	fn(p.map_)
+}
+
 func getWithRLock[T any](mu *sync.RWMutex, f func(key string) T, key string) (ret T) {
 	mu.RLock()
 	ret = f(key)

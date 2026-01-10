@@ -69,8 +69,19 @@ func TestRandomHex(t *testing.T) {
 		_ = RandomHex(0)
 	})
 
-	for i := 1; i < 1024; i += 1 {
+	for i := 1; i < 1024; i++ {
 		got := RandomHex(i)
+		assert.Len(t, got, i)
+	}
+}
+
+func TestRandomBase32(t *testing.T) {
+	assert.Panics(t, func() {
+		_ = RandomBase32(0)
+	})
+
+	for i := 1; i < 1024; i++ {
+		got := RandomBase32(i)
 		assert.Len(t, got, i)
 	}
 }

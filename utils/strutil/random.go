@@ -2,6 +2,7 @@ package strutil
 
 import (
 	cryptorand "crypto/rand"
+	"encoding/base32"
 	"encoding/hex"
 	"math/big"
 	"math/bits"
@@ -99,4 +100,19 @@ func RandomHex(length int) string {
 		panic(err)
 	}
 	return hex.EncodeToString(buf)[:length]
+}
+
+// RandomBase32 returns a random base32 string of length consisting of
+// cryptographic-safe random bytes.
+func RandomBase32(length int) string {
+	if length <= 0 {
+		panic("strutil: invalid argument to RandomBase32")
+	}
+	n := length*5/8 + 1
+	buf := make([]byte, n)
+	_, err := cryptorand.Read(buf)
+	if err != nil {
+		panic(err)
+	}
+	return base32.StdEncoding.EncodeToString(buf)[:length]
 }

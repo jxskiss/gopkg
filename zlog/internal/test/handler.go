@@ -33,12 +33,12 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 
 // WithGroup panics
 func (h *Handler) WithGroup(string) slog.Handler {
-	panic("shouldn't be called")
+	panic("bug: unreachable code")
 }
 
 // WithAttrs panics
 func (h *Handler) WithAttrs([]slog.Attr) slog.Handler {
-	panic("shouldn't be called")
+	panic("bug: unreachable code")
 }
 
 // String formats all log records with slog.TextHandler
