@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/jxskiss/gopkg/v2/collection/dag"
@@ -16,12 +17,16 @@ type workflow struct {
 	id    string
 	tasks map[string]Task
 	dag   *dag.DAG[string]
+	mu    sync.RWMutex
 
 	observer Observer
 	input    ezmap.Map
 
 	runCtx  *runContext
 	initErr error
+
+	// Channels for dynamic task execution
+	addCh chan []Task
 }
 
 // NewWorkflow creates a new workflow instance.
@@ -34,13 +39,15 @@ func NewWorkflow(id string, opts ...Option) Workflow {
 	for _, opt := range opts {
 		opt(w)
 	}
-	w.runCtx = newRunContext(id, w.input, w.observer)
+	w.runCtx = newRunContext(w, w.input, w.observer)
 	return w
 }
 
 func (w *workflow) ID() string { return w.id }
 
 func (w *workflow) Tasks() []Task {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
 	tasks := make([]Task, 0, len(w.tasks))
 	taskIDs := w.dag.TopoSort()
 	for _, id := range taskIDs {
@@ -49,28 +56,51 @@ func (w *workflow) Tasks() []Task {
 	return tasks
 }
 
-func (w *workflow) AddTask(_ context.Context, tasks ...Task) error {
-	for _, t := range tasks {
-		id := t.ID()
-		if id == "" {
-			return errors.New("task ID cannot be empty")
-		}
-		if _, exists := w.tasks[id]; exists {
-			return fmt.Errorf("task %s already exists", id)
+func (w *workflow) AddTask(ctx context.Context, tasks ...Task) error {
+	var addCh chan []Task
+	err := func() error {
+		w.mu.Lock()
+		defer w.mu.Unlock()
+
+		for _, t := range tasks {
+			id := t.ID()
+			if id == "" {
+				return errors.New("task ID cannot be empty")
+			}
+			if _, exists := w.tasks[id]; exists {
+				return fmt.Errorf("task %s already exists", id)
+			}
+
+			w.tasks[id] = t
+			w.dag.AddVertex(id)
+
+			for _, dep := range t.Depends() {
+				if dep == id {
+					return fmt.Errorf("task %s depends on itself", id)
+				}
+				if w.dag.AddEdge(dep, id) {
+					return fmt.Errorf("cycle detected: task %s depends on %s", id, dep)
+				}
+			}
 		}
 
-		w.tasks[id] = t
-		w.dag.AddVertex(id)
+		// If workflow is running, notify execution loop
+		addCh = w.addCh
+		return nil
+	}()
+	if err != nil {
+		return err
+	}
 
-		for _, dep := range t.Depends() {
-			if dep == id {
-				return fmt.Errorf("task %s depends on itself", id)
-			}
-			if w.dag.AddEdge(dep, id) {
-				return fmt.Errorf("cycle detected: task %s depends on %s", id, dep)
-			}
+	if addCh != nil {
+		select {
+		case addCh <- tasks:
+			// sent successfully
+		case <-ctx.Done():
+			return ctx.Err()
 		}
 	}
+
 	return nil
 }
 
@@ -114,6 +144,19 @@ func (w *workflow) Execute(ctx context.Context, gp *gopool.GoPool) (*WorkflowRes
 		TaskResults: make(map[string]*TaskResult),
 	}
 
+	// Initialize channel for dynamic tasks
+	w.mu.Lock()
+	w.addCh = make(chan []Task, 1) // Buffer to prevent blocking AddTask
+	// Note: We don't close addCh because AddTask might be called concurrently
+	// even after we finish here (though checking w.addCh != nil under lock helps).
+	// Ideally we should set w.addCh = nil on exit.
+	defer func() {
+		w.mu.Lock()
+		w.addCh = nil
+		w.mu.Unlock()
+	}()
+	w.mu.Unlock()
+
 	completed := make(map[string]bool)
 	running := make(map[string]bool)
 
@@ -121,7 +164,10 @@ func (w *workflow) Execute(ctx context.Context, gp *gopool.GoPool) (*WorkflowRes
 		taskID string
 		res    *TaskResult
 	}
-	doneCh := make(chan taskDoneEvent, len(w.tasks))
+	// Use a larger buffer or dynamic checking to avoid deadlocks with dynamic tasks
+	// But since we control the senders, a buffer of len(tasks) is only good for initial set.
+	// For dynamic, we rely on the loop reading fast enough.
+	doneCh := make(chan taskDoneEvent, 128)
 
 	var goFunc = gopool.CtxGo
 	if gp != nil {
@@ -173,6 +219,8 @@ func (w *workflow) Execute(ctx context.Context, gp *gopool.GoPool) (*WorkflowRes
 	}
 
 	// Start initial tasks (zero incoming edges)
+	// Need lock as we access DAG
+	w.mu.RLock()
 	zeroIn := w.dag.ListZeroIncomingVertices()
 	slices.Sort(zeroIn) // Ensure deterministic order
 
@@ -183,21 +231,49 @@ func (w *workflow) Execute(ctx context.Context, gp *gopool.GoPool) (*WorkflowRes
 			startedCount++
 		}
 	}
+	currentTaskCount := len(w.tasks)
+	w.mu.RUnlock()
 
-	if startedCount == 0 && len(w.tasks) > 0 {
+	if startedCount == 0 && currentTaskCount > 0 {
 		// Should not happen if cycle check passed and deps exist
 		return nil, errors.New("no tasks can be started (possible cycle or logic error)")
 	}
 
-	if len(w.tasks) == 0 {
+	if currentTaskCount == 0 {
 		goto Finish
 	}
 
-	for len(completed) < len(w.tasks) {
+	for len(completed) < currentTaskCount {
 		select {
 		case <-ctx.Done():
 			result.Error = ctx.Err()
 			goto Finish
+		case newTasks := <-w.addCh:
+			// Handle dynamically added tasks
+			// We need to re-evaluate currentTaskCount
+			w.mu.RLock()
+			currentTaskCount = len(w.tasks)
+
+			for _, t := range newTasks {
+				// Check if this new task is ready to run
+				// It's ready if all its dependencies are completed
+				if completed[t.ID()] || running[t.ID()] {
+					continue
+				}
+
+				allDepsDone := true
+				for _, dep := range t.Depends() {
+					if !completed[dep] {
+						allDepsDone = false
+						break
+					}
+				}
+				if allDepsDone {
+					startTask(t)
+				}
+			}
+			w.mu.RUnlock()
+
 		case evt := <-doneCh:
 			tr := evt.res
 			result.TaskResults[tr.ID] = tr
@@ -215,6 +291,7 @@ func (w *workflow) Execute(ctx context.Context, gp *gopool.GoPool) (*WorkflowRes
 			}
 
 			// Check and start next tasks
+			w.mu.RLock()
 			w.dag.VisitNeighbors(tr.ID, func(nextID string) {
 				if completed[nextID] || running[nextID] {
 					return
@@ -233,6 +310,7 @@ func (w *workflow) Execute(ctx context.Context, gp *gopool.GoPool) (*WorkflowRes
 					}
 				}
 			})
+			w.mu.RUnlock()
 		}
 	}
 

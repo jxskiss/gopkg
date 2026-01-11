@@ -61,5 +61,6 @@ type RunContext interface {
 	WorkflowInput() ezmap.Map
 	GetTaskOutput(taskID string) (any, bool)
 	SharedData() *ezmap.SafeMap
+	AddTask(ctx context.Context, tasks ...Task) error
 	EmitEvent(ctx context.Context, taskID, eventName string, data any)
 }

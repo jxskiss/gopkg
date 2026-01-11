@@ -69,3 +69,47 @@ func Example() {
 	// Saving data: processed_raw_data
 	// Save task success: true
 }
+
+func Example_dynamic() {
+	// 这个示例演示如何在任务执行过程中动态添加新任务。
+
+	// 定义初始任务，它将决定后续需要执行什么任务
+	initTask := workflow.NewTask("planner", func(ctx context.Context, rc workflow.RunContext) (any, error) {
+		fmt.Println("Planner started")
+
+		// 动态定义并添加任务 A
+		taskA := workflow.NewTask("dynamic_A", func(ctx context.Context, rc workflow.RunContext) (any, error) {
+			fmt.Println("Executing Dynamic Task A")
+			return "Result A", nil
+		}, workflow.DependsOn("planner")) // 依赖当前任务，确保在当前任务完成后执行（虽然在这个闭包里当前任务还没完，但逻辑上依赖关系是生效的）
+		// 注意：通常动态添加的任务如果依赖当前任务，它会在当前任务成功返回后才会被调度。
+
+		// 动态定义并添加任务 B，它依赖任务 A
+		taskB := workflow.NewTask("dynamic_B", func(ctx context.Context, rc workflow.RunContext) (any, error) {
+			resA, _ := rc.GetTaskOutput("dynamic_A")
+			fmt.Printf("Executing Dynamic Task B with input: %v\n", resA)
+			return "Result B", nil
+		}, workflow.DependsOn("dynamic_A"))
+
+		// 将这些任务添加到当前运行的工作流中
+		err := rc.AddTask(ctx, taskA, taskB)
+		if err != nil {
+			return nil, err
+		}
+
+		return "Plan created", nil
+	})
+
+	wf := workflow.NewWorkflow("dynamic_workflow")
+	_ = wf.AddTask(context.Background(), initTask)
+
+	_, err := wf.Execute(context.Background(), nil)
+	if err != nil {
+		fmt.Printf("Workflow failed: %v\n", err)
+	}
+
+	// Output:
+	// Planner started
+	// Executing Dynamic Task A
+	// Executing Dynamic Task B with input: Result A
+}
