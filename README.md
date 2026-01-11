@@ -67,6 +67,9 @@ reasonable API compatibility and versioning.
 
 1. `encrypt/crypto` contains some encryption utilities.
 
+1. `exp/workflow` provides an experimental workflow engine to help to build complex
+   business logic with a simple and declarative way.
+
 1. `infra/acache` contains an async cache which can be used to fetch and update the
    latest data periodically and supports expiring a key if it's unused for a period.
 
