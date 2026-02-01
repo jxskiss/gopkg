@@ -522,3 +522,71 @@ func testLoad_DisallowUnknownFields(t *testing.T, files ...string) {
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "unknown_field")
 }
+
+// SliceItem is a struct for testing slice configuration loading
+type SliceItem struct {
+	Some1    string `json:"some_1" toml:"some_1" yaml:"some_1"`
+	Some2    int    `json:"some_2" toml:"some_2" yaml:"some_2"`
+	SomeBool bool   `json:"some_bool" toml:"some_bool" yaml:"some_bool"`
+}
+
+func TestLoad_SliceConfig_JSON(t *testing.T) {
+	configFiles := []string{
+		"./testdata/slice_config.test.json",
+	}
+	testLoad_SliceConfig(t, configFiles...)
+}
+
+func TestLoad_SliceConfig_YAML(t *testing.T) {
+	configFiles := []string{
+		"./testdata/slice_config.test.yml",
+	}
+	testLoad_SliceConfig(t, configFiles...)
+}
+
+func testLoad_SliceConfig(t *testing.T, files ...string) {
+	var cfg []SliceItem
+	err := New(&Config{Verbose: true}).Load(&cfg, files...)
+	assert.Nil(t, err)
+
+	assert.Len(t, cfg, 2)
+
+	assert.Equal(t, "item1_some_1", cfg[0].Some1)
+	assert.Equal(t, 100, cfg[0].Some2)
+	assert.Equal(t, true, cfg[0].SomeBool)
+
+	assert.Equal(t, "item2_some_1", cfg[1].Some1)
+	assert.Equal(t, 200, cfg[1].Some2)
+	assert.Equal(t, false, cfg[1].SomeBool)
+}
+
+func TestLoad_PtrSliceConfig_JSON(t *testing.T) {
+	configFiles := []string{
+		"./testdata/slice_config.test.json",
+	}
+	testLoad_PtrSliceConfig(t, configFiles...)
+}
+
+func TestLoad_PtrSliceConfig_YAML(t *testing.T) {
+	configFiles := []string{
+		"./testdata/slice_config.test.yml",
+	}
+	testLoad_PtrSliceConfig(t, configFiles...)
+}
+
+func testLoad_PtrSliceConfig(t *testing.T, files ...string) {
+	var cfg []*SliceItem
+	err := New(&Config{Verbose: true}).Load(&cfg, files...)
+	assert.Nil(t, err)
+
+	assert.Len(t, cfg, 2)
+
+	assert.Equal(t, "item1_some_1", cfg[0].Some1)
+	assert.Equal(t, 100, cfg[0].Some2)
+	assert.Equal(t, true, cfg[0].SomeBool)
+
+	assert.Equal(t, "item2_some_1", cfg[1].Some1)
+	assert.Equal(t, 200, cfg[1].Some2)
+	assert.Equal(t, false, cfg[1].SomeBool)
+}
+

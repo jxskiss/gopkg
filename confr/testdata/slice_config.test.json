@@ -1,0 +1,12 @@
+[
+  {
+    "some_1": "item1_some_1",
+    "some_2": 100,
+    "some_bool": true
+  },
+  {
+    "some_1": "item2_some_1",
+    "some_2": 200,
+    "some_bool": false
+  }
+]

@@ -134,8 +134,15 @@ func (p *Loader) Load(dst any, files ...string) error {
 
 func (p *Loader) load(dst any, files ...string) error {
 	dstTyp := reflect.TypeOf(dst)
-	if dstTyp.Kind() != reflect.Ptr || dstTyp.Elem().Kind() != reflect.Struct {
-		return errors.New("invalid destination, should be a struct pointer")
+	if dstTyp.Kind() != reflect.Ptr {
+		return errors.New("invalid destination, must be a pointer")
+	}
+
+	dstElemTyp := dstTyp.Elem()
+	isStruct := dstElemTyp.Kind() == reflect.Struct
+	isSlice := dstElemTyp.Kind() == reflect.Slice
+	if !isStruct && !isSlice {
+		return errors.New("invalid destination, must be a struct pointer or slice pointer")
 	}
 
 	if err := p.loadFiles(dst, files...); err != nil {
@@ -180,9 +187,19 @@ func (p *Loader) processFile(config any, file string) error {
 	}
 
 	p.getLogFunc()("loading configuration from file: %v", file)
+
+	// Check if the target type is a slice and the file format is TOML
+	configType := reflect.TypeOf(config)
+	if configType.Kind() == reflect.Ptr {
+		configType = configType.Elem()
+	}
+	extname := path.Ext(file)
+	if configType.Kind() == reflect.Slice && strings.ToLower(extname) == ".toml" {
+		return fmt.Errorf("toml format does not support top-level array, cannot load slice configuration from TOML file: %s", file)
+	}
+
 	var unmarshalFunc = p.UnmarshalFunc
 	if unmarshalFunc == nil {
-		extname := path.Ext(file)
 		switch strings.ToLower(extname) {
 		case ".json":
 			unmarshalFunc = unmarshalJSON
@@ -223,6 +240,120 @@ func unmarshalYAML(data []byte, v any, disallowUnknownFields bool) error {
 }
 
 func unmarshalTOML(data []byte, v any, disallowUnknownFields bool) error {
+	targetType := reflect.TypeOf(v)
+	if targetType.Kind() == reflect.Ptr {
+		targetType = targetType.Elem()
+	}
+
+	if targetType.Kind() == reflect.Slice {
+		// Try to decode the entire document to a generic interface
+		var temp any
+		_, err := toml.Decode(string(data), &temp)
+		if err != nil {
+			return err
+		}
+
+		// Check if the decoded result is a map (containing an array)
+		if tempMap, ok := temp.(map[string]any); ok {
+			// Get the target slice element type name
+			elemTypeName := targetType.Elem().Name()
+
+			// Find the array with the corresponding name
+			if arr, found := tempMap[elemTypeName]; found {
+				if slice, ok := arr.([]any); ok {
+					// Convert the slice to the target type
+					result := reflect.New(targetType).Elem() // Create a zero-value slice of the target type
+
+					for _, item := range slice {
+						// Convert each item to the target element type
+						itemBytes, err := json.Marshal(item)
+						if err != nil {
+							return err
+						}
+
+						newItem := reflect.New(targetType.Elem()).Interface()
+						err = json.Unmarshal(itemBytes, newItem)
+						if err != nil {
+							return err
+						}
+
+						// If newItem is a pointer type (pointing to a struct), take its element
+						if reflect.TypeOf(newItem).Elem().Kind() == reflect.Struct {
+							result = reflect.Append(result, reflect.ValueOf(newItem).Elem())
+						} else {
+							result = reflect.Append(result, reflect.ValueOf(newItem))
+						}
+					}
+
+					// Set the target value
+					reflect.ValueOf(v).Elem().Set(result)
+					return nil
+				}
+			}
+			// If no array with the specified name is found, try using the first array
+			for _, arr := range tempMap {
+				if slice, ok := arr.([]any); ok {
+					// Convert the slice to the target type
+					result := reflect.New(targetType).Elem() // Create a zero-value slice of the target type
+
+					for _, item := range slice {
+						// Convert each item to the target element type
+						itemBytes, err := json.Marshal(item)
+						if err != nil {
+							return err
+						}
+
+						newItem := reflect.New(targetType.Elem()).Interface()
+						err = json.Unmarshal(itemBytes, newItem)
+						if err != nil {
+							return err
+						}
+
+						// If newItem is a pointer type (pointing to a struct), take its element
+						if reflect.TypeOf(newItem).Elem().Kind() == reflect.Struct {
+							result = reflect.Append(result, reflect.ValueOf(newItem).Elem())
+						} else {
+							result = reflect.Append(result, reflect.ValueOf(newItem))
+						}
+					}
+
+					// Set the target value
+					reflect.ValueOf(v).Elem().Set(result)
+					return nil
+				}
+			}
+		} else if arr, ok := temp.([]any); ok { // If the decoded result is itself a slice (unlikely in TOML)
+			// Create a new instance of the target slice type
+			resultSlice := reflect.MakeSlice(targetType, 0, len(arr))
+
+			// Convert each element to the target type
+			for _, item := range arr {
+				itemBytes, err := json.Marshal(item) // Use JSON as intermediate format
+				if err != nil {
+					return err
+				}
+
+				newItem := reflect.New(targetType.Elem()).Interface()
+				err = json.Unmarshal(itemBytes, newItem)
+				if err != nil {
+					return err
+				}
+
+				// If newItem is a pointer, get the value it points to
+				if reflect.TypeOf(newItem).Elem().Kind() == reflect.Struct {
+					resultSlice = reflect.Append(resultSlice, reflect.ValueOf(newItem).Elem())
+				} else {
+					resultSlice = reflect.Append(resultSlice, reflect.ValueOf(newItem))
+				}
+			}
+
+			// Set the target value
+			reflect.ValueOf(v).Elem().Set(resultSlice)
+			return nil
+		}
+	}
+
+	// Default behavior
 	meta, err := toml.Decode(string(data), v)
 	if err == nil && len(meta.Undecoded()) > 0 && disallowUnknownFields {
 		return fmt.Errorf("toml: unknown fields %v", meta.Undecoded())
@@ -234,44 +365,58 @@ func (p *Loader) processDefaults(config any) error {
 	configVal := reflect.Indirect(reflect.ValueOf(config))
 	configTyp := configVal.Type()
 
-	for i := 0; i < configTyp.NumField(); i++ {
-		field := configTyp.Field(i)
-		fieldVal := configVal.Field(i)
-		if !fieldVal.CanAddr() || !fieldVal.CanInterface() {
-			continue
-		}
-		if field.Tag.Get(ConfrTag) == "-" {
-			continue
-		}
-
-		defaultValue := field.Tag.Get(DefaultValueTag)
-		if defaultValue != "" {
-			if p.Verbose {
-				p.getLogFunc()("processing default value for field %s.%s", configTyp.Name(), field.Name)
+	switch configTyp.Kind() {
+	case reflect.Struct:
+		for i := 0; i < configTyp.NumField(); i++ {
+			field := configTyp.Field(i)
+			fieldVal := configVal.Field(i)
+			if !fieldVal.CanAddr() || !fieldVal.CanInterface() {
+				continue
+			}
+			if field.Tag.Get(ConfrTag) == "-" {
+				continue
 			}
 
-			isBlank := reflect.DeepEqual(fieldVal.Interface(), reflect.Zero(field.Type).Interface())
-			if isBlank {
-				err := assignFieldValue(fieldVal, defaultValue)
-				if err != nil {
-					return fmt.Errorf("cannot assign default value to field %s.%s: %w", configTyp.Name(), field.Name, err)
+			defaultValue := field.Tag.Get(DefaultValueTag)
+			if defaultValue != "" {
+				if p.Verbose {
+					p.getLogFunc()("processing default value for field %s.%s", configTyp.Name(), field.Name)
+				}
+
+				isBlank := reflect.DeepEqual(fieldVal.Interface(), reflect.Zero(field.Type).Interface())
+				if isBlank {
+					err := assignFieldValue(fieldVal, defaultValue)
+					if err != nil {
+						return fmt.Errorf("cannot assign default value to field %s.%s: %w", configTyp.Name(), field.Name, err)
+					}
+				}
+			}
+
+			fieldVal = reflect.Indirect(fieldVal)
+			switch fieldVal.Kind() {
+			case reflect.Struct:
+				if err := p.processDefaults(fieldVal.Addr().Interface()); err != nil {
+					return err
+				}
+			case reflect.Slice:
+				// Recursively process struct elements in the slice
+				for i := 0; i < fieldVal.Len(); i++ {
+					elemVal := reflect.Indirect(fieldVal.Index(i))
+					if elemVal.Kind() == reflect.Struct {
+						if err := p.processDefaults(elemVal.Addr().Interface()); err != nil {
+							return err
+						}
+					}
 				}
 			}
 		}
-
-		fieldVal = reflect.Indirect(fieldVal)
-		switch fieldVal.Kind() {
-		case reflect.Struct:
-			if err := p.processDefaults(fieldVal.Addr().Interface()); err != nil {
-				return err
-			}
-		case reflect.Slice:
-			for i := 0; i < fieldVal.Len(); i++ {
-				elemVal := reflect.Indirect(fieldVal.Index(i))
-				if elemVal.Kind() == reflect.Struct {
-					if err := p.processDefaults(elemVal.Addr().Interface()); err != nil {
-						return err
-					}
+	case reflect.Slice:
+		// For slice types, recursively process each element
+		for i := 0; i < configVal.Len(); i++ {
+			elemVal := reflect.Indirect(configVal.Index(i))
+			if elemVal.Kind() == reflect.Struct {
+				if err := p.processDefaults(elemVal.Addr().Interface()); err != nil {
+					return err
 				}
 			}
 		}
@@ -291,35 +436,58 @@ func (p *Loader) processFlags(config any) error {
 	configVal := reflect.Indirect(reflect.ValueOf(config))
 	configTyp := configVal.Type()
 
-	for i := 0; i < configTyp.NumField(); i++ {
-		field := configTyp.Field(i)
-		fieldVal := configVal.Field(i)
-		if !fieldVal.CanAddr() || !fieldVal.CanInterface() {
-			continue
-		}
-		if field.Tag.Get(ConfrTag) == "-" {
-			continue
-		}
-
-		flagName := field.Tag.Get(FlagTag)
-		if flagName != "" && flagName != "-" {
-			if p.Verbose {
-				p.getLogFunc()("processing flag for field %s.%s", configTyp.Name(), field.Name)
+	switch configTyp.Kind() {
+	case reflect.Struct:
+		for i := 0; i < configTyp.NumField(); i++ {
+			field := configTyp.Field(i)
+			fieldVal := configVal.Field(i)
+			if !fieldVal.CanAddr() || !fieldVal.CanInterface() {
+				continue
+			}
+			if field.Tag.Get(ConfrTag) == "-" {
+				continue
 			}
 
-			if flagVal, isSet := lookupFlag(fs, flagName); flagVal != nil {
-				err := assignFlagValue(fieldVal, flagVal, isSet)
-				if err != nil {
-					return fmt.Errorf("cannot assign flag value to field %s.%s: %w", configTyp.Name(), field.Name, err)
+			flagName := field.Tag.Get(FlagTag)
+			if flagName != "" && flagName != "-" {
+				if p.Verbose {
+					p.getLogFunc()("processing flag for field %s.%s", configTyp.Name(), field.Name)
+				}
+
+				if flagVal, isSet := lookupFlag(fs, flagName); flagVal != nil {
+					err := assignFlagValue(fieldVal, flagVal, isSet)
+					if err != nil {
+						return fmt.Errorf("cannot assign flag value to field %s.%s: %w", configTyp.Name(), field.Name, err)
+					}
+				}
+			}
+
+			fieldVal = reflect.Indirect(fieldVal)
+			switch fieldVal.Kind() {
+			case reflect.Struct:
+				if err := p.processFlags(fieldVal.Addr().Interface()); err != nil {
+					return err
+				}
+			case reflect.Slice:
+				// Recursively process struct elements in the slice
+				for i := 0; i < fieldVal.Len(); i++ {
+					elemVal := reflect.Indirect(fieldVal.Index(i))
+					if elemVal.Kind() == reflect.Struct {
+						if err := p.processFlags(elemVal.Addr().Interface()); err != nil {
+							return err
+						}
+					}
 				}
 			}
 		}
-
-		fieldVal = reflect.Indirect(fieldVal)
-		switch fieldVal.Kind() {
-		case reflect.Struct:
-			if err := p.processFlags(fieldVal.Addr().Interface()); err != nil {
-				return err
+	case reflect.Slice:
+		// For slice types, recursively process each element
+		for i := 0; i < configVal.Len(); i++ {
+			elemVal := reflect.Indirect(configVal.Index(i))
+			if elemVal.Kind() == reflect.Struct {
+				if err := p.processFlags(elemVal.Addr().Interface()); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -344,51 +512,74 @@ func (p *Loader) processEnv(config any, prefix string) error {
 	configVal := reflect.Indirect(reflect.ValueOf(config))
 	configTyp := configVal.Type()
 
-	for i := 0; i < configTyp.NumField(); i++ {
-		field := configTyp.Field(i)
-		fieldVal := configVal.Field(i)
-		if !fieldVal.CanAddr() || !fieldVal.CanInterface() {
-			continue
-		}
-		if field.Tag.Get(ConfrTag) == "-" {
-			continue
-		}
-
-		var envNames []string
-		envTag := field.Tag.Get(EnvTag)
-		if envTag != "" {
-			for _, name := range strings.Split(envTag, ",") {
-				name = strings.TrimSpace(name)
-				if name != "" {
-					envNames = append(envNames, name)
-				}
+	switch configTyp.Kind() {
+	case reflect.Struct:
+		for i := 0; i < configTyp.NumField(); i++ {
+			field := configTyp.Field(i)
+			fieldVal := configVal.Field(i)
+			if !fieldVal.CanAddr() || !fieldVal.CanInterface() {
+				continue
 			}
-		} else if p.EnableImplicitEnv {
-			tmp := p.getEnvName(prefix, field.Name)
-			envNames = append(envNames, tmp, strings.ToUpper(tmp))
-		}
-		if len(envNames) > 0 {
-			if p.Verbose {
-				p.getLogFunc()("loading env for field %s.%s from %v", configTyp.Name(), field.Name, envNames)
+			if field.Tag.Get(ConfrTag) == "-" {
+				continue
 			}
 
-			for _, envName := range envNames {
-				if value := os.Getenv(envName); value != "" {
-					err := assignFieldValue(fieldVal, value)
-					if err != nil {
-						return fmt.Errorf("cannot assign env value to field %s.%s: %w", configTyp.Name(), field.Name, err)
+			var envNames []string
+			envTag := field.Tag.Get(EnvTag)
+			if envTag != "" {
+				for _, name := range strings.Split(envTag, ",") {
+					name = strings.TrimSpace(name)
+					if name != "" {
+						envNames = append(envNames, name)
 					}
-					break
+				}
+			} else if p.EnableImplicitEnv {
+				tmp := p.getEnvName(prefix, field.Name)
+				envNames = append(envNames, tmp, strings.ToUpper(tmp))
+			}
+			if len(envNames) > 0 {
+				if p.Verbose {
+					p.getLogFunc()("loading env for field %s.%s from %v", configTyp.Name(), field.Name, envNames)
+				}
+
+				for _, envName := range envNames {
+					if value := os.Getenv(envName); value != "" {
+						err := assignFieldValue(fieldVal, value)
+						if err != nil {
+							return fmt.Errorf("cannot assign env value to field %s.%s: %w", configTyp.Name(), field.Name, err)
+						}
+						break
+					}
+				}
+			}
+
+			fieldVal = reflect.Indirect(fieldVal)
+			switch fieldVal.Kind() {
+			case reflect.Struct:
+				fieldPrefix := p.getEnvName(prefix, field.Name)
+				if err := p.processEnv(fieldVal.Addr().Interface(), fieldPrefix); err != nil {
+					return err
+				}
+			case reflect.Slice:
+				// Recursively process struct elements in the slice
+				for i := 0; i < fieldVal.Len(); i++ {
+					elemVal := reflect.Indirect(fieldVal.Index(i))
+					if elemVal.Kind() == reflect.Struct {
+						if err := p.processEnv(elemVal.Addr().Interface(), prefix); err != nil {
+							return err
+						}
+					}
 				}
 			}
 		}
-
-		fieldVal = reflect.Indirect(fieldVal)
-		switch fieldVal.Kind() {
-		case reflect.Struct:
-			fieldPrefix := p.getEnvName(prefix, field.Name)
-			if err := p.processEnv(fieldVal.Addr().Interface(), fieldPrefix); err != nil {
-				return err
+	case reflect.Slice:
+		// For slice types, recursively process each element
+		for i := 0; i < configVal.Len(); i++ {
+			elemVal := reflect.Indirect(configVal.Index(i))
+			if elemVal.Kind() == reflect.Struct {
+				if err := p.processEnv(elemVal.Addr().Interface(), prefix); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -421,36 +612,59 @@ func (p *Loader) processCustom(config any) error {
 	configVal := reflect.Indirect(reflect.ValueOf(config))
 	configTyp := configVal.Type()
 
-	for i := 0; i < configTyp.NumField(); i++ {
-		field := configTyp.Field(i)
-		fieldVal := configVal.Field(i)
-		if !fieldVal.CanAddr() || !fieldVal.CanInterface() {
-			continue
-		}
-		if field.Tag.Get(ConfrTag) == "-" {
-			continue
-		}
-
-		customTag := field.Tag.Get(CustomTag)
-		if customTag != "" && customTag != "-" {
-			if p.Verbose {
-				p.getLogFunc()("processing custom loader for field %s.%s", configTyp.Name(), field.Name)
+	switch configTyp.Kind() {
+	case reflect.Struct:
+		for i := 0; i < configTyp.NumField(); i++ {
+			field := configTyp.Field(i)
+			fieldVal := configVal.Field(i)
+			if !fieldVal.CanAddr() || !fieldVal.CanInterface() {
+				continue
+			}
+			if field.Tag.Get(ConfrTag) == "-" {
+				continue
 			}
 
-			tmp, err := p.CustomLoader(fieldVal.Type(), customTag)
-			if err != nil {
-				return err
+			customTag := field.Tag.Get(CustomTag)
+			if customTag != "" && customTag != "-" {
+				if p.Verbose {
+					p.getLogFunc()("processing custom loader for field %s.%s", configTyp.Name(), field.Name)
+				}
+
+				tmp, err := p.CustomLoader(fieldVal.Type(), customTag)
+				if err != nil {
+					return err
+				}
+				if err = assignFieldValue(fieldVal, tmp); err != nil {
+					return fmt.Errorf("cannot assign custom value to field %s.%s: %w", configTyp.Name(), field.Name, err)
+				}
 			}
-			if err = assignFieldValue(fieldVal, tmp); err != nil {
-				return fmt.Errorf("cannot assign custom value to field %s.%s: %w", configTyp.Name(), field.Name, err)
+
+			fieldVal = reflect.Indirect(fieldVal)
+			switch fieldVal.Kind() {
+			case reflect.Struct:
+				if err := p.processCustom(fieldVal.Addr().Interface()); err != nil {
+					return err
+				}
+			case reflect.Slice:
+				// Recursively process struct elements in the slice
+				for i := 0; i < fieldVal.Len(); i++ {
+					elemVal := reflect.Indirect(fieldVal.Index(i))
+					if elemVal.Kind() == reflect.Struct {
+						if err := p.processCustom(elemVal.Addr().Interface()); err != nil {
+							return err
+						}
+					}
+				}
 			}
 		}
-
-		fieldVal = reflect.Indirect(fieldVal)
-		switch fieldVal.Kind() {
-		case reflect.Struct:
-			if err := p.processCustom(fieldVal.Addr().Interface()); err != nil {
-				return err
+	case reflect.Slice:
+		// For slice types, recursively process each element
+		for i := 0; i < configVal.Len(); i++ {
+			elemVal := reflect.Indirect(configVal.Index(i))
+			if elemVal.Kind() == reflect.Struct {
+				if err := p.processCustom(elemVal.Addr().Interface()); err != nil {
+					return err
+				}
 			}
 		}
 	}
