@@ -3,3 +3,5 @@ _output/
 _playground/
 _snippets/xlsxutil/testout/
 easy/testdata/
+.claude
+.qwen

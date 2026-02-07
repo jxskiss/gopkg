@@ -1,10 +1,12 @@
-package json
+package jsoniter
 
 import (
 	"bytes"
 	"io"
 
 	jsoniter "github.com/json-iterator/go"
+
+	"github.com/jxskiss/gopkg/v2/perf/json"
 )
 
 // DefaultJSONIteratorImpl uses [jsoniter.ConfigCompatibleWithStandardLibrary]
@@ -16,7 +18,7 @@ var DefaultJSONIteratorImpl = NewJSONIteratorImpl(
 // underlying config.
 // If useConfigFastest is true, it uses [jsoniter.ConfigFastest]
 // for method MarshalFastest, else it uses api.Marshal.
-func NewJSONIteratorImpl(api jsoniter.API, useConfigFastest bool) Implementation {
+func NewJSONIteratorImpl(api jsoniter.API, useConfigFastest bool) json.Implementation {
 	impl := &jsoniterImpl{
 		api:            api,
 		marshalFastest: api.Marshal,
@@ -57,15 +59,15 @@ func (impl jsoniterImpl) UnmarshalFromString(data string, v any) error {
 }
 
 func (impl jsoniterImpl) Compact(dst *bytes.Buffer, src []byte) error {
-	return StdImpl.Compact(dst, src)
+	return json.StdImpl.Compact(dst, src)
 }
 
 func (impl jsoniterImpl) HTMLEscape(dst *bytes.Buffer, src []byte) {
-	StdImpl.HTMLEscape(dst, src)
+	json.StdImpl.HTMLEscape(dst, src)
 }
 
 func (impl jsoniterImpl) Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
-	return StdImpl.Indent(dst, src, prefix, indent)
+	return json.StdImpl.Indent(dst, src, prefix, indent)
 }
 
 func (impl jsoniterImpl) MarshalFastest(v any) ([]byte, error) {
@@ -73,13 +75,13 @@ func (impl jsoniterImpl) MarshalFastest(v any) ([]byte, error) {
 }
 
 func (impl jsoniterImpl) MarshalNoHTMLEscape(v any, prefix, indent string) ([]byte, error) {
-	return StdImpl.MarshalNoHTMLEscape(v, prefix, indent)
+	return json.StdImpl.MarshalNoHTMLEscape(v, prefix, indent)
 }
 
-func (impl jsoniterImpl) NewEncoder(w io.Writer) *Encoder {
-	return &Encoder{impl.api.NewEncoder(w)}
+func (impl jsoniterImpl) NewEncoder(w io.Writer) *json.Encoder {
+	return &json.Encoder{UnderlyingEncoder: impl.api.NewEncoder(w)}
 }
 
-func (impl jsoniterImpl) NewDecoder(r io.Reader) *Decoder {
-	return &Decoder{impl.api.NewDecoder(r)}
+func (impl jsoniterImpl) NewDecoder(r io.Reader) *json.Decoder {
+	return &json.Decoder{UnderlyingDecoder: impl.api.NewDecoder(r)}
 }

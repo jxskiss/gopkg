@@ -44,7 +44,7 @@ type UnderlyingDecoder interface {
 var globalImpl atomic.Pointer[Implementation]
 
 func init() {
-	globalImpl.Store(&DefaultJSONIteratorImpl)
+	globalImpl.Store(&StdImpl)
 }
 
 func getImpl() Implementation {

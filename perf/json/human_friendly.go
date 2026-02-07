@@ -3,9 +3,11 @@ package json
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
-
-	jsoniter "github.com/json-iterator/go"
+	"reflect"
+	"sort"
+	"strconv"
 
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
@@ -17,89 +19,139 @@ import (
 // This utility is not designed for performance sensitive use-case.
 var HumanFriendly = humanFriendlyImpl{}
 
-var jsoniterHumanFriendlyConfig = jsoniter.Config{
-	EscapeHTML:                    false,
-	MarshalFloatWith6Digits:       true,
-	SortMapKeys:                   true,
-	UseNumber:                     true,
-	ObjectFieldMustBeSimpleString: true,
-}.Froze()
-
 type humanFriendlyImpl struct{}
 
+// float64With6Digits wraps float64 to marshal with exactly 6 decimal places.
+type float64With6Digits float64
+
+func (f float64With6Digits) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf("%.6f", f)), nil
+}
+
+// convertAnyKeyMap converts map[any]any to map[string]any recursively,
+// sorting keys and converting float64 values to 6 decimal places.
+func convertAnyKeyMap(v any) any {
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Map:
+		keys := rv.MapKeys()
+		sort.Slice(keys, func(i, j int) bool {
+			return keyString(keys[i]) < keyString(keys[j])
+		})
+		result := make(map[string]any, len(keys))
+		for _, key := range keys {
+			val := rv.MapIndex(key)
+			result[keyString(key)] = convertAnyKeyMap(val.Interface())
+		}
+		return result
+	case reflect.Slice, reflect.Array:
+		result := make([]any, rv.Len())
+		for i := 0; i < rv.Len(); i++ {
+			result[i] = convertAnyKeyMap(rv.Index(i).Interface())
+		}
+		return result
+	case reflect.Float32, reflect.Float64:
+		f := rv.Float()
+		// Only wrap with 6 decimal places if the value has fractional part
+		if f != float64(int64(f)) {
+			return float64With6Digits(f)
+		}
+		return f
+	case reflect.Ptr:
+		if rv.IsNil() {
+			return nil
+		}
+		return convertAnyKeyMap(rv.Elem().Interface())
+	case reflect.Interface:
+		if rv.IsNil() {
+			return nil
+		}
+		return convertAnyKeyMap(rv.Interface())
+	default:
+		return v
+	}
+}
+
+func keyString(key reflect.Value) string {
+	switch key.Kind() {
+	case reflect.String:
+		return key.String()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(key.Int(), 10)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return strconv.FormatUint(key.Uint(), 10)
+	case reflect.Float32, reflect.Float64:
+		return fmt.Sprintf("%.6f", key.Float())
+	case reflect.Bool:
+		return strconv.FormatBool(key.Bool())
+	default:
+		return fmt.Sprintf("%v", key.Interface())
+	}
+}
+
 func (humanFriendlyImpl) Marshal(v any) ([]byte, error) {
-	return jsoniterHumanFriendlyConfig.Marshal(v)
+	converted := convertAnyKeyMap(v)
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(converted); err != nil {
+		return nil, err
+	}
+	return bytes.TrimSpace(buf.Bytes()), nil
 }
 
 func (humanFriendlyImpl) MarshalToString(v any) (string, error) {
-	return jsoniterHumanFriendlyConfig.MarshalToString(v)
-}
-
-func (humanFriendlyImpl) MarshalIndent(v any, prefix, indent string) ([]byte, error) {
-	return hFriendlyMarshalIndent(v, prefix, indent)
-}
-
-func (humanFriendlyImpl) MarshalIndentString(v any, prefix, indent string) (string, error) {
-	buf, err := hFriendlyMarshalIndent(v, prefix, indent)
+	buf, err := HumanFriendly.Marshal(v)
 	if err != nil {
 		return "", err
 	}
 	return unsafeheader.BytesToString(buf), nil
 }
 
-func hFriendlyMarshalIndent(v any, prefix, indent string) ([]byte, error) {
-	b, err := jsoniterHumanFriendlyConfig.Marshal(v)
-	if err != nil {
-		return nil, err
-	}
+func (humanFriendlyImpl) MarshalIndent(v any, prefix, indent string) ([]byte, error) {
+	converted := convertAnyKeyMap(v)
 	var buf bytes.Buffer
-	err = json.Indent(&buf, b, prefix, indent)
-	if err != nil {
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent(prefix, indent)
+	if err := enc.Encode(converted); err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+	return bytes.TrimSpace(buf.Bytes()), nil
+}
+
+func (humanFriendlyImpl) MarshalIndentString(v any, prefix, indent string) (string, error) {
+	buf, err := HumanFriendly.MarshalIndent(v, prefix, indent)
+	if err != nil {
+		return "", err
+	}
+	return unsafeheader.BytesToString(buf), nil
 }
 
 // NewEncoder ...
-// 注意 jsoniter 对 prefix, indent 的处理有问题，这里不能直接使用
-// jsoniterHumanFriendlyConfig.NewEncoder
 func (humanFriendlyImpl) NewEncoder(w io.Writer) *Encoder {
-	buf := bytes.NewBuffer(nil)
 	return &Encoder{&hFriendlyEncoder{
-		w:   w,
-		buf: buf,
-		enc: jsoniterHumanFriendlyConfig.NewEncoder(buf),
+		w:    w,
+		jenc: json.NewEncoder(w),
 	}}
 }
 
 type hFriendlyEncoder struct {
 	w      io.Writer
-	buf    *bytes.Buffer
-	enc    *jsoniter.Encoder
+	jenc   *json.Encoder
 	prefix string
 	indent string
 }
 
 func (h *hFriendlyEncoder) Encode(val any) error {
-	err := h.enc.Encode(val)
-	if err != nil {
-		return err
-	}
-	out := h.buf.Bytes()
-	if h.prefix != "" || h.indent != "" {
-		var indentBuf bytes.Buffer
-		err = json.Indent(&indentBuf, h.buf.Bytes(), h.prefix, h.indent)
-		if err != nil {
-			return err
-		}
-		out = indentBuf.Bytes()
-	}
-	_, err = h.w.Write(out)
-	return err
+	converted := convertAnyKeyMap(val)
+	h.jenc.SetEscapeHTML(false)
+	h.jenc.SetIndent(h.prefix, h.indent)
+	return h.jenc.Encode(converted)
 }
 
 func (h *hFriendlyEncoder) SetEscapeHTML(on bool) {
-	h.enc.SetEscapeHTML(on)
+	h.jenc.SetEscapeHTML(on)
 }
 
 func (h *hFriendlyEncoder) SetIndent(prefix, indent string) {

@@ -86,7 +86,6 @@ reasonable API compatibility and versioning.
    It helps to reuse goroutines for better performance.
 
 1. `perf/json` provides a drop-in replacement of `encoding/json` and extended features.
-   By default, it uses [jsoniter] in underlying, which has better performance than `encoding/json`.
    The underlying implementation is change-able and change-able on-the-fly.
    `amd64` users may switch to [bytedance/sonic] implementation for best performance
    in the cost of a little less maturity.

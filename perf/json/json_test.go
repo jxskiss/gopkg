@@ -123,15 +123,15 @@ func TestCompatibility(t *testing.T) {
 	stdOutput, err := StdImpl.Marshal(testStringInterfaceMap)
 	assert.Nil(t, err)
 
-	jsoniterOutput, err := DefaultJSONIteratorImpl.Marshal(testStringInterfaceMap)
+	defaultOutput, err := Marshal(testStringInterfaceMap)
 	assert.Nil(t, err)
-	assert.Equal(t, stdOutput, jsoniterOutput)
+	assert.Equal(t, stdOutput, defaultOutput)
 
 	var got1 map[string]any
 	var got2 map[string]any
 	err = StdImpl.Unmarshal(stdOutput, &got1)
 	assert.Nil(t, err)
-	err = Unmarshal(jsoniterOutput, &got2)
+	err = Unmarshal(defaultOutput, &got2)
 	assert.Nil(t, err)
 	assert.Equal(t, got1, got2)
 }
