@@ -12,6 +12,30 @@ import (
 
 type stringerFunc func(v any) string
 
+// Logger provides debug message logging functionality.
+type Logger struct {
+	name     string
+	cfg      *Config
+	disabled bool
+}
+
+// NewLogger creates a new Logger instance.
+// If cfg is nil, the global config is used.
+func NewLogger(name string, cfg *Config) *Logger {
+	if cfg == nil {
+		cfg = &globalCfg
+	}
+	return &Logger{name: name, cfg: cfg}
+}
+
+func (l *Logger) Name() string { return l.name }
+
+// Disable disables the logger, it returns the logger for chain calling.
+func (l *Logger) Disable() *Logger {
+	l.disabled = true
+	return l
+}
+
 /*
 DEBUG is debug message logger which do nothing if debug level is not enabled (the default).
 It has good performance for production deployment by eliminating unnecessary
@@ -54,36 +78,36 @@ DEBUG accepts very flexible arguments to help development, see the following exa
 	obj := &SomeStructType{Field1: "blah", Field2: 1234567, Field3: true}
 	DEBUG(logger, "obj=%v"， obj)
 */
-func DEBUG(args ...any) {
+func (l *Logger) DEBUG(args ...any) {
 	stringer := easy.JSON
-	logdebug(1, stringer, args...)
+	l.logdebug(1, stringer, args...)
 }
 
 // DEBUGSkip is similar to DEBUG, but it has an extra skip param to skip stacktrace
 // to get correct caller information.
 // When you wrap functions in this package, you always want to use the functions
 // which end with "Skip".
-func DEBUGSkip(skip int, args ...any) {
+func (l *Logger) DEBUGSkip(skip int, args ...any) {
 	stringer := easy.JSON
-	logdebug(skip+1, stringer, args...)
+	l.logdebug(skip+1, stringer, args...)
 }
 
-// PRETTY is similar to DEBUG, but it calls Pretty to format non-basic-type data.
-func PRETTY(args ...any) {
+// PRETTY is similar to DEBUG, but it calls [easy.Pretty] to format non-basic-type data.
+func (l *Logger) PRETTY(args ...any) {
 	stringer := easy.Pretty
-	logdebug(1, stringer, args...)
+	l.logdebug(1, stringer, args...)
 }
 
 // PRETTYSkip is similar to PRETTY, but it has an extra skip param to skip stacktrace
 // to get correct caller information.
 // When you wrap functions in this package, you always want to use the functions
 // which end with "Skip".
-func PRETTYSkip(skip int, args ...any) {
+func (l *Logger) PRETTYSkip(skip int, args ...any) {
 	stringer := easy.Pretty
-	logdebug(skip+1, stringer, args...)
+	l.logdebug(skip+1, stringer, args...)
 }
 
-func logdebug(skip int, stringer stringerFunc, args ...any) {
+func (l *Logger) logdebug(skip int, stringer stringerFunc, args ...any) {
 	ctx := context.Background()
 	if len(args) > 0 {
 		if arg0ctx, ok := args[0].(context.Context); ok {
@@ -93,13 +117,13 @@ func logdebug(skip int, stringer stringerFunc, args ...any) {
 			args = args[1:]
 		}
 	}
-	if _logcfg.EnableDebug == nil || !_logcfg.EnableDebug(ctx) {
+	if l.disabled || l.cfg.EnableDebug == nil || !l.cfg.EnableDebug(ctx) {
 		return
 	}
 
 	// Check filter rules.
 	caller, fullFileName, simpleFileName, line := getCaller(skip + 1)
-	if _logcfg.filter != nil && !_logcfg.filter.Allow(fullFileName) {
+	if l.cfg.filter != nil && !l.cfg.filter.Allow(fullFileName) {
 		return
 	}
 
@@ -112,19 +136,27 @@ func logdebug(skip int, stringer stringerFunc, args ...any) {
 		logger, args = parseArg0Logger(args)
 	}
 	if logger == nil {
-		logger = _logcfg.getLogger(ctx)
+		logger = l.cfg.getLogger(ctx)
 	}
 	callerPrefix := "[" + caller + "] "
+	loggerPrefix := l.getLoggerNamePrefix()
 	if len(args) > 0 {
 		if format, ok := args[0].(string); ok && strings.IndexByte(format, '%') >= 0 {
 			logger.Debugf(callerPrefix+format, formatArgs(stringer, args[1:])...)
 			return
 		}
-		format := callerPrefix + "%v" + strings.Repeat(" %v", len(args)-1)
+		format := loggerPrefix + callerPrefix + "%v" + strings.Repeat(" %v", len(args)-1)
 		logger.Debugf(format, formatArgs(stringer, args)...)
 	} else {
-		logger.Debugf("========  %s#L%d - %s  ========", simpleFileName, line, caller)
+		logger.Debugf("========  %s%s#L%d - %s  ========", loggerPrefix, simpleFileName, line, caller)
 	}
+}
+
+func (l *Logger) getLoggerNamePrefix() string {
+	if l.name != "" {
+		return "[logger=" + l.name + "] "
+	}
+	return ""
 }
 
 var debugLoggerTyp = reflect.TypeOf((*DebugLogger)(nil)).Elem()

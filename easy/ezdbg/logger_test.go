@@ -167,7 +167,7 @@ func TestDEBUG_pointers(t *testing.T) {
 func TestDEBUG_empty(t *testing.T) {
 	configTestLog(true, nil)
 	got := copyStdLog(func() { DEBUG() })
-	want := regexp.MustCompile(`ezdbg/debug_test.go#L\d+ - ezdbg.TestDEBUG_empty`)
+	want := regexp.MustCompile(`ezdbg/logger_test.go#L\d+ - ezdbg.TestDEBUG_empty`)
 	assert.Regexp(t, want, string(got))
 }
 
@@ -175,11 +175,11 @@ func TestDEBUGSkip(t *testing.T) {
 	configTestLog(true, nil)
 
 	got := copyStdLog(func() { DEBUGWrap() })
-	want := regexp.MustCompile(`ezdbg/debug_test.go#L\d+ - ezdbg.TestDEBUGSkip`)
+	want := regexp.MustCompile(`ezdbg/logger_test.go#L\d+ - ezdbg.TestDEBUGSkip`)
 	assert.Regexp(t, want, string(got))
 
 	got = copyStdLog(func() { DEBUGWrapSkip2() })
-	want = regexp.MustCompile(`ezdbg/debug_test.go#L\d+ - ezdbg.TestDEBUGSkip`)
+	want = regexp.MustCompile(`ezdbg/logger_test.go#L\d+ - ezdbg.TestDEBUGSkip`)
 	assert.Regexp(t, want, string(got))
 }
 
@@ -188,7 +188,7 @@ func TestConfigLog(t *testing.T) {
 		return ctx.Value("TEST_LOGGER").(*bufLogger)
 	}
 	configTestLog(true, getCtxLogger)
-	assert.NotNil(t, _logcfg.LoggerFunc)
+	assert.NotNil(t, globalCfg.LoggerFunc)
 }
 
 func TestFilterRule(t *testing.T) {
@@ -221,6 +221,21 @@ func TestFilterRule(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLoggerName(t *testing.T) {
+	logger := NewLogger("test-logger", &Config{
+		EnableDebug: func(ctx context.Context) bool { return true },
+	})
+	assert.Equal(t, "test-logger", logger.Name())
+
+	msg := "test LoggerName"
+	got := copyStdLog(func() {
+		logger.DEBUG(msg)
+	})
+	assert.Contains(t, string(got), "[logger=test-logger] ")
+	assert.Contains(t, string(got), "[ezdbg.TestLoggerName.func2] ")
+	assert.Contains(t, string(got), msg)
 }
 
 // -------- utilities -------- //
@@ -266,7 +281,7 @@ func configTestLogWithFilterRule(
 	ctxLogger func(context.Context) DebugLogger,
 	filterRule string,
 ) {
-	Config(Cfg{
+	ConfigGlobal(Config{
 		EnableDebug: func(_ context.Context) bool { return enableDebug },
 		LoggerFunc:  ctxLogger,
 		FilterRule:  filterRule,

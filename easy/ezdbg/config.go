@@ -11,8 +11,8 @@ import (
 
 const FilterRuleEnvName = "EZDBG_FILTER_RULE"
 
-// Config configures the behavior of functions in this package.
-func Config(cfg Cfg) {
+// ConfigGlobal configures the global behavior of loggers.
+func ConfigGlobal(cfg Config) {
 	if cfg.FilterRule == "" {
 		envRule := os.Getenv(FilterRuleEnvName)
 		if envRule != "" {
@@ -27,13 +27,13 @@ func Config(cfg Cfg) {
 			stdLogger{}.Warnf("ezdbg: %v", err)
 		}
 	}
-	_logcfg = cfg
+	globalCfg = cfg
 }
 
-var _logcfg Cfg
+var globalCfg Config
 
-// Cfg provides optional config to configure this package.
-type Cfg struct {
+// Config provides optional config to configure a Logger.
+type Config struct {
 
 	// EnableDebug determines whether debug log is enabled, it may use
 	// the given context.Context to enable or disable request-level debug log.
@@ -82,7 +82,7 @@ type Cfg struct {
 	filter *logfilter.FileNameFilter
 }
 
-func (p *Cfg) getLogger(ctx context.Context) DebugLogger {
+func (p *Config) getLogger(ctx context.Context) DebugLogger {
 	if ctx != nil && p.LoggerFunc != nil {
 		if lg := p.LoggerFunc(ctx); lg != nil {
 			return lg
