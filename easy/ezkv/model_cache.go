@@ -12,9 +12,7 @@ import (
 	"github.com/jxskiss/gopkg/v2/collection/set"
 	"github.com/jxskiss/gopkg/v2/easy"
 	"github.com/jxskiss/gopkg/v2/internal"
-	"github.com/jxskiss/gopkg/v2/internal/linkname"
 	"github.com/jxskiss/gopkg/v2/perf/lru"
-	"github.com/jxskiss/gopkg/v2/unsafe/reflectx"
 	"github.com/jxskiss/gopkg/v2/utils/compress"
 )
 
@@ -154,11 +152,11 @@ func (p *ModelCacheConfig[_, _]) checkAndSetDefaults() {
 
 func buildNewElemFunc[V any]() func() V {
 	var x V
-	typ := reflectx.RTypeOf(x)
+	typ := reflect.TypeOf(x)
 	if typ.Kind() == reflect.Ptr {
 		valTyp := typ.Elem()
 		return func() V {
-			ptr := linkname.Reflect_unsafe_New(unsafe.Pointer(valTyp))
+			ptr := reflect.New(valTyp).UnsafePointer()
 			return *(*V)(unsafe.Pointer(&ptr))
 		}
 	}
