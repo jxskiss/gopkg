@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
 )
@@ -25,10 +26,26 @@ type humanFriendlyImpl struct{}
 type float64With6Digits float64
 
 func (f float64With6Digits) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf("%.6f", f)), nil
+	bs := fmt.Sprintf("%.6f", float64(f))
+	if strings.IndexByte(bs, '.') >= 0 {
+		n := len(bs)
+		x := 0
+		for i := n - 1; i >= 0; i-- {
+			if bs[i] == '0' {
+				x++
+				continue
+			}
+			if bs[i] == '.' {
+				x++
+			}
+			break
+		}
+		bs = bs[:n-x]
+	}
+	return unsafeheader.StringToBytes(bs), nil
 }
 
-// convertAnyKeyMap converts map[any]any to map[string]any recursively,
+// convertAnyKeyMap converts map[any]T to map[string]any recursively,
 // sorting keys and converting float64 values to 6 decimal places.
 func convertAnyKeyMap(v any) any {
 	rv := reflect.ValueOf(v)
@@ -78,7 +95,7 @@ func keyString(key reflect.Value) string {
 		return key.String()
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return strconv.FormatInt(key.Int(), 10)
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		return strconv.FormatUint(key.Uint(), 10)
 	case reflect.Float32, reflect.Float64:
 		return fmt.Sprintf("%.6f", key.Float())
@@ -131,27 +148,27 @@ func (humanFriendlyImpl) MarshalIndentString(v any, prefix, indent string) (stri
 // NewEncoder ...
 func (humanFriendlyImpl) NewEncoder(w io.Writer) *Encoder {
 	return &Encoder{&hFriendlyEncoder{
-		w:    w,
-		jenc: json.NewEncoder(w),
+		w:   w,
+		enc: json.NewEncoder(w),
 	}}
 }
 
 type hFriendlyEncoder struct {
 	w      io.Writer
-	jenc   *json.Encoder
+	enc    *json.Encoder
 	prefix string
 	indent string
 }
 
 func (h *hFriendlyEncoder) Encode(val any) error {
 	converted := convertAnyKeyMap(val)
-	h.jenc.SetEscapeHTML(false)
-	h.jenc.SetIndent(h.prefix, h.indent)
-	return h.jenc.Encode(converted)
+	h.enc.SetEscapeHTML(false)
+	h.enc.SetIndent(h.prefix, h.indent)
+	return h.enc.Encode(converted)
 }
 
 func (h *hFriendlyEncoder) SetEscapeHTML(on bool) {
-	h.jenc.SetEscapeHTML(on)
+	h.enc.SetEscapeHTML(on)
 }
 
 func (h *hFriendlyEncoder) SetIndent(prefix, indent string) {

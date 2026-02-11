@@ -6,7 +6,7 @@ Package json provides an on-the-fly change-able API for JSON serialization.
 
 By default, it uses the standard library `encoding/json` in underlying,
 but the underlying implementation can be changed on-the-fly, e.g.
-use a custom jsoniter config, or switch to a [bytedance/sonic] implementation.
+switch to a [bytedance/sonic] or [jsoniter] implementation.
 You may see [_examples/perf/json/bytedance_sonic]()
 for an example to use bytedance/sonic as the underlying implementation.
 
@@ -20,9 +20,7 @@ by converting keys to their string representation.
 
 ## Performance
 
-By default, this package uses `jsoniter.ConfigCompatibleWithStandardLibrary` API.
-It gives better performance than `encoding/json` and good compatibility with it.
-
+By default, this package uses the standard library for best compatibility.
 User may use `ChangeImpl` to switch to a different underlying implementation.
 
 For best performance, user may use `MarshalFastest` when the underlying
