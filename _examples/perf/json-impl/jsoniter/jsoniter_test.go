@@ -11,7 +11,7 @@ import (
 )
 
 func TestSonicImpl(t *testing.T) {
-	impl := NewJSONIteratorImpl(jsoniter.ConfigDefault, true)
+	impl := New(jsoniter.ConfigDefault, true)
 	json.ChangeImpl(impl)
 
 	x := struct {

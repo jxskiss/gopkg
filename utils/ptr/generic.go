@@ -24,7 +24,7 @@ func Ptr[T any](v T) *T {
 	return &v
 }
 
-// NotZero returns a pointer to v if v is not zero value of it's type,
+// NotZero returns a pointer to v if v is not zero value of its type,
 // else it returns nil.
 func NotZero[T comparable](v T) (ret *T) {
 	var zero T

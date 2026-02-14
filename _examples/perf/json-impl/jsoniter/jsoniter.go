@@ -9,16 +9,16 @@ import (
 	"github.com/jxskiss/gopkg/v2/perf/json"
 )
 
-// DefaultJSONIteratorImpl uses [jsoniter.ConfigCompatibleWithStandardLibrary]
+// Default uses [jsoniter.ConfigCompatibleWithStandardLibrary]
 // as the underlying implementation.
-var DefaultJSONIteratorImpl = NewJSONIteratorImpl(
+var Default = New(
 	jsoniter.ConfigCompatibleWithStandardLibrary, true)
 
-// NewJSONIteratorImpl returns an implementation which uses api as the
+// New returns an implementation which uses jsoniter api as the
 // underlying config.
 // If useConfigFastest is true, it uses [jsoniter.ConfigFastest]
 // for method MarshalFastest, else it uses api.Marshal.
-func NewJSONIteratorImpl(api jsoniter.API, useConfigFastest bool) json.Implementation {
+func New(api jsoniter.API, useConfigFastest bool) json.Implementation {
 	impl := &jsoniterImpl{
 		api:            api,
 		marshalFastest: api.Marshal,

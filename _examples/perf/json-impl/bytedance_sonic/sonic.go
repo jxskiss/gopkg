@@ -9,22 +9,26 @@ import (
 	"github.com/jxskiss/gopkg/v2/perf/json"
 )
 
-func NewSonicImpl(api sonic.API) json.Implementation {
+// Default uses [sonic.ConfigDefault] as the underlying implementation.
+var Default = New(sonic.ConfigDefault, true)
+
+// New creates a json.Implementation based on github.com/bytedance/sonic.
+// If useConfigFastest is true, it uses [sonic.ConfigFastest]
+// for method MarshalFastest, else it uses api.Marshal.
+func New(api sonic.API, useConfigFastest bool) json.Implementation {
 	impl := &sonicImpl{
-		api: api,
+		api:            api,
+		marshalFastest: api.Marshal,
 	}
-	impl.marshalNoHTMLEscape = marshalNoHTMLEscape(api)
-	impl.encoderFactory = newEncoderFactory(api)
-	impl.decoderFactor = newDecodeFactory(api)
+	if useConfigFastest {
+		impl.marshalFastest = sonic.ConfigFastest.Marshal
+	}
 	return impl
 }
 
 type sonicImpl struct {
-	api sonic.API
-
-	marshalNoHTMLEscape func(v any, prefix, indent string) ([]byte, error)
-	encoderFactory      func(w io.Writer) *json.Encoder
-	decoderFactor       func(r io.Reader) *json.Decoder
+	api            sonic.API
+	marshalFastest func(v any) ([]byte, error)
 }
 
 func (impl sonicImpl) Marshal(v any) ([]byte, error) {
@@ -64,17 +68,17 @@ func (impl sonicImpl) Indent(dst *bytes.Buffer, src []byte, prefix, indent strin
 }
 
 func (impl sonicImpl) MarshalFastest(v any) ([]byte, error) {
-	return marshalFastest(v)
+	return impl.marshalFastest(v)
 }
 
 func (impl sonicImpl) MarshalNoHTMLEscape(v any, prefix, indent string) ([]byte, error) {
-	return impl.marshalNoHTMLEscape(v, prefix, indent)
+	return json.StdImpl.MarshalNoHTMLEscape(v, prefix, indent)
 }
 
 func (impl sonicImpl) NewEncoder(w io.Writer) *json.Encoder {
-	return impl.encoderFactory(w)
+	return &json.Encoder{UnderlyingEncoder: impl.api.NewEncoder(w)}
 }
 
 func (impl sonicImpl) NewDecoder(r io.Reader) *json.Decoder {
-	return impl.decoderFactor(r)
+	return &json.Decoder{UnderlyingDecoder: impl.api.NewDecoder(r)}
 }

@@ -11,7 +11,7 @@ import (
 )
 
 func TestSonicImpl(t *testing.T) {
-	impl := NewSonicImpl(sonic.ConfigDefault)
+	impl := New(sonic.ConfigDefault, true)
 	json.ChangeImpl(impl)
 
 	x := struct {

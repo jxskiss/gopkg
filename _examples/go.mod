@@ -6,7 +6,7 @@ require (
 	github.com/DataDog/zstd v1.5.7
 	github.com/bytedance/sonic v1.15.0
 	github.com/json-iterator/go v1.1.12
-	github.com/jxskiss/gopkg/v2 v2.0.0-00010101000000-000000000000
+	github.com/jxskiss/gopkg/v2 v2.21.0
 	github.com/stretchr/testify v1.11.1
 )
 
