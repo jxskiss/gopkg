@@ -382,7 +382,7 @@ func TestKeyString(t *testing.T) {
 				1.5: "val",
 			},
 			expected: map[string]any{
-				"1.500000": "val",
+				"1.5": "val",
 			},
 		},
 		{
@@ -391,7 +391,7 @@ func TestKeyString(t *testing.T) {
 				1.23: "val",
 			},
 			expected: map[string]any{
-				"1.230000": "val",
+				"1.23": "val",
 			},
 		},
 		{

@@ -26,7 +26,12 @@ type humanFriendlyImpl struct{}
 type float64With6Digits float64
 
 func (f float64With6Digits) MarshalJSON() ([]byte, error) {
-	bs := fmt.Sprintf("%.6f", float64(f))
+	bs := formatFloat6Digits(float64(f))
+	return unsafeheader.StringToBytes(bs), nil
+}
+
+func formatFloat6Digits(v float64) string {
+	bs := fmt.Sprintf("%.6f", v)
 	if strings.IndexByte(bs, '.') >= 0 {
 		n := len(bs)
 		x := 0
@@ -42,7 +47,7 @@ func (f float64With6Digits) MarshalJSON() ([]byte, error) {
 		}
 		bs = bs[:n-x]
 	}
-	return unsafeheader.StringToBytes(bs), nil
+	return bs
 }
 
 // convertAnyKeyMap converts map[any]T to map[string]any recursively,
@@ -98,7 +103,7 @@ func keyString(key reflect.Value) string {
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		return strconv.FormatUint(key.Uint(), 10)
 	case reflect.Float32, reflect.Float64:
-		return fmt.Sprintf("%.6f", key.Float())
+		return formatFloat6Digits(key.Float())
 	case reflect.Bool:
 		return strconv.FormatBool(key.Bool())
 	default:

@@ -142,7 +142,7 @@ func (l *Logger) logdebug(skip int, stringer stringerFunc, args ...any) {
 	loggerPrefix := l.getLoggerNamePrefix()
 	if len(args) > 0 {
 		if format, ok := args[0].(string); ok && strings.IndexByte(format, '%') >= 0 {
-			logger.Debugf(callerPrefix+format, formatArgs(stringer, args[1:])...)
+			logger.Debugf(loggerPrefix+callerPrefix+format, formatArgs(stringer, args[1:])...)
 			return
 		}
 		format := loggerPrefix + callerPrefix + "%v" + strings.Repeat(" %v", len(args)-1)
