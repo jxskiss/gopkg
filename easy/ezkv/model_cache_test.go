@@ -196,7 +196,7 @@ func TestCacheWithLoader(t *testing.T) {
 	_, exists = mc.config.LRUCache.GetNotStale(int64(113))
 	assert.True(t, exists)
 
-	time.Sleep(mc.config.LRUExpiration + 30*time.Millisecond)
+	time.Sleep(mc.config.LRUExpiration)
 	_, exists = mc.config.LRUCache.GetNotStale(int64(111))
 	assert.False(t, exists)
 	_, exists = mc.config.LRUCache.GetNotStale(int64(112))

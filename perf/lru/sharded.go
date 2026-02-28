@@ -5,7 +5,6 @@ import (
 
 	"github.com/jxskiss/gopkg/v2/internal"
 	"github.com/jxskiss/gopkg/v2/internal/rthash"
-	"github.com/jxskiss/gopkg/v2/perf/lptime"
 )
 
 // NewShardedCache returns a hash-sharded lru cache instance which is suitable
@@ -85,7 +84,7 @@ func (c *ShardedCache[K, V]) MGetNotStale(keys ...K) map[K]V {
 
 func (c *ShardedCache[K, V]) mget(notStale bool, keys ...K) map[K]V {
 	grpKeys := c.groupKeys(keys)
-	nowNano := lptime.UnixNano()
+	nowNano := timeNowNano()
 
 	var res map[K]V
 	for idx, keys := range grpKeys {

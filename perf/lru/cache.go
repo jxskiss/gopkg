@@ -5,13 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 	"unsafe"
-
-	"github.com/jxskiss/gopkg/v2/perf/lptime"
 )
-
-func init() {
-	lptime.SetPrecision(10 * time.Millisecond)
-}
 
 const maxCapacity = 1<<32 - 1
 
@@ -56,7 +50,7 @@ func (c *Cache[K, V]) Has(key K) (exists, expired bool) {
 	c.mu.RLock()
 	_, elem, exists := c.get(key)
 	if exists {
-		expired = elem.isExpired(lptime.UnixNano())
+		expired = elem.isExpired(timeNowNano())
 	}
 	c.mu.RUnlock()
 	return
@@ -67,7 +61,7 @@ func (c *Cache[K, V]) Get(key K) (v V, exists, expired bool) {
 	idx, elem, exists := c.get(key)
 	if exists {
 		v = elem.value.(V)
-		expired = elem.isExpired(lptime.UnixNano())
+		expired = elem.isExpired(timeNowNano())
 		c.promote(idx)
 	}
 	c.mu.RUnlock()
@@ -80,7 +74,7 @@ func (c *Cache[K, V]) GetWithTTL(key K) (v V, exists bool, ttl *time.Duration) {
 	if exists {
 		v = elem.value.(V)
 		if elem.expires > 0 {
-			x := time.Duration(elem.expires - lptime.UnixNano())
+			x := time.Duration(elem.expires - timeNowNano())
 			ttl = &x
 		}
 		c.promote(idx)
@@ -94,7 +88,7 @@ func (c *Cache[K, V]) GetQuiet(key K) (v V, exists, expired bool) {
 	_, elem, exists := c.get(key)
 	if exists {
 		v = elem.value.(V)
-		expired = elem.isExpired(lptime.UnixNano())
+		expired = elem.isExpired(timeNowNano())
 	}
 	c.mu.RUnlock()
 	return
@@ -104,7 +98,7 @@ func (c *Cache[K, V]) GetNotStale(key K) (v V, exists bool) {
 	c.mu.RLock()
 	idx, elem, exists := c.get(key)
 	if exists {
-		expired := elem.isExpired(lptime.UnixNano())
+		expired := elem.isExpired(timeNowNano())
 		if !expired {
 			v = elem.value.(V)
 			c.promote(idx)
@@ -125,12 +119,12 @@ func (c *Cache[K, V]) get(key K) (idx uint32, elem *element, exists bool) {
 }
 
 func (c *Cache[K, V]) MGet(keys ...K) map[K]V {
-	nowNano := lptime.UnixNano()
+	nowNano := timeNowNano()
 	return c.mget(false, nowNano, keys...)
 }
 
 func (c *Cache[K, V]) MGetNotStale(keys ...K) map[K]V {
-	nowNano := lptime.UnixNano()
+	nowNano := timeNowNano()
 	return c.mget(true, nowNano, keys...)
 }
 
@@ -301,4 +295,8 @@ func (c *Cache[K, V]) flushBuf(buf *walbuf) {
 		elem := c.list.get(idx)
 		c.list.MoveToFront(elem)
 	}
+}
+
+func timeNowNano() int64 {
+	return time.Now().UnixNano()
 }
