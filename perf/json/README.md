@@ -10,9 +10,7 @@ switch to a [bytedance/sonic] or [jsoniter] implementation.
 You may see [_examples/perf/json/bytedance_sonic]()
 for an example to use bytedance/sonic as the underlying implementation.
 
-When encoding data using `interface{}` as map keys (e.g. `map[any]any`),
-the standard library will fail, but the `HumanFriendly` utility supports this case
-by converting keys to their string representation.
+The `HumanFriendly` utility encodes data that is friendly for human reading.
 
 [bytedance/sonic]: https://github.com/bytedance/sonic
 

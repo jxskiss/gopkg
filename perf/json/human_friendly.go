@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -15,19 +14,29 @@ import (
 
 // HumanFriendly is a marshaler implementation which generates data
 // that is friendly for human reading.
-// Also, this config can encode data with `interface{}` as map keys,
-// in contrast, the standard library fails in this case.
 // This utility is not designed for performance sensitive use-case.
 var HumanFriendly = humanFriendlyImpl{}
 
 type humanFriendlyImpl struct{}
 
-// float64With6Digits wraps float64 to marshal with exactly 6 decimal places.
-type float64With6Digits float64
-
-func (f float64With6Digits) MarshalJSON() ([]byte, error) {
-	bs := formatFloat6Digits(float64(f))
-	return unsafeheader.StringToBytes(bs), nil
+// convertAnyKeyMap converts the map with interface{} key type to a map with string key type.
+func convertAnyKeyMap(v any) any {
+	rv := reflect.ValueOf(v)
+	if rv.Kind() != reflect.Map {
+		return v
+	}
+	rt := rv.Type()
+	keyType := rt.Key()
+	if keyType.Kind() != reflect.Interface {
+		return v
+	}
+	strTyp := reflect.TypeOf("")
+	newMap := reflect.MakeMapWithSize(reflect.MapOf(strTyp, rt.Elem()), rv.Len())
+	for iter := rv.MapRange(); iter.Next(); {
+		key, val := iter.Key(), iter.Value()
+		newMap.SetMapIndex(reflect.ValueOf(keyString(key)), val)
+	}
+	return newMap.Interface()
 }
 
 func formatFloat6Digits(v float64) string {
@@ -50,50 +59,6 @@ func formatFloat6Digits(v float64) string {
 	return bs
 }
 
-// convertAnyKeyMap converts map[any]T to map[string]any recursively,
-// sorting keys and converting float64 values to 6 decimal places.
-func convertAnyKeyMap(v any) any {
-	rv := reflect.ValueOf(v)
-	switch rv.Kind() {
-	case reflect.Map:
-		keys := rv.MapKeys()
-		sort.Slice(keys, func(i, j int) bool {
-			return keyString(keys[i]) < keyString(keys[j])
-		})
-		result := make(map[string]any, len(keys))
-		for _, key := range keys {
-			val := rv.MapIndex(key)
-			result[keyString(key)] = convertAnyKeyMap(val.Interface())
-		}
-		return result
-	case reflect.Slice, reflect.Array:
-		result := make([]any, rv.Len())
-		for i := 0; i < rv.Len(); i++ {
-			result[i] = convertAnyKeyMap(rv.Index(i).Interface())
-		}
-		return result
-	case reflect.Float32, reflect.Float64:
-		f := rv.Float()
-		// Only wrap with 6 decimal places if the value has fractional part
-		if f != float64(int64(f)) {
-			return float64With6Digits(f)
-		}
-		return f
-	case reflect.Ptr:
-		if rv.IsNil() {
-			return nil
-		}
-		return convertAnyKeyMap(rv.Elem().Interface())
-	case reflect.Interface:
-		if rv.IsNil() {
-			return nil
-		}
-		return convertAnyKeyMap(rv.Interface())
-	default:
-		return v
-	}
-}
-
 func keyString(key reflect.Value) string {
 	switch key.Kind() {
 	case reflect.String:
@@ -112,11 +77,11 @@ func keyString(key reflect.Value) string {
 }
 
 func (humanFriendlyImpl) Marshal(v any) ([]byte, error) {
-	converted := convertAnyKeyMap(v)
+	v = convertAnyKeyMap(v)
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
-	if err := enc.Encode(converted); err != nil {
+	if err := enc.Encode(v); err != nil {
 		return nil, err
 	}
 	return bytes.TrimSpace(buf.Bytes()), nil
@@ -131,12 +96,12 @@ func (humanFriendlyImpl) MarshalToString(v any) (string, error) {
 }
 
 func (humanFriendlyImpl) MarshalIndent(v any, prefix, indent string) ([]byte, error) {
-	converted := convertAnyKeyMap(v)
+	v = convertAnyKeyMap(v)
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
 	enc.SetIndent(prefix, indent)
-	if err := enc.Encode(converted); err != nil {
+	if err := enc.Encode(v); err != nil {
 		return nil, err
 	}
 	return bytes.TrimSpace(buf.Bytes()), nil
@@ -152,9 +117,11 @@ func (humanFriendlyImpl) MarshalIndentString(v any, prefix, indent string) (stri
 
 // NewEncoder ...
 func (humanFriendlyImpl) NewEncoder(w io.Writer) *Encoder {
+	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
 	return &Encoder{&hFriendlyEncoder{
 		w:   w,
-		enc: json.NewEncoder(w),
+		enc: enc,
 	}}
 }
 
@@ -166,10 +133,9 @@ type hFriendlyEncoder struct {
 }
 
 func (h *hFriendlyEncoder) Encode(val any) error {
-	converted := convertAnyKeyMap(val)
-	h.enc.SetEscapeHTML(false)
 	h.enc.SetIndent(h.prefix, h.indent)
-	return h.enc.Encode(converted)
+	val = convertAnyKeyMap(val)
+	return h.enc.Encode(val)
 }
 
 func (h *hFriendlyEncoder) SetEscapeHTML(on bool) {
