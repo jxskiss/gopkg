@@ -366,7 +366,7 @@ type TestModel struct {
 }
 
 func (m *TestModel) MarshalBinary() ([]byte, error) {
-	var buf []byte
+	buf := make([]byte, 0, 20+len(m.StrId)+len(m.Field3))
 	buf = append(buf, []byte(strconv.FormatInt(m.IntId, 10))...)
 	buf = append(buf, []byte(m.StrId)...)
 	buf = append(buf, []byte(m.Field3)...)

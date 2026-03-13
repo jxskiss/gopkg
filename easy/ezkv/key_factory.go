@@ -38,7 +38,7 @@ func (kf *KeyFactory) newSprintfKey(format string, argNames ...string) Key {
 	if len(argNames) == 0 {
 		tmpl = argPattern.ReplaceAllString(format, "%v")
 	} else {
-		var oldnew []string
+		oldnew := make([]string, 0, len(argNames)*2)
 		for _, arg := range argNames {
 			placeholder := fmt.Sprintf("{%s}", arg)
 			oldnew = append(oldnew, placeholder, "%v")
