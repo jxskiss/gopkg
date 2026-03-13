@@ -12,289 +12,319 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/jxskiss/gopkg/v2/perf/gopool"
+	"github.com/jxskiss/gopkg/v2/easy/ezmap"
 )
 
-func TestWorkflow_ComplexDAG(t *testing.T) {
-	// 模拟任务执行记录，用于验证顺序
-	var executionLog []string
-	var mu sync.Mutex
-	logExec := func(id string) {
-		mu.Lock()
-		defer mu.Unlock()
-		executionLog = append(executionLog, id)
-	}
+func TestBuildFluentAndRun(t *testing.T) {
+	wf := New("test")
+	require.NoError(t, wf.AddTask("A", func(ctx context.Context, in TaskInput) (any, error) {
+		return ezmap.Map{"v": 1}, nil
+	}, ezmap.Map{"p": "x"}))
+	require.NoError(t, wf.AddTask("B", func(ctx context.Context, in TaskInput) (any, error) {
+		aOut := in.UpstreamOutputs.Get("A")
+		require.NotNil(t, aOut)
+		assert.Equal(t, "x", (aOut.(ezmap.Map)).GetOr("p", "x"))
+		return ezmap.Map{"vb": (aOut.(ezmap.Map)).GetInt("v") + 1}, nil
+	}, nil))
+	require.NoError(t, wf.DependsOn("B", "A"))
 
-	// 定义任务
-	tasks := []Task{
-		&mockTask{
-			id:     "FetchData",
-			output: "raw_data",
-			action: func() { logExec("FetchData") },
-		},
-		&mockTask{
-			id:      "ValidateData",
-			depends: []string{"FetchData"},
-			action:  func() { logExec("ValidateData") },
-			fn: func(in any) (any, error) {
-				s, _ := in.(string)
-				return s + "_valid", nil
-			},
-		},
-		&mockTask{
-			id:      "LogMetric",
-			depends: []string{"FetchData"},
-			action:  func() { logExec("LogMetric") },
-			output:  "metric_done",
-			sleep:   50 * time.Millisecond,
-		},
-		&mockTask{
-			id:      "EnrichData",
-			depends: []string{"ValidateData"},
-			action:  func() { logExec("EnrichData") },
-			fn: func(in any) (any, error) {
-				s, _ := in.(string)
-				return s + "_enriched", nil
-			},
-		},
-		&mockTask{
-			id:      "SaveToDB",
-			depends: []string{"EnrichData"},
-			action:  func() { logExec("SaveToDB") },
-			output:  "db_id_123",
-			sleep:   10 * time.Millisecond,
-		},
-		&mockTask{
-			id:      "SendEmail",
-			depends: []string{"EnrichData"},
-			action:  func() { logExec("SendEmail") },
-			output:  "email_sent",
-			sleep:   10 * time.Millisecond,
-		},
-		&mockTask{
-			id:      "Report",
-			depends: []string{"SaveToDB", "SendEmail", "LogMetric"},
-			action:  func() { logExec("Report") },
-			output:  "report_generated",
-		},
-	}
-
-	wf := NewWorkflow("wf-complex-dag")
-	ctx := context.Background()
-
-	err := wf.AddTask(ctx, tasks...)
+	res, err := wf.Run(context.Background(), RunOptions{MaxConcurrency: 2, FailurePolicy: FailFast})
 	require.NoError(t, err)
+	require.False(t, res.StartedAt.IsZero())
+	require.False(t, res.EndedAt.IsZero())
+	require.False(t, res.EndedAt.Before(res.StartedAt))
+	require.Equal(t, Succeeded, res.Tasks["A"].State)
+	require.Equal(t, Succeeded, res.Tasks["B"].State)
+	require.Equal(t, 2, (res.Tasks["B"].Output.(ezmap.Map)).GetInt("vb"))
+}
 
-	start := time.Now()
-	res, err := wf.Execute(ctx, nil)
+func TestRunDefault(t *testing.T) {
+	wf := New("default")
+	require.NoError(t, wf.AddTask("A", func(ctx context.Context, in TaskInput) (any, error) {
+		return ezmap.Map{"v": 1}, nil
+	}, nil))
+
+	res, err := wf.RunDefault(context.Background())
 	require.NoError(t, err)
-	duration := time.Since(start)
+	require.Equal(t, Succeeded, res.Tasks["A"].State)
+	require.Equal(t, 1, (res.Tasks["A"].Output.(ezmap.Map)).GetInt("v"))
+}
 
-	t.Logf("Workflow finished in %v", duration)
+func TestBuildDeclarative(t *testing.T) {
+	wf, err := Build(Spec{
+		Name: "s",
+		Tasks: []TaskSpec{
+			{Name: "A", Action: func(ctx context.Context, in TaskInput) (any, error) { return ezmap.Map{"x": 1}, nil }},
+			{Name: "B", DependsOn: []string{"A"}, Action: func(ctx context.Context, in TaskInput) (any, error) {
+				aOut := in.UpstreamOutputs.Get("A")
+				require.NotNil(t, aOut)
+				return ezmap.Map{"x": (aOut.(ezmap.Map)).GetInt("x") + 1}, nil
+			}},
+		},
+	})
+	require.NoError(t, err)
+	res, err := wf.Run(context.Background(), RunOptions{FailurePolicy: FailFast})
+	require.NoError(t, err)
+	assert.Equal(t, 2, (res.Tasks["B"].Output.(ezmap.Map)).GetInt("x"))
+}
 
-	// 验证结果
-	require.NotNil(t, res)
-	require.NotNil(t, res.TaskResults)
+func TestRunContextSharedData(t *testing.T) {
+	wf := New("runctx")
+	require.NoError(t, wf.AddTask("A", func(ctx context.Context, in TaskInput) (any, error) {
+		in.RunCtx.Store("token", "abc")
+		in.RunCtx.Store("n", 3)
+		return nil, nil
+	}, nil))
+	require.NoError(t, wf.AddTask("B", func(ctx context.Context, in TaskInput) (any, error) {
+		token, ok := in.RunCtx.Load("token")
+		require.True(t, ok)
+		n, ok := in.RunCtx.Load("n")
+		require.True(t, ok)
+		return ezmap.Map{
+			"token": token.(string),
+			"n2":    n.(int) * 2,
+		}, nil
+	}, nil))
+	require.NoError(t, wf.DependsOn("B", "A"))
 
-	taskRes, ok := res.TaskResults["Report"]
+	res, err := wf.Run(context.Background(), RunOptions{FailurePolicy: FailFast})
+	require.NoError(t, err)
+	out := res.Tasks["B"].Output.(ezmap.Map)
+	assert.Equal(t, "abc", out.GetString("token"))
+	assert.Equal(t, 6, out.GetInt("n2"))
+}
+
+func TestRunContextFromOptions(t *testing.T) {
+	wf := New("runctx-options")
+	require.NoError(t, wf.AddTask("A", func(ctx context.Context, in TaskInput) (any, error) {
+		v, ok := in.RunCtx.Load("seed")
+		require.True(t, ok)
+		return ezmap.Map{"seed": v.(int) + 1}, nil
+	}, nil))
+
+	shared := NewRunContext()
+	shared.Store("seed", 41)
+	res, err := wf.Run(context.Background(), RunOptions{
+		FailurePolicy: FailFast,
+		RunContext:    shared,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 42, (res.Tasks["A"].Output.(ezmap.Map)).GetInt("seed"))
+	require.Same(t, shared, res.RunCtx)
+}
+
+func TestRunContextAutoCreateWhenNil(t *testing.T) {
+	wf := New("runctx-nil")
+	require.NoError(t, wf.AddTask("A", func(ctx context.Context, in TaskInput) (any, error) {
+		require.NotNil(t, in.RunCtx)
+		in.RunCtx.Store("ok", true)
+		v, ok := in.RunCtx.Load("ok")
+		require.True(t, ok)
+		return ezmap.Map{"ok": v.(bool)}, nil
+	}, nil))
+
+	res, err := wf.Run(context.Background(), RunOptions{
+		FailurePolicy: FailFast,
+		RunContext:    nil,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, res.RunCtx)
+	v, ok := res.RunCtx.Load("ok")
 	require.True(t, ok)
-	assert.Equal(t, "report_generated", taskRes.Output)
-
-	// 验证执行顺序 (基于时间戳)
-	tr := res.TaskResults
-
-	checkOrder := func(prev, next string) {
-		p := tr[prev]
-		n := tr[next]
-		require.NotNil(t, p, prev)
-		require.NotNil(t, n, next)
-		assert.True(t, !p.EndTime.After(n.StartTime),
-			fmt.Sprintf("%s finished at %v, but %s started at %v", prev, p.EndTime.Format(time.StampMilli), next, n.StartTime.Format(time.StampMilli)))
-	}
-
-	checkOrder("FetchData", "ValidateData")
-	checkOrder("FetchData", "LogMetric")
-	checkOrder("ValidateData", "EnrichData")
-	checkOrder("EnrichData", "SaveToDB")
-	checkOrder("EnrichData", "SendEmail")
-	checkOrder("SaveToDB", "Report")
-	checkOrder("SendEmail", "Report")
-	checkOrder("LogMetric", "Report")
-
-	// 验证数据流
-	assert.Equal(t, "raw_data_valid", tr["ValidateData"].Output)
-	assert.Equal(t, "raw_data_valid_enriched", tr["EnrichData"].Output)
+	require.Equal(t, true, v)
+	assert.True(t, (res.Tasks["A"].Output.(ezmap.Map)).GetBool("ok"))
 }
 
-func TestWorkflow_WithInput(t *testing.T) {
-	inputJSON := `{"env": "test", "retries": 3}`
-	wf := NewWorkflow("wf-input", WithJSONInput([]byte(inputJSON)))
+func TestFailFast(t *testing.T) {
+	wf := New("failfast")
+	startC := make(chan struct{})
+	require.NoError(t, wf.AddTask("A", func(ctx context.Context, in TaskInput) (any, error) {
+		close(startC)
+		return nil, errors.New("boom")
+	}, nil))
+	require.NoError(t, wf.AddTask("B", func(ctx context.Context, in TaskInput) (any, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}, nil))
+	require.NoError(t, wf.AddTask("C", func(ctx context.Context, in TaskInput) (any, error) {
+		<-startC
+		time.Sleep(30 * time.Millisecond)
+		return ezmap.Map{"ok": true}, nil
+	}, nil))
+	require.NoError(t, wf.DependsOn("B", "A"))
 
-	// Check if input is accessible via RunContext
-	rc := wf.RunContext()
-	require.NotNil(t, rc)
-	input := rc.WorkflowInput()
-
-	assert.Equal(t, "test", input.GetString("env"))
-	assert.Equal(t, 3, input.GetInt("retries"))
-
-	// Also test execution with init error
-	wfErr := NewWorkflow("wf-err", WithJSONInput([]byte(`invalid-json`)))
-	res, err := wfErr.Execute(context.Background(), nil)
-	assert.Error(t, err)
-	assert.Nil(t, res)
-	assert.Contains(t, err.Error(), "unmarshal JSON input")
-}
-
-func TestNewTask(t *testing.T) {
-	// Simple task execution
-	wf := NewWorkflow("wf-new-task")
-
-	task1 := NewTask("task1", func(ctx context.Context, rc RunContext) (any, error) {
-		return 1, nil
-	})
-
-	task2 := NewTask("task2", func(ctx context.Context, rc RunContext) (any, error) {
-		v1, ok := rc.GetTaskOutput("task1")
-		if !ok {
-			return nil, fmt.Errorf("task1 output not found")
-		}
-		return v1.(int) + 1, nil
-	}, DependsOn("task1"))
-
-	err := wf.AddTask(context.Background(), task1, task2)
-	require.NoError(t, err)
-
-	res, err := wf.Execute(context.Background(), nil)
-	require.NoError(t, err)
-
-	assert.Equal(t, 2, res.TaskResults["task2"].Output)
-}
-
-func TestWorkflow_TaskPanic(t *testing.T) {
-	// Setup gopool with custom panic handler
-	var panicVal any
-	var panicMu sync.Mutex
-
-	pool := gopool.New("test-pool", &gopool.Option{
-		PanicHandler: func(ctx context.Context, r any) {
-			panicMu.Lock()
-			panicVal = r
-			panicMu.Unlock()
-		},
-		MaxIdleWorkers: 10,
-		WorkerMaxAge:   time.Minute,
-		TaskChanBuffer: 10,
-	})
-
-	wf := NewWorkflow("wf-panic")
-
-	// Create a task that panics
-	task1 := NewTask("panic-task", func(ctx context.Context, rc RunContext) (any, error) {
-		panic("something went wrong")
-	})
-
-	// A downstream task that should not run
-	task2 := NewTask("downstream-task", func(ctx context.Context, rc RunContext) (any, error) {
-		return "ok", nil
-	}, DependsOn("panic-task"))
-
-	err := wf.AddTask(context.Background(), task1, task2)
-	require.NoError(t, err)
-
-	res, err := wf.Execute(context.Background(), pool)
-
-	// Workflow should return error
+	res, err := wf.Run(context.Background(), RunOptions{MaxConcurrency: 2, FailurePolicy: FailFast})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "task panic-task panicked")
-
-	// Verify result
-	require.NotNil(t, res)
-	require.NotNil(t, res.TaskResults["panic-task"])
-	// "downstream-task" should not be in results as it didn't run
-	assert.Nil(t, res.TaskResults["downstream-task"])
-
-	// Verify gopool captured the panic
-	panicMu.Lock()
-	defer panicMu.Unlock()
-	assert.Equal(t, "something went wrong", panicVal)
+	assert.Equal(t, Failed, res.Tasks["A"].State)
+	assert.Equal(t, Canceled, res.Tasks["B"].State)
+	assert.Contains(t, []TaskState{Succeeded, Canceled}, res.Tasks["C"].State)
 }
 
-func TestWorkflow_CancellationOnError(t *testing.T) {
-	wf := NewWorkflow("test-cancellation")
+func TestBestEffort(t *testing.T) {
+	wf := New("besteffort")
+	require.NoError(t, wf.AddTask("A", func(ctx context.Context, in TaskInput) (any, error) {
+		return nil, errors.New("boom")
+	}, nil))
+	require.NoError(t, wf.AddTask("B", func(ctx context.Context, in TaskInput) (any, error) {
+		return ezmap.Map{"ok": true}, nil
+	}, nil))
+	require.NoError(t, wf.AddTask("C", func(ctx context.Context, in TaskInput) (any, error) {
+		bOut := in.UpstreamOutputs.Get("B")
+		require.NotNil(t, bOut)
+		return ezmap.Map{"ok": (bOut.(ezmap.Map)).GetBool("ok")}, nil
+	}, nil))
+	require.NoError(t, wf.AddTask("D", func(ctx context.Context, in TaskInput) (any, error) {
+		return ezmap.Map{"never": true}, nil
+	}, nil))
+	require.NoError(t, wf.DependsOn("C", "B"))
+	require.NoError(t, wf.DependsOn("D", "A"))
 
-	taskFail := NewTask("fail-task", func(ctx context.Context, rc RunContext) (interface{}, error) {
-		time.Sleep(50 * time.Millisecond)
-		return nil, errors.New("deliberate error")
-	})
-
-	longTaskCanceled := int32(0)
-	taskLong := NewTask("long-task", func(ctx context.Context, rc RunContext) (interface{}, error) {
-		select {
-		case <-time.After(500 * time.Millisecond):
-			return "finished", nil
-		case <-ctx.Done():
-			atomic.StoreInt32(&longTaskCanceled, 1)
-			return nil, ctx.Err()
-		}
-	})
-
-	err := wf.AddTask(context.Background(), taskFail, taskLong)
-	assert.NoError(t, err)
-
-	start := time.Now()
-	res, err := wf.Execute(context.Background(), nil)
-	duration := time.Since(start)
-
-	assert.Error(t, err)
-	assert.Equal(t, "deliberate error", err.Error())
-	assert.Less(t, duration, 400*time.Millisecond, "Workflow should finish quickly upon error")
-
-	// Give a bit of time for the goroutine to process the cancellation signal
-	time.Sleep(50 * time.Millisecond)
-	assert.Equal(t, int32(1), atomic.LoadInt32(&longTaskCanceled), "Long running task should be canceled")
-
-	// Ensure result contains the executed task results even on error
-	// The failed task should be in results
-	if res != nil {
-		assert.Contains(t, res.TaskResults, "fail-task")
-		assert.Equal(t, "deliberate error", res.TaskResults["fail-task"].Error.Error())
-	}
+	res, err := wf.Run(context.Background(), RunOptions{MaxConcurrency: 4, FailurePolicy: BestEffort})
+	require.Error(t, err)
+	assert.Equal(t, Failed, res.Tasks["A"].State)
+	assert.Equal(t, SkippedDependencyFailed, res.Tasks["D"].State)
+	assert.Equal(t, Succeeded, res.Tasks["B"].State)
+	assert.Equal(t, Succeeded, res.Tasks["C"].State)
 }
 
-// mockTask 用于测试的 Task 实现
-type mockTask struct {
-	id      string
-	depends []string
-	sleep   time.Duration
-	output  any
-	err     error
-	action  func()
-	fn      func(input any) (any, error)
-}
-
-func (t *mockTask) ID() string        { return t.id }
-func (t *mockTask) Depends() []string { return t.depends }
-func (t *mockTask) Run(_ context.Context, rc RunContext) (any, error) {
-	if t.action != nil {
-		t.action()
-	}
-	if t.sleep > 0 {
-		time.Sleep(t.sleep)
-	}
-	if t.err != nil {
-		return nil, t.err
-	}
-
-	if t.fn != nil {
-		var input any
-		if len(t.depends) > 0 {
-			// 默认取第一个依赖的输出
-			if val, ok := rc.GetTaskOutput(t.depends[0]); ok {
-				input = val
+func TestMaxConcurrency(t *testing.T) {
+	wf := New("concurrency")
+	var current int64
+	var peak int64
+	mkTask := func(name string) TaskFunc {
+		return func(ctx context.Context, in TaskInput) (any, error) {
+			n := atomic.AddInt64(&current, 1)
+			for {
+				p := atomic.LoadInt64(&peak)
+				if n <= p || atomic.CompareAndSwapInt64(&peak, p, n) {
+					break
+				}
 			}
+			time.Sleep(20 * time.Millisecond)
+			atomic.AddInt64(&current, -1)
+			return ezmap.Map{"name": name}, nil
 		}
-		return t.fn(input)
 	}
-	return t.output, nil
+
+	for _, name := range []string{"A", "B", "C", "D", "E"} {
+		require.NoError(t, wf.AddTask(name, mkTask(name), nil))
+	}
+	res, err := wf.Run(context.Background(), RunOptions{MaxConcurrency: 2, FailurePolicy: FailFast})
+	require.NoError(t, err)
+	assert.LessOrEqual(t, peak, int64(2))
+	for _, r := range res.Tasks {
+		assert.Equal(t, Succeeded, r.State)
+	}
+}
+
+func TestValidation(t *testing.T) {
+	wf := New("validation")
+	err := wf.AddTask("", func(ctx context.Context, in TaskInput) (any, error) { return nil, nil }, nil)
+	require.Error(t, err)
+	err = wf.AddTask("A", nil, nil)
+	require.Error(t, err)
+	require.NoError(t, wf.AddTask("A", func(ctx context.Context, in TaskInput) (any, error) { return nil, nil }, nil))
+	err = wf.AddTask("A", func(ctx context.Context, in TaskInput) (any, error) { return nil, nil }, nil)
+	require.Error(t, err)
+	err = wf.DependsOn("B", "A")
+	require.Error(t, err)
+	err = wf.DependsOn("A", "A")
+	require.Error(t, err)
+}
+
+func TestCancelContext(t *testing.T) {
+	wf := New("ctx")
+	var once sync.Once
+	require.NoError(t, wf.AddTask("A", func(ctx context.Context, in TaskInput) (any, error) {
+		once.Do(func() { time.Sleep(50 * time.Millisecond) })
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+			return ezmap.Map{"ok": true}, nil
+		}
+	}, nil))
+	require.NoError(t, wf.AddTask("B", func(ctx context.Context, in TaskInput) (any, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}, nil))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	res, err := wf.Run(ctx, RunOptions{MaxConcurrency: 1, FailurePolicy: FailFast})
+	require.Error(t, err)
+	assert.Contains(t, []TaskState{Failed, Canceled}, res.Tasks["A"].State)
+	assert.Equal(t, Canceled, res.Tasks["B"].State)
+}
+
+func TestResultHelpers(t *testing.T) {
+	res := &Result{
+		TopoOrder: []string{"ok", "failed", "skipped", "canceled"},
+		Tasks: map[string]*TaskResult{
+			"ok": {
+				Name:  "ok",
+				State: Succeeded,
+				Err:   nil,
+			},
+			"failed": {
+				Name:  "failed",
+				State: Failed,
+				Err:   fmt.Errorf("boom"),
+			},
+			"skipped": {
+				Name:  "skipped",
+				State: SkippedDependencyFailed,
+				Err:   fmt.Errorf("dependency failed"),
+			},
+			"canceled": {
+				Name:  "canceled",
+				State: Canceled,
+				Err:   context.Canceled,
+			},
+		},
+	}
+
+	errs := res.FailedTasks()
+	require.Len(t, errs, 3)
+	require.ErrorContains(t, errs["failed"], "boom")
+	require.ErrorContains(t, errs["skipped"], "dependency failed")
+	require.ErrorIs(t, errs["canceled"], context.Canceled)
+
+	require.ErrorContains(t, res.TaskErrors(), "boom")
+	require.ErrorContains(t, res.TaskErrors(), "context canceled")
+
+	var nilRes *Result
+	require.Nil(t, nilRes.FailedTasks())
+	require.Nil(t, nilRes.TaskErrors())
+}
+
+func TestUpstreamOutputsIncludeAllAncestors(t *testing.T) {
+	wf := New("upstream-ancestors")
+
+	require.NoError(t, wf.AddTask("A", func(ctx context.Context, in TaskInput) (any, error) {
+		return ezmap.Map{"a": 1}, nil
+	}, nil))
+	require.NoError(t, wf.AddTask("B", func(ctx context.Context, in TaskInput) (any, error) {
+		aOut := in.UpstreamOutputs.Get("A")
+		require.NotNil(t, aOut)
+		return ezmap.Map{"b": (aOut.(ezmap.Map)).GetInt("a") + 1}, nil
+	}, nil))
+	require.NoError(t, wf.AddTask("C", func(ctx context.Context, in TaskInput) (any, error) {
+		aOut := in.UpstreamOutputs.Get("A")
+		require.NotNil(t, aOut)
+		bOut := in.UpstreamOutputs.Get("B")
+		require.NotNil(t, bOut)
+
+		// C only depends on B, but it should still see A as an upstream ancestor.
+		return ezmap.Map{
+			"sum": (aOut.(ezmap.Map)).GetInt("a") + (bOut.(ezmap.Map)).GetInt("b"),
+		}, nil
+	}, nil))
+
+	require.NoError(t, wf.DependsOn("B", "A"))
+	require.NoError(t, wf.DependsOn("C", "B"))
+
+	res, err := wf.Run(context.Background(), RunOptions{FailurePolicy: FailFast})
+	require.NoError(t, err)
+	assert.Equal(t, 3, (res.Tasks["C"].Output.(ezmap.Map)).GetInt("sum"))
 }

@@ -1,58 +1,52 @@
 package workflow
 
-import (
-	"context"
-	"sync"
+import "sync"
 
-	"github.com/jxskiss/gopkg/v2/easy/ezmap"
-)
-
-type runContext struct {
-	wf         Workflow
-	input      ezmap.Map
-	sharedData *ezmap.SafeMap
-	outputs    sync.Map // map[string]any
-	observer   Observer
+// RunContext is a concurrent-safe context shared by all tasks
+// in a single workflow running.
+type RunContext struct {
+	mu   sync.RWMutex
+	data map[string]any
 }
 
-func newRunContext(wf Workflow, input ezmap.Map, observer Observer) *runContext {
-	if input == nil {
-		input = make(ezmap.Map)
-	}
-	return &runContext{
-		wf:         wf,
-		input:      input,
-		sharedData: ezmap.NewSafeMap(),
-		observer:   observer,
+// NewRunContext creates an empty RunContext.
+func NewRunContext() *RunContext {
+	return &RunContext{
+		data: make(map[string]any),
 	}
 }
 
-func (c *runContext) WorkflowID() string {
-	return c.wf.ID()
+// Store stores a value for key.
+func (rc *RunContext) Store(key string, value any) {
+	rc.mu.Lock()
+	rc.data[key] = value
+	rc.mu.Unlock()
 }
 
-func (c *runContext) WorkflowInput() ezmap.Map {
-	return c.input
+// Load returns value and existence for key.
+func (rc *RunContext) Load(key string) (value any, ok bool) {
+	rc.mu.RLock()
+	value, ok = rc.data[key]
+	rc.mu.RUnlock()
+	return value, ok
 }
 
-func (c *runContext) GetTaskOutput(taskID string) (any, bool) {
-	return c.outputs.Load(taskID)
+// Delete removes key from context.
+func (rc *RunContext) Delete(key string) {
+	rc.mu.Lock()
+	delete(rc.data, key)
+	rc.mu.Unlock()
 }
 
-func (c *runContext) SharedData() *ezmap.SafeMap {
-	return c.sharedData
-}
-
-func (c *runContext) AddTask(ctx context.Context, tasks ...Task) error {
-	return c.wf.AddTask(ctx, tasks...)
-}
-
-func (c *runContext) EmitEvent(ctx context.Context, taskID, eventName string, data any) {
-	if c.observer != nil {
-		c.observer.OnEvent(ctx, taskID, eventName, data)
+// LoadOrStore returns the existing value for the key if present.
+// Otherwise, it stores and returns the given value.
+func (rc *RunContext) LoadOrStore(key string, value any) (actual any, loaded bool) {
+	rc.mu.Lock()
+	actual, loaded = rc.data[key]
+	if !loaded {
+		rc.data[key] = value
+		actual = value
 	}
-}
-
-func (c *runContext) setTaskOutput(taskID string, output any) {
-	c.outputs.Store(taskID, output)
+	rc.mu.Unlock()
+	return actual, loaded
 }
