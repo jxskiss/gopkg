@@ -18,8 +18,8 @@ import (
 	"github.com/jxskiss/gopkg/v2/perf/json"
 )
 
-// JSON converts given object to a json string, it never returns error.
-// The marshalling method used here does not escape HTML characters,
+// JSON converts given object to a JSON string, it never returns error.
+// The marshaling method used here does not escape HTML characters,
 // and map keys are sorted, which helps human reading.
 func JSON(v any) string {
 	b, err := json.HumanFriendly.Marshal(v)
@@ -35,48 +35,27 @@ func JSON(v any) string {
 // This helps to avoid unnecessary marshaling in some use case,
 // such as leveled logging.
 func LazyJSON(v any) fmt.Stringer {
-	return lazyString{f: JSON, v: v}
+	return lazyJSON{v}
 }
 
-// LazyFunc returns a lazy object which wraps v,
-// which marshals v using f when its String method is called.
-// This helps to avoid unnecessary marshaling in some use case,
-// such as leveled logging.
-func LazyFunc(v any, f func(any) string) fmt.Stringer {
-	return lazyString{f: f, v: v}
-}
+type lazyJSON struct{ v any }
 
-type lazyString struct {
-	f func(any) string
-	v any
-}
+func (x lazyJSON) String() string               { return JSON(x.v) }
+func (x lazyJSON) MarshalJSON() ([]byte, error) { return json.HumanFriendly.Marshal(x.v) }
 
-func (x lazyString) String() string { return x.f(x.v) }
-
-func (x lazyString) MarshalText() ([]byte, error) {
-	s := x.String()
-	return unsafeheader.StringToBytes(s), nil
-}
-
-// LazyFunc0 returns a lazy fmt.Stringer which calls f when
+// LazyString returns a lazy fmt.Stringer which calls f when
 // its String method is called.
-func LazyFunc0(f func() string) fmt.Stringer {
-	return lazyString0{f: f}
+func LazyString(f func() string) fmt.Stringer {
+	return lazyString{f: f}
 }
 
-type lazyString0 struct {
-	f func() string
-}
+type lazyString struct{ f func() string }
 
-func (x lazyString0) String() string { return x.f() }
+func (x lazyString) String() string               { return x.f() }
+func (x lazyString) MarshalText() ([]byte, error) { return unsafeheader.StringToBytes(x.f()), nil }
 
-func (x lazyString0) MarshalText() ([]byte, error) {
-	s := x.String()
-	return unsafeheader.StringToBytes(s), nil
-}
-
-// Pretty converts given object to a pretty formatted json string.
-// If the input is a json string, it will be formatted using json.Indent
+// Pretty converts given object to a pretty formatted JSON string.
+// If the input is a JSON string, it will be formatted using json.Indent
 // with four space characters as indent.
 func Pretty(v any) string {
 	return prettyIndent(v, "    ")

@@ -74,7 +74,7 @@ DEBUG accepts very flexible arguments to help development, see the following exa
 	DEBUG(logger, "aa", 2, 3)
 	DEBUG(logger, "a=%v b=%v c=%v", "aa", 2, 3)
 
-	// non-basic-type values will be formatted using json
+	// non-basic-type values will be formatted using JSON
 	obj := &SomeStructType{Field1: "blah", Field2: 1234567, Field3: true}
 	DEBUG(logger, "obj=%v"， obj)
 */
