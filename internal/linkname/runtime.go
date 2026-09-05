@@ -21,11 +21,16 @@ func runtime_procUnpin()
 
 // -------- runtime hash functions --------
 
-//go:linkname Runtime_memhash32 runtime.memhash32
-func Runtime_memhash32(p unsafe.Pointer, h uintptr) uintptr
+//go:linkname Runtime_memhash runtime.memhash
+func Runtime_memhash(p unsafe.Pointer, h, s uintptr) uintptr
 
-//go:linkname Runtime_memhash64 runtime.memhash64
-func Runtime_memhash64(p unsafe.Pointer, h uintptr) uintptr
+func Runtime_memhash32(p unsafe.Pointer, h uintptr) uintptr {
+	return Runtime_memhash(p, h, 4)
+}
+
+func Runtime_memhash64(p unsafe.Pointer, h uintptr) uintptr {
+	return Runtime_memhash(p, h, 8)
+}
 
 //go:linkname Runtime_stringHash runtime.stringHash
 func Runtime_stringHash(s string, seed uintptr) uintptr

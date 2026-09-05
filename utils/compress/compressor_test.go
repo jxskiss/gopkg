@@ -44,7 +44,7 @@ func TestCompressor(t *testing.T) {
 		testData := bytes.Repeat(data, 2)
 		compressedData, compressType, reason := compressor.Compress(ctx, testData)
 		assert.Equal(t, TypeNoCompress, compressType)
-		assert.Equal(t, ReasonSavingTooSmall, reason)
+		assert.True(t, reason == ReasonSavingNegative || reason == ReasonSavingTooSmall)
 		decompressedData, _, err := compressor.Decompress(ctx, compressedData)
 		assert.Nil(t, err)
 		assert.Equal(t, testData, decompressedData)

@@ -54,6 +54,7 @@ var reflectSourceCode = []SourceCodeTestCase{
 	},
 	{
 		MinVer:   newVer(1, 21, 0),
+		MaxVer:   newVer(1, 26, 999),
 		FileName: "reflect/type.go",
 		Lines: []string{
 			"func (t *rtype) common() *abi.Type",
@@ -74,6 +75,21 @@ var reflectSourceCode = []SourceCodeTestCase{
 		FileName: "reflect/badlinkname.go",
 		Lines: []string{
 			"//go:linkname unusedIfaceIndir reflect.ifaceIndir",
+		},
+	},
+	{
+		MinVer:   newVer(1, 27, 0),
+		FileName: "reflect/type.go",
+		Lines: []string{
+			"func (t *rtype) common() *abi.Type",
+			"func resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer",
+		},
+	},
+	{
+		MinVer:   newVer(1, 27, 0),
+		FileName: "runtime/runtime1.go",
+		Lines: []string{
+			"//go:linkname reflect_typelinks reflect.typelinks",
 		},
 	},
 	{

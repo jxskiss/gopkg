@@ -77,8 +77,7 @@ var runtimeSourceCode = []SourceCodeTestCase{
 	{
 		FileName: "runtime/alg.go",
 		Lines: []string{
-			"func memhash32(p unsafe.Pointer, h uintptr) uintptr",
-			"func memhash64(p unsafe.Pointer, h uintptr) uintptr",
+			"func memhash(p unsafe.Pointer, h, s uintptr) uintptr",
 			"func stringHash(s string, seed uintptr) uintptr",
 			"func nilinterhash(p unsafe.Pointer, h uintptr) uintptr",
 			"func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr",
