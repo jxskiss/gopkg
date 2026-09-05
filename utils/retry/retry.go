@@ -1,16 +1,21 @@
 // Package retry implements frequently used retry strategies and options.
 package retry
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
-// Stop is used to indicate the retry function to stop retry.
+// Stop is used to indicate the retry function to stop retrying.
 type Stop struct {
 	Err error
 }
 
-func (e Stop) Error() string {
-	return e.Err.Error()
-}
+func (e Stop) Error() string { return e.Err.Error() }
+
+func (e Stop) Unwrap() error { return e.Err }
+
+func (e Stop) isStopError() bool { return true }
 
 // Default will call param function f at most 3 times before returning error.
 // Between each retry will sleep an exponential time starts at 500ms.
@@ -21,7 +26,7 @@ func Default(f func() error, opts ...Option) Result {
 	return Retry(3, 500*time.Millisecond, f, opts...)
 }
 
-// Retry retry the target function with exponential sleep time.
+// Retry retries the target function with exponential sleep time.
 // It implements algorithm described in https://upgear.io/blog/simple-golang-retry-function/.
 func Retry(attempts int, sleep time.Duration, f func() error, opts ...Option) Result {
 	opt := defaultOptions
@@ -30,7 +35,7 @@ func Retry(attempts int, sleep time.Duration, f func() error, opts ...Option) Re
 	return retry(opt, f, opts...)
 }
 
-// Const retry the target function with constant sleep time.
+// Const retries the target function with constant sleep time.
 // It is shorthand for Retry(attempts, sleep, f, C()).
 func Const(attempts int, sleep time.Duration, f func() error, opts ...Option) Result {
 	opt := defaultOptions
@@ -40,7 +45,7 @@ func Const(attempts int, sleep time.Duration, f func() error, opts ...Option) Re
 	return retry(opt, f, opts...)
 }
 
-// Linear retry the target function with linear sleep time.
+// Linear retries the target function with linear sleep time.
 // It is shorthand for Retry(attempts, sleep, f, L(sleep)).
 func Linear(attempts int, sleep time.Duration, f func() error, opts ...Option) Result {
 	opt := defaultOptions
@@ -50,8 +55,8 @@ func Linear(attempts int, sleep time.Duration, f func() error, opts ...Option) R
 	return retry(opt, f, opts...)
 }
 
-// Forever retry the target function endlessly if it returns error.
-// To stop the the retry loop on error, the target function should return Stop.
+// Forever retries the target function endlessly if it returns error.
+// To stop the retry loop on error, the target function should return Stop.
 //
 // The caller should take care of dead loop.
 func Forever(sleep, maxSleep time.Duration, f func() error, opts ...Option) Result {
@@ -80,10 +85,7 @@ func retry(opt options, f func() error, opts ...Option) (r Result) {
 	var merr = NewSizedError(opt.MaxErrors)
 	var sleep = opt.Sleep
 	for {
-		if _, ok := err.(Stop); ok {
-			break
-		}
-		if s, ok := err.(*Stop); ok && s != nil {
+		if _, ok := checkStopError(err); ok {
 			break
 		}
 		// attempts <= 0 means retry forever.
@@ -120,16 +122,11 @@ func retry(opt options, f func() error, opts ...Option) (r Result) {
 		sleep = opt.Strategy(sleep)
 	}
 	if err != nil {
-		if s, ok := err.(Stop); ok {
+		if innerErr, isStop := checkStopError(err); isStop {
 			// Return the original error for later checking.
 			// Stop error from caller don't count for circuit breaker.
-			merr.Append(s.Err)
-			opt.Hook(r.Attempts, s.Err)
-		} else if s, ok := err.(*Stop); ok && s != nil {
-			// Return the original error for later checking.
-			// Stop error from caller don't count for circuit breaker.
-			merr.Append(s.Err)
-			opt.Hook(r.Attempts, s.Err)
+			merr.Append(innerErr)
+			opt.Hook(r.Attempts, innerErr)
 		} else {
 			merr.Append(err)
 			opt.Hook(r.Attempts, err)
@@ -140,6 +137,18 @@ func retry(opt options, f func() error, opts ...Option) (r Result) {
 	}
 	r.Error = merr.ErrOrNil()
 	return r
+}
+
+//nolint:revive
+func checkStopError(err error) (innerErr error, ok bool) {
+	var stop interface {
+		Unwrap() error
+		isStopError() bool
+	}
+	if errors.As(err, &stop) {
+		return stop.Unwrap(), true
+	}
+	return nil, false
 }
 
 type Result struct {
