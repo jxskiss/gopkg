@@ -3,107 +3,176 @@ package zstd
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
-	"strings"
+	"errors"
+	"math"
+	"sync"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 
 	"github.com/jxskiss/gopkg/v2/utils/compress"
 )
 
-func TestZstdCompressor(t *testing.T) {
-	ctx := context.Background()
-	zstdImpl := NewZstdCompressor(BestCompression)
-	compressor := compress.NewCompressor(compress.CompressorConfig{
-		BizName:   "test",
-		Alg:       zstdImpl,
-		Threshold: 1,
-	})
-	original := make([]byte, 11*1024+333)
-	_, err := rand.Read(original[:1024])
-	if err != nil {
-		t.Fatalf("Read random data error: %v", err)
+func TestZstdCodec(t *testing.T) {
+	for _, level := range []int{BestSpeed, DefaultCompression, BestCompression} {
+		codec, err := NewZstdCodec(level)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if codec.CompressionLevel() != level {
+			t.Fatal("level changed")
+		}
+		for _, input := range [][]byte{nil, []byte("hello"), []byte("你好，世界"), bytes.Repeat([]byte("zstd data"), 1000)} {
+			prefix := make([]byte, 3, 128)
+			copy(prefix, "pre")
+			encoded, err := codec.Compress(prefix, input)
+			if err != nil || len(encoded) < 3 || string(encoded[:3]) != "pre" {
+				t.Fatalf("compress: %v", err)
+			}
+			decoded, err := codec.Decompress(encoded[3:], max(1, len(input)))
+			if err != nil || !bytes.Equal(decoded, input) {
+				t.Fatalf("round trip: %v", err)
+			}
+		}
 	}
-	compressed, compressType, failReason := compressor.Compress(ctx, original)
-	if failReason != "" {
-		t.Fatalf("Compress error: %v", failReason)
-	}
-	if compressType != compress.TypeZstd {
-		t.Fatalf("Compress type is not Zstd")
-	}
-	decompressed, compressType, err := compressor.Decompress(ctx, compressed)
-	if err != nil {
-		t.Fatalf("Decompress error: %v", err)
-	}
-	if compressType != compress.TypeZstd {
-		t.Fatalf("Decompress type is not Zstd")
-	}
-	if !bytes.Equal(original, decompressed) {
-		t.Fatalf("Decompressed data does not match original data")
+	for _, level := range []int{0, -1, BestCompression + 1} {
+		if codec, err := NewZstdCodec(level); codec != nil || !errors.Is(err, compress.ErrInvalidConfig) {
+			t.Fatalf("level %d: %v", level, err)
+		}
 	}
 }
 
-// Test concurrent use of the compressor to ensure pool safety
-func TestZstdCompressor_Concurrency(t *testing.T) {
-	compressor := compress.NewCompressor(compress.CompressorConfig{
-		BizName:   "test",
-		Alg:       defaultZstdAlg,
-		Threshold: 1,
-		MinSaving: 0.1,
-	})
-	originalData := []byte(strings.Repeat("concurrency test data", 500))
+func TestZstdCodecLimitsAndCorruption(t *testing.T) {
+	codec, _ := NewZstdCodec(DefaultCompression)
+	input := bytes.Repeat([]byte("zstd data"), 1000)
+	valid, _ := codec.Compress(nil, input)
+	for _, limit := range []int{1, len(input) - 1, len(input), len(input) + 1, math.MaxInt} {
+		out, err := codec.Decompress(valid, limit)
+		if limit < len(input) {
+			if out != nil || !errors.Is(err, compress.ErrDecodedTooLarge) {
+				t.Fatalf("limit %d: %v", limit, err)
+			}
+		} else if err != nil || !bytes.Equal(out, input) {
+			t.Fatalf("limit %d: %v", limit, err)
+		}
+	}
+	for _, limit := range []int{-1, 0} {
+		if out, err := codec.Decompress(valid, limit); out != nil || !errors.Is(err, compress.ErrInvalidConfig) {
+			t.Fatalf("limit %d: %v", limit, err)
+		}
+	}
+	for i := 0; i < len(valid); i++ {
+		if out, err := codec.Decompress(valid[:i], len(input)); err == nil || out != nil {
+			t.Fatalf("accepted truncation %d", i)
+		}
+	}
+	for _, data := range [][]byte{[]byte("invalid"), append(bytes.Clone(valid), 1)} {
+		if out, err := codec.Decompress(data, len(input)); err == nil || out != nil {
+			t.Fatal("accepted invalid stream")
+		}
+	}
+	multi := append(bytes.Clone(valid), valid...)
+	if out, err := codec.Decompress(multi, len(input)); out != nil || !errors.Is(err, compress.ErrDecodedTooLarge) {
+		t.Fatalf("multistream limit: %v", err)
+	}
+	if out, err := codec.Decompress(multi, 2*len(input)); err != nil || !bytes.Equal(out, bytes.Repeat(input, 2)) {
+		t.Fatalf("multistream: %v", err)
+	}
+}
 
-	numGoroutines := 100
-	results := make(chan []byte, numGoroutines)
-	failReasons := make(chan string, numGoroutines)
-	errs := make(chan error, numGoroutines)
-
-	ctx := context.Background()
-	for i := 0; i < numGoroutines; i++ {
+func TestZstdCompressorConcurrency(t *testing.T) {
+	codec, _ := NewZstdCodec(BestSpeed)
+	cfg := compress.DefaultConfig()
+	cfg.Codec = codec
+	c, err := compress.NewCompressor(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader, err := compress.NewCompressor(compress.CompressorConfig{Decoders: []compress.Decoder{codec}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := bytes.Repeat([]byte("concurrent zstd"), 1000)
+	var wg sync.WaitGroup
+	for i := 0; i < 32; i++ {
+		wg.Add(1)
 		go func() {
-			compressed, _, reason := compressor.Compress(ctx, originalData)
-			if reason != "" {
-				failReasons <- reason
-				return
+			defer wg.Done()
+			for j := 0; j < 10; j++ {
+				result := c.Compress(context.Background(), input)
+				if result.Err != nil || result.Type != compress.TypeZstd || result.Reason != "" {
+					t.Errorf("compression: %s %s %v", result.Type, result.Reason, result.Err)
+					return
+				}
+				for _, decoder := range []compress.Compressor{c, reader} {
+					out, typ, err := decoder.Decompress(context.Background(), result.Data)
+					if err != nil || typ != compress.TypeZstd || !bytes.Equal(out, input) {
+						t.Errorf("round trip: %s %v", typ, err)
+						return
+					}
+				}
 			}
-			decompressed, _, err := compressor.Decompress(ctx, compressed)
-			if err != nil {
-				errs <- err
-				return
-			}
-			results <- decompressed
 		}()
 	}
+	wg.Wait()
+}
 
-	for i := 0; i < numGoroutines; i++ {
-		select {
-		case reason := <-failReasons:
-			if reason == compress.ReasonCompressFailed {
-				t.Errorf("Concurrency test failed with reason: %s", reason)
-			}
-		case err := <-errs:
-			t.Errorf("Concurrency test failed with error: %v", err)
-		case decompressed := <-results:
-			assert.Equal(t, originalData, decompressed, "Decompressed data should match original in concurrent test")
-		}
+func TestZstdCodecOwnership(t *testing.T) {
+	codec, _ := NewZstdCodec(BestSpeed)
+	input := bytes.Repeat([]byte("a"), 1000)
+	expected := bytes.Clone(input)
+	encoded, err := codec.Compress(nil, input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input[0] = 'b'
+	out, err := codec.Decompress(encoded, len(expected))
+	if err != nil || !bytes.Equal(out, expected) {
+		t.Fatalf("input alias: %v", err)
+	}
+	out[0] = 'c'
+	again, err := codec.Decompress(encoded, len(expected))
+	if err != nil || !bytes.Equal(again, expected) {
+		t.Fatalf("output alias: %v", err)
+	}
+	saved := bytes.Clone(encoded)
+	if _, err := codec.Compress(nil, input); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(encoded, saved) {
+		t.Fatal("output changed after reuse")
 	}
 }
 
-func FuzzZstdCompressor(f *testing.F) {
-	compressor := NewZstdCompressor(BestSpeed)
+func FuzzZstdCodecRoundTrip(f *testing.F) {
+	codec, _ := NewZstdCodec(BestSpeed)
 	f.Add([]byte("hello world"))
+	f.Add([]byte{})
+	f.Fuzz(func(t *testing.T, input []byte) {
+		if len(input) > 1<<20 {
+			t.Skip()
+		}
+		encoded, err := codec.Compress(nil, input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out, err := codec.Decompress(encoded, max(1, len(input)))
+		if err != nil || !bytes.Equal(out, input) {
+			t.Fatalf("round trip: %v", err)
+		}
+	})
+}
+
+func FuzzZstdCodecDecompress(f *testing.F) {
+	codec, _ := NewZstdCodec(BestSpeed)
+	f.Add([]byte{})
+	valid, _ := codec.Compress(nil, []byte("hello"))
+	f.Add(valid)
 	f.Fuzz(func(t *testing.T, data []byte) {
-		compressed, err := compressor.Compress(nil, data)
-		if err != nil {
-			t.Fatalf("Compress error: %v", err)
+		out, err := codec.Decompress(data, 64<<10)
+		if err != nil && out != nil {
+			t.Fatal("partial output on error")
 		}
-		decompressed, err := compressor.Decompress(compressed)
-		if err != nil {
-			t.Fatalf("Decompress error: %v", err)
-		}
-		if !bytes.Equal(data, decompressed) {
-			t.Fatalf("Decompressed data does not match original data")
+		if len(out) > 64<<10 {
+			t.Fatal("limit exceeded")
 		}
 	})
 }

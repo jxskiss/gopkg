@@ -263,11 +263,18 @@ func TestCacheWithCompression(t *testing.T) {
 		func(m *TestModel) int64 {
 			return m.IntId
 		})
-	compressor := compress.NewCompressor(compress.CompressorConfig{
-		Alg:       compress.NewGzipCompressor(gzip.BestSpeed),
-		Threshold: 1,
-		MinSaving: 0.00001,
+	codec, codecErr := compress.NewGzipCodec(gzip.BestSpeed)
+	if codecErr != nil {
+		t.Fatal(codecErr)
+	}
+	compressor, configErr := compress.NewCompressor(compress.CompressorConfig{
+		Codec:             codec,
+		Threshold:         1,
+		MinReductionRatio: 0.00001,
 	})
+	if configErr != nil {
+		t.Fatal(configErr)
+	}
 	mcInt.config.Compressor = compressor
 
 	ctx := context.Background()

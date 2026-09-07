@@ -447,7 +447,7 @@ func (p *ModelCache[K, V]) Set(ctx context.Context, pk K, elem V, expiration tim
 		return fmt.Errorf("marshal model: %w", err)
 	}
 	if p.config.Compressor != nil {
-		buf, _, _ = p.config.Compressor.Compress(ctx, buf)
+		buf = p.config.Compressor.Compress(ctx, buf).Data
 	}
 	stor := p.config.Storage(ctx)
 	err = stor.Set(ctx, key, buf, expiration)
@@ -484,7 +484,7 @@ func (p *ModelCache[K, V]) BatchSetSlice(ctx context.Context, models []V, expira
 				return fmt.Errorf("marshal model: %w", err)
 			}
 			if compressor != nil {
-				buf, _, _ = compressor.Compress(ctx, buf)
+				buf = compressor.Compress(ctx, buf).Data
 			}
 			pk := p.config.IDFunc(elem)
 			key := p.config.KeyFunc(pk)
@@ -522,7 +522,7 @@ func (p *ModelCache[K, V]) BatchSetMap(ctx context.Context, models map[K]V, expi
 			return fmt.Errorf("marshal model: %w", err)
 		}
 		if compressor != nil {
-			buf, _, _ = compressor.Compress(ctx, buf)
+			buf = compressor.Compress(ctx, buf).Data
 		}
 		key := p.config.KeyFunc(pk)
 		keys = append(keys, key)

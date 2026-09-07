@@ -14,57 +14,52 @@ const (
 	DefaultCompression = zstd.DefaultCompression
 )
 
-func init() {
-	compress.ProvideDecompressor(defaultZstdAlg)
-}
-
-var defaultZstdAlg = NewZstdCompressor(DefaultCompression)
-
-type ZstdCompressor struct {
-	level int
-}
-
-// NewZstdCompressor creates a new ZstdCompressor instance.
-// level specifies the compression level, valid values are [1, 20].
-func NewZstdCompressor(level int) compress.CompressionAlg {
-	if level == 0 {
-		level = DefaultCompression
-	} else if level < BestSpeed {
-		level = BestSpeed
-	} else if level > BestCompression {
-		level = BestCompression
+// NewZstdCodec accepts levels in range [BestSpeed, BestCompression].
+func NewZstdCodec(level int) (*ZstdCodec, error) {
+	if level < BestSpeed || level > BestCompression {
+		return nil, fmt.Errorf("%w: zstd level %d", compress.ErrInvalidConfig, level)
 	}
-	return &ZstdCompressor{
-		level: level,
-	}
+	return &ZstdCodec{level: level}, nil
 }
 
-func (p *ZstdCompressor) Type() compress.AlgType {
-	return compress.TypeZstd
-}
+type ZstdCodec struct{ level int }
 
-func (p *ZstdCompressor) CompressionLevel() int {
-	return p.level
-}
+func (p *ZstdCodec) Type() compress.AlgType { return compress.TypeZstd }
+func (p *ZstdCodec) CompressionLevel() int  { return p.level }
 
-// Compress compresses the source byte slice using the zstd algorithm.
-func (p *ZstdCompressor) Compress(dst []byte, data []byte) ([]byte, error) {
+func (p *ZstdCodec) Compress(dst, data []byte) ([]byte, error) {
 	bound := zstd.CompressBound(len(data))
 	out := make([]byte, len(dst), len(dst)+bound)
 	copy(out, dst)
-	tmp, err := zstd.CompressLevel(out[len(dst):], data, p.level)
+	encoded, err := zstd.CompressLevel(out[len(dst):], data, p.level)
 	if err != nil {
-		return nil, fmt.Errorf("zstd compress failed: %w", err)
+		return nil, fmt.Errorf("zstd compress: %w", err)
 	}
-	out = out[:len(dst)+len(tmp)]
-	return out, nil
+	return out[:len(dst)+len(encoded)], nil
 }
 
-// Decompress decompresses the source byte slice using the zstd algorithm.
-func (p *ZstdCompressor) Decompress(src []byte) ([]byte, error) {
-	out, err := zstd.Decompress(nil, src)
-	if err != nil {
-		return nil, fmt.Errorf("zstd decompress failed: %w", err)
+func (p *ZstdCodec) Decompress(data []byte, maxDecodedSize int) ([]byte, error) {
+	if maxDecodedSize <= 0 {
+		return nil, fmt.Errorf("%w: max decoded size must be positive", compress.ErrInvalidConfig)
 	}
-	return out, nil
+	if len(data) == 0 {
+		return nil, zstd.ErrEmptySlice
+	}
+	// DataDog's streaming reader can accept truncated frames. zstd.DecompressInto
+	// validates whole frames and never allocates an unbounded output buffer.
+	size := min(1024, maxDecodedSize)
+	for {
+		out := make([]byte, size)
+		n, err := zstd.DecompressInto(out, data)
+		if err == nil {
+			return out[:n], nil
+		}
+		if !zstd.IsDstSizeTooSmallError(err) {
+			return nil, fmt.Errorf("zstd decompress: %w", err)
+		}
+		if size == maxDecodedSize {
+			return nil, compress.ErrDecodedTooLarge
+		}
+		size += min(size, maxDecodedSize-size)
+	}
 }
