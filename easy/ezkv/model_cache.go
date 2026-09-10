@@ -125,6 +125,11 @@ type ModelCacheConfig[K comparable, V Model] struct {
 	// The default is nil, which means no compression.
 	Compressor compress.Compressor
 
+	// DisableCompressionWrites bypasses Compressor on writes, storing the raw
+	// MarshalBinary result without escaping magic prefixes or framing empty data.
+	// Reads still use Compressor, which must accept unframed data in this mode.
+	DisableCompressionWrites bool
+
 	// ErrorLogger optionally specifies a function to log ignored errors.
 	ErrorLogger func(ctx context.Context, err error, msg string)
 }
@@ -153,7 +158,7 @@ func (p *ModelCacheConfig[_, _]) checkAndSetDefaults() {
 func buildNewElemFunc[V any]() func() V {
 	var x V
 	typ := reflect.TypeOf(x)
-	if typ.Kind() == reflect.Ptr {
+	if typ.Kind() == reflect.Pointer {
 		valTyp := typ.Elem()
 		return func() V {
 			ptr := reflect.New(valTyp).UnsafePointer()
@@ -446,7 +451,7 @@ func (p *ModelCache[K, V]) Set(ctx context.Context, pk K, elem V, expiration tim
 	if err != nil {
 		return fmt.Errorf("marshal model: %w", err)
 	}
-	if p.config.Compressor != nil {
+	if p.config.Compressor != nil && !p.config.DisableCompressionWrites {
 		buf = p.config.Compressor.Compress(ctx, buf).Data
 	}
 	stor := p.config.Storage(ctx)
@@ -483,7 +488,7 @@ func (p *ModelCache[K, V]) BatchSetSlice(ctx context.Context, models []V, expira
 			if err != nil {
 				return fmt.Errorf("marshal model: %w", err)
 			}
-			if compressor != nil {
+			if compressor != nil && !p.config.DisableCompressionWrites {
 				buf = compressor.Compress(ctx, buf).Data
 			}
 			pk := p.config.IDFunc(elem)
@@ -521,7 +526,7 @@ func (p *ModelCache[K, V]) BatchSetMap(ctx context.Context, models map[K]V, expi
 		if err != nil {
 			return fmt.Errorf("marshal model: %w", err)
 		}
-		if compressor != nil {
+		if compressor != nil && !p.config.DisableCompressionWrites {
 			buf = compressor.Compress(ctx, buf).Data
 		}
 		key := p.config.KeyFunc(pk)

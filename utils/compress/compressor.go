@@ -14,7 +14,7 @@ const (
 	DefaultThreshold         = 5 * 1024
 	DefaultMaxDecodedSize    = 64 * 1024 * 1024
 
-	frameMagic           = "GPKC"
+	frameMagic           = "\x13\x39\xce\x30\xc0\x5b\x98\xc4\x4e\x13\x21\x15\x35\x55\xc4\xb8"
 	frameVersion         = byte(1)
 	frameVersionOffset   = len(frameMagic)
 	frameAlgorithmOffset = frameVersionOffset + 1
@@ -34,14 +34,15 @@ func newDefaultCompressor() Compressor {
 	return p
 }
 
-// Compressor encodes and decodes versioned frames.
-// All successful outputs are owned by the caller and do not alias input.
+// Compressor encodes and decodes compressed frames and unframed data.
+// Methods do not modify input. Results may alias input, but remain valid across
+// later calls. Callers needing independent storage must clone them.
 // Methods are safe for concurrent use if configured codecs and callbacks are.
 // Context is only passed to the callback; these in-memory operations
 // do not support cancellation.
 type Compressor interface {
 	Compress(ctx context.Context, data []byte) CompressionResult
-	// Decompress accepts only complete frames, never bare streams or plaintext.
+	// Decompress accepts unframed data unless DisableUnframed is set.
 	// It returns nil data on error; TypeUnknown means the algorithm was not parsed.
 	Decompress(ctx context.Context, data []byte) ([]byte, AlgType, error)
 }
@@ -60,9 +61,11 @@ type CompressorConfig struct {
 	// including the frame header in the compressed size. Valid values are [0, 1);
 	// zero still requires the complete compressed frame to be smaller than the input.
 	MinReductionRatio float64
-	// MaxDecodedSize limits output, including uncompressed frames. Zero uses
-	// DefaultMaxDecodedSize. A frame above the limit can be encoded but not decoded.
+	// MaxDecodedSize limits decompression output; unframed data and TypeNone frames
+	// are exempt. Zero uses DefaultMaxDecodedSize. Compress does not enforce this limit.
 	MaxDecodedSize int
+	// DisableUnframed makes Compress always emit frames and Decompress reject raw data.
+	DisableUnframed bool
 	// CompressCallback runs synchronously and may be called concurrently.
 	CompressCallback func(context.Context, CompressionStats)
 }
@@ -87,9 +90,8 @@ const (
 	NoCompressFailed                NoCompressReason = "compressFailed"
 )
 
-// CompressionResult contains the result of a compression calling.
-// Field Data always contains a complete frame, including on compression failure.
-// Callers may store Data despite Err, or inspect Err to reject fallback.
+// CompressionResult contains the result of a compression call. Data may be either
+// a complete frame or the input slice, and remains usable even when Err is set.
 type CompressionResult struct {
 	Data   []byte
 	Type   AlgType
@@ -178,10 +180,10 @@ func (p *compressorImpl) Compress(ctx context.Context, data []byte) (result Comp
 		}()
 	}
 	if len(data) == 0 {
-		return uncompressedResult(data, NoCompressEmptyData, nil)
+		return p.uncompressedResult(data, NoCompressEmptyData, nil)
 	}
 	if len(data) < p.cfg.Threshold {
-		return uncompressedResult(data, NoCompressBelowThreshold, nil)
+		return p.uncompressedResult(data, NoCompressBelowThreshold, nil)
 	}
 	header := makeHeader(alg, len(data))
 	out, err := p.cfg.Codec.Compress(header, data)
@@ -192,15 +194,15 @@ func (p *compressorImpl) Compress(ctx context.Context, data []byte) (result Comp
 		}
 	}
 	if err != nil {
-		return uncompressedResult(data, NoCompressFailed, fmt.Errorf("compress %s: %w", alg, err))
+		return p.uncompressedResult(data, NoCompressFailed, fmt.Errorf("compress %s: %w", alg, err))
 	}
 	reducedBytes := len(data) - len(out)
 	if reducedBytes < 0 {
-		return uncompressedResult(data, NoCompressExpansion, nil)
+		return p.uncompressedResult(data, NoCompressExpansion, nil)
 	}
 	reductionRatio := float64(reducedBytes) / float64(len(data))
 	if reducedBytes == 0 || reductionRatio < p.cfg.MinReductionRatio {
-		return uncompressedResult(data, NoCompressInsufficientReduction, nil)
+		return p.uncompressedResult(data, NoCompressInsufficientReduction, nil)
 	}
 	return CompressionResult{Data: out, Type: alg}
 }
@@ -213,23 +215,29 @@ func makeHeader(alg AlgType, size int) []byte {
 	return h
 }
 
-func uncompressedResult(data []byte, reason NoCompressReason, err error) CompressionResult {
-	return CompressionResult{Data: append(makeHeader(TypeNone, len(data)), data...), Type: TypeNone, Reason: reason, Err: err}
+func (p *compressorImpl) uncompressedResult(data []byte, reason NoCompressReason, err error) CompressionResult {
+	if p.cfg.DisableUnframed || len(data) == 0 || bytes.HasPrefix(data, []byte(frameMagic)) {
+		data = append(makeHeader(TypeNone, len(data)), data...)
+	}
+	return CompressionResult{Data: data, Type: TypeNone, Reason: reason, Err: err}
 }
 
 func (p *compressorImpl) Decompress(_ context.Context, data []byte) ([]byte, AlgType, error) {
+	if !p.cfg.DisableUnframed && !bytes.HasPrefix(data, []byte(frameMagic)) {
+		return data, TypeNone, nil
+	}
 	payload, alg, size, err := unpackFrame(data)
 	if err != nil {
 		return nil, alg, err
-	}
-	if size > uint64(p.cfg.MaxDecodedSize) {
-		return nil, alg, ErrDecodedTooLarge
 	}
 	if alg == TypeNone {
 		if uint64(len(payload)) != size {
 			return nil, alg, ErrInvalidFrame
 		}
-		return bytes.Clone(payload), alg, nil
+		return payload, alg, nil
+	}
+	if size > uint64(p.cfg.MaxDecodedSize) {
+		return nil, alg, ErrDecodedTooLarge
 	}
 	d, ok := p.decoders[alg]
 	if !ok {

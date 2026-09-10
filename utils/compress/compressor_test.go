@@ -20,6 +20,10 @@ func newTestCompressor(t testing.TB, cfg CompressorConfig) Compressor {
 	return c
 }
 
+func makeUncompressedFrame(data []byte) []byte {
+	return append(makeHeader(TypeNone, len(data)), data...)
+}
+
 type stubCodec struct {
 	kind   AlgType
 	encode func([]byte, []byte) ([]byte, error)
@@ -54,9 +58,6 @@ func TestCompressorRoundTrip(t *testing.T) {
 			result := c.Compress(context.Background(), tc.data)
 			if result.Err != nil || result.Type != tc.typ || result.Reason != tc.reason {
 				t.Fatalf("unexpected result: type=%s reason=%s err=%v", result.Type, result.Reason, result.Err)
-			}
-			if len(result.Data) < frameHeaderSize {
-				t.Fatal("missing frame")
 			}
 			out, typ, err := c.Decompress(context.Background(), result.Data)
 			if err != nil || typ != tc.typ || !bytes.Equal(out, tc.data) {
@@ -188,9 +189,13 @@ func TestCompressorFallbackAndObserver(t *testing.T) {
 }
 
 func TestCompressorFrameFormat(t *testing.T) {
-	c := newTestCompressor(t, DefaultConfig())
+	c := newTestCompressor(t, CompressorConfig{DisableUnframed: true})
 	input := []byte("abc")
-	want := []byte{'G', 'P', 'K', 'C', 1, '0', 0, 0, 0, 0, 0, 0, 0, 3, 'a', 'b', 'c'}
+	want := []byte{
+		0x13, 0x39, 0xce, 0x30, 0xc0, 0x5b, 0x98, 0xc4,
+		0x4e, 0x13, 0x21, 0x15, 0x35, 0x55, 0xc4, 0xb8,
+		1, '0', 0, 0, 0, 0, 0, 0, 0, 3, 'a', 'b', 'c',
+	}
 	result := c.Compress(context.Background(), input)
 	if result.Err != nil || !bytes.Equal(result.Data, want) {
 		t.Fatalf("frame = %x, err = %v", result.Data, result.Err)
@@ -201,8 +206,213 @@ func TestCompressorFrameFormat(t *testing.T) {
 	}
 }
 
-func TestCompressorStrictFrames(t *testing.T) {
+func TestCompressorDefaultUnframed(t *testing.T) {
+	c := newTestCompressor(t, CompressorConfig{MaxDecodedSize: 3})
+	input := []byte("abc")
+	out, typ, err := c.Decompress(context.Background(), input)
+	if err != nil || typ != TypeNone || !bytes.Equal(out, input) {
+		t.Fatalf("raw: %q %v %v", out, typ, err)
+	}
+	if &out[0] != &input[0] {
+		t.Fatal("unframed decode unexpectedly copied")
+	}
+	out[0] = 'x'
+	if string(input) != "xbc" {
+		t.Fatal("decoded output does not share input")
+	}
+	for _, input := range [][]byte{[]byte("ab"), []byte("abc"), []byte("abcd")} {
+		if out, typ, err := c.Decompress(context.Background(), input); err != nil || typ != TypeNone || !bytes.Equal(out, input) {
+			t.Fatalf("raw: %q %v %v", out, typ, err)
+		}
+	}
+}
+
+func TestCompressorUnframedBorrowsInput(t *testing.T) {
+	c := newTestCompressor(t, DefaultConfig())
+	input := []byte("abc")
+	result := c.Compress(context.Background(), input)
+	if result.Err != nil || result.Type != TypeNone || result.Reason != NoCompressBelowThreshold ||
+		!bytes.Equal(result.Data, input) || &result.Data[0] != &input[0] {
+		t.Fatalf("expected original input: %+v", result)
+	}
+	input[0] = 'x'
+	if result.Data[0] != 'x' {
+		t.Fatal("unframed output unexpectedly copied")
+	}
+}
+
+func TestCompressorTypeNoneBorrowsPayload(t *testing.T) {
+	for _, disabled := range []bool{false, true} {
+		c := newTestCompressor(t, CompressorConfig{DisableUnframed: disabled})
+		frame := makeUncompressedFrame([]byte("abc"))
+		saved := bytes.Clone(frame)
+		out, typ, err := c.Decompress(context.Background(), frame)
+		if err != nil || typ != TypeNone || string(out) != "abc" {
+			t.Fatalf("decode: %q %v %v", out, typ, err)
+		}
+		if !bytes.Equal(frame, saved) {
+			t.Fatal("decoder modified frame")
+		}
+		if &out[0] != &frame[frameHeaderSize] {
+			t.Fatal("TypeNone payload unexpectedly copied")
+		}
+		out[0] = 'x'
+		if frame[frameHeaderSize] != 'x' {
+			t.Fatal("decoded payload does not share frame")
+		}
+	}
+}
+
+func TestCompressorUnframedMatrix(t *testing.T) {
+	ctx := context.Background()
+	magic := []byte(frameMagic)
+	rawGzip, err := defaultGzipCodec.Compress(nil, []byte("plain gzip stream"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := [][]byte{nil, {}, {0}, {0xff, 0, 1}, rawGzip, {0x28, 0xb5, 0x2f, 0xfd}}
+	for n := 1; n < len(magic); n++ {
+		cases = append(cases, bytes.Clone(magic[:n]))
+	}
+	compatible := newTestCompressor(t, CompressorConfig{})
+	strict := newTestCompressor(t, CompressorConfig{DisableUnframed: true})
+	for i, input := range cases {
+		out, typ, err := compatible.Decompress(ctx, input)
+		if err != nil || typ != TypeNone || !bytes.Equal(out, input) {
+			t.Fatalf("compatible case %d: %x %v %v", i, out, typ, err)
+		}
+		if input == nil && out != nil {
+			t.Fatal("nil input became non-nil")
+		}
+		if input != nil && out == nil {
+			t.Fatal("non-nil empty input became nil")
+		}
+		strictOut, strictTyp, strictErr := strict.Decompress(ctx, input)
+		if strictOut != nil || strictTyp != TypeUnknown || !errors.Is(strictErr, ErrInvalidFrame) {
+			t.Fatalf("strict case %d: %x %v %v", i, strictOut, strictTyp, strictErr)
+		}
+	}
+}
+
+func TestCompressorDefaultUnframedRejectsDamagedFrame(t *testing.T) {
 	c := newTestCompressor(t, CompressorConfig{})
+	frame := makeUncompressedFrame([]byte("abc"))
+	badVersion := bytes.Clone(frame)
+	badVersion[16]++
+	unknown := bytes.Clone(frame)
+	unknown[frameAlgorithmOffset] = 42
+	missing := bytes.Clone(frame)
+	missing[frameAlgorithmOffset] = byte(TypeZstd)
+	gzipFrame := c.Compress(context.Background(), bytes.Repeat([]byte("a"), 1024)).Data
+	gzipFrame[len(gzipFrame)-1] ^= 1
+	cases := []struct {
+		data []byte
+		want error
+	}{
+		{frame[:16], ErrInvalidFrame},
+		{frame[:25], ErrInvalidFrame},
+		{frame[:len(frame)-1], ErrInvalidFrame},
+		{badVersion, ErrInvalidFrame},
+		{unknown, ErrUnsupportedAlgorithm},
+		{missing, ErrDecoderUnavailable},
+		{gzipFrame, nil},
+	}
+	for _, tc := range cases {
+		out, _, err := c.Decompress(context.Background(), tc.data)
+		if out != nil || err == nil || tc.want != nil && !errors.Is(err, tc.want) {
+			t.Fatalf("accepted damaged frame: %x %v", tc.data, err)
+		}
+	}
+}
+
+func TestCompressorFallbackCallbacks(t *testing.T) {
+	failure := errors.New("failed")
+	magicInput := append([]byte(frameMagic), 'x')
+	cases := []struct {
+		name  string
+		input []byte
+		cfg   CompressorConfig
+	}{
+		{"empty", nil, CompressorConfig{}},
+		{"below threshold", []byte("abc"), CompressorConfig{Threshold: 4}},
+		{"magic collision", magicInput, CompressorConfig{Threshold: len(magicInput) + 1}},
+		{"expansion", bytes.Repeat([]byte("x"), 100), CompressorConfig{Codec: &stubCodec{kind: TypeGzip, encode: func(dst, src []byte) ([]byte, error) { return append(dst, src...), nil }}}},
+		{"insufficient", bytes.Repeat([]byte("x"), 100), CompressorConfig{Codec: &stubCodec{kind: TypeGzip, encode: func(dst, src []byte) ([]byte, error) { return append(dst, src[:1]...), nil }}, MinReductionRatio: math.Nextafter(1, 0)}},
+		{"failure", bytes.Repeat([]byte("x"), 100), CompressorConfig{Codec: &stubCodec{kind: TypeGzip, encode: func([]byte, []byte) ([]byte, error) { return nil, failure }}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var stats CompressionStats
+			tc.cfg.CompressCallback = func(_ context.Context, got CompressionStats) { stats = got }
+			result := newTestCompressor(t, tc.cfg).Compress(context.Background(), tc.input)
+			if stats.OriginalLen != len(tc.input) || stats.ResultLen != len(result.Data) || stats.Reason != result.Reason || !errors.Is(stats.Err, result.Err) {
+				t.Fatalf("result=%+v stats=%+v", result, stats)
+			}
+		})
+	}
+}
+
+func TestCompressorUnframedFallbacksBorrowInput(t *testing.T) {
+	failure := errors.New("failed")
+	input := bytes.Repeat([]byte("x"), 100)
+	cases := []struct {
+		name    string
+		codec   *stubCodec
+		ratio   float64
+		reason  NoCompressReason
+		wantErr error
+	}{
+		{"expansion", &stubCodec{kind: TypeGzip, encode: func(dst, src []byte) ([]byte, error) { return append(dst, src...), nil }}, 0, NoCompressExpansion, nil},
+		{"insufficient", &stubCodec{kind: TypeGzip, encode: func(dst, src []byte) ([]byte, error) { return append(dst, src[:1]...), nil }}, math.Nextafter(1, 0), NoCompressInsufficientReduction, nil},
+		{"error", &stubCodec{kind: TypeGzip, encode: func([]byte, []byte) ([]byte, error) { return nil, failure }}, 0, NoCompressFailed, failure},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := newTestCompressor(t, CompressorConfig{Codec: tc.codec, MinReductionRatio: tc.ratio})
+			result := c.Compress(context.Background(), input)
+			if result.Type != TypeNone || result.Reason != tc.reason || !errors.Is(result.Err, tc.wantErr) || &result.Data[0] != &input[0] {
+				t.Fatalf("fallback: %+v", result)
+			}
+		})
+	}
+}
+
+func TestCompressorMagicCollisionEscaped(t *testing.T) {
+	magicInput := append([]byte(frameMagic), bytes.Repeat([]byte("x"), 84)...)
+	failure := errors.New("failed")
+	cases := []CompressorConfig{
+		{Threshold: len(magicInput) + 1},
+		{Codec: &stubCodec{kind: TypeGzip, encode: func(dst, src []byte) ([]byte, error) { return append(dst, src...), nil }}},
+		{Codec: &stubCodec{kind: TypeGzip, encode: func(dst, src []byte) ([]byte, error) { return append(dst, src[:1]...), nil }}, MinReductionRatio: math.Nextafter(1, 0)},
+		{Codec: &stubCodec{kind: TypeGzip, encode: func([]byte, []byte) ([]byte, error) { return nil, failure }}},
+	}
+	for i, cfg := range cases {
+		c := newTestCompressor(t, cfg)
+		result := c.Compress(context.Background(), magicInput)
+		if result.Type != TypeNone || len(result.Data) != frameHeaderSize+len(magicInput) || &result.Data[0] == &magicInput[0] {
+			t.Fatalf("case %d not escaped: %+v", i, result)
+		}
+		out, typ, err := c.Decompress(context.Background(), result.Data)
+		if err != nil || typ != TypeNone || !bytes.Equal(out, magicInput) {
+			t.Fatalf("case %d round trip: %v %v", i, typ, err)
+		}
+	}
+}
+
+func TestCompressorEmptyAlwaysFramed(t *testing.T) {
+	for _, disabled := range []bool{false, true} {
+		c := newTestCompressor(t, CompressorConfig{DisableUnframed: disabled})
+		for _, input := range [][]byte{nil, {}} {
+			result := c.Compress(context.Background(), input)
+			if result.Type != TypeNone || result.Reason != NoCompressEmptyData || len(result.Data) != frameHeaderSize {
+				t.Fatalf("empty result: %+v", result)
+			}
+		}
+	}
+}
+
+func TestCompressorStrictFrames(t *testing.T) {
+	c := newTestCompressor(t, CompressorConfig{DisableUnframed: true})
 	ctx := context.Background()
 	input := bytes.Repeat([]byte("a"), 1024)
 	valid := c.Compress(ctx, input).Data
@@ -221,7 +431,7 @@ func TestCompressorStrictFrames(t *testing.T) {
 	trailer[len(trailer)-8] ^= 1
 	invalid = append(invalid, trailer)
 	invalid = append(invalid, append(bytes.Clone(valid), 1))
-	plain := uncompressedResult([]byte("abc"), NoCompressBelowThreshold, nil).Data
+	plain := makeUncompressedFrame([]byte("abc"))
 	invalid = append(invalid, plain[:len(plain)-1], append(bytes.Clone(plain), 1))
 	for i, data := range invalid {
 		out, _, err := c.Decompress(ctx, data)
@@ -245,12 +455,12 @@ func TestCompressorDecodeLimit(t *testing.T) {
 	ctx := context.Background()
 	input := bytes.Repeat([]byte("a"), 1024)
 	for _, threshold := range []int{0, 2048} {
-		encoder := newTestCompressor(t, CompressorConfig{Threshold: threshold})
+		encoder := newTestCompressor(t, CompressorConfig{Threshold: threshold, DisableUnframed: true})
 		frame := encoder.Compress(ctx, input).Data
 		for _, limit := range []int{1023, 1024, 1025} {
 			c := newTestCompressor(t, CompressorConfig{MaxDecodedSize: limit})
 			out, _, err := c.Decompress(ctx, frame)
-			if limit < len(input) {
+			if threshold == 0 && limit < len(input) {
 				if out != nil || !errors.Is(err, ErrDecodedTooLarge) {
 					t.Fatalf("limit: %v", err)
 				}
@@ -259,7 +469,7 @@ func TestCompressorDecodeLimit(t *testing.T) {
 			}
 		}
 	}
-	frame := newTestCompressor(t, CompressorConfig{}).Compress(ctx, input).Data
+	frame := newTestCompressor(t, CompressorConfig{DisableUnframed: true}).Compress(ctx, input).Data
 	binary.BigEndian.PutUint64(frame[frameSizeOffset:], 1)
 	c := newTestCompressor(t, CompressorConfig{MaxDecodedSize: 32})
 	if out, _, err := c.Decompress(ctx, frame); out != nil || !errors.Is(err, ErrDecodedTooLarge) {
@@ -268,6 +478,32 @@ func TestCompressorDecodeLimit(t *testing.T) {
 	binary.BigEndian.PutUint64(frame[frameSizeOffset:], math.MaxUint64)
 	if _, _, err := c.Decompress(ctx, frame); !errors.Is(err, ErrDecodedTooLarge) {
 		t.Fatalf("overflow: %v", err)
+	}
+}
+
+func TestCompressorUncompressedIgnoresDecodeLimit(t *testing.T) {
+	ctx := context.Background()
+	input := bytes.Repeat([]byte("x"), 1024)
+	for _, disabled := range []bool{false, true} {
+		c := newTestCompressor(t, CompressorConfig{MaxDecodedSize: 1, DisableUnframed: disabled})
+		frame := makeUncompressedFrame(input)
+		out, typ, err := c.Decompress(ctx, frame)
+		if err != nil || typ != TypeNone || !bytes.Equal(out, input) || &out[0] != &frame[frameHeaderSize] {
+			t.Fatalf("uncompressed frame: %v %v", typ, err)
+		}
+		if !disabled {
+			out, typ, err = c.Decompress(ctx, input)
+			if err != nil || typ != TypeNone || !bytes.Equal(out, input) || &out[0] != &input[0] {
+				t.Fatalf("unframed: %v %v", typ, err)
+			}
+		}
+		for _, size := range []uint64{1023, 1025, math.MaxUint64} {
+			binary.BigEndian.PutUint64(frame[frameSizeOffset:], size)
+			out, typ, err = c.Decompress(ctx, frame)
+			if out != nil || typ != TypeNone || !errors.Is(err, ErrInvalidFrame) {
+				t.Fatalf("invalid uncompressed length %d: %v %v", size, typ, err)
+			}
+		}
 	}
 }
 
@@ -300,7 +536,7 @@ func TestCompressorDecoderIsolation(t *testing.T) {
 
 func TestCompressorOwnership(t *testing.T) {
 	for _, threshold := range []int{0, 2048} {
-		c := newTestCompressor(t, CompressorConfig{Threshold: threshold})
+		c := newTestCompressor(t, CompressorConfig{Threshold: threshold, DisableUnframed: true})
 		input := bytes.Repeat([]byte("a"), 1024)
 		want := bytes.Clone(input)
 		result := c.Compress(context.Background(), input)
@@ -309,10 +545,12 @@ func TestCompressorOwnership(t *testing.T) {
 		if err != nil || !bytes.Equal(out, want) {
 			t.Fatalf("input alias: %v", err)
 		}
-		out[0] = 'c'
-		again, _, err := c.Decompress(context.Background(), result.Data)
-		if err != nil || !bytes.Equal(again, want) {
-			t.Fatalf("output alias: %v", err)
+		if result.Type != TypeNone {
+			out[0] = 'c'
+			again, _, err := c.Decompress(context.Background(), result.Data)
+			if err != nil || !bytes.Equal(again, want) {
+				t.Fatalf("output alias: %v", err)
+			}
 		}
 		saved := bytes.Clone(result.Data)
 		for i := 0; i < 10; i++ {
@@ -355,7 +593,7 @@ func TestCompressorConcurrency(t *testing.T) {
 
 func FuzzCompressorRoundTrip(f *testing.F) {
 	c := newTestCompressor(f, CompressorConfig{MaxDecodedSize: 1 << 20})
-	for _, seed := range [][]byte{nil, []byte("你好"), bytes.Repeat([]byte("abc"), 1000)} {
+	for _, seed := range [][]byte{nil, []byte("你好"), bytes.Repeat([]byte("abc"), 1000), []byte(frameMagic)} {
 		f.Add(seed)
 	}
 	f.Fuzz(func(t *testing.T, input []byte) {
@@ -374,17 +612,29 @@ func FuzzCompressorRoundTrip(f *testing.F) {
 }
 
 func FuzzCompressorDecompress(f *testing.F) {
-	c := newTestCompressor(f, CompressorConfig{MaxDecodedSize: 64 << 10})
+	compatible := newTestCompressor(f, CompressorConfig{MaxDecodedSize: 64 << 10})
+	strict := newTestCompressor(f, CompressorConfig{MaxDecodedSize: 64 << 10, DisableUnframed: true})
 	f.Add([]byte{})
-	f.Add(uncompressedResult([]byte("hello"), NoCompressBelowThreshold, nil).Data)
-	f.Add(c.Compress(context.Background(), bytes.Repeat([]byte("a"), 1024)).Data)
+	f.Add(makeUncompressedFrame([]byte("hello")))
+	f.Add(bytes.Repeat([]byte("x"), (64<<10)+1))
+	f.Add(makeUncompressedFrame(bytes.Repeat([]byte("x"), (64<<10)+1)))
+	f.Add(compatible.Compress(context.Background(), bytes.Repeat([]byte("a"), 1024)).Data)
+	f.Add([]byte(frameMagic))
 	f.Fuzz(func(t *testing.T, data []byte) {
-		out, _, err := c.Decompress(context.Background(), data)
-		if err != nil && out != nil {
-			t.Fatal("partial output on error")
+		for _, c := range []Compressor{compatible, strict} {
+			out, typ, err := c.Decompress(context.Background(), data)
+			if err != nil && out != nil {
+				t.Fatal("partial output on error")
+			}
+			if typ != TypeNone && len(out) > 64<<10 {
+				t.Fatal("limit exceeded")
+			}
 		}
-		if len(out) > 64<<10 {
-			t.Fatal("limit exceeded")
+		if !bytes.HasPrefix(data, []byte(frameMagic)) {
+			out, typ, err := compatible.Decompress(context.Background(), data)
+			if err != nil || typ != TypeNone || !bytes.Equal(out, data) {
+				t.Fatalf("unframed changed: %v", err)
+			}
 		}
 	})
 }

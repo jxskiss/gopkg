@@ -80,3 +80,34 @@ func BenchmarkDecompressor(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkDecompressorUnframed(b *testing.B) {
+	c := newTestCompressor(b, CompressorConfig{})
+	for name, input := range benchmarkInputs() {
+		b.Run(name, func(b *testing.B) {
+			b.ReportAllocs()
+			b.SetBytes(int64(len(input)))
+			for i := 0; i < b.N; i++ {
+				if _, _, err := c.Decompress(context.Background(), input); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkDecompressorTypeNone(b *testing.B) {
+	c := newTestCompressor(b, CompressorConfig{})
+	for name, input := range benchmarkInputs() {
+		frame := makeUncompressedFrame(input)
+		b.Run(name, func(b *testing.B) {
+			b.ReportAllocs()
+			b.SetBytes(int64(len(input)))
+			for i := 0; i < b.N; i++ {
+				if _, _, err := c.Decompress(context.Background(), frame); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
