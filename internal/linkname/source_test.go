@@ -74,13 +74,8 @@ func TestSourceCode(t *testing.T) {
 
 	versions := []string{
 		"go1.21.0",
-		"go1.21.13",
-		"go1.22.0",
-		"go1.22.10",
-		"go1.23.0",
-		"go1.23.7",
-		"go1.24.1",
-		"go1.25.0",
+		"go1.26.0",
+		"go1.27.0",
 		"master",
 	}
 

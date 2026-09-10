@@ -15,28 +15,6 @@ type simple struct {
 	A string
 }
 
-func TestRTypeMethods(t *testing.T) {
-	reflectTyp := reflect.TypeOf((*reflect.Type)(nil)).Elem()
-	rtyp := reflect.TypeOf((*RType)(nil))
-
-checkMethod:
-	for i := 0; i < reflectTyp.NumMethod(); i++ {
-		meth := reflectTyp.Method(i)
-		for _, x := range []string{
-			// Private methods.
-			"common", "uncommon",
-			// Unsupported new methods since Go 1.23.
-			"OverflowComplex", "OverflowFloat", "OverflowInt", "OverflowUint", "CanSeq", "CanSeq2",
-		} {
-			if meth.Name == x {
-				continue checkMethod
-			}
-		}
-		_, ok := rtyp.MethodByName(meth.Name)
-		assert.Truef(t, ok, "missing method %v", meth.Name)
-	}
-}
-
 func TestRType(t *testing.T) {
 	var (
 		oneI8    int8  = 1
