@@ -3,165 +3,267 @@ package compress
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"fmt"
-
-	"github.com/jxskiss/gopkg/v2/internal"
+	"math"
+	"reflect"
 )
 
 const (
-	DefaultMinSaving = 0.05
-	DefaultThreshold = 5 * 1024 // 5KB
+	DefaultMinReductionRatio = 0.05
+	DefaultThreshold         = 5 * 1024
+	DefaultMaxDecodedSize    = 64 * 1024 * 1024
+
+	frameMagic           = "\x13\x39\xce\x30\xc0\x5b\x98\xc4\x4e\x13\x21\x15\x35\x55\xc4\xb8"
+	frameVersion         = byte(1)
+	frameVersionOffset   = len(frameMagic)
+	frameAlgorithmOffset = frameVersionOffset + 1
+	frameSizeOffset      = frameAlgorithmOffset + 1
+	frameHeaderSize      = frameSizeOffset + 8
 )
 
-// DefaultCompressor is the default Compressor, using gzip algorithm,
-// compress level is gzip.DefaultCompression.
-//
-// It's recommended to use zstd for better performance.
-var DefaultCompressor Compressor
+// DefaultCompressor uses gzip with DefaultConfig. Replacing it does not change
+// constructor defaults; replacement must happen before concurrent access.
+var DefaultCompressor = newDefaultCompressor()
 
-func init() {
-	DefaultCompressor = NewCompressor(CompressorConfig{
-		BizName: "default",
-		Alg:     defaultGzipAlg,
-	})
+func newDefaultCompressor() Compressor {
+	p, err := NewCompressor(DefaultConfig())
+	if err != nil {
+		panic(err)
+	}
+	return p
 }
 
-// Compressor 提供统一的压缩/解压缩接口，压缩/解压缩算法的实现必须是并发安全的。
+// Compressor encodes and decodes compressed frames and unframed data.
+// Methods do not modify input. Results may alias input, but remain valid across
+// later calls. Callers needing independent storage must clone them.
+// Methods are safe for concurrent use if configured codecs and callbacks are.
+// Context is only passed to the callback; these in-memory operations
+// do not support cancellation.
 type Compressor interface {
-	// Compress 压缩数据，返回压缩后的数据和压缩类型。
-	// 注意 Compress 方法返回的 compressType 为 TypeNoCompress 时，返回的 result
-	// 也会带有 header, 跟原始 data 不一致，使用者需要保存返回的 result 数据。
-	// 如果返回的 compressType 是 TypeNoCompress, noCompressReason 是压缩失败的原因。
-	// 如果在压缩失败情况下要中断业务流程，可以检查 noCompressReason == ReasonCompressFailed.
-	Compress(ctx context.Context, data []byte) (result []byte, compressType AlgType, noCompressReason string)
-
-	// Decompress 解压缩数据，返回解压缩后的数据和压缩类型。
-	// 解压缩不依赖 Compress 方法返回的 compressType，但传入的 data 必须是
-	// Compress 方法返回的 result 数据。
-	Decompress(ctx context.Context, data []byte) (result []byte, compressType AlgType, err error)
+	Compress(ctx context.Context, data []byte) CompressionResult
+	// Decompress accepts unframed data unless DisableUnframed is set.
+	// It returns nil data on error; TypeUnknown means the algorithm was not parsed.
+	Decompress(ctx context.Context, data []byte) ([]byte, AlgType, error)
 }
 
 type CompressorConfig struct {
-	Alg       CompressionAlg // 压缩算法实现
-	BizName   string         // 业务名称，用于在打点和错误日志中标识不同的业务场景
-	Threshold int            // 压缩阈值，当数据长度小于 threshold 时不压缩
-	MinSaving float64        // 压缩收益阈值，当压缩收益小于 minSaving 时不压缩
-
-	// CompressCallback 用于 Compress 方法结束时回调，可用于观测压缩指标, optional
-	CompressCallback func(ctx context.Context, info CompressionInfo)
-
-	// ErrorLogger 用于记录压缩错误日志, optional
-	ErrorLogger func(ctx context.Context, err error, msg string)
-
-	TreatNoHeaderAsNoCompress bool
+	// BizName optionally identifies the business scenario in CompressionStats
+	// passed to CompressCallback, allowing metrics and logs to distinguish callers.
+	BizName string
+	Codec   Codec
+	// Decoders adds algorithms for reading frames written by other compressors.
+	// The selected Codec is installed automatically. Duplicate types are rejected.
+	Decoders []Decoder
+	// Threshold is the minimum input size eligible for compression; zero disables it.
+	Threshold int
+	// MinReductionRatio is the minimum size reduction relative to the original data,
+	// including the frame header in the compressed size. Valid values are [0, 1);
+	// zero still requires the complete compressed frame to be smaller than the input.
+	MinReductionRatio float64
+	// MaxDecodedSize limits decompression output; unframed data and TypeNone frames
+	// are exempt. Zero uses DefaultMaxDecodedSize. Compress does not enforce this limit.
+	MaxDecodedSize int
+	// DisableUnframed makes Compress always emit frames and Decompress reject raw data.
+	DisableUnframed bool
+	// CompressCallback runs synchronously and may be called concurrently.
+	CompressCallback func(context.Context, CompressionStats)
 }
 
-type CompressionInfo struct {
-	Config           *CompressorConfig
-	OriginalLen      int
-	ResultLen        int
-	CompressType     AlgType
-	NoCompressReason string
-}
-
-func NewCompressor(cfg CompressorConfig) Compressor {
-	compressor := &compressorImpl{
-		CompressorConfig: cfg,
+// DefaultConfig returns independent configuration with conservative policy
+// defaults. Tune the thresholds against representative workloads.
+func DefaultConfig() CompressorConfig {
+	return CompressorConfig{
+		Threshold:         DefaultThreshold,
+		MinReductionRatio: DefaultMinReductionRatio,
+		MaxDecodedSize:    DefaultMaxDecodedSize,
 	}
-	compressor.setup()
-	return compressor
+}
+
+type NoCompressReason string
+
+const (
+	NoCompressEmptyData             NoCompressReason = "emptyData"
+	NoCompressBelowThreshold        NoCompressReason = "belowThreshold"
+	NoCompressExpansion             NoCompressReason = "expansion"
+	NoCompressInsufficientReduction NoCompressReason = "insufficientReduction"
+	NoCompressFailed                NoCompressReason = "compressFailed"
+)
+
+// CompressionResult contains the result of a compression call. Data may be either
+// a complete frame or the input slice, and remains usable even when Err is set.
+type CompressionResult struct {
+	Data   []byte
+	Type   AlgType
+	Reason NoCompressReason
+	Err    error
+}
+
+type CompressionStats struct {
+	BizName string
+	// Algorithm is the configured codec, even when compression is skipped or fails.
+	Algorithm   AlgType
+	OriginalLen int
+	ResultLen   int
+	Reason      NoCompressReason
+	Err         error
+}
+
+func NewCompressor(cfg CompressorConfig) (Compressor, error) {
+	if cfg.Threshold < 0 {
+		return nil, fmt.Errorf("%w: Threshold must be >= 0, got %d", ErrInvalidConfig, cfg.Threshold)
+	}
+	if cfg.MaxDecodedSize < 0 {
+		return nil, fmt.Errorf("%w: MaxDecodedSize must be >= 0, got %d", ErrInvalidConfig, cfg.MaxDecodedSize)
+	}
+	if math.IsNaN(cfg.MinReductionRatio) || math.IsInf(cfg.MinReductionRatio, 0) || cfg.MinReductionRatio < 0 || cfg.MinReductionRatio >= 1 {
+		return nil, fmt.Errorf("%w: MinReductionRatio must be finite and within [0, 1), got %g", ErrInvalidConfig, cfg.MinReductionRatio)
+	}
+	if cfg.Codec == nil {
+		cfg.Codec = defaultGzipCodec
+	}
+	if nilInterface(cfg.Codec) {
+		return nil, fmt.Errorf("%w: nil codec", ErrInvalidConfig)
+	}
+	if cfg.MaxDecodedSize == 0 {
+		cfg.MaxDecodedSize = DefaultMaxDecodedSize
+	}
+	p := &compressorImpl{cfg: cfg, decoders: make(map[AlgType]Decoder)}
+	for _, d := range append([]Decoder{cfg.Codec}, cfg.Decoders...) {
+		if nilInterface(d) {
+			return nil, fmt.Errorf("%w: nil decoder", ErrInvalidConfig)
+		}
+		typ := d.Type()
+		if !isSupportedAlg(typ) {
+			return nil, fmt.Errorf("%w: %s", ErrUnsupportedAlgorithm, typ)
+		}
+		if _, exists := p.decoders[typ]; exists {
+			return nil, fmt.Errorf("%w: duplicate decoder %s", ErrInvalidConfig, typ)
+		}
+		p.decoders[typ] = d
+	}
+	p.cfg.Decoders = nil
+	return p, nil
+}
+
+func nilInterface(v interface{}) bool {
+	if v == nil {
+		return true
+	}
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return rv.IsNil()
+	default:
+		return false
+	}
 }
 
 type compressorImpl struct {
-	CompressorConfig
-	header []byte
+	cfg      CompressorConfig
+	decoders map[AlgType]Decoder
 }
 
-func (p *compressorImpl) setup() {
-	if p.Alg == nil {
-		p.Alg = DefaultCompressor.(*compressorImpl).Alg
-	}
-	if p.Threshold <= 0 {
-		p.Threshold = DefaultThreshold
-	}
-	if p.MinSaving <= 0 {
-		p.MinSaving = DefaultMinSaving
-	}
-	if p.ErrorLogger == nil {
-		p.ErrorLogger = internal.DefaultLoggerError
-	}
-	p.header = []byte{byte(p.Alg.Type()), headerByte2}
-}
-
-func (p *compressorImpl) Compress(ctx context.Context, data []byte) (result []byte, compressType AlgType, noCompressReason string) {
-	if p.CompressCallback != nil {
+func (p *compressorImpl) Compress(ctx context.Context, data []byte) (result CompressionResult) {
+	alg := p.cfg.Codec.Type()
+	if p.cfg.CompressCallback != nil {
 		defer func() {
-			p.CompressCallback(ctx, CompressionInfo{
-				Config:           &p.CompressorConfig,
-				OriginalLen:      len(data),
-				ResultLen:        len(result),
-				CompressType:     compressType,
-				NoCompressReason: noCompressReason,
-			})
+			stats := CompressionStats{
+				BizName:     p.cfg.BizName,
+				Algorithm:   alg,
+				OriginalLen: len(data),
+				ResultLen:   len(result.Data),
+				Reason:      result.Reason,
+				Err:         result.Err,
+			}
+			p.cfg.CompressCallback(ctx, stats)
 		}()
 	}
-
 	if len(data) == 0 {
-		return data, TypeNoCompress, ReasonEmptyData
+		return p.uncompressedResult(data, NoCompressEmptyData, nil)
 	}
-	if len(data) < p.Threshold {
-		return p.noCompress(data, ReasonBelowThreshold)
+	if len(data) < p.cfg.Threshold {
+		return p.uncompressedResult(data, NoCompressBelowThreshold, nil)
 	}
-
-	result, err := p.Alg.Compress(p.header, data)
+	header := makeHeader(alg, len(data))
+	out, err := p.cfg.Codec.Compress(header, data)
+	if err == nil {
+		_, resultAlg, decodedSize, frameErr := unpackFrame(out)
+		if frameErr != nil || resultAlg != alg || decodedSize != uint64(len(data)) {
+			err = fmt.Errorf("codec %s did not preserve frame header", alg)
+		}
+	}
 	if err != nil {
-		// Compressing failed is a very rare case,
-		// write an error log to avoid silent failure.
-		p.ErrorLogger(ctx, err, fmt.Sprintf("compressing failed: bizName= %s, algType= %s", p.BizName, p.Alg.Type().String()))
-		return p.noCompress(data, ReasonCompressFailed)
+		return p.uncompressedResult(data, NoCompressFailed, fmt.Errorf("compress %s: %w", alg, err))
 	}
-
-	saving := 1 - float64(len(result))/float64(len(data))
-	if saving >= p.MinSaving {
-		return result, p.Alg.Type(), ""
+	reducedBytes := len(data) - len(out)
+	if reducedBytes < 0 {
+		return p.uncompressedResult(data, NoCompressExpansion, nil)
 	}
-
-	noCompressReason = ReasonSavingTooSmall
-	if saving < 0 {
-		noCompressReason = ReasonSavingNegative
+	reductionRatio := float64(reducedBytes) / float64(len(data))
+	if reducedBytes == 0 || reductionRatio < p.cfg.MinReductionRatio {
+		return p.uncompressedResult(data, NoCompressInsufficientReduction, nil)
 	}
-	return p.noCompress(data, noCompressReason)
+	return CompressionResult{Data: out, Type: alg}
 }
 
-func (p *compressorImpl) noCompress(data []byte, reason string) (result []byte, compressType AlgType, noCompressReason string) {
-	result = append(headerNoCompress, data...)
-	return result, TypeNoCompress, reason
+func makeHeader(alg AlgType, size int) []byte {
+	h := make([]byte, frameHeaderSize)
+	copy(h, frameMagic)
+	h[frameVersionOffset], h[frameAlgorithmOffset] = frameVersion, byte(alg)
+	binary.BigEndian.PutUint64(h[frameSizeOffset:], uint64(size))
+	return h
 }
 
-func (p *compressorImpl) Decompress(_ context.Context, data []byte) (result []byte, compressType AlgType, err error) {
-	if len(data) < 2 {
-		return data, TypeNoCompress, nil
+func (p *compressorImpl) uncompressedResult(data []byte, reason NoCompressReason, err error) CompressionResult {
+	if p.cfg.DisableUnframed || len(data) == 0 || bytes.HasPrefix(data, []byte(frameMagic)) {
+		data = append(makeHeader(TypeNone, len(data)), data...)
 	}
-	if bytes.HasPrefix(data, headerNoCompress) {
-		return data[2:], TypeNoCompress, nil
+	return CompressionResult{Data: data, Type: TypeNone, Reason: reason, Err: err}
+}
+
+func (p *compressorImpl) Decompress(_ context.Context, data []byte) ([]byte, AlgType, error) {
+	if !p.cfg.DisableUnframed && !bytes.HasPrefix(data, []byte(frameMagic)) {
+		return data, TypeNone, nil
 	}
-	if data[0] == byte(TypeGzip) && data[1] == headerByte2 {
-		result, err = gzipDecompressFunc(data[2:])
-		return result, TypeGzip, err
+	payload, alg, size, err := unpackFrame(data)
+	if err != nil {
+		return nil, alg, err
 	}
-	if data[0] == byte(TypeZstd) && data[1] == headerByte2 {
-		return decompressZstd(data[2:])
+	if alg == TypeNone {
+		if uint64(len(payload)) != size {
+			return nil, alg, ErrInvalidFrame
+		}
+		return payload, alg, nil
 	}
-	if bytes.HasPrefix(data, gzipMagicNumber) {
-		result, err = gzipDecompressFunc(data)
-		return result, TypeGzip, err
+	if size > uint64(p.cfg.MaxDecodedSize) {
+		return nil, alg, ErrDecodedTooLarge
 	}
-	if bytes.HasPrefix(data, zstdMagicNumber) {
-		return decompressZstd(data)
+	d, ok := p.decoders[alg]
+	if !ok {
+		return nil, alg, fmt.Errorf("%w: %s", ErrDecoderUnavailable, alg)
 	}
-	if p.TreatNoHeaderAsNoCompress {
-		return data, TypeNoCompress, nil
+	out, err := d.Decompress(payload, p.cfg.MaxDecodedSize)
+	if err != nil {
+		return nil, alg, fmt.Errorf("decompress %s: %w", alg, err)
 	}
-	// 为防止误用，不带 header 的数据默认返回错误以提醒使用者保存带 header 的数据
-	return data, TypeUnknown, fmt.Errorf("unknown compression type %s", AlgType(data[0]))
+	if len(out) > p.cfg.MaxDecodedSize {
+		return nil, alg, ErrDecodedTooLarge
+	}
+	if uint64(len(out)) != size {
+		return nil, alg, ErrInvalidFrame
+	}
+	return out, alg, nil
+}
+
+func unpackFrame(data []byte) (payload []byte, alg AlgType, decodedSize uint64, err error) {
+	if len(data) < frameHeaderSize || string(data[:frameVersionOffset]) != frameMagic || data[frameVersionOffset] != frameVersion {
+		return nil, TypeUnknown, 0, ErrInvalidFrame
+	}
+	alg = AlgType(data[frameAlgorithmOffset])
+	if alg != TypeNone && !isSupportedAlg(alg) {
+		return nil, alg, 0, ErrUnsupportedAlgorithm
+	}
+	decodedSize = binary.BigEndian.Uint64(data[frameSizeOffset:frameHeaderSize])
+	return data[frameHeaderSize:], alg, decodedSize, nil
 }

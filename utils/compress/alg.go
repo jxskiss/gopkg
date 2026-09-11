@@ -8,18 +8,18 @@ import (
 type AlgType byte
 
 const (
-	TypeUnknown    AlgType = '?'
-	TypeNoCompress AlgType = '0'
-	TypeGzip       AlgType = '1'
-	TypeZstd       AlgType = '2'
+	TypeUnknown AlgType = 0
+	TypeNone    AlgType = '0'
+	TypeGzip    AlgType = '1'
+	TypeZstd    AlgType = '2'
 )
 
 func (alg AlgType) String() string {
 	switch alg {
 	case TypeUnknown:
 		return "unknown"
-	case TypeNoCompress:
-		return "no_compress"
+	case TypeNone:
+		return "none"
 	case TypeGzip:
 		return "gzip"
 	case TypeZstd:
@@ -29,54 +29,36 @@ func (alg AlgType) String() string {
 	}
 }
 
-const (
-	ReasonEmptyData      = "emptyData"
-	ReasonBelowThreshold = "belowThreshold"
-	ReasonSavingNegative = "savingNegative"
-	ReasonSavingTooSmall = "savingTooSmall"
-	ReasonCompressFailed = "compressFailed"
-)
+func isSupportedAlg(alg AlgType) bool {
+	return alg == TypeGzip || alg == TypeZstd
+}
 
 var (
-	headerByte2      = byte('\x01')
-	headerNoCompress = []byte{byte(TypeNoCompress), headerByte2}
-	gzipMagicNumber  = []byte("\x1f\x8b\x08")
-	zstdMagicNumber  = []byte("\x28\xb5\x2f\xfd")
+	ErrInvalidFrame         = errors.New("invalid compression frame")
+	ErrUnsupportedAlgorithm = errors.New("unsupported compression algorithm")
+	ErrDecoderUnavailable   = errors.New("compression decoder unavailable")
+	ErrDecodedTooLarge      = errors.New("decoded data exceeds size limit")
+	ErrInvalidConfig        = errors.New("invalid compression configuration")
 )
 
-var (
-	errZstdDecompressorNotAvailable = errors.New("zstd decompressor not available, check if zstd package is imported")
-)
-
-// CompressionAlg is the interface for compression algorithm.
-// A CompressionAlg implementation must be safe for concurrent use by multiple goroutines.
-type CompressionAlg interface {
+// Decoder implementations must be safe for concurrent use and keep Type stable.
+type Decoder interface {
 	Type() AlgType
-	CompressionLevel() int
-	Compress(dst []byte, data []byte) ([]byte, error)
-	Decompress(data []byte) ([]byte, error)
+	// Decompress decodes a raw algorithm stream, with a positive output limit.
+	// It must enforce the limit during decoding, return ErrDecodedTooLarge on
+	// overflow, validate the complete stream, and return nil data on error.
+	// Successful output must not alias data or internal reusable storage.
+	Decompress(data []byte, maxDecodedSize int) ([]byte, error)
 }
 
-var (
-	gzipDecompressFunc func([]byte) ([]byte, error)
-	zstdDecompressFunc func([]byte) ([]byte, error)
-)
-
-func ProvideDecompressor(alg CompressionAlg) {
-	switch alg.Type() {
-	case TypeGzip:
-		gzipDecompressFunc = alg.Decompress
-	case TypeZstd:
-		zstdDecompressFunc = alg.Decompress
-	default:
-		panic(fmt.Sprintf("unsupported compression type %s", alg.Type()))
-	}
-}
-
-func decompressZstd(data []byte) (decompressed []byte, compressType AlgType, err error) {
-	if zstdDecompressFunc == nil {
-		return nil, TypeZstd, errZstdDecompressorNotAvailable
-	}
-	decompressed, err = zstdDecompressFunc(data)
-	return decompressed, TypeZstd, err
+// Codec implementations must be safe for concurrent use.
+// A codec's decoder must accept its encoder's output.
+// Only TypeGzip and TypeZstd are supported currently.
+type Codec interface {
+	Decoder
+	// Compress appends a raw stream to dst, preserving its existing prefix.
+	// data must not overlap dst and must not be modified.
+	// Output may alias dst, but must remain valid across subsequent calls.
+	// On error dst may be changed.
+	Compress(dst, data []byte) ([]byte, error)
 }

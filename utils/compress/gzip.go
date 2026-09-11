@@ -4,93 +4,101 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
+	"io"
 	"sync"
 )
 
-var defaultGzipAlg = NewGzipCompressor(gzip.DefaultCompression)
+var defaultGzipCodec = &GzipCodec{level: gzip.DefaultCompression}
 
-func init() {
-	ProvideDecompressor(defaultGzipAlg)
-}
-
-// NewGzipCompressor creates a new gzip CompressionAlg instance.
-// level specifies the compression level, see package gzip for valid values,
-// the default value is gzip.DefaultCompression.
-//
-// It's recommended to use zstd for better performance.
-func NewGzipCompressor(level int) CompressionAlg {
-	if level == 0 {
-		level = gzip.DefaultCompression
+// NewGzipCodec accepts the standard library's gzip levels, including
+// NoCompression (0), DefaultCompression (-1), and HuffmanOnly (-2).
+func NewGzipCodec(level int) (*GzipCodec, error) {
+	if level < gzip.HuffmanOnly || level > gzip.BestCompression {
+		return nil, fmt.Errorf("%w: gzip level %d", ErrInvalidConfig, level)
 	}
-	return &GzipCompressor{
-		level: level,
-	}
+	return &GzipCodec{level: level}, nil
 }
 
-var gzipReaderPool = sync.Pool{
-	New: func() interface{} { return new(gzip.Reader) },
+// GzipCodec must not be copied after first use. Its zero value uses NoCompression.
+type GzipCodec struct {
+	level   int
+	writers sync.Pool
 }
 
-type GzipCompressor struct {
-	level      int
-	writerPool sync.Pool
+func (p *GzipCodec) Type() AlgType         { return TypeGzip }
+func (p *GzipCodec) CompressionLevel() int { return p.level }
+
+type gzipWriter struct {
+	buf    bytes.Buffer
+	writer *gzip.Writer
 }
 
-func (p *GzipCompressor) Type() AlgType {
-	return TypeGzip
-}
-
-func (p *GzipCompressor) CompressionLevel() int {
-	return p.level
-}
-
-func (p *GzipCompressor) Compress(dst []byte, data []byte) ([]byte, error) {
-	buf := bytes.NewBuffer(dst)
-	gw, err := p.getWriter(buf)
-	if err != nil {
-		return nil, err
-	}
-	defer p.writerPool.Put(gw)
-
-	_, err = gw.Write(data)
-	if err != nil {
-		return nil, fmt.Errorf("gzip compress failed: %w", err)
-	}
-	if err = gw.Close(); err != nil {
-		return nil, fmt.Errorf("gzip compress failed: %w", err)
-	}
-	return buf.Bytes(), nil
-}
-
-func (p *GzipCompressor) getWriter(buf *bytes.Buffer) (*gzip.Writer, error) {
-	var err error
-	var gw *gzip.Writer
-	if v := p.writerPool.Get(); v != nil {
-		gw = v.(*gzip.Writer)
-		gw.Reset(buf)
+func (p *GzipCodec) Compress(dst, data []byte) ([]byte, error) {
+	var w *gzipWriter
+	if v := p.writers.Get(); v != nil {
+		w = v.(*gzipWriter)
 	} else {
-		gw, err = gzip.NewWriterLevel(buf, p.level)
-		if err != nil {
-			return nil, fmt.Errorf("gzip.NewWriterLevel failed: %w", err)
-		}
+		w = new(gzipWriter)
 	}
-	return gw, nil
+	w.buf = *bytes.NewBuffer(dst)
+	if w.writer == nil {
+		var err error
+		w.writer, err = gzip.NewWriterLevel(&w.buf, p.level)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		w.writer.Reset(&w.buf)
+	}
+	defer func() {
+		// The writer retains only this wrapper, never the caller's output buffer.
+		w.buf = bytes.Buffer{}
+		p.writers.Put(w)
+	}()
+	if _, err := w.writer.Write(data); err != nil {
+		return nil, fmt.Errorf("gzip write: %w", err)
+	}
+	if err := w.writer.Close(); err != nil {
+		return nil, fmt.Errorf("gzip close: %w", err)
+	}
+	return w.buf.Bytes(), nil
 }
 
-func (p *GzipCompressor) Decompress(data []byte) ([]byte, error) {
-	gr := gzipReaderPool.Get().(*gzip.Reader)
-	err := gr.Reset(bytes.NewReader(data))
-	if err != nil {
-		gr, err = gzip.NewReader(bytes.NewReader(data))
-		if err != nil {
-			return nil, fmt.Errorf("gzip.NewReader failed: %w", err)
-		}
-	}
-	defer gzipReaderPool.Put(gr)
+type gzipReader struct {
+	src    bytes.Reader
+	reader gzip.Reader
+}
 
-	var buf bytes.Buffer
-	if _, err = buf.ReadFrom(gr); err != nil {
-		return nil, fmt.Errorf("gzip decompress failed: %w", err)
+var gzipReaders = sync.Pool{New: func() interface{} { return new(gzipReader) }}
+
+func (p *GzipCodec) Decompress(data []byte, maxDecodedSize int) ([]byte, error) {
+	if maxDecodedSize <= 0 {
+		return nil, fmt.Errorf("%w: max decoded size must be positive", ErrInvalidConfig)
 	}
-	return buf.Bytes(), nil
+	r := gzipReaders.Get().(*gzipReader)
+	defer func() {
+		r.src.Reset(nil)
+		r.reader.Header = gzip.Header{}
+		gzipReaders.Put(r)
+	}()
+	r.src.Reset(data)
+	if err := r.reader.Reset(&r.src); err != nil {
+		return nil, fmt.Errorf("gzip header: %w", err)
+	}
+	defer r.reader.Close()
+	out, err := io.ReadAll(io.LimitReader(&r.reader, int64(maxDecodedSize)))
+	if err != nil {
+		return nil, fmt.Errorf("gzip read: %w", err)
+	}
+	// Probe EOF even at the exact limit to validate the trailer and detect excess
+	// output without computing maxDecodedSize+1, which could overflow.
+	var extra [1]byte
+	n, err := io.ReadFull(&r.reader, extra[:])
+	if n != 0 {
+		return nil, ErrDecodedTooLarge
+	}
+	if err != io.EOF {
+		return nil, fmt.Errorf("gzip trailer: %w", err)
+	}
+	return out, nil
 }

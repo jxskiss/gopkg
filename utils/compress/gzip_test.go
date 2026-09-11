@@ -1,159 +1,117 @@
 package compress
 
 import (
+	"bytes"
 	"compress/gzip"
-	"context"
-	"math/rand"
-	"strings"
+	"errors"
+	"io"
+	"math"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
-func TestGzipCompressor_CompressDecompress(t *testing.T) {
-	tests := []struct {
-		name string
-		data []byte
-	}{
-		{
-			name: "small string",
-			data: []byte("hello world"),
-		},
-		{
-			name: "long compressible string",
-			data: []byte(strings.Repeat("a", 1000)),
-		},
-		{
-			name: "chinese characters",
-			data: []byte("你好，世界！这是一段中文测试文本。"),
-		},
-		{
-			name: "medium compressible data",
-			data: []byte(strings.Repeat("Go is a statically typed, compiled programming language designed at Google", 50)),
-		},
-		{
-			name: "large compressible data",
-			data: []byte(strings.Repeat("compressed data test case that should be very compressible", 1000)),
-		},
-	}
-
-	ctx := context.Background()
-	algImpl := NewGzipCompressor(gzip.DefaultCompression)
-	compressor := NewCompressor(CompressorConfig{
-		Alg:       algImpl,
-		BizName:   "test",
-		Threshold: 1,
-		MinSaving: 0.0001,
-	})
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			compressedData, compressType, failReason := compressor.Compress(ctx, tt.data)
-			if compressType == TypeNoCompress {
-				assert.NotEmpty(t, failReason)
-				assert.Equal(t, TypeNoCompress, AlgType(compressedData[0]))
-				assert.Equal(t, tt.data, compressedData[2:])
-			} else {
-				assert.Empty(t, failReason, "Compress should not fail")
-				assert.Equal(t, TypeGzip, compressType, "Compress type should be TypeGzip")
-				assert.NotNil(t, compressedData, "Compressed data should not be nil")
-				assert.Equal(t, TypeGzip, AlgType(compressedData[0]), "Compressed data should be TypeGzip")
+func TestGzipCodecLevels(t *testing.T) {
+	for level := gzip.HuffmanOnly; level <= gzip.BestCompression; level++ {
+		codec, err := NewGzipCodec(level)
+		if err != nil || codec.CompressionLevel() != level {
+			t.Fatalf("level %d: %v", level, err)
+		}
+		for _, input := range [][]byte{nil, []byte("hello"), []byte("你好世界"), bytes.Repeat([]byte("a"), 10000)} {
+			dst := make([]byte, 3, 1024)
+			copy(dst, "pre")
+			encoded, err := codec.Compress(dst, input)
+			if err != nil || string(encoded[:3]) != "pre" {
+				t.Fatalf("compress: %v", err)
 			}
-
-			if len(tt.data) > 0 && len(compressedData) >= len(tt.data) && len(tt.data) > 20 { // gzip header is about 10-20 bytes
-				t.Logf("Original size: %d, Compressed size: %d", len(tt.data), len(compressedData))
+			out, err := codec.Decompress(encoded[3:], max(1, len(input)))
+			if err != nil || !bytes.Equal(out, input) {
+				t.Fatalf("round trip level %d: %v", level, err)
 			}
-
-			decompressedData, _, err := compressor.Decompress(ctx, compressedData)
-			assert.NoError(t, err, "Decompress should not return an error")
-			assert.Equal(t, tt.data, decompressedData, "Decompressed data should match original data")
-		})
-	}
-
-	// Test with incompressible data (random bytes)
-	t.Run("random data (incompressible)", func(t *testing.T) {
-		data := make([]byte, 1000)
-		rand.Read(data)
-
-		compressedData, compressType, failReason := compressor.Compress(ctx, data)
-		assert.NotEmpty(t, failReason, "Compress should fail")
-		assert.Equal(t, TypeNoCompress, compressType, "Compress type should be TypeNoCompress")
-		assert.NotNil(t, compressedData)
-		assert.Equal(t, TypeNoCompress, AlgType(compressedData[0]))
-		assert.Equal(t, data, compressedData[2:])
-
-		// Incompressible data might result in larger compressed size due to gzip overhead
-		// assert.True(t, len(compressedData) > len(data), "Compressed random data should be larger")
-		t.Logf("Original random size: %d, Compressed random size: %d", len(data), len(compressedData))
-
-		decompressedData, compressType, err := compressor.Decompress(ctx, compressedData)
-		assert.NoError(t, err)
-		assert.Equal(t, TypeNoCompress, compressType)
-		assert.Equal(t, data, decompressedData)
-	})
-}
-
-func TestGzipCompressor_DecompressError(t *testing.T) {
-	compressor := NewGzipCompressor(gzip.DefaultCompression)
-
-	t.Run("invalid gzip data", func(t *testing.T) {
-		invalidData := []byte("this is not gzip data")
-		_, err := compressor.Decompress(invalidData)
-		assert.Error(t, err)
-		assert.True(t, strings.Contains(err.Error(), "gzip.NewReader failed") ||
-			strings.Contains(err.Error(), "reset gzip.Reader failed"))
-	})
-
-	t.Run("empty compressed data", func(t *testing.T) {
-		emptyData := []byte{1, 2, 3, 4, 5} // Not enough for a valid gzip header
-		_, err := compressor.Decompress(emptyData)
-		assert.Error(t, err)
-		assert.True(t, strings.Contains(err.Error(), "gzip.NewReader failed") ||
-			strings.Contains(err.Error(), "reset gzip.Reader failed"))
-	})
-}
-
-// Test concurrent use of the compressor to ensure pool safety
-func TestGzipCompressor_Concurrency(t *testing.T) {
-	compressor := NewCompressor(CompressorConfig{
-		BizName:   "test",
-		Alg:       defaultGzipAlg,
-		Threshold: 0,
-		MinSaving: 0.1,
-	})
-	originalData := []byte(strings.Repeat("concurrency test data", 500))
-
-	numGoroutines := 100
-	results := make(chan []byte, numGoroutines)
-	failReasons := make(chan string, numGoroutines)
-	errs := make(chan error, numGoroutines)
-
-	ctx := context.Background()
-	for i := 0; i < numGoroutines; i++ {
-		go func() {
-			compressed, _, reason := compressor.Compress(ctx, originalData)
-			if reason != "" {
-				failReasons <- reason
-				return
-			}
-			decompressed, _, err := compressor.Decompress(ctx, compressed)
+			reader, err := gzip.NewReader(bytes.NewReader(encoded[3:]))
 			if err != nil {
-				errs <- err
-				return
+				t.Fatal(err)
 			}
-			results <- decompressed
-		}()
-	}
-
-	for i := 0; i < numGoroutines; i++ {
-		select {
-		case reason := <-failReasons:
-			if reason == ReasonCompressFailed {
-				t.Errorf("Concurrency test failed with reason: %s", reason)
+			standard, err := io.ReadAll(reader)
+			reader.Close()
+			if err != nil || !bytes.Equal(standard, input) {
+				t.Fatalf("standard decode: %v", err)
 			}
-		case err := <-errs:
-			t.Errorf("Concurrency test failed with error: %v", err)
-		case decompressed := <-results:
-			assert.Equal(t, originalData, decompressed, "Decompressed data should match original in concurrent test")
 		}
 	}
+	for _, level := range []int{-3, 10, math.MaxInt} {
+		if codec, err := NewGzipCodec(level); codec != nil || !errors.Is(err, ErrInvalidConfig) {
+			t.Fatalf("level %d: %v", level, err)
+		}
+	}
+}
+
+func TestGzipCodecCorruptionAndReuse(t *testing.T) {
+	codec, _ := NewGzipCodec(gzip.DefaultCompression)
+	input := bytes.Repeat([]byte("a"), 1024)
+	valid, _ := codec.Compress(nil, input)
+	invalid := [][]byte{nil, {}, []byte("invalid")}
+	for i := 0; i < len(valid); i++ {
+		invalid = append(invalid, bytes.Clone(valid[:i]))
+	}
+	crc := bytes.Clone(valid)
+	crc[len(crc)-8] ^= 1
+	size := bytes.Clone(valid)
+	size[len(size)-4] ^= 1
+	invalid = append(invalid, crc, size, append(bytes.Clone(valid), 1))
+	for i, data := range invalid {
+		if out, err := codec.Decompress(data, len(input)); err == nil || out != nil {
+			t.Fatalf("accepted corrupt stream %d", i)
+		}
+		out, err := codec.Decompress(valid, len(input))
+		if err != nil || !bytes.Equal(out, input) {
+			t.Fatalf("reuse after corruption %d: %v", i, err)
+		}
+	}
+	if _, err := codec.Decompress(crc, len(input)); !errors.Is(err, gzip.ErrChecksum) {
+		t.Fatalf("checksum error lost: %v", err)
+	}
+}
+
+func TestGzipCodecLimits(t *testing.T) {
+	codec, _ := NewGzipCodec(gzip.BestSpeed)
+	input := bytes.Repeat([]byte("a"), 4096)
+	valid, _ := codec.Compress(nil, input)
+	for _, limit := range []int{1, 4095, 4096, 4097, math.MaxInt} {
+		out, err := codec.Decompress(valid, limit)
+		if limit < len(input) {
+			if out != nil || !errors.Is(err, ErrDecodedTooLarge) {
+				t.Fatalf("limit %d: %v", limit, err)
+			}
+		} else if err != nil || !bytes.Equal(out, input) {
+			t.Fatalf("limit %d: %v", limit, err)
+		}
+	}
+	for _, limit := range []int{-1, 0} {
+		if out, err := codec.Decompress(valid, limit); out != nil || !errors.Is(err, ErrInvalidConfig) {
+			t.Fatalf("limit %d: %v", limit, err)
+		}
+	}
+	multi := append(bytes.Clone(valid), valid...)
+	if out, err := codec.Decompress(multi, len(input)); out != nil || !errors.Is(err, ErrDecodedTooLarge) {
+		t.Fatalf("multistream limit: %v", err)
+	}
+	out, err := codec.Decompress(multi, len(input)*2)
+	if err != nil || !bytes.Equal(out, bytes.Repeat(input, 2)) {
+		t.Fatalf("multistream: %v", err)
+	}
+}
+
+func FuzzGzipCodecDecompress(f *testing.F) {
+	codec, _ := NewGzipCodec(gzip.DefaultCompression)
+	valid, _ := codec.Compress(nil, []byte("hello"))
+	f.Add(valid)
+	f.Add([]byte{})
+	f.Fuzz(func(t *testing.T, data []byte) {
+		out, err := codec.Decompress(data, 64<<10)
+		if err != nil && out != nil {
+			t.Fatal("partial output on error")
+		}
+		if len(out) > 64<<10 {
+			t.Fatal("limit exceeded")
+		}
+	})
 }
