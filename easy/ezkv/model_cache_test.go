@@ -4,12 +4,14 @@ import (
 	"compress/gzip"
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/jxskiss/gopkg/v2/easy"
 	"github.com/jxskiss/gopkg/v2/perf/lru"
@@ -54,11 +56,11 @@ func TestIsSetCacheError(t *testing.T) {
 }
 
 func TestCache(t *testing.T) {
-	mcInt := makeTestingCache("TestIntCache",
+	mcInt := makeTestingCache(t,
 		func(m *TestModel) int64 {
 			return m.IntId
 		})
-	mcStr := makeTestingCache("TestStrCache",
+	mcStr := makeTestingCache(t,
 		func(m *TestModel) string {
 			return m.StrId
 		})
@@ -122,7 +124,7 @@ func TestCache(t *testing.T) {
 }
 
 func TestCacheWithLRUCache(t *testing.T) {
-	mc := makeTestingCache("TestCacheWithLRUCache",
+	mc := makeTestingCache(t,
 		func(m *TestModel) int64 {
 			return m.IntId
 		})
@@ -171,7 +173,7 @@ func TestCacheWithLRUCache(t *testing.T) {
 }
 
 func TestCacheWithLoader(t *testing.T) {
-	mc := makeTestingCache("TestCacheWithLoader",
+	mc := makeTestingCache(t,
 		func(m *TestModel) int64 {
 			return m.IntId
 		})
@@ -223,7 +225,7 @@ func TestCacheWithLoader(t *testing.T) {
 }
 
 func TestCacheSingleKeyValue(t *testing.T) {
-	mc := makeTestingCache("TestCacheSingleKeyValue",
+	mc := makeTestingCache(t,
 		func(m *TestModel) int64 {
 			return m.IntId
 		})
@@ -259,7 +261,7 @@ func TestCacheSingleKeyValue(t *testing.T) {
 }
 
 func TestCacheWithCompression(t *testing.T) {
-	mcInt := makeTestingCache("TestCacheWithCompression",
+	mcInt := makeTestingCache(t,
 		func(m *TestModel) int64 {
 			return m.IntId
 		})
@@ -305,17 +307,128 @@ func TestCacheWithCompression(t *testing.T) {
 	assert.Len(t, modelList, 2)
 }
 
-func makeTestingCache[K comparable, V Model](testName string, idFunc func(V) K) *ModelCache[K, V] {
+func TestNewModelCacheValidation(t *testing.T) {
+	for _, field := range []string{"config", "Storage", "IDFunc", "KeyFunc"} {
+		t.Run(field, func(t *testing.T) {
+			cfg := &ModelCacheConfig[int64, *TestModel]{
+				Storage: testClientFunc(t.Name()),
+				IDFunc:  func(m *TestModel) int64 { return m.IntId },
+				KeyFunc: func(id int64) string { return fmt.Sprint(id) },
+			}
+			switch field {
+			case "config":
+				cfg = nil
+			case "Storage":
+				cfg.Storage = nil
+			case "IDFunc":
+				cfg.IDFunc = nil
+			case "KeyFunc":
+				cfg.KeyFunc = nil
+			}
+			cache, err := NewModelCache(cfg)
+			require.Nil(t, cache)
+			require.ErrorContains(t, err, field)
+		})
+	}
+
+	t.Run("interface model", func(t *testing.T) {
+		cache, err := NewModelCache(&ModelCacheConfig[int64, Model]{
+			Storage: testClientFunc(t.Name()),
+			IDFunc:  func(m Model) int64 { return m.(*TestModel).IntId },
+			KeyFunc: func(id int64) string { return fmt.Sprint(id) },
+		})
+		require.Nil(t, cache)
+		require.ErrorContains(t, err, "concrete")
+	})
+
+	t.Run("defaults", func(t *testing.T) {
+		cache, err := NewModelCache(&ModelCacheConfig[int64, *TestModel]{
+			Storage:         testClientFunc(t.Name()),
+			IDFunc:          func(m *TestModel) int64 { return m.IntId },
+			KeyFunc:         func(id int64) string { return fmt.Sprint(id) },
+			BatchGetSize:    -1,
+			BatchSetSize:    -1,
+			BatchDeleteSize: -1,
+			LoaderBatchSize: -1,
+			LRUExpiration:   -1,
+		})
+		require.NoError(t, err)
+		ctx := context.Background()
+		model := &TestModel{IntId: 111, StrId: "abc"}
+		require.NoError(t, cache.BatchSetMap(ctx, map[int64]*TestModel{111: model}, 0))
+		got, err := cache.BatchGetMap(ctx, []int64{111})
+		require.NoError(t, err)
+		require.Equal(t, map[int64]*TestModel{111: model}, got)
+		require.NoError(t, cache.Delete(ctx, 111, 112))
+		_, err = cache.Get(ctx, 111)
+		require.ErrorIs(t, err, ErrDataNotFound)
+	})
+}
+
+func TestModelCacheBatchLRU(t *testing.T) {
+	ctx := context.Background()
+	for _, operation := range []string{"set", "delete"} {
+		for _, batchSize := range []int{1, 2} {
+			for _, failAt := range []int{0, 1, 2} {
+				t.Run(fmt.Sprintf("%s/batch=%d/fail=%d", operation, batchSize, failAt), func(t *testing.T) {
+					cache := makeTestingCache(t, func(m *TestModel) int64 { return m.IntId })
+					stor := &failingBatchStorage{
+						memoryStorage: memoryStorage{data: make(map[string][]byte)},
+						failAt:        failAt,
+						err:           errors.New("batch failed"),
+					}
+					cache.config.Storage = func(context.Context) Storage { return stor }
+					cache.config.LRUCache = lru.NewCache[int64, *TestModel](10)
+					cache.config.BatchSetSize = batchSize
+					cache.config.BatchDeleteSize = batchSize
+					models := make(map[int64]*TestModel)
+					for _, id := range []int64{111, 112, 113} {
+						require.NoError(t, cache.Set(ctx, id, &TestModel{IntId: id, StrId: "old"}, 0))
+						models[id] = &TestModel{IntId: id, StrId: "new"}
+					}
+					var err error
+					if operation == "set" {
+						err = cache.BatchSetMap(ctx, models, 0)
+					} else {
+						err = cache.Delete(ctx, 111, 112, 113)
+					}
+					if failAt == 0 {
+						require.NoError(t, err)
+					} else {
+						require.ErrorIs(t, err, stor.err)
+					}
+					for _, id := range []int64{111, 112, 113} {
+						data := stor.data[cache.config.KeyFunc(id)]
+						cached, exists := cache.config.LRUCache.GetNotStale(id)
+						if data == nil {
+							require.False(t, exists, "deleted key %d remains in LRU", id)
+							continue
+						}
+						var stored TestModel
+						require.NoError(t, stored.UnmarshalBinary(data))
+						require.True(t, exists)
+						require.Equal(t, &stored, cached, "LRU differs from storage for key %d", id)
+					}
+				})
+			}
+		}
+	}
+}
+
+func makeTestingCache[K comparable, V Model](t testing.TB, idFunc func(V) K) *ModelCache[K, V] {
+	t.Helper()
 	kf := KeyFactory{}
 	keyFun := kf.NewKey("test_model:{id}")
-	return NewModelCache(&ModelCacheConfig[K, V]{
-		Storage:         testClientFunc(testName),
+	cache, err := NewModelCache(&ModelCacheConfig[K, V]{
+		Storage:         testClientFunc(t.Name()),
 		IDFunc:          idFunc,
 		KeyFunc:         func(pk K) string { return keyFun(pk) },
 		BatchGetSize:    2,
 		BatchSetSize:    2,
 		BatchDeleteSize: 2,
 	})
+	require.NoError(t, err)
+	return cache
 }
 
 func testClientFunc(testName string) func(ctx context.Context) Storage {
@@ -399,4 +512,27 @@ func testLoaderFunc(ctx context.Context, ids []int64) (map[int64]*TestModel, err
 		}
 	}
 	return out, nil
+}
+
+type failingBatchStorage struct {
+	memoryStorage
+	calls  int
+	failAt int
+	err    error
+}
+
+func (s *failingBatchStorage) BatchSet(ctx context.Context, keys []string, values [][]byte, expiration time.Duration) error {
+	s.calls++
+	if s.calls == s.failAt {
+		return s.err
+	}
+	return s.memoryStorage.BatchSet(ctx, keys, values, expiration)
+}
+
+func (s *failingBatchStorage) Delete(ctx context.Context, keys ...string) error {
+	s.calls++
+	if s.calls == s.failAt {
+		return s.err
+	}
+	return s.memoryStorage.Delete(ctx, keys...)
 }

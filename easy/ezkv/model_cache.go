@@ -43,6 +43,9 @@ func IsSetCacheError(err error) bool {
 }
 
 // Model is the interface implemented by types that can be cached by ModelCache.
+// Model types must be concrete. For pointer types, UnmarshalBinary must work
+// on a newly allocated zero-valued element; other types must support their zero value.
+// MarshalBinary must be safe for concurrent reads of an immutable model.
 type Model interface {
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler
@@ -50,17 +53,36 @@ type Model interface {
 
 // Storage is the interface which provides storage for ModelCache.
 // Users may use any key-value storage to implement this.
+// Implementations must support concurrent calls when ModelCache is shared.
+// Writes and deletes may partially succeed on error; ModelCache does not roll them back.
 type Storage interface {
+	// Get returns one value per key, in the same order, using nil or empty values
+	// for misses. On error, it must return no values. Returned buffers must remain
+	// valid and must not be modified by Storage after returning.
 	Get(ctx context.Context, keys ...string) ([][]byte, error)
+	// Set must consume or copy its inputs before returning, without modifying them.
+	// A zero expiration means no expiration.
 	Set(ctx context.Context, key string, value []byte, expiration time.Duration) error
+	// BatchSet pairs keys[i] with values[i]; both slices have the same length.
+	// It has the same buffer ownership and expiration requirements as Set.
 	BatchSet(ctx context.Context, keys []string, values [][]byte, expiration time.Duration) error
+	// Delete must treat missing keys as successfully deleted and consume or copy
+	// the keys before returning.
 	Delete(ctx context.Context, keys ...string) error
 }
 
 // Loader loads data from underlying persistent storage.
+// It must return only requested keys, omit missing models, and never return nil
+// models. Each map key must equal IDFunc(model), including after serialization.
+// The returned map and models must not be modified by the Loader after returning.
+// Loader must support concurrent calls when ModelCache is shared; calls for the
+// same key are not coalesced. Results returned with an error are discarded.
 type Loader[K comparable, V Model] func(ctx context.Context, pks []K) (map[K]V, error)
 
 // ModelCacheConfig configures a ModelCache instance.
+// NewModelCache fills defaults in this struct and retains its pointer.
+// Do not mutate it while the cache is in use. Configured callbacks and components
+// must support concurrent use when the cache is shared.
 type ModelCacheConfig[K comparable, V Model] struct {
 
 	// BizName is used to identify the cache instance.
@@ -68,24 +90,27 @@ type ModelCacheConfig[K comparable, V Model] struct {
 
 	// Storage must return a Storage implementation which will be used
 	// as the underlying key-value storage.
+	// This function is required and must never return nil.
 	Storage func(ctx context.Context) Storage
 
 	// IDFunc returns the primary key of a Model object.
+	// It is required and must return the same key before and after serialization.
 	IDFunc func(V) K
 
 	// KeyFunc specifies the key function to use with the storage.
+	// It is required and must be stable and collision-free for distinct primary keys.
 	KeyFunc func(pk K) string
 
-	// BatchGetSize optionally specifies the batch size for one BatchGet
-	// calling to storage. The default is 200.
+	// BatchGetSize limits keys per Storage.Get call. Nonpositive values use
+	// DefaultBatchSize (100).
 	BatchGetSize int
 
-	// BatchSetSize optionally specifies the batch size for one Set
-	// calling to storage. The default is 200.
+	// BatchSetSize limits models per Storage.BatchSet call. Nonpositive values use
+	// DefaultBatchSize (100).
 	BatchSetSize int
 
-	// BatchDeleteSize optionally specifies the batch size for one Delete
-	// calling to storage. The default is 200.
+	// BatchDeleteSize limits keys per Storage.Delete call. Nonpositive values use
+	// DefaultBatchSize (100).
 	BatchDeleteSize int
 
 	// LRUCache optionally enables LRU cache, which may help to improve
@@ -93,21 +118,22 @@ type ModelCacheConfig[K comparable, V Model] struct {
 	LRUCache lru.Interface[K, V]
 
 	// LRUExpiration specifies the expiration time for data in LRU cache.
-	// The default is one second.
+	// Nonpositive values use DefaultLRUExpiration (five seconds).
+	// This TTL is independent of Storage expiration and may outlive it.
 	LRUExpiration time.Duration
 
 	// Loader optionally specifies a function to load data from underlying
 	// persistent storage when the data is missing from cache.
 	//
-	// If Loader is not nil, all errors happened when processing cache
-	// are treat as cache-miss and ignored, Loader will be called to load data
-	// from underlying persistent storage.
-	// If you want to fine-grained control the error handling,
-	// config this to nil and handle cache errors by yourself.
+	// With a Loader, storage read and decoding errors are treated as cache misses.
+	// Without a Loader, Get returns these errors, while BatchGetSlice and BatchGetMap
+	// return storage read errors but log and skip values that fail decoding.
+	// Loader errors are always returned. Synchronous writeback errors are returned
+	// as IsSetCacheError with valid loaded data.
 	Loader Loader[K, V]
 
-	// LoaderBatchSize optionally specifies the batch size for calling
-	// Loader. The default is 500.
+	// LoaderBatchSize limits keys per Loader call. Nonpositive values use
+	// DefaultLoaderBatchSize (300).
 	LoaderBatchSize int
 
 	// CacheExpiration specifies the expiration time to cache the data to
@@ -115,9 +141,10 @@ type ModelCacheConfig[K comparable, V Model] struct {
 	// The default is zero, which means no expiration.
 	CacheExpiration time.Duration
 
-	// CacheLoaderResultAsync makes the ModelCache to save data from Loader
-	// to Storage async, errors returned from Storage.MSet will be ignored.
-	// The default is false, it reports errors to the caller.
+	// CacheLoaderResultAsync writes Loader results in a background goroutine using
+	// the request context; cancellation can prevent writeback. Writeback errors are
+	// logged through ErrorLogger instead of returned to the caller.
+	// The default is false, which waits for writeback and reports its errors.
 	CacheLoaderResultAsync bool
 
 	// Compressor optionally specifies a compressor to use for
@@ -134,7 +161,19 @@ type ModelCacheConfig[K comparable, V Model] struct {
 	ErrorLogger func(ctx context.Context, err error, msg string)
 }
 
-func (p *ModelCacheConfig[_, _]) checkAndSetDefaults() {
+func (p *ModelCacheConfig[_, _]) checkAndSetDefaults() error {
+	if p == nil {
+		return errors.New("ezkv: config must not be nil")
+	}
+	if p.Storage == nil {
+		return errors.New("ezkv: ModelCacheConfig.Storage must not be nil")
+	}
+	if p.IDFunc == nil {
+		return errors.New("ezkv: ModelCacheConfig.IDFunc must not be nil")
+	}
+	if p.KeyFunc == nil {
+		return errors.New("ezkv: ModelCacheConfig.KeyFunc must not be nil")
+	}
 	if p.BatchGetSize <= 0 {
 		p.BatchGetSize = DefaultBatchSize
 	}
@@ -153,6 +192,7 @@ func (p *ModelCacheConfig[_, _]) checkAndSetDefaults() {
 	if p.ErrorLogger == nil {
 		p.ErrorLogger = internal.DefaultLoggerError
 	}
+	return nil
 }
 
 func buildNewElemFunc[V any]() func() V {
@@ -169,19 +209,34 @@ func buildNewElemFunc[V any]() func() V {
 }
 
 // NewModelCache returns a new ModelCache instance.
-func NewModelCache[K comparable, V Model](config *ModelCacheConfig[K, V]) *ModelCache[K, V] {
-	config.checkAndSetDefaults()
+// It returns an error for invalid config, or an interface model type V.
+// It does not call the configured functions. It fills defaults in config and
+// retains it; config must not be changed while the cache is in use.
+func NewModelCache[K comparable, V Model](config *ModelCacheConfig[K, V]) (*ModelCache[K, V], error) {
+	if err := config.checkAndSetDefaults(); err != nil {
+		return nil, err
+	}
+	if reflect.TypeOf((*V)(nil)).Elem().Kind() == reflect.Interface {
+		return nil, errors.New("ezkv: model type V must be concrete, not an interface")
+	}
 	newElemFn := buildNewElemFunc[V]()
 	return &ModelCache[K, V]{
 		config:      config,
 		newElemFunc: newElemFn,
-	}
+	}, nil
 }
 
 // ModelCache encapsulates frequently used batching cache operations,
 // such as MGet, MSet and Delete.
 //
 // A ModelCache must not be copied after initialized.
+// Models returned by Get, BatchGetSlice and BatchGetMap are shared, read-only
+// objects. Callers must not modify them, including referenced slices, maps and
+// pointers; make a deep copy before making changes. Models passed to write
+// methods or returned by Loader must also remain immutable once handed to the
+// cache, since LRU entries and asynchronous writeback can retain them.
+// Concurrent operations do not provide transactional consistency between Storage
+// and LRU; cached data may remain stale until its LRU expiration.
 type ModelCache[K comparable, V Model] struct {
 	config *ModelCacheConfig[K, V]
 
@@ -192,6 +247,7 @@ type ModelCache[K comparable, V Model] struct {
 //
 // If pk cannot be found either in the cache nor from the Loader,
 // it returns an error ErrDataNotFound.
+// The returned model is read-only, as described by ModelCache.
 //
 // Error may occur during setting data to cache, while we do get data
 // from Loader, in this case the returned value is valid, but the error
@@ -282,7 +338,10 @@ func (p *ModelCache[K, V]) decodeCacheValue(ctx context.Context, pk K, cacheVal 
 
 // BatchGetSlice queries ModelCache and returns the cached values as a slice
 // of type []V.
-// Note the returned values may be less than requested.
+// Duplicate keys are queried once.
+// Missing values and values that fail decoding are omitted unless supplied by Loader.
+// Decoding errors are logged and skipped even without a Loader.
+// Results are read-only and have no guaranteed order.
 //
 // Error may occur during setting data to cache, while we do get data
 // from Loader, in this case the returned value is valid, but the error
@@ -308,7 +367,10 @@ func (p *ModelCache[K, V]) BatchGetSlice(ctx context.Context, pks []K) ([]V, err
 
 // BatchGetMap queries ModelCache and returns the cached values as a map
 // of type map[K]V.
-// Note the returned values may be less than requested.
+// Duplicate keys are queried once.
+// Missing values and values that fail decoding are omitted unless supplied by Loader.
+// Decoding errors are logged and skipped even without a Loader.
+// The models in the returned map are read-only.
 //
 // Error may occur during setting data to cache, while we do get data
 // from Loader, in this case the returned value is valid, but the error
@@ -445,6 +507,8 @@ func (p *ModelCache[K, V]) mGet(ctx context.Context, pks []K, f func(pk K, elem 
 }
 
 // Set writes a key value pair to ModelCache.
+// elem must be non-nil and immutable, and pk must equal IDFunc(elem).
+// expiration applies to Storage; the LRU uses its independent LRUExpiration.
 func (p *ModelCache[K, V]) Set(ctx context.Context, pk K, elem V, expiration time.Duration) error {
 	key := p.config.KeyFunc(pk)
 	buf, err := elem.MarshalBinary()
@@ -466,6 +530,10 @@ func (p *ModelCache[K, V]) Set(ctx context.Context, pk K, elem V, expiration tim
 }
 
 // BatchSetSlice writes the given models to ModelCache.
+// Models must be non-nil and immutable. Each successful batch updates the LRU.
+// On error, earlier successful batches remain applied; the failing batch may
+// have partially changed Storage, but its LRU entries are not updated.
+// expiration applies to Storage; the LRU uses its independent LRUExpiration.
 func (p *ModelCache[K, V]) BatchSetSlice(ctx context.Context, models []V, expiration time.Duration) error {
 	if len(models) == 0 {
 		return nil
@@ -511,6 +579,11 @@ func (p *ModelCache[K, V]) BatchSetSlice(ctx context.Context, models []V, expira
 }
 
 // BatchSetMap writes the given models to ModelCache.
+// Each map key must equal IDFunc(model); models must be non-nil and immutable.
+// Batches are processed in unspecified order. Each successful batch updates the
+// LRU. On error, earlier successful batches remain applied; the failing batch may
+// have partially changed Storage, but its LRU entries are not updated.
+// expiration applies to Storage; the LRU uses its independent LRUExpiration.
 func (p *ModelCache[K, V]) BatchSetMap(ctx context.Context, models map[K]V, expiration time.Duration) error {
 	if len(models) == 0 {
 		return nil
@@ -521,6 +594,7 @@ func (p *ModelCache[K, V]) BatchSetMap(ctx context.Context, models map[K]V, expi
 	batchSize := min(p.config.BatchSetSize, len(models))
 	keys := make([]string, 0, batchSize)
 	values := make([][]byte, 0, batchSize)
+	var kvMap map[K]V
 	for pk, elem := range models {
 		buf, err := elem.MarshalBinary()
 		if err != nil {
@@ -530,12 +604,21 @@ func (p *ModelCache[K, V]) BatchSetMap(ctx context.Context, models map[K]V, expi
 			buf = compressor.Compress(ctx, buf).Data
 		}
 		key := p.config.KeyFunc(pk)
+		if p.config.LRUCache != nil {
+			if len(keys) == 0 {
+				kvMap = make(map[K]V, batchSize)
+			}
+			kvMap[pk] = elem
+		}
 		keys = append(keys, key)
 		values = append(values, buf)
 		if len(keys) == batchSize {
 			err = stor.BatchSet(ctx, keys, values, expiration)
 			if err != nil {
 				return fmt.Errorf("write storage: %w", err)
+			}
+			if p.config.LRUCache != nil {
+				p.config.LRUCache.MSet(kvMap, p.config.LRUExpiration)
 			}
 			keys = keys[:0]
 			values = values[:0]
@@ -546,14 +629,17 @@ func (p *ModelCache[K, V]) BatchSetMap(ctx context.Context, models map[K]V, expi
 		if err != nil {
 			return fmt.Errorf("write storage: %w", err)
 		}
-	}
-	if p.config.LRUCache != nil {
-		p.config.LRUCache.MSet(models, p.config.LRUExpiration)
+		if p.config.LRUCache != nil {
+			p.config.LRUCache.MSet(kvMap, p.config.LRUExpiration)
+		}
 	}
 	return nil
 }
 
 // Delete deletes key values from ModelCache.
+// Each successful batch removes its keys from the LRU. On error, earlier
+// successful batches remain applied; the failing batch may have partially
+// changed Storage, but its LRU entries are not removed.
 func (p *ModelCache[K, V]) Delete(ctx context.Context, pks ...K) error {
 	if len(pks) == 0 {
 		return nil
@@ -589,14 +675,15 @@ func (p *ModelCache[K, V]) mDelete(ctx context.Context, pks []K) error {
 
 	stor := p.config.Storage(ctx)
 	batches := easy.Split(keys, p.config.BatchDeleteSize)
-	for _, bat := range batches {
+	for i, bat := range batches {
 		err := stor.Delete(ctx, bat...)
 		if err != nil {
 			return fmt.Errorf("write storage: %w", err)
 		}
-	}
-	if p.config.LRUCache != nil {
-		p.config.LRUCache.MDelete(pks...)
+		if p.config.LRUCache != nil {
+			start := i * p.config.BatchDeleteSize
+			p.config.LRUCache.MDelete(pks[start : start+len(bat)]...)
+		}
 	}
 	return nil
 }

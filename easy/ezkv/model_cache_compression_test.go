@@ -47,7 +47,7 @@ func TestModelCacheCompressionWrites(t *testing.T) {
 					CompressCallback: func(context.Context, compress.CompressionStats) { calls++ },
 				})
 				require.NoError(t, err)
-				cache := makeTestingCache(t.Name(), func(m *TestModel) int64 { return m.IntId })
+				cache := makeTestingCache(t, func(m *TestModel) int64 { return m.IntId })
 				cache.config.Compressor = c
 				cache.config.DisableCompressionWrites = mode == "disabled"
 				if mode == "nil" {
@@ -92,17 +92,19 @@ func TestModelCacheCompressionWrites(t *testing.T) {
 
 func TestModelCacheCompressionSwitch(t *testing.T) {
 	ctx := context.Background()
-	base := makeTestingCache(t.Name(), func(m *TestModel) int64 { return m.IntId })
+	base := makeTestingCache(t, func(m *TestModel) int64 { return m.IntId })
 	require.NoError(t, base.Set(ctx, 111, testModelList[0], 0))
 	c, err := compress.NewCompressor(compress.CompressorConfig{})
 	require.NoError(t, err)
 	cfg := *base.config
 	cfg.Compressor = c
-	writer := NewModelCache(&cfg)
+	writer, err := NewModelCache(&cfg)
+	require.NoError(t, err)
 	require.NoError(t, writer.Set(ctx, 112, testModelList[1], 0))
 	rawCfg := cfg
 	rawCfg.DisableCompressionWrites = true
-	reader := NewModelCache(&rawCfg)
+	reader, err := NewModelCache(&rawCfg)
+	require.NoError(t, err)
 	for _, cache := range []*ModelCache[int64, *TestModel]{writer, reader} {
 		for _, model := range testModelList {
 			got, err := cache.Get(ctx, model.IntId)
@@ -146,7 +148,7 @@ func TestModelCacheCompressionEmptyAndFramedInput(t *testing.T) {
 				{"framed", frame.Data},
 			} {
 				t.Run(method+"/"+mode+"/"+input.name, func(t *testing.T) {
-					cache := makeTestingCache(t.Name(), func(*compressionBlob) int { return 1 })
+					cache := makeTestingCache(t, func(*compressionBlob) int { return 1 })
 					cache.config.Compressor = compress.DefaultCompressor
 					cache.config.DisableCompressionWrites = mode == "disabled"
 					if mode == "nil" {
@@ -219,7 +221,7 @@ func TestModelCacheCompressionLoader(t *testing.T) {
 			for _, disabled := range []bool{false, true} {
 				t.Run(fmt.Sprintf("async=%v/batch=%v/disabled=%v", async, batch, disabled), func(t *testing.T) {
 					stor := &compressionTestStorage{memoryStorage: memoryStorage{data: make(map[string][]byte)}, written: make(chan struct{}, 1)}
-					cache := makeTestingCache(t.Name(), func(m *TestModel) int64 { return m.IntId })
+					cache := makeTestingCache(t, func(m *TestModel) int64 { return m.IntId })
 					cache.config.Storage = func(context.Context) Storage { return stor }
 					c, err := compress.NewCompressor(compress.CompressorConfig{})
 					require.NoError(t, err)
@@ -266,7 +268,7 @@ func TestModelCacheCompressionInvalidFrame(t *testing.T) {
 	for _, batch := range []bool{false, true} {
 		for _, loader := range []bool{false, true} {
 			t.Run(fmt.Sprintf("batch=%v/loader=%v", batch, loader), func(t *testing.T) {
-				cache := makeTestingCache(t.Name(), func(m *TestModel) int64 { return m.IntId })
+				cache := makeTestingCache(t, func(m *TestModel) int64 { return m.IntId })
 				cache.config.Compressor = compress.DefaultCompressor
 				cache.config.DisableCompressionWrites = true
 				var logged []error

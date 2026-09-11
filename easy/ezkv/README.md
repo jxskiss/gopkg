@@ -3,6 +3,47 @@
 Typed model caching over a caller-provided key-value `Storage`, with batch
 operations, an optional Loader for cache misses, and an optional local LRU cache.
 
+## Construction and contracts
+
+`NewModelCache` returns `(*ModelCache[K, V], error)`. It rejects a nil config,
+missing `Storage`, `IDFunc`, or `KeyFunc`, and interface model types such as
+`V = ezkv.Model`. Use a concrete model type whose `UnmarshalBinary` works on a
+newly allocated zero-valued element (for pointers) or on its zero value.
+The constructor validates without invoking callbacks; the `Storage` callback
+must return a non-nil implementation at runtime.
+
+The constructor fills defaults in the supplied config and retains its pointer.
+Do not modify the config while the cache is in use. Nonpositive batch sizes use
+100 for storage operations and 300 for Loader calls. Nonpositive `LRUExpiration`
+uses five seconds. `CacheExpiration` defaults to zero, meaning no expiration in
+Storage. The LRU TTL is independent and can outlive the stored value.
+
+- Returned models are **read-only**, including nested pointers, maps, and slices.
+  Callers must make a deep copy before modifying them. Models supplied to write
+  methods or returned by Loader must remain immutable after being handed to the
+  cache; LRU entries and asynchronous writeback may retain them.
+- `IDFunc` must preserve the primary key across serialization. Explicit keys in
+  `Set`, `BatchSetMap`, and Loader results must match `IDFunc(model)`. Models must
+  not be nil. `KeyFunc` must produce stable, distinct keys for distinct IDs.
+- `Storage.Get` returns one value per requested key in the same order, with nil
+  or empty values for misses, and no values on error. Returned buffers must stay
+  valid and unmodified. Storage writes must consume or copy input buffers and
+  slices before returning without modifying them. Missing keys are valid deletes.
+- Loader results contain only requested keys and omit missing models. Loader must
+  not mutate the returned map or models. Concurrent misses are not coalesced.
+- Batch reads deduplicate keys and omit missing values. `BatchGetSlice` does not
+  guarantee result order. Without a Loader, `Get` returns decoding errors;
+  batch reads log and skip invalid values. With a Loader, read and decoding errors
+  trigger fallback. Loader errors are returned; synchronous writeback errors
+  accompany valid data and can be identified with `IsSetCacheError`.
+- Batch writes and deletes update the LRU after each successful storage batch.
+  Errors do not roll back successful batches. A failing batch can partially
+  change Storage while leaving its LRU entries unchanged. Concurrent operations
+  do not provide transactional consistency between the two cache layers.
+- Asynchronous Loader writeback uses the request context, so cancellation may
+  prevent it. Writeback errors go to `ErrorLogger`. Shared caches require their
+  configured callbacks and components to support concurrent use.
+
 ## ModelCache compression
 
 Models implement `MarshalBinary` and `UnmarshalBinary`. Configure
@@ -18,12 +59,15 @@ c, err := compress.NewCompressor(compress.DefaultConfig())
 if err != nil {
     return err
 }
-cache := ezkv.NewModelCache(&ezkv.ModelCacheConfig[int64, *MyModel]{
+cache, err := ezkv.NewModelCache(&ezkv.ModelCacheConfig[int64, *MyModel]{
     Storage:    storageFunc,
     IDFunc:     func(m *MyModel) int64 { return m.ID },
     KeyFunc:    keyFunc,
     Compressor: c,
 })
+if err != nil {
+    return err
+}
 ```
 
 The write policy applies to `Set`, `BatchSetSlice`, `BatchSetMap`, and Loader

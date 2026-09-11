@@ -15,7 +15,7 @@ import (
 // dst must be a pointer to same type as value, else it panics.
 func SetDefault(dst any, value ...any) {
 	dstVal := reflect.ValueOf(dst)
-	if dstVal.Kind() != reflect.Ptr || !reflect.Indirect(dstVal).IsValid() {
+	if dstVal.Kind() != reflect.Pointer || !reflect.Indirect(dstVal).IsValid() {
 		panic("SetDefault: dst must be a non-nil pointer")
 	}
 	if reflect.Indirect(dstVal).IsZero() {
