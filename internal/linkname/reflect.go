@@ -93,12 +93,13 @@ func reflect_unsafe_New(unsafe.Pointer) unsafe.Pointer
 //go:linkname reflect_unsafe_NewArray reflect.unsafe_NewArray
 func reflect_unsafe_NewArray(unsafe.Pointer, int) unsafe.Pointer
 
+// These copy functions must not use directive "go:noescape",
+// pointers copied from src can outlive the call through dst.
+//
 //go:linkname reflect_typedmemmove reflect.typedmemmove
-//go:noescape
 func reflect_typedmemmove(t unsafe.Pointer, dst, src unsafe.Pointer)
 
 //go:linkname reflect_typedslicecopy reflect.typedslicecopy
-//go:noescape
 func reflect_typedslicecopy(elemRType unsafe.Pointer, dst, src unsafeheader.SliceHeader) int
 
 //go:linkname reflect_maplen reflect.maplen

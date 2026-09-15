@@ -2,6 +2,7 @@ package reflectx
 
 import (
 	"reflect"
+	"runtime"
 	"testing"
 	"unsafe"
 
@@ -110,4 +111,68 @@ func TestTypedSliceCopy(t *testing.T) {
 	assert.Equal(t, slice1, slice2[:3])
 	assert.Len(t, slice2, 5)
 	assert.Equal(t, []string{"", ""}, slice2[3:5])
+}
+
+func TestTypedCopyEscapingSlice(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		copy func(*RType, int) []byte
+	}{
+		{"TypedMemMove", memMoveLocalSlice},
+		{"TypedSliceCopy", copyLocalSlice},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tc.copy(RTypeOf([]byte(nil)), 16)
+			overwriteCopyStack(10)
+			if len(got) != 16 {
+				t.Fatalf("got length %d, want 16", len(got))
+			}
+			for i, b := range got {
+				if b != 0x5a {
+					t.Fatalf("byte %d: got %#x, want 0x5a", i, b)
+				}
+			}
+		})
+	}
+}
+
+// Keep the allocation size dynamic and the source frame separate to exercise
+// Go 1.25's stack allocation of variable-sized slices.
+//
+//go:noinline
+func memMoveLocalSlice(typ *RType, n int) []byte {
+	src := make([]byte, n)
+	for i := range src {
+		src[i] = 0x5a
+	}
+	var dst []byte
+	TypedMemMove(typ, unsafe.Pointer(&dst), unsafe.Pointer(&src))
+	return dst
+}
+
+//go:noinline
+func copyLocalSlice(typ *RType, n int) []byte {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = 0x5a
+	}
+	src := [][]byte{b}
+	dst := make([][]byte, 1)
+	TypedSliceCopy(typ,
+		SliceHeader{Data: unsafe.Pointer(&dst[0]), Len: 1, Cap: 1},
+		SliceHeader{Data: unsafe.Pointer(&src[0]), Len: 1, Cap: 1})
+	return dst[0]
+}
+
+//go:noinline
+func overwriteCopyStack(depth int) byte {
+	var buf [1024]byte
+	for i := range buf {
+		buf[i] = 0xa5
+	}
+	if depth > 0 {
+		buf[0] ^= overwriteCopyStack(depth - 1)
+	}
+	runtime.KeepAlive(&buf)
+	return buf[depth&1023]
 }
