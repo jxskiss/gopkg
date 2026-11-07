@@ -3,6 +3,7 @@ package logid
 import (
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/jxskiss/gopkg/v2/internal/unsafeheader"
@@ -43,8 +44,8 @@ func NewV2Gen(ip net.IP) *V2Gen {
 //   - 1 byte version flag "2"
 //
 // e.g.
-//   - "1HMZ5YAD6041061072VFVV7C2J2"
-//   - "1HMZ5YAD6ZPYXR0802R01C00000000000JGCBDDWZEJH42"
+//   - "1hmz5yad6041061072vfvv7c2j2"
+//   - "1hmz5yad6zpyxr0802r01c00000000000jgcbddwzejh42"
 type V2Gen struct {
 	ipStr string
 }
@@ -77,7 +78,7 @@ func decodeV2Info(s string) (info *v2Info) {
 	if err != nil {
 		return
 	}
-	ip, err := b32Enc.DecodeString(s[9 : len(s)-11])
+	ip, err := b32Enc.DecodeString(strings.ToLower(s[9 : len(s)-11]))
 	if err != nil {
 		return
 	}

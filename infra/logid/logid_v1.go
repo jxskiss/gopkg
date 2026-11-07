@@ -51,7 +51,7 @@ func getMachineID() [16]byte {
 //   - 10 bytes random data
 //   - 1 byte version flag "1"
 //
-// e.g. "1HMZ5YAD5M0RY2MKE72XWXGSW140NFEAD8J1"
+// e.g. "1hmz5yad5m0ry2mke72xwxgsw140nfead8j1"
 type V1Gen struct {
 	machineID [16]byte
 }

@@ -34,7 +34,7 @@ func Gen() string {
 // Crockford's Base32 Encoding
 // https://www.crockford.com/base32.html
 var (
-	b32Chars = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+	b32Chars = "0123456789abcdefghjkmnpqrstvwxyz"
 	b32Enc   = base32.NewEncoding(b32Chars).WithPadding(base32.NoPadding)
 	b32Dec   = ""
 )
@@ -46,8 +46,8 @@ func init() {
 	}
 	for i, c := range b32Chars {
 		buf[c] = byte(i)
-		if c >= 'A' && c <= 'Z' {
-			buf[c+'a'-'A'] = byte(i)
+		if c >= 'a' && c <= 'z' {
+			buf[c+'A'-'a'] = byte(i)
 		}
 	}
 	b32Dec = string(buf)
@@ -91,6 +91,7 @@ func formatTime(t time.Time) string {
 const minLength = v2IPv4Length
 
 // Decode decodes a log ID string and returns the parsed information.
+// Base32 fields are decoded case-insensitively for compatibility with older IDs.
 func Decode(s string) (info Info) {
 	if len(s) >= minLength {
 		switch s[len(s)-1] {
@@ -113,8 +114,8 @@ type Info interface {
 
 	// String returns the human-friendly string representation of the log ID,
 	// e.g.
-	// "1|20240125.10:07:20.485+0800|M0RY2MKE72XWXGSW|140NFEAD8J"
-	// "2|20240125.10:07:20.486+0800|fdbd:dc01:16:16::94|CBDDWZEJH4"
+	// "1|20240125.10:07:20.485+0800|m0ry2mke72xwxgsw|140nfead8j"
+	// "2|20240125.10:07:20.486+0800|fdbd:dc01:16:16::94|cbddwzejh4"
 	String() string
 }
 

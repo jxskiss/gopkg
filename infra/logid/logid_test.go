@@ -1,13 +1,16 @@
 package logid
 
 import (
+	"net"
 	"runtime"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDefault(t *testing.T) {
@@ -28,6 +31,59 @@ func Test_encodeBase32(t *testing.T) {
 		got, err := decodeBase32(string(buf))
 		assert.Nil(t, err)
 		assert.Equal(t, x&mask50bits, got)
+	}
+}
+
+func TestGeneratorsLowercase(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		gen  Generator
+	}{
+		{"v1", NewV1Gen()},
+		{"v2_ipv4", NewV2Gen(net.ParseIP("192.168.254.253"))},
+		{"v2_ipv6", NewV2Gen(net.ParseIP("fdbd:dc01:16:16::94"))},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			id := tc.gen.Gen()
+			assert.Equal(t, strings.ToLower(id), id)
+			assert.True(t, Decode(id).Valid())
+		})
+	}
+}
+
+func TestDecodeCaseInsensitive(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		id   string
+		ip   string
+	}{
+		{"v1", "1HMZ5YAD5M0RY2MKE72XWXGSW140NFEAD8J1", ""},
+		{"v2_ipv4", "1HMZ5YAD5R2MFXZ8CBDDWZEJH42", "192.168.254.253"},
+		{"v2_ipv6", "1HMZ5YAD5ZPYXR0802R01C00000000000JGCBDDWZEJH42", "fdbd:dc01:16:16::94"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			mixed := []byte(tc.id)
+			for i := 0; i < len(mixed); i += 2 {
+				if mixed[i] >= 'A' && mixed[i] <= 'Z' {
+					mixed[i] += 'a' - 'A'
+				}
+			}
+			for _, id := range []string{tc.id, strings.ToLower(tc.id), string(mixed)} {
+				info := Decode(id)
+				require.True(t, info.Valid(), "id: %s", id)
+				if tc.ip == "" {
+					v1 := info.(V1Info)
+					assert.Equal(t, int64(1706148440485), v1.Time().UnixMilli())
+					assert.Equal(t, id[9:25], v1.MachineID())
+					assert.Equal(t, id[25:35], v1.Random())
+				} else {
+					v2 := info.(V2Info)
+					assert.Equal(t, int64(1706148440485), v2.Time().UnixMilli())
+					assert.Equal(t, tc.ip, v2.IP().String())
+					assert.Equal(t, id[len(id)-11:len(id)-1], v2.Random())
+				}
+			}
+		})
 	}
 }
 
