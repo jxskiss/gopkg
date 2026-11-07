@@ -20,7 +20,7 @@ func TestV2Gen(t *testing.T) {
 
 	info := Decode(gotLogId)
 	assert.True(t, info.Valid())
-	assert.Equal(t, byte(v2Version), info.Version())
+	assert.Equal(t, V2Version, info.Version())
 	assert.True(t, math.Abs(float64(info.(V2Info).Time().UnixMilli()-now)) <= 1)
 	assert.Equal(t, testIP, info.(V2Info).IP().String())
 

@@ -15,10 +15,12 @@ var _ V2Info = &v2Info{}
 // IPUnknown represents unknown IP address.
 const IPUnknown = "0000000"
 
+const V2Version byte = '2'
+
 const (
-	v2Version    = '2'
-	v2IPv4Length = 27
-	v2IPv6Length = 46
+	v2BaseLength = timestampLength + randomSuffixLength
+	v2IPv4Length = v2BaseLength + 7
+	v2IPv6Length = v2BaseLength + 26
 )
 
 // NewV2Gen creates a new v2 log ID generator.
@@ -35,35 +37,36 @@ func NewV2Gen(ip net.IP) *V2Gen {
 }
 
 // V2Gen is a v2 log ID generator.
+// A v2 log ID is 30 characters long for IPv4 or 49 characters long for IPv6.
 //
 // A v2 log ID is consisted by the following parts:
 //
 //   - 9 bytes milli timestamp, in base32 form
 //   - 7 bytes IPv4 address, or 26 bytes IPv6 address, in base32 form
-//   - 10 bytes random data
+//   - 13 bytes base32-encoded 64-bit random data
 //   - 1 byte version flag "2"
 //
 // e.g.
-//   - "1hmz5yad6041061072vfvv7c2j2"
-//   - "1hmz5yad6zpyxr0802r01c00000000000jgcbddwzejh42"
+//   - "1hmz5yad60410610fzzzzzzzzzzzz2"
+//   - "1hmz5yad6zpyxr0802r01c00000000000jg80000000000002"
 type V2Gen struct {
 	ipStr string
 }
 
 // Gen generates a new log ID string.
 func (p *V2Gen) Gen() string {
-	buf := make([]byte, 20+len(p.ipStr))
-	buf[len(buf)-1] = v2Version
+	buf := make([]byte, v2BaseLength+len(p.ipStr))
+	versionOffset := len(buf) - 1
+	randomOffset := len(buf) - randomSuffixLength
+	buf[versionOffset] = V2Version
 
 	// milli timestamp, fixed length, 9 bytes
-	encodeBase32(buf[0:9], time.Now().UnixMilli())
+	encodeBase32(buf[:timestampLength], uint64(time.Now().UnixMilli()))
 
-	// random bytes, fixed length, 10 bytes
-	randNum := rand50bits()
-	encodeBase32(buf[len(buf)-11:len(buf)-1], randNum)
+	encodeBase32(buf[randomOffset:versionOffset], rand64bits())
 
 	// ip address, 7 bytes for IPv4 or 26 bytes for IPv6
-	copy(buf[9:], p.ipStr)
+	copy(buf[timestampLength:randomOffset], p.ipStr)
 
 	return unsafeheader.BytesToString(buf)
 }
@@ -73,18 +76,20 @@ func decodeV2Info(s string) (info *v2Info) {
 	if len(s) != v2IPv4Length && len(s) != v2IPv6Length {
 		return
 	}
-	r := s[len(s)-11 : len(s)-1]
-	tMsec, err := decodeBase32(s[:9])
+	versionOffset := len(s) - 1
+	randomOffset := len(s) - randomSuffixLength
+	r := s[randomOffset:versionOffset]
+	tMsec, err := decodeBase32(s[:timestampLength])
 	if err != nil {
 		return
 	}
-	ip, err := b32Enc.DecodeString(strings.ToLower(s[9 : len(s)-11]))
+	ip, err := b32Enc.DecodeString(strings.ToLower(s[timestampLength:randomOffset]))
 	if err != nil {
 		return
 	}
 	*info = v2Info{
 		valid:  true,
-		time:   time.UnixMilli(tMsec),
+		time:   time.UnixMilli(int64(tMsec)),
 		ip:     ip,
 		random: r,
 	}
@@ -107,7 +112,7 @@ type v2Info struct {
 }
 
 func (info *v2Info) Valid() bool     { return info != nil && info.valid }
-func (info *v2Info) Version() byte   { return v2Version }
+func (info *v2Info) Version() byte   { return V2Version }
 func (info *v2Info) Time() time.Time { return info.time }
 func (info *v2Info) IP() net.IP      { return info.ip }
 func (info *v2Info) Random() string  { return info.random }

@@ -53,7 +53,7 @@ func init() {
 	b32Dec = string(buf)
 }
 
-func encodeBase32(b []byte, x int64) {
+func encodeBase32(b []byte, x uint64) {
 	i := len(b) - 1
 	for i >= 0 {
 		b[i] = b32Chars[x&31]
@@ -62,21 +62,24 @@ func encodeBase32(b []byte, x int64) {
 	}
 }
 
-func decodeBase32(b string) (x int64, err error) {
+func decodeBase32(b string) (x uint64, err error) {
 	for i, c := range b {
 		if b32Dec[c] == 0xff {
 			return 0, base32.CorruptInputError(i)
 		}
-		x = (x << 5) | int64(b32Dec[c])
+		x = (x << 5) | uint64(b32Dec[c])
 	}
 	return x, nil
 }
 
-const mask50bits = (1 << 50) - 1
+const (
+	timestampLength    = 9
+	randomLength       = 13
+	randomSuffixLength = randomLength + 1
+)
 
-func rand50bits() int64 {
-	x := fastrand.Uint64() & mask50bits
-	return int64(x)
+func rand64bits() uint64 {
+	return fastrand.Uint64()
 }
 
 // strTimeMilli is the time format used in string form of a log ID info.
@@ -91,13 +94,13 @@ func formatTime(t time.Time) string {
 const minLength = v2IPv4Length
 
 // Decode decodes a log ID string and returns the parsed information.
-// Base32 fields are decoded case-insensitively for compatibility with older IDs.
+// Base32 fields are decoded case-insensitively.
 func Decode(s string) (info Info) {
 	if len(s) >= minLength {
 		switch s[len(s)-1] {
-		case v1Version:
+		case V1Version:
 			return decodeV1Info(s)
-		case v2Version:
+		case V2Version:
 			return decodeV2Info(s)
 		}
 	}
@@ -114,8 +117,8 @@ type Info interface {
 
 	// String returns the human-friendly string representation of the log ID,
 	// e.g.
-	// "1|20240125.10:07:20.485+0800|m0ry2mke72xwxgsw|140nfead8j"
-	// "2|20240125.10:07:20.486+0800|fdbd:dc01:16:16::94|cbddwzejh4"
+	// "1|20240125.10:07:20.485+0800|m0ry2mke72xwxgsw|fzzzzzzzzzzzz"
+	// "2|20240125.10:07:20.486+0800|fdbd:dc01:16:16::94|8000000000000"
 	String() string
 }
 

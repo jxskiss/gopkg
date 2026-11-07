@@ -19,7 +19,7 @@ func TestV1Gen(t *testing.T) {
 
 	info := Decode(gotLogId)
 	assert.True(t, info.Valid())
-	assert.Equal(t, byte(v1Version), info.Version())
+	assert.Equal(t, V1Version, info.Version())
 	assert.True(t, math.Abs(float64(info.(V1Info).Time().UnixMilli()-now)) <= 1)
 	assert.Equal(t, machineID, info.(V1Info).MachineID())
 	assert.Contains(t, info.String(), machineID)

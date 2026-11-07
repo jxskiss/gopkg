@@ -13,9 +13,13 @@ import (
 var _ Generator = &V1Gen{}
 var _ V1Info = &v1Info{}
 
+const V1Version byte = '1'
+
 const (
-	v1Version = '1'
-	v1Length  = 36
+	v1MachineIDLength = 16
+	v1RandomOffset    = timestampLength + v1MachineIDLength
+	v1VersionOffset   = v1RandomOffset + randomLength
+	v1Length          = v1VersionOffset + 1
 )
 
 // NewV1Gen creates a new v1 log ID generator.
@@ -25,8 +29,8 @@ func NewV1Gen() *V1Gen {
 	}
 }
 
-func getMachineID() [16]byte {
-	var machineID [16]byte
+func getMachineID() [v1MachineIDLength]byte {
+	var machineID [v1MachineIDLength]byte
 	var mID [10]byte
 	if x, err := machineid.ID(); err == nil {
 		sum := md5.Sum([]byte(x))
@@ -42,34 +46,33 @@ func getMachineID() [16]byte {
 }
 
 // V1Gen is a v1 log ID generator.
+// A v1 log ID is 39 characters long.
 //
 // A v1 log ID is consisted of the following parts:
 //
 //   - 9 bytes milli timestamp, in base32 form
 //   - 16 bytes hash of the machine ID of current host if available,
 //     else 16 bytes random data
-//   - 10 bytes random data
+//   - 13 bytes base32-encoded 64-bit random data
 //   - 1 byte version flag "1"
 //
-// e.g. "1hmz5yad5m0ry2mke72xwxgsw140nfead8j1"
+// e.g. "1hmz5yad5m0ry2mke72xwxgswfzzzzzzzzzzzz1"
 type V1Gen struct {
-	machineID [16]byte
+	machineID [v1MachineIDLength]byte
 }
 
 // Gen generates a new log ID string.
 func (p *V1Gen) Gen() string {
 	buf := make([]byte, v1Length)
-	buf[len(buf)-1] = v1Version
+	buf[v1VersionOffset] = V1Version
 
 	// milli timestamp, fixed length, 9 bytes
-	encodeBase32(buf[0:9], time.Now().UnixMilli())
+	encodeBase32(buf[:timestampLength], uint64(time.Now().UnixMilli()))
 
-	// random bytes, fixed length, 10 bytes
-	randNum := rand50bits()
-	encodeBase32(buf[25:35], randNum)
+	encodeBase32(buf[v1RandomOffset:v1VersionOffset], rand64bits())
 
 	// machine ID, fixed length, 16 bytes
-	copy(buf[9:25], p.machineID[:])
+	copy(buf[timestampLength:v1RandomOffset], p.machineID[:])
 
 	return unsafeheader.BytesToString(buf)
 }
@@ -79,15 +82,15 @@ func decodeV1Info(s string) (info *v1Info) {
 	if len(s) != v1Length {
 		return
 	}
-	mID := s[9:25]
-	r := s[25:35]
-	tMsec, err := decodeBase32(s[:9])
+	mID := s[timestampLength:v1RandomOffset]
+	r := s[v1RandomOffset:v1VersionOffset]
+	tMsec, err := decodeBase32(s[:timestampLength])
 	if err != nil {
 		return
 	}
 	*info = v1Info{
 		valid:     true,
-		time:      time.UnixMilli(tMsec),
+		time:      time.UnixMilli(int64(tMsec)),
 		machineID: mID,
 		random:    r,
 	}
@@ -110,7 +113,7 @@ type v1Info struct {
 }
 
 func (info *v1Info) Valid() bool       { return info != nil && info.valid }
-func (info *v1Info) Version() byte     { return v1Version }
+func (info *v1Info) Version() byte     { return V1Version }
 func (info *v1Info) Time() time.Time   { return info.time }
 func (info *v1Info) MachineID() string { return info.machineID }
 func (info *v1Info) Random() string    { return info.random }
