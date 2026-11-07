@@ -52,7 +52,7 @@ func LazyString(f func() string) fmt.Stringer {
 type lazyString struct{ f func() string }
 
 func (x lazyString) String() string               { return x.f() }
-func (x lazyString) MarshalText() ([]byte, error) { return unsafeheader.StringToBytes(x.f()), nil }
+func (x lazyString) MarshalText() ([]byte, error) { return []byte(x.f()), nil }
 
 // Pretty converts given object to a pretty formatted JSON string.
 // If the input is a JSON string, it will be formatted using json.Indent

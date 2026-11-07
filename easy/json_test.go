@@ -1,6 +1,7 @@
 package easy
 
 import (
+	"encoding"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -45,6 +46,19 @@ func TestLazyString(t *testing.T) {
 	got1 := Pretty2(x)
 	got2 := fmt.Sprint(LazyString(func() string { return Pretty2(x) }))
 	assert.Equal(t, got1, got2)
+}
+
+func TestLazyStringMarshalTextOwnsBytes(t *testing.T) {
+	s := strings.Repeat("x", 8)
+	v := LazyString(func() string { return s })
+	buf, err := v.(encoding.TextMarshaler).MarshalText()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, "xxxxxxxx", string(buf))
+	buf[0] = 'Y'
+	assert.Equal(t, "xxxxxxxx", s)
+	assert.Equal(t, "xxxxxxxx", v.String())
 }
 
 var prettyTestWant = strings.TrimSpace(`

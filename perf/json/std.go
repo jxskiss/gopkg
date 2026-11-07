@@ -39,8 +39,7 @@ func (stdImpl) MarshalToString(v any) (string, error) {
 }
 
 func (stdImpl) UnmarshalFromString(data string, v any) error {
-	buf := unsafeheader.StringToBytes(data)
-	return json.Unmarshal(buf, v)
+	return json.Unmarshal([]byte(data), v)
 }
 
 func (stdImpl) Compact(dst *bytes.Buffer, src []byte) error {

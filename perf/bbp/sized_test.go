@@ -19,6 +19,29 @@ func TestGet(t *testing.T) {
 	t.Log(cap(buf))
 }
 
+func TestGetInvalidSize(t *testing.T) {
+	for _, tc := range []struct {
+		name             string
+		length, capacity int
+	}{
+		{"negative length", -1, 64},
+		{"negative capacity", 0, -1},
+		{"length exceeds requested capacity", 2, 1},
+		{"length exceeds pool size", 100, 64},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			Put(Get(0, 64))
+			assert.Panics(t, func() { Get(tc.length, tc.capacity) })
+		})
+	}
+}
+
+func TestToBufInvalidLength(t *testing.T) {
+	ptr := _toPtr(make([]byte, 64))
+	assert.Panics(t, func() { _toBuf(ptr, -1) })
+	assert.Panics(t, func() { _toBuf(ptr, 65) })
+}
+
 func Test_indexGet(t *testing.T) {
 	assert.Equal(t, 6, indexGet(63))
 	assert.Equal(t, 6, indexGet(64))

@@ -17,7 +17,11 @@ func ArrayAt(p unsafe.Pointer, i int, elemSize uintptr) unsafe.Pointer {
 }
 
 // MakeSlice makes a new slice of the given reflect.Type and length, capacity.
+// It panics if length or capacity is negative, or length exceeds capacity.
 func MakeSlice(elemTyp reflect.Type, length, capacity int) (slice any, header *SliceHeader) {
+	if length < 0 || capacity < length {
+		panic("reflectx.MakeSlice: invalid length or capacity")
+	}
 	elemRType := ToRType(elemTyp)
 	data := linkname.Reflect_unsafe_NewArray(unsafe.Pointer(elemRType), capacity)
 	header = &SliceHeader{

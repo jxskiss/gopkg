@@ -39,6 +39,21 @@ func TestMakeSlice(t *testing.T) {
 	assert.Equal(t, int64(0), getI64(ArrayAt(header.Data, 5, i64Size)))
 }
 
+func TestMakeSliceInvalidSize(t *testing.T) {
+	for _, tc := range []struct {
+		name             string
+		length, capacity int
+	}{
+		{"negative length", -1, 1},
+		{"negative capacity", 0, -1},
+		{"length exceeds capacity", 2, 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Panics(t, func() { MakeSlice(reflect.TypeOf(byte(0)), tc.length, tc.capacity) })
+		})
+	}
+}
+
 func TestMapLen(t *testing.T) {
 	m := make(map[int]bool)
 	assert.Equal(t, 0, MapLen(m))

@@ -2,6 +2,7 @@ package reflectx
 
 import (
 	"testing"
+	"unsafe"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -21,12 +22,22 @@ func TestIsNil(t *testing.T) {
 		{(*int)(nil), true},
 		{(*simple)(nil), true},
 		{error((*dummyError)(nil)), true},
+		{(chan int)(nil), true},
+		{(func())(nil), true},
+		{unsafe.Pointer(nil), true},
 		{map[string]int{}, false},
 		{[]string{}, false},
 		{1, false},
 		{"abc", false},
 		{simple{}, false},
 		{&simple{}, false},
+		{struct{ P *int }{}, false},
+		{[1]*int{}, false},
+		{struct{ M map[string]int }{}, false},
+		{[1]chan int{}, false},
+		{make(chan int), false},
+		{func() {}, false},
+		{unsafe.Pointer(new(int)), false},
 	}
 	for i, tc := range testcases {
 		got := IsNil(tc.v)

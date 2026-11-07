@@ -25,7 +25,11 @@ const (
 // Get returns a byte slice from the pool with specified length and capacity.
 // When you finish the work with the buffer, you may call Put to put it back
 // to the pool for reusing.
+// It panics if length or capacity is negative, or length exceeds capacity.
 func Get(length, capacity int) []byte {
+	if length < 0 || capacity < length {
+		panic("bbp.Get: invalid length or capacity")
+	}
 	if capacity > maxBufSize {
 		return make([]byte, length, capacity)
 	}
@@ -94,11 +98,7 @@ func (p *bufPool) Put(buf []byte) {
 
 func _toBuf(ptr unsafe.Pointer, length int) []byte {
 	size := *(*int)(ptr)
-	return *(*[]byte)(unsafe.Pointer(&unsafeheader.SliceHeader{
-		Data: ptr,
-		Len:  length,
-		Cap:  size,
-	}))
+	return unsafe.Slice((*byte)(ptr), size)[:length]
 }
 
 func _toPtr(buf []byte) unsafe.Pointer {

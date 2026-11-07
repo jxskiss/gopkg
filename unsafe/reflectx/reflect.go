@@ -5,16 +5,19 @@ import (
 	"unsafe"
 )
 
-// IsNil tells whether v is nil or the underlying data is nil.
+// IsNil tells whether v is nil or holds a nil value of a nil-capable type.
 func IsNil(v any) bool {
 	if v == nil {
 		return true
 	}
 	ef := EfaceOf(&v)
-	if ef.RType.Kind() == reflect.Slice {
+	switch ef.RType.Kind() {
+	case reflect.Slice:
 		return *(*unsafe.Pointer)(ef.Word) == nil
+	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.UnsafePointer:
+		return ef.Word == nil
 	}
-	return ef.Word == nil
+	return false
 }
 
 // IsIntType tells whether kind is an integer.
